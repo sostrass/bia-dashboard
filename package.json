@@ -29,6 +29,7 @@
     "recharts": "^2.13.3",
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7"
+    "serve": "^14.2.3"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",
