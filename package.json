@@ -6,7 +6,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "vite preview --port $PORT --host"
+    "start": "npx serve dist --listen $PORT"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.1",
