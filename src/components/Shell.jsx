@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useTheme } from '../App'
 import {
   LayoutDashboard, MessageSquare, Bell, Users, Package,
-  Bot, Settings, Sun, Moon, PhoneCall, Tag, ListOrdered
+  Bot, Settings, Sun, Moon, PhoneCall, Tag, ListOrdered, Send
 } from 'lucide-react'
 
 import PageDashboard    from '../pages/PageDashboard'
@@ -16,6 +16,7 @@ import PageHandoff      from '../pages/PageHandoff'
 import PageTags         from '../pages/PageTags'
 import PageFila         from '../pages/PageFila'
 import PageConfig       from '../pages/PageConfig'
+import PageEnvioMassa   from '../pages/PageEnvioMassa'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -28,6 +29,7 @@ const NAV = [
   { id:'contatos',     icon:Users,           label:'Contatos',           group:'main'   },
   { id:'tags',         icon:Tag,             label:'Tags & Segmentos',   group:'main'   },
   { id:'estoque',      icon:Package,         label:'Avise-me',           group:'main'   },
+  { id:'enviomassa',   icon:Send,            label:'Envio em Massa',     group:'main'   },
   { id:'agentes',      icon:Bot,             label:'Config IA',          group:'config' },
   { id:'multiagentes', icon:Bot,             label:'Múltiplos Agentes',  group:'config' },
   { id:'config',       icon:Settings,        label:'Configurações',      group:'config' },
@@ -74,6 +76,7 @@ export default function Shell() {
     contatos:     <PageContatos     api={API} />,
     tags:         <PageTags         api={API} />,
     estoque:      <PageEstoque      api={API} />,
+    enviomassa:   <PageEnvioMassa   api={API} />,
     agentes:      <PageAgentes      api={API} />,
     multiagentes: <PageAgentesMulti api={API} />,
     config:       <PageConfig       api={API} onToggleTheme={toggle} currentTheme={theme} />,
