@@ -71,6 +71,18 @@ export default function PageHandoff({ api }) {
       await fetch(`${api}/api/fase3/handoffs/${h.telefone}/atender`, { method: 'POST' })
       setSel(h)
       setHandoffs(prev => prev.filter(x => x.telefone !== h.telefone))
+      // Carrega histórico do cliente
+      carregarHistorico(h.telefone)
+    } catch {}
+  }
+
+  const carregarHistorico = async (telefone) => {
+    try {
+      const r = await fetch(`${api}/api/dashboard/historico/${telefone}`)
+      if (r.ok) {
+        const d = await r.json()
+        setHistorico(d.mensagens || [])
+      }
     } catch {}
   }
 
@@ -224,13 +236,52 @@ export default function PageHandoff({ api }) {
               </div>
             </div>
 
-            {/* \u00c1rea de conversa */}
-            <div className="flex-1 flex items-center justify-center" style={{ background: 'var(--bg)' }}>
-              <div className="text-center" style={{ color: 'var(--label-3)' }}>
-                <MessageSquare size={32} className="mx-auto mb-3 opacity-30" />
-                <p className="text-[13px]">Hist\u00f3rico carregado do painel de Conversas</p>
-                <p className="text-[11px] mt-1">Use o campo abaixo para responder ao cliente</p>
-              </div>
+            {/* Histórico real do cliente */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2" style={{ background: 'var(--bg)' }}>
+              {historico.length === 0 && (
+                <div className="flex items-center justify-center h-full" style={{ color: 'var(--label-3)' }}>
+                  <div className="text-center">
+                    <MessageSquare size={28} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-[12px]">Carregando histórico...</p>
+                  </div>
+                </div>
+              )}
+              {historico.map((m, i) => {
+                const isUser = m.direcao === 'entrada'
+                const isBot  = !isUser && (m.motor === 'gemini' || m.modo === 'auto')
+                const isMe   = !isUser && !isBot
+                return (
+                  <div key={m.id || i} className={`flex gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                    {!isUser && (
+                      <div className="rounded-full flex items-center justify-center font-semibold flex-shrink-0 text-[9px]"
+                        style={{ width:26, height:26, background: isBot ? 'var(--accent)' : 'var(--blue)', color:'#fff' }}>
+                        {isBot ? 'IA' : 'AT'}
+                      </div>
+                    )}
+                    <div className="max-w-[76%]">
+                      <div className="px-3.5 py-2.5 rounded-[16px] text-[13px] leading-relaxed whitespace-pre-line"
+                        style={{
+                          background: isUser ? 'var(--blue)' : isMe ? 'var(--bg-4)' : 'var(--bg-3)',
+                          color: isUser ? '#fff' : 'var(--label)',
+                          borderBottomLeftRadius: isBot ? 4 : 16,
+                          borderBottomRightRadius: isUser ? 4 : 16,
+                          border: (!isUser) ? '1px solid var(--sep)' : 'none',
+                        }}>
+                        {m.mensagem || m.conteudo || ''}
+                      </div>
+                      <div className={`text-[10px] mt-1 px-1 ${isUser ? 'text-right' : ''}`} style={{ color:'var(--label-3)' }}>
+                        {m.hora}
+                      </div>
+                    </div>
+                    {isUser && (
+                      <div className="rounded-full flex items-center justify-center font-semibold flex-shrink-0 text-[9px]"
+                        style={{ width:26, height:26, background:'var(--fill)', color:'var(--label-2)' }}>
+                        {(sel?.nome_cliente||sel?.nome_contato||'CL').slice(0,2).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
 
             {/* Input de resposta */}
