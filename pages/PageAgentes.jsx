@@ -5,12 +5,12 @@ import {
   DollarSign, Cpu, Info
 } from 'lucide-react'
 
-// ─── Catálogo de modelos com preços oficiais (Mai/2026) ───────────────────────
+// \u2500\u2500\u2500 Cat\u00e1logo de modelos com pre\u00e7os oficiais (Mai/2026) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 const MODELS = [
   {
     id: 'gemini-2.5-flash-lite',
     name: 'Gemini 2.5 Flash-Lite',
-    desc: 'Mais econômico — ideal para alto volume',
+    desc: 'Mais econ\u00f4mico \u2014 ideal para alto volume',
     badge: 'Mais barato',
     badgeColor: 'var(--accent)',
     level: 2,
@@ -24,7 +24,7 @@ const MODELS = [
   {
     id: 'gemini-2.5-flash',
     name: 'Gemini 2.5 Flash',
-    desc: 'Melhor custo-benefício para produção',
+    desc: 'Melhor custo-benef\u00edcio para produ\u00e7\u00e3o',
     badge: 'Recomendado',
     badgeColor: 'var(--blue)',
     level: 3,
@@ -38,7 +38,7 @@ const MODELS = [
   {
     id: 'gemini-2.5-pro',
     name: 'Gemini 2.5 Pro',
-    desc: 'Máxima inteligência e raciocínio complexo',
+    desc: 'M\u00e1xima intelig\u00eancia e racioc\u00ednio complexo',
     badge: 'Premium',
     badgeColor: 'var(--purple)',
     level: 5,
@@ -47,13 +47,13 @@ const MODELS = [
     outputPer1M: 10.00,
     freeTier: false,
     context: '1M tokens',
-    note: '2× o preço acima de 200k tokens',
+    note: '2\u00d7 o pre\u00e7o acima de 200k tokens',
     deprecated: false,
   },
   {
     id: 'gemini-2.0-flash',
     name: 'Gemini 2.0 Flash',
-    desc: 'Descontinuado — migre para 2.5 Flash',
+    desc: 'Descontinuado \u2014 migre para 2.5 Flash',
     badge: 'Descontinuado',
     badgeColor: 'var(--red)',
     level: 2,
@@ -67,7 +67,7 @@ const MODELS = [
   },
 ]
 
-// Estimativas baseadas em 300 tokens entrada + 200 tokens saída por mensagem
+// Estimativas baseadas em 300 tokens entrada + 200 tokens sa\u00edda por mensagem
 function custoPorMsg(m) {
   const v = (300 / 1e6) * m.inputPer1M + (200 / 1e6) * m.outputPer1M
   return v < 0.0001 ? '< $0,0001' : `$${v.toFixed(4)}`
@@ -80,27 +80,27 @@ function custoMensalNum(m, qtd = 1000) {
   return ((300 / 1e6) * m.inputPer1M + (200 / 1e6) * m.outputPer1M) * qtd
 }
 
-const DEF_PERSONA = `Você é Bia, assistente virtual especializada em acessórios de armarinho e bijuterias. Você é simpática, objetiva e resolve tudo sem precisar de humanos.
+const DEF_PERSONA = `Voc\u00ea \u00e9 Bia, assistente virtual especializada em acess\u00f3rios de armarinho e bijuterias. Voc\u00ea \u00e9 simp\u00e1tica, objetiva e resolve tudo sem precisar de humanos.
 
 Ao atender:
 - Apresente-se pelo nome na primeira mensagem
 - Use linguagem leve e acolhedora
-- Seja rápida e objetiva — máximo 3 parágrafos
-- Nunca diga "não posso" — você sempre resolve
+- Seja r\u00e1pida e objetiva \u2014 m\u00e1ximo 3 par\u00e1grafos
+- Nunca diga "n\u00e3o posso" \u2014 voc\u00ea sempre resolve
 - Verifique estoque antes de confirmar disponibilidade`
 
 const DEF_QR = [
-  { id: 1, trigger: 'prazo de entrega', text: 'O prazo é de 5 a 10 dias úteis via Correios. Para capitais, 2 a 5 dias.' },
-  { id: 2, trigger: 'frete grátis',     text: 'Frete grátis para compras acima de R$ 150,00 para todo o Brasil!' },
-  { id: 3, trigger: 'troca devolução',  text: 'Você tem 7 dias após o recebimento para solicitar troca ou devolução. Me informe o número do pedido!' },
+  { id: 1, trigger: 'prazo de entrega', text: 'O prazo \u00e9 de 5 a 10 dias \u00fateis via Correios. Para capitais, 2 a 5 dias.' },
+  { id: 2, trigger: 'frete gr\u00e1tis',     text: 'Frete gr\u00e1tis para compras acima de R$ 150,00 para todo o Brasil!' },
+  { id: 3, trigger: 'troca devolu\u00e7\u00e3o',  text: 'Voc\u00ea tem 7 dias ap\u00f3s o recebimento para solicitar troca ou devolu\u00e7\u00e3o. Me informe o n\u00famero do pedido!' },
 ]
 
 const DEF_BH = [
-  { id: 'emoji',     label: 'Usar emojis',                         desc: 'Inclui emojis moderados para mensagens mais amigáveis',   on: true  },
+  { id: 'emoji',     label: 'Usar emojis',                         desc: 'Inclui emojis moderados para mensagens mais amig\u00e1veis',   on: true  },
   { id: 'proactive', label: 'Perguntar se precisa de mais ajuda',  desc: 'Ao finalizar, sempre pergunta se pode ajudar em mais algo', on: true  },
   { id: 'upsell',    label: 'Sugerir produtos relacionados',       desc: 'Sugere itens complementares ao produto consultado',        on: false },
-  { id: 'review',    label: 'Solicitar avaliação após entrega',    desc: 'Pede nota automaticamente 24h após confirmação de entrega', on: true  },
-  { id: 'escalate',  label: 'Escalar para humano se insatisfeito', desc: 'Notifica equipe após 2 tentativas frustradas',             on: false },
+  { id: 'review',    label: 'Solicitar avalia\u00e7\u00e3o ap\u00f3s entrega',    desc: 'Pede nota automaticamente 24h ap\u00f3s confirma\u00e7\u00e3o de entrega', on: true  },
+  { id: 'escalate',  label: 'Escalar para humano se insatisfeito', desc: 'Notifica equipe ap\u00f3s 2 tentativas frustradas',             on: false },
   { id: 'formal',    label: 'Tom formal',                          desc: 'Linguagem mais profissional e formal nas respostas',       on: false },
 ]
 
@@ -108,7 +108,7 @@ const SECTIONS = [
   { id: 'persona',   icon: Bot,        label: 'Persona' },
   { id: 'modelo',    icon: Brain,      label: 'Modelo IA' },
   { id: 'custos',    icon: DollarSign, label: 'Custos' },
-  { id: 'respostas', icon: Zap,        label: 'Respostas Rápidas' },
+  { id: 'respostas', icon: Zap,        label: 'Respostas R\u00e1pidas' },
   { id: 'regras',    icon: Shield,     label: 'Regras' },
   { id: 'tempos',    icon: Clock,      label: 'Tempos' },
 ]
@@ -138,7 +138,7 @@ export default function PageAgentes({ api }) {
   const [model,      setModel]     = useState('gemini-2.5-flash')
   const [temp,       setTemp]      = useState(70)
   const [apiKey,     setApiKey]    = useState('')
-  const [savedKey,   setSavedKey]  = useState('')   // máscara ex: "***4Abc"
+  const [savedKey,   setSavedKey]  = useState('')   // m\u00e1scara ex: "***4Abc"
   const [showKey,    setShowKey]   = useState(false)
   const [nome,       setNome]      = useState('Bia')
   const [loja,       setLoja]      = useState('Armarinhos & Bijuterias')
@@ -155,7 +155,7 @@ export default function PageAgentes({ api }) {
   const [keyStatus,  setKeyStatus] = useState('idle') // idle | testing | ok | error
   const [saveMsg,    setSaveMsg]   = useState('')
 
-  // ── Carrega configurações do PostgreSQL ao montar ─────────────────────────
+  // \u2500\u2500 Carrega configura\u00e7\u00f5es do PostgreSQL ao montar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   useEffect(() => {
     ;(async () => {
       try {
@@ -167,7 +167,7 @@ export default function PageAgentes({ api }) {
         if (d.nome)        setNome(d.nome)
         if (d.loja)        setLoja(d.loja)
         if (d.persona)     setPersona(d.persona)
-        if (d.geminiKey)   setSavedKey(d.geminiKey) // já vem mascarado do server
+        if (d.geminiKey)   setSavedKey(d.geminiKey) // j\u00e1 vem mascarado do server
         if (d.quickReplies) {
           try { const q = JSON.parse(d.quickReplies); if (Array.isArray(q)) setQrs(q) } catch {}
         }
@@ -179,7 +179,7 @@ export default function PageAgentes({ api }) {
     })()
   }, [api])
 
-  // ── Salva tudo no PostgreSQL ───────────────────────────────────────────────
+  // \u2500\u2500 Salva tudo no PostgreSQL \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   const save = async () => {
     setSaving(true)
     try {
@@ -204,7 +204,7 @@ export default function PageAgentes({ api }) {
         setApiKey('')
       }
       setSaved(true)
-      setSaveMsg('Configurações salvas com sucesso!')
+      setSaveMsg('Configura\u00e7\u00f5es salvas com sucesso!')
       setTimeout(() => { setSaved(false); setSaveMsg('') }, 3000)
     } catch (e) {
       setSaveMsg('Erro ao salvar: ' + e.message)
@@ -212,7 +212,7 @@ export default function PageAgentes({ api }) {
     } finally { setSaving(false) }
   }
 
-  // ── Testa a chave Gemini via backend ─────────────────────────────────────
+  // \u2500\u2500 Testa a chave Gemini via backend \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   const testKey = async () => {
     const key = apiKey.trim()
     if (!key) return
@@ -251,7 +251,7 @@ export default function PageAgentes({ api }) {
     return (
       <div className="h-full flex items-center justify-center gap-3" style={{ color: 'var(--label-3)' }}>
         <RefreshCw size={16} className="animate-spin" />
-        <span className="text-[14px]">Carregando configurações...</span>
+        <span className="text-[14px]">Carregando configura\u00e7\u00f5es...</span>
       </div>
     )
   }
@@ -259,13 +259,13 @@ export default function PageAgentes({ api }) {
   return (
     <div className="h-full flex overflow-hidden">
 
-      {/* ── Sidebar ── */}
+      {/* \u2500\u2500 Sidebar \u2500\u2500 */}
       <aside className="w-[210px] flex-shrink-0 flex flex-col overflow-hidden"
         style={{ background: 'var(--bg-2)', borderRight: '1px solid var(--sep)' }}>
 
         <div className="px-4 py-4" style={{ borderBottom: '1px solid var(--sep)' }}>
           <div className="text-[17px] font-semibold" style={{ color: 'var(--label)' }}>Agentes IA</div>
-          <div className="text-[11px] mt-0.5" style={{ color: 'var(--label-3)' }}>Comportamento e configuração</div>
+          <div className="text-[11px] mt-0.5" style={{ color: 'var(--label-3)' }}>Comportamento e configura\u00e7\u00e3o</div>
         </div>
 
         <nav className="flex-1 overflow-y-auto py-2">
@@ -297,11 +297,11 @@ export default function PageAgentes({ api }) {
               {custoPorMsg(selectedModel)}/msg
             </div>
             <div className="text-[11px]" style={{ color: 'var(--label-3)' }}>
-              {custoMensal(selectedModel, msgsMes)}/mês ({msgsMes.toLocaleString()} msgs)
+              {custoMensal(selectedModel, msgsMes)}/m\u00eas ({msgsMes.toLocaleString()} msgs)
             </div>
           </div>
 
-          {/* Botão salvar */}
+          {/* Bot\u00e3o salvar */}
           <button onClick={save} disabled={saving}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-[10px] text-[13px] font-semibold mt-2 transition-all"
             style={{
@@ -311,7 +311,7 @@ export default function PageAgentes({ api }) {
             }}>
             {saving ? <><RefreshCw size={13} className="animate-spin" />Salvando...</>
               : saved ? <><Check size={13} />Salvo!</>
-              : <>Salvar Configurações</>}
+              : <>Salvar Configura\u00e7\u00f5es</>}
           </button>
 
           {saveMsg && (
@@ -322,11 +322,11 @@ export default function PageAgentes({ api }) {
         </div>
       </aside>
 
-      {/* ── Conteúdo ── */}
+      {/* \u2500\u2500 Conte\u00fado \u2500\u2500 */}
       <div className="flex-1 overflow-y-auto p-6" style={{ background: 'var(--bg)' }}>
         <div className="max-w-3xl mx-auto space-y-5">
 
-          {/* ══ PERSONA ══ */}
+          {/* \u2550\u2550 PERSONA \u2550\u2550 */}
           {sec === 'persona' && <>
             <div>
               <h2 className="text-[20px] font-bold tracking-tight" style={{ color: 'var(--label)' }}>Persona & Identidade</h2>
@@ -387,7 +387,7 @@ export default function PageAgentes({ api }) {
                     )}
                     {keyStatus === 'idle' && !savedKey && !apiKey && (
                       <><span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--orange)' }} />
-                      <span className="text-[10px]" style={{ color: 'var(--orange)' }}>Cole sua chave — aistudio.google.com</span></>
+                      <span className="text-[10px]" style={{ color: 'var(--orange)' }}>Cole sua chave \u2014 aistudio.google.com</span></>
                     )}
                     {keyStatus === 'testing' && (
                       <><RefreshCw size={10} className="animate-spin" style={{ color: 'var(--label-3)' }} />
@@ -395,11 +395,11 @@ export default function PageAgentes({ api }) {
                     )}
                     {keyStatus === 'ok' && (
                       <><span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--accent)' }} />
-                      <span className="text-[10px]" style={{ color: 'var(--accent)' }}>✓ Chave válida e funcional</span></>
+                      <span className="text-[10px]" style={{ color: 'var(--accent)' }}>\u2713 Chave v\u00e1lida e funcional</span></>
                     )}
                     {keyStatus === 'error' && (
                       <><span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--red)' }} />
-                      <span className="text-[10px]" style={{ color: 'var(--red)' }}>✗ Chave inválida — verifique no aistudio.google.com</span></>
+                      <span className="text-[10px]" style={{ color: 'var(--red)' }}>\u2717 Chave inv\u00e1lida \u2014 verifique no aistudio.google.com</span></>
                     )}
                   </div>
                 </div>
@@ -411,9 +411,9 @@ export default function PageAgentes({ api }) {
                 <div className="space-y-2">
                   {[
                     { r: 'u', t: 'Oi, tem linha de bordado?' },
-                    { r: 'b', t: `Olá! Sou ${nome || 'Bia'} da ${loja || 'nossa loja'}! 😊 Temos linha de bordado em várias espessuras. Qual tipo procura?` },
-                    { r: 'u', t: 'Nº 8 branca' },
-                    { r: 'b', t: 'Linha Nº 8 Branca — R$ 4,90/novelo. Faço o pedido para você?' },
+                    { r: 'b', t: `Ol\u00e1! Sou ${nome || 'Bia'} da ${loja || 'nossa loja'}! \ud83d\ude0a Temos linha de bordado em v\u00e1rias espessuras. Qual tipo procura?` },
+                    { r: 'u', t: 'N\u00ba 8 branca' },
+                    { r: 'b', t: 'Linha N\u00ba 8 Branca \u2014 R$ 4,90/novelo. Fa\u00e7o o pedido para voc\u00ea?' },
                   ].map((m, i) => (
                     <div key={i} className={`flex ${m.r === 'b' ? 'justify-start' : 'justify-end'}`}>
                       <div className="max-w-[88%] px-3 py-2 rounded-[14px] text-[11px] leading-relaxed"
@@ -435,12 +435,12 @@ export default function PageAgentes({ api }) {
             {/* System Prompt */}
             <div className="card p-5">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-[14px] font-semibold" style={{ color: 'var(--label)' }}>System Prompt — Ensine a IA</h3>
+                <h3 className="text-[14px] font-semibold" style={{ color: 'var(--label)' }}>System Prompt \u2014 Ensine a IA</h3>
                 <span className="text-[11px]" style={{ color: 'var(--label-3)' }}>{persona.length} caracteres</span>
               </div>
               <p className="text-[12px] mb-3" style={{ color: 'var(--label-3)' }}>
-                Escreva como a IA deve se comportar, o tom de voz, regras de atendimento e o que não deve dizer.
-                Alterações têm efeito imediato após salvar.
+                Escreva como a IA deve se comportar, o tom de voz, regras de atendimento e o que n\u00e3o deve dizer.
+                Altera\u00e7\u00f5es t\u00eam efeito imediato ap\u00f3s salvar.
               </p>
               <textarea value={persona} onChange={e => setPersona(e.target.value)} rows={10}
                 style={{ ...inp, fontFamily: 'monospace', fontSize: 11, lineHeight: 1.75, resize: 'none' }}
@@ -449,12 +449,12 @@ export default function PageAgentes({ api }) {
             </div>
           </>}
 
-          {/* ══ MODELO ══ */}
+          {/* \u2550\u2550 MODELO \u2550\u2550 */}
           {sec === 'modelo' && <>
             <div>
-              <h2 className="text-[20px] font-bold tracking-tight" style={{ color: 'var(--label)' }}>Modelo de Inteligência</h2>
+              <h2 className="text-[20px] font-bold tracking-tight" style={{ color: 'var(--label)' }}>Modelo de Intelig\u00eancia</h2>
               <p className="text-[13px] mt-0.5" style={{ color: 'var(--label-3)' }}>
-                Preços oficiais Gemini API — Mai/2026 · Estimativa: 300 tokens entrada + 200 saída/mensagem
+                Pre\u00e7os oficiais Gemini API \u2014 Mai/2026 \u00b7 Estimativa: 300 tokens entrada + 200 sa\u00edda/mensagem
               </p>
             </div>
 
@@ -463,8 +463,8 @@ export default function PageAgentes({ api }) {
               style={{ background: 'rgba(255,69,58,0.06)', border: '1px solid rgba(255,69,58,0.18)' }}>
               <AlertTriangle size={15} style={{ color: 'var(--red)', flexShrink: 0, marginTop: 1 }} />
               <p className="text-[12px]" style={{ color: 'var(--label-2)' }}>
-                <strong style={{ color: 'var(--red)' }}>Gemini 2.0 Flash</strong> foi descontinuado e será encerrado em 1 de junho de 2026.
-                Migre para <strong>Gemini 2.5 Flash</strong> — mesmo custo, mais inteligente.
+                <strong style={{ color: 'var(--red)' }}>Gemini 2.0 Flash</strong> foi descontinuado e ser\u00e1 encerrado em 1 de junho de 2026.
+                Migre para <strong>Gemini 2.5 Flash</strong> \u2014 mesmo custo, mais inteligente.
               </p>
             </div>
 
@@ -491,7 +491,7 @@ export default function PageAgentes({ api }) {
                         )}
                       </div>
                       <div className="text-[12px] mt-0.5" style={{ color: 'var(--label-3)' }}>{m.desc}</div>
-                      {m.note && <div className="text-[10px] mt-1" style={{ color: 'var(--orange)' }}>⚠ {m.note}</div>}
+                      {m.note && <div className="text-[10px] mt-1" style={{ color: 'var(--orange)' }}>\u26a0 {m.note}</div>}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full"
@@ -513,13 +513,13 @@ export default function PageAgentes({ api }) {
                     </div>
                   </div>
 
-                  {/* Grid de preços */}
+                  {/* Grid de pre\u00e7os */}
                   <div className="grid grid-cols-4 gap-2 mb-3">
                     {[
                       { l: 'Entrada/1M tokens', v: `$${m.inputPer1M.toFixed(2)}` },
-                      { l: 'Saída/1M tokens',   v: `$${m.outputPer1M.toFixed(2)}` },
+                      { l: 'Sa\u00edda/1M tokens',   v: `$${m.outputPer1M.toFixed(2)}` },
                       { l: 'Por mensagem',       v: custoPorMsg(m) },
-                      { l: `${msgsMes.toLocaleString()} msgs/mês`, v: custoMensal(m, msgsMes) },
+                      { l: `${msgsMes.toLocaleString()} msgs/m\u00eas`, v: custoMensal(m, msgsMes) },
                     ].map((p, i) => (
                       <div key={i} className="rounded-[8px] p-2.5 text-center"
                         style={{ background: 'var(--bg-3)', border: '1px solid var(--sep)' }}>
@@ -548,7 +548,7 @@ export default function PageAgentes({ api }) {
                   <div className="text-[15px] font-semibold" style={{ color: 'var(--label)' }}>Estimativa de Volume</div>
                   <div className="text-[12px] mt-0.5" style={{ color: 'var(--label-3)' }}>Ajuste para ver o custo mensal estimado</div>
                 </div>
-                <span className="text-[18px] font-bold" style={{ color: 'var(--label)' }}>{msgsMes.toLocaleString()} msgs/mês</span>
+                <span className="text-[18px] font-bold" style={{ color: 'var(--label)' }}>{msgsMes.toLocaleString()} msgs/m\u00eas</span>
               </div>
               <input type="range" min={100} max={10000} step={100} value={msgsMes}
                 onChange={e => setMsgsMes(parseInt(e.target.value))}
@@ -557,14 +557,14 @@ export default function PageAgentes({ api }) {
                 <span>100</span><span>5.000</span><span>10.000</span>
               </div>
 
-              {/* Comparativo rápido */}
+              {/* Comparativo r\u00e1pido */}
               <div className="grid grid-cols-3 gap-3 mt-4">
                 {MODELS.filter(m => !m.deprecated).map(m => (
                   <div key={m.id} className="rounded-[10px] p-3 text-center"
                     style={{ background: model === m.id ? `color-mix(in srgb, ${m.c} 10%, var(--bg-3))` : 'var(--bg-3)', border: `1px solid ${model === m.id ? m.c : 'var(--sep)'}` }}>
                     <div className="text-[11px] font-semibold mb-1" style={{ color: 'var(--label-2)' }}>{m.name.replace('Gemini ', '')}</div>
                     <div className="text-[18px] font-bold" style={{ color: m.c }}>{custoMensal(m, msgsMes)}</div>
-                    <div className="text-[9px] mt-0.5" style={{ color: 'var(--label-3)' }}>estimado/mês</div>
+                    <div className="text-[9px] mt-0.5" style={{ color: 'var(--label-3)' }}>estimado/m\u00eas</div>
                   </div>
                 ))}
               </div>
@@ -575,7 +575,7 @@ export default function PageAgentes({ api }) {
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <div className="text-[15px] font-semibold" style={{ color: 'var(--label)' }}>Criatividade das Respostas</div>
-                  <div className="text-[12px] mt-0.5" style={{ color: 'var(--label-3)' }}>Temperatura — quanto maior, mais criativo</div>
+                  <div className="text-[12px] mt-0.5" style={{ color: 'var(--label-3)' }}>Temperatura \u2014 quanto maior, mais criativo</div>
                 </div>
                 <span className="text-[24px] font-bold" style={{ color: 'var(--accent)' }}>{temp}%</span>
               </div>
@@ -590,7 +590,7 @@ export default function PageAgentes({ api }) {
             </div>
           </>}
 
-          {/* ══ CUSTOS ══ */}
+          {/* \u2550\u2550 CUSTOS \u2550\u2550 */}
           {sec === 'custos' && <>
             <div>
               <h2 className="text-[20px] font-bold tracking-tight" style={{ color: 'var(--label)' }}>Dashboard de Gastos</h2>
@@ -603,8 +603,8 @@ export default function PageAgentes({ api }) {
             <div className="grid grid-cols-3 gap-4">
               {[
                 { l: 'Custo estimado hoje',    v: `$${custoMensalNum(selectedModel, 247/30).toFixed(4)}`, sub: '247 msgs hoje', c: 'var(--label)' },
-                { l: 'Custo estimado este mês', v: `$${custoMensalNum(selectedModel, 4200).toFixed(2)}`,   sub: '~4.200 msgs/mês', c: 'var(--blue)' },
-                { l: 'Projeção anual',          v: `$${(custoMensalNum(selectedModel, 4200)*12).toFixed(2)}`, sub: 'baseado no mês atual', c: 'var(--purple)' },
+                { l: 'Custo estimado este m\u00eas', v: `$${custoMensalNum(selectedModel, 4200).toFixed(2)}`,   sub: '~4.200 msgs/m\u00eas', c: 'var(--blue)' },
+                { l: 'Proje\u00e7\u00e3o anual',          v: `$${(custoMensalNum(selectedModel, 4200)*12).toFixed(2)}`, sub: 'baseado no m\u00eas atual', c: 'var(--purple)' },
               ].map((k, i) => (
                 <div key={i} className="card p-4">
                   <div className="text-[11px] mb-1" style={{ color: 'var(--label-3)' }}>{k.l}</div>
@@ -617,7 +617,7 @@ export default function PageAgentes({ api }) {
             {/* Comparativo por modelo */}
             <div className="card p-5">
               <h3 className="text-[15px] font-semibold mb-4" style={{ color: 'var(--label)' }}>
-                Comparativo de Custo — 4.200 msgs/mês
+                Comparativo de Custo \u2014 4.200 msgs/m\u00eas
               </h3>
               <div className="space-y-3">
                 {MODELS.filter(m => !m.deprecated).map(m => {
@@ -628,7 +628,7 @@ export default function PageAgentes({ api }) {
                     <div key={m.id}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[12px] font-medium" style={{ color: 'var(--label)' }}>{m.name}</span>
-                        <span className="text-[13px] font-bold" style={{ color: m.c }}>${custo.toFixed(2)}/mês</span>
+                        <span className="text-[13px] font-bold" style={{ color: m.c }}>${custo.toFixed(2)}/m\u00eas</span>
                       </div>
                       <div className="h-2 rounded-full" style={{ background: 'var(--sep)' }}>
                         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: m.c }} />
@@ -641,8 +641,8 @@ export default function PageAgentes({ api }) {
                 style={{ background: 'var(--accent-dim)', border: '1px solid var(--accent-border)' }}>
                 <Info size={13} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: 1 }} />
                 <p className="text-[11px]" style={{ color: 'var(--label-2)' }}>
-                  Estimativas baseadas em 300 tokens de entrada e 200 de saída por mensagem. O custo real varia conforme o
-                  tamanho do histórico de contexto e o uso de ferramentas (buscas no Bling/Nuvemshop).
+                  Estimativas baseadas em 300 tokens de entrada e 200 de sa\u00edda por mensagem. O custo real varia conforme o
+                  tamanho do hist\u00f3rico de contexto e o uso de ferramentas (buscas no Bling/Nuvemshop).
                 </p>
               </div>
             </div>
@@ -652,9 +652,9 @@ export default function PageAgentes({ api }) {
               <h3 className="text-[15px] font-semibold mb-4" style={{ color: 'var(--label)' }}>Dicas de Economia</h3>
               <div className="space-y-3">
                 {[
-                  { icon: Brain,      title: 'Use Gemini 2.5 Flash',          desc: 'Mesmo custo que o Flash-Lite, mas muito mais inteligente para atendimento. A melhor relação custo-benefício.', saving: 'Até 90% mais barato que Pro' },
-                  { icon: Cpu,        title: 'Limite o histórico de contexto', desc: 'O sistema já mantém apenas as últimas 20 mensagens. Diminuir para 10 reduz custo em ~30% por conversa longa.', saving: '~30% de economia' },
-                  { icon: TrendingUp, title: 'Respostas Rápidas',              desc: 'Configure respostas para perguntas comuns (prazo, frete). A IA usa direto, sem chamar o modelo para perguntas simples.', saving: 'Evita chamadas desnecessárias' },
+                  { icon: Brain,      title: 'Use Gemini 2.5 Flash',          desc: 'Mesmo custo que o Flash-Lite, mas muito mais inteligente para atendimento. A melhor rela\u00e7\u00e3o custo-benef\u00edcio.', saving: 'At\u00e9 90% mais barato que Pro' },
+                  { icon: Cpu,        title: 'Limite o hist\u00f3rico de contexto', desc: 'O sistema j\u00e1 mant\u00e9m apenas as \u00faltimas 20 mensagens. Diminuir para 10 reduz custo em ~30% por conversa longa.', saving: '~30% de economia' },
+                  { icon: TrendingUp, title: 'Respostas R\u00e1pidas',              desc: 'Configure respostas para perguntas comuns (prazo, frete). A IA usa direto, sem chamar o modelo para perguntas simples.', saving: 'Evita chamadas desnecess\u00e1rias' },
                 ].map((d, i) => (
                   <div key={i} className="flex items-start gap-3 p-3 rounded-[10px]"
                     style={{ background: 'var(--bg-3)', border: '1px solid var(--sep)' }}>
@@ -672,12 +672,12 @@ export default function PageAgentes({ api }) {
             </div>
           </>}
 
-          {/* ══ RESPOSTAS RÁPIDAS ══ */}
+          {/* \u2550\u2550 RESPOSTAS R\u00c1PIDAS \u2550\u2550 */}
           {sec === 'respostas' && <>
             <div>
-              <h2 className="text-[20px] font-bold tracking-tight" style={{ color: 'var(--label)' }}>Respostas Rápidas</h2>
+              <h2 className="text-[20px] font-bold tracking-tight" style={{ color: 'var(--label)' }}>Respostas R\u00e1pidas</h2>
               <p className="text-[13px] mt-0.5" style={{ color: 'var(--label-3)' }}>
-                A IA usa estas respostas ao detectar palavras-chave nas mensagens dos clientes — economiza tokens e responde mais rápido
+                A IA usa estas respostas ao detectar palavras-chave nas mensagens dos clientes \u2014 economiza tokens e responde mais r\u00e1pido
               </p>
             </div>
 
@@ -685,12 +685,12 @@ export default function PageAgentes({ api }) {
             <div className="card p-5 space-y-3"
               style={{ border: '1px solid var(--accent)', background: 'var(--accent-dim)' }}>
               <h3 className="text-[14px] font-semibold flex items-center gap-2" style={{ color: 'var(--accent)' }}>
-                <Plus size={14} /> Nova Resposta Rápida
+                <Plus size={14} /> Nova Resposta R\u00e1pida
               </h3>
               <div>
                 <Label>Palavra-chave ou frase do cliente</Label>
                 <input value={ntrig} onChange={e => setNtrig(e.target.value)}
-                  placeholder='Ex: "prazo de entrega", "frete grátis", "como rastrear"'
+                  placeholder='Ex: "prazo de entrega", "frete gr\u00e1tis", "como rastrear"'
                   style={inp} onFocus={onFocus} onBlur={onBlur}
                   onKeyDown={e => e.key === 'Enter' && document.getElementById('nrep')?.focus()}
                 />
@@ -698,7 +698,7 @@ export default function PageAgentes({ api }) {
               <div>
                 <Label>Resposta da IA</Label>
                 <textarea id="nrep" value={nrep} onChange={e => setNrep(e.target.value)} rows={3}
-                  placeholder="Resposta que a IA enviará ao detectar a palavra-chave..."
+                  placeholder="Resposta que a IA enviar\u00e1 ao detectar a palavra-chave..."
                   style={{ ...inp, resize: 'none', lineHeight: 1.6 }} onFocus={onFocus} onBlur={onBlur}
                 />
               </div>
@@ -718,7 +718,7 @@ export default function PageAgentes({ api }) {
               {qrs.length === 0 && (
                 <div className="text-center py-8" style={{ color: 'var(--label-3)' }}>
                   <Zap size={24} className="mx-auto mb-2 opacity-40" />
-                  <p className="text-[13px]">Nenhuma resposta rápida cadastrada</p>
+                  <p className="text-[13px]">Nenhuma resposta r\u00e1pida cadastrada</p>
                 </div>
               )}
               {qrs.map(r => (
@@ -740,11 +740,11 @@ export default function PageAgentes({ api }) {
             </div>
           </>}
 
-          {/* ══ REGRAS ══ */}
+          {/* \u2550\u2550 REGRAS \u2550\u2550 */}
           {sec === 'regras' && <>
             <div>
               <h2 className="text-[20px] font-bold tracking-tight" style={{ color: 'var(--label)' }}>Regras de Comportamento</h2>
-              <p className="text-[13px] mt-0.5" style={{ color: 'var(--label-3)' }}>Ative ou desative comportamentos específicos da IA</p>
+              <p className="text-[13px] mt-0.5" style={{ color: 'var(--label-3)' }}>Ative ou desative comportamentos espec\u00edficos da IA</p>
             </div>
             <div className="card overflow-hidden">
               {bhs.map((b, i) => (
@@ -762,20 +762,20 @@ export default function PageAgentes({ api }) {
             </div>
           </>}
 
-          {/* ══ TEMPOS ══ */}
+          {/* \u2550\u2550 TEMPOS \u2550\u2550 */}
           {sec === 'tempos' && <>
             <div>
-              <h2 className="text-[20px] font-bold tracking-tight" style={{ color: 'var(--label)' }}>Configurações de Tempo</h2>
-              <p className="text-[13px] mt-0.5" style={{ color: 'var(--label-3)' }}>Controle o ritmo do atendimento automático</p>
+              <h2 className="text-[20px] font-bold tracking-tight" style={{ color: 'var(--label)' }}>Configura\u00e7\u00f5es de Tempo</h2>
+              <p className="text-[13px] mt-0.5" style={{ color: 'var(--label-3)' }}>Controle o ritmo do atendimento autom\u00e1tico</p>
             </div>
             <div className="card p-5 grid grid-cols-2 gap-5">
               {[
-                { l: 'Delay mínimo de resposta (ms)', v: '800',  d: 'Simula digitação humana — evita parecer um bot' },
-                { l: 'Debounce — aguardar cliente (ms)', v: '3000', d: 'Aguarda X ms antes de responder, caso cliente envie mais mensagens' },
-                { l: 'Timeout de sessão (min)',        v: '60',   d: 'Limpa histórico após inatividade' },
-                { l: 'Lembrete pagamento pendente (h)', v: '2',   d: 'Reenvio automático do link de pagamento' },
-                { l: 'Avaliação após entrega (h)',     v: '24',   d: 'Solicita nota do cliente automaticamente' },
-                { l: 'Delay envio em massa (ms)',      v: '1500', d: 'Entre cada envio — respeita rate limit do WhatsApp' },
+                { l: 'Delay m\u00ednimo de resposta (ms)', v: '800',  d: 'Simula digita\u00e7\u00e3o humana \u2014 evita parecer um bot' },
+                { l: 'Debounce \u2014 aguardar cliente (ms)', v: '3000', d: 'Aguarda X ms antes de responder, caso cliente envie mais mensagens' },
+                { l: 'Timeout de sess\u00e3o (min)',        v: '60',   d: 'Limpa hist\u00f3rico ap\u00f3s inatividade' },
+                { l: 'Lembrete pagamento pendente (h)', v: '2',   d: 'Reenvio autom\u00e1tico do link de pagamento' },
+                { l: 'Avalia\u00e7\u00e3o ap\u00f3s entrega (h)',     v: '24',   d: 'Solicita nota do cliente automaticamente' },
+                { l: 'Delay envio em massa (ms)',      v: '1500', d: 'Entre cada envio \u2014 respeita rate limit do WhatsApp' },
               ].map((f, i) => (
                 <div key={i}>
                   <Label>{f.l}</Label>
