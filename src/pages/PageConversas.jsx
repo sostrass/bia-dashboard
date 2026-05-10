@@ -100,35 +100,41 @@ export default function PageConversas({ api }) {
   }, [carregarConversas])
 
   // Carrega histórico de um contato
-  const carregarHistorico = useCallback(async (telefone) => {
-    setLoadingHist(true)
-    setMsgs([])
+  const carregarHistorico = useCallback(async (telefone, inicial = false) => {
+    if (inicial) { setLoadingHist(true); setMsgs([]) }
     try {
       const r = await fetch(`${api}/api/dashboard/historico/${telefone}`)
       if (r.ok) {
         const d = await r.json()
-        // Converte formato do banco para formato da UI
         const convertidas = (d.mensagens || []).map(m => ({
-          r: m.direcao === 'entrada' ? 'u' : m.motor === 'gemini' || m.motor === 'ia' || m.modo === 'auto' ? 'b' : 'm',
-          t: m.mensagem || m.conteudo || '',
+          // direcao='entrada' = cliente (u), direcao='saida' + modo='auto' = IA (b), saida + modo='manual' = atendente (m)
+          r: m.direcao === 'entrada' ? 'u' : m.modo === 'manual' ? 'm' : 'b',
+          t: m.mensagem || '',
           h: m.hora || '--:--',
-          ia: m.motor === 'gemini' || m.motor === 'ia',
+          ia: m.direcao === 'saida' && m.modo !== 'manual',
           status: m.direcao === 'saida' ? 'delivered' : undefined,
         }))
-        setMsgs(convertidas)
-        setTimeout(() => chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' }), 100)
+        setMsgs(prev => {
+          if (convertidas.length !== prev.length) {
+            if (inicial || convertidas.length > prev.length) {
+              setTimeout(() => chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' }), 100)
+            }
+            return convertidas
+          }
+          return prev
+        })
       }
     } catch (e) {
-      console.error('Erro histórico:', e)
+      console.error('Erro historico:', e)
     } finally {
-      setLoadingHist(false)
+      if (inicial) setLoadingHist(false)
     }
   }, [api])
 
   // Atualiza histórico automaticamente
   useEffect(() => {
     if (!sel) return
-    const i = setInterval(() => carregarHistorico(sel.telefone), 5000)
+    const i = setInterval(() => carregarHistorico(sel.telefone, false), 5000)
     return () => clearInterval(i)
   }, [sel?.telefone, carregarHistorico])
 
@@ -136,7 +142,7 @@ export default function PageConversas({ api }) {
 
   const selectConv = useCallback((c) => {
     setSel(c)
-    carregarHistorico(c.telefone)
+    carregarHistorico(c.telefone, true)
     setInput('')
     setUsedSugs(new Set())
     setShowEmoji(false)
@@ -176,7 +182,7 @@ export default function PageConversas({ api }) {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ telefone: sel.telefone, mensagem: t })
       })
-      setTimeout(() => carregarHistorico(sel.telefone), 1500)
+      setTimeout(() => carregarHistorico(sel.telefone, false), 1500)
     } catch {}
     setSending(false)
   }
@@ -261,7 +267,7 @@ export default function PageConversas({ api }) {
                     <span className="text-[10px] flex-shrink-0 ml-2" style={{ color:'var(--label-3)' }}>{hora}</span>
                   </div>
                   <div className="text-[11px] truncate mt-0.5" style={{ color:'var(--label-3)' }}>
-                    {c.ultima_direcao === 'saida' ? '↩ ' : ''}{c.ultima_mensagem?.slice(0,45) || '...'}
+                    {c.ultima_direcao === 'saida' ? '↩ ' : ''}{c.ultima_mensagem ? c.ultima_mensagem.slice(0,45) : `${c.total_msgs} mensagens`}
                   </div>
                   <div className="flex items-center gap-1.5 mt-1">
                     <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full"

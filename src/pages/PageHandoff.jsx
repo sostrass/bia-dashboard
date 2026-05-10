@@ -76,15 +76,24 @@ export default function PageHandoff({ api }) {
     } catch {}
   }
 
-  const carregarHistorico = async (telefone) => {
+  const carregarHistorico = async (telefone, inicial = true) => {
     try {
       const r = await fetch(`${api}/api/dashboard/historico/${telefone}`)
       if (r.ok) {
         const d = await r.json()
-        setHistorico(d.mensagens || [])
+        const msgs = d.mensagens || []
+        // Só atualiza se mudou — evita piscar
+        setHistorico(prev => msgs.length !== prev.length ? msgs : prev)
       }
     } catch {}
   }
+
+  // Polling silencioso do histórico quando está em atendimento
+  useEffect(() => {
+    if (!sel) return
+    const i = setInterval(() => carregarHistorico(sel.telefone, false), 5000)
+    return () => clearInterval(i)
+  }, [sel?.telefone])
 
   const retomarIA = async (telefone) => {
     if (!retornoMsg.trim()) return
@@ -248,8 +257,8 @@ export default function PageHandoff({ api }) {
               )}
               {historico.map((m, i) => {
                 const isUser = m.direcao === 'entrada'
-                const isBot  = !isUser && (m.motor === 'gemini' || m.modo === 'auto')
-                const isMe   = !isUser && !isBot
+                const isBot  = m.direcao === 'saida' && m.modo !== 'manual'
+                const isMe   = m.direcao === 'saida' && m.modo === 'manual' 
                 return (
                   <div key={m.id || i} className={`flex gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
                     {!isUser && (
