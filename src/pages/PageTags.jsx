@@ -1,231 +1,286 @@
-import { useState, useEffect } from 'react'
-import { Tag, Users, Send, RefreshCw, Plus, X } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Tag, Plus, Trash2, RefreshCw, Users, X, GripVertical, Check } from 'lucide-react'
 
-const TAG_CORES = {
-  'interesse:': '#BF5AF2',
-  'comprador:': '#32D74B',
-  'ticket:':    '#FFD60A',
-  'avaliacao:': '#FF9F0A',
-  'devolucao:': '#FF453A',
-  'pagamento:': '#0A84FF',
-  'carrinho:':  '#5AC8FA',
-  'avise:':     '#FF9F0A',
-  'vip':        '#FFD60A',
-}
+const BASE = import.meta.env.VITE_API_URL || ''
+
+const TAG_CORES = [
+  { bg: 'rgba(10,132,255,0.12)',  color: '#0A84FF', border: 'rgba(10,132,255,0.3)'  },
+  { bg: 'rgba(50,215,75,0.12)',   color: '#32D74B', border: 'rgba(50,215,75,0.3)'   },
+  { bg: 'rgba(191,90,242,0.12)',  color: '#BF5AF2', border: 'rgba(191,90,242,0.3)'  },
+  { bg: 'rgba(255,159,10,0.12)',  color: '#FF9F0A', border: 'rgba(255,159,10,0.3)'  },
+  { bg: 'rgba(255,69,58,0.12)',   color: '#FF453A', border: 'rgba(255,69,58,0.3)'   },
+  { bg: 'rgba(100,210,255,0.12)', color: '#64D2FF', border: 'rgba(100,210,255,0.3)' },
+  { bg: 'rgba(255,214,10,0.12)',  color: '#FFD60A', border: 'rgba(255,214,10,0.3)'  },
+  { bg: 'rgba(172,142,104,0.12)', color: '#AC8E68', border: 'rgba(172,142,104,0.3)' },
+]
 
 function tagCor(tag) {
-  for (const [prefix, cor] of Object.entries(TAG_CORES)) {
-    if (tag.startsWith(prefix) || tag === prefix.replace(':','')) return cor
-  }
-  return '#636366'
+  let h = 0
+  for (let c of tag) h = (h * 31 + c.charCodeAt(0)) % TAG_CORES.length
+  return TAG_CORES[Math.abs(h)]
 }
 
-function TagBadge({ tag, onRemove }) {
-  const cor = tagCor(tag)
-  return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
-      style={{ background: `${cor}18`, color: cor, border: `1px solid ${cor}35` }}>
-      {tag}
-      {onRemove && (
-        <button onClick={() => onRemove(tag)}
-          className="hover:opacity-70 transition-opacity">
-          <X size={10} />
-        </button>
-      )}
-    </span>
-  )
-}
+export default function PageTags({ api: apiProp }) {
+  const api = apiProp || BASE
 
-export default function PageTags({ api }) {
-  const [tags,      setTags]      = useState([])
-  const [selTag,    setSelTag]    = useState(null)
-  const [contatos,  setContatos]  = useState([])
-  const [loading,   setLoading]   = useState(true)
-  const [massaMsg,  setMassaMsg]  = useState('')
-  const [sending,   setSending]   = useState(false)
+  const [tags,        setTags]        = useState([])
+  const [tagSel,      setTagSel]      = useState(null)
+  const [contatos,    setContatos]    = useState([])
+  const [loading,     setLoading]     = useState(true)
+  const [loadingC,    setLoadingC]    = useState(false)
+  const [novaTag,     setNovaTag]     = useState('')
+  const [novaDesc,    setNovaDesc]    = useState('')
+  const [criando,     setCriando]     = useState(false)
+  const [showForm,    setShowForm]    = useState(false)
+  const [dragOver,    setDragOver]    = useState(null)
+  const [dragging,    setDragging]    = useState(null)
+  const [confirmDel,  setConfirmDel]  = useState(null)
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const r = await fetch(`${api}/api/fase5/tags`)
-        if (r.ok) {
-          const d = await r.json()
-          setTags(d.tags || [])
-        }
-      } catch {}
-      finally { setLoading(false) }
-    }
-    load()
-  }, [api])
-
-  const carregarContatos = async (tag) => {
-    setSelTag(tag)
+  const carregar = async () => {
     try {
-      const r = await fetch(`${api}/api/fase5/tags/${encodeURIComponent(tag)}/contatos`)
+      const r = await fetch(`${api}/api/fase5/tags`)
       if (r.ok) {
         const d = await r.json()
-        setContatos(d.contatos || [])
+        setTags(d.tags || [])
+        if (!tagSel && d.tags?.length) setTagSel(d.tags[0].tag)
       }
+    } catch {}
+    setLoading(false)
+  }
+
+  useEffect(() => { carregar() }, [api])
+
+  useEffect(() => {
+    if (!tagSel) return
+    setLoadingC(true)
+    fetch(`${api}/api/fase5/tags/${encodeURIComponent(tagSel)}/contatos`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { setContatos(d?.contatos || []); setLoadingC(false) })
+      .catch(() => setLoadingC(false))
+  }, [tagSel, api])
+
+  const criarTag = async () => {
+    if (!novaTag.trim()) return
+    setCriando(true)
+    try {
+      await fetch(`${api}/api/fase5/tags/criar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tag: novaTag.trim().toLowerCase().replace(/\s+/g, ':'), descricao: novaDesc.trim() })
+      })
+      setNovaTag(''); setNovaDesc(''); setShowForm(false)
+      await carregar()
+    } catch {}
+    setCriando(false)
+  }
+
+  const excluirTag = async (tag) => {
+    try {
+      await fetch(`${api}/api/fase5/tags/${encodeURIComponent(tag)}`, { method: 'DELETE' })
+      setConfirmDel(null)
+      if (tagSel === tag) setTagSel(null)
+      await carregar()
     } catch {}
   }
 
-  const dispararMassa = async () => {
-    if (!massaMsg.trim() || !selTag) return
-    setSending(true)
+  const moverContato = async (telefone, tagDestino) => {
+    if (!dragging || tagDestino === tagSel) return
     try {
-      const r = await fetch(`${api}/api/contatos/enviar-massa`, {
+      // Remove da tag atual
+      await fetch(`${api}/api/fase5/tags/${encodeURIComponent(telefone)}/${encodeURIComponent(tagSel)}`, {
+        method: 'DELETE'
+      })
+      // Adiciona na tag destino
+      await fetch(`${api}/api/fase5/tags/aplicar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tag: selTag, mensagem: massaMsg })
+        body: JSON.stringify({ telefone, tags: [tagDestino] })
       })
-      const d = await r.json()
-      alert(`Disparando para ${d.total} contatos com a tag "${selTag}"!`)
-      setMassaMsg('')
-    } catch { alert('Erro ao disparar.') }
-    setSending(false)
+      setContatos(prev => prev.filter(c => c.telefone !== telefone))
+    } catch {}
+    setDragging(null); setDragOver(null)
   }
 
-  const inp = { background:'var(--bg-3)', border:'1px solid var(--sep)', borderRadius:10, color:'var(--label)', outline:'none', padding:'9px 12px', fontSize:13, fontFamily:'inherit', transition:'border-color .15s', width:'100%' }
-  const focus = e => e.target.style.borderColor = 'var(--accent)'
-  const blur  = e => e.target.style.borderColor = 'var(--sep)'
+  const removerContatoDaTag = async (telefone) => {
+    try {
+      await fetch(`${api}/api/fase5/tags/${encodeURIComponent(telefone)}/${encodeURIComponent(tagSel)}`, {
+        method: 'DELETE'
+      })
+      setContatos(prev => prev.filter(c => c.telefone !== telefone))
+    } catch {}
+  }
 
-  if (loading) return (
-    <div className="h-full flex items-center justify-center gap-3" style={{ color: 'var(--label-3)' }}>
-      <RefreshCw size={16} className="animate-spin" /> Carregando tags...
-    </div>
-  )
+  const tagAtual = tags.find(t => t.tag === tagSel)
 
   return (
-    <div className="h-full flex overflow-hidden">
+    <div className="h-full flex overflow-hidden" style={{ background: 'var(--bg)' }}>
 
-      {/* Tags sidebar */}
-      <div className="w-[240px] flex-shrink-0 flex flex-col overflow-hidden"
+      {/* Lista de tags */}
+      <div className="w-[260px] flex-shrink-0 flex flex-col"
         style={{ background: 'var(--bg-2)', borderRight: '1px solid var(--sep)' }}>
+
         <div className="px-4 py-4" style={{ borderBottom: '1px solid var(--sep)' }}>
-          <h2 className="text-[17px] font-semibold" style={{ color: 'var(--label)' }}>Tags Automáticas</h2>
-          <p className="text-[11px] mt-0.5" style={{ color: 'var(--label-3)' }}>Geradas pela IA automaticamente</p>
-        </div>
-        <div className="overflow-y-auto flex-1 py-2">
-          {tags.length === 0 && (
-            <div className="px-4 py-8 text-center" style={{ color: 'var(--label-3)' }}>
-              <Tag size={24} className="mx-auto mb-2 opacity-30" />
-              <p className="text-[12px]">Nenhuma tag ainda</p>
-              <p className="text-[11px] mt-1">Tags aparecem conforme os clientes interagem</p>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="text-[17px] font-semibold" style={{ color: 'var(--label)' }}>Tags</h2>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--label-3)' }}>
+                {tags.length} segmentos
+              </p>
+            </div>
+            <button onClick={() => setShowForm(v => !v)}
+              className="p-2 rounded-[8px] transition-all"
+              style={{ background: showForm ? 'var(--accent-dim)' : 'var(--fill)', color: showForm ? 'var(--accent)' : 'var(--label-3)' }}>
+              <Plus size={14} />
+            </button>
+          </div>
+
+          {/* Form nova tag */}
+          {showForm && (
+            <div className="space-y-2">
+              <input value={novaTag} onChange={e => setNovaTag(e.target.value)}
+                placeholder="nome:subtipo (ex: vip, interesse:perolas)"
+                onKeyDown={e => e.key === 'Enter' && criarTag()}
+                className="w-full px-3 py-2 rounded-[9px] text-[12px] outline-none"
+                style={{ background: 'var(--bg-3)', border: '1px solid var(--sep)', color: 'var(--label)' }} />
+              <input value={novaDesc} onChange={e => setNovaDesc(e.target.value)}
+                placeholder="Descrição (opcional)"
+                className="w-full px-3 py-2 rounded-[9px] text-[12px] outline-none"
+                style={{ background: 'var(--bg-3)', border: '1px solid var(--sep)', color: 'var(--label)' }} />
+              <button onClick={criarTag} disabled={!novaTag.trim() || criando}
+                className="w-full py-2 rounded-[9px] text-[12px] font-semibold"
+                style={{ background: 'var(--accent)', color: '#000', opacity: !novaTag.trim() ? 0.5 : 1 }}>
+                {criando ? 'Criando...' : 'Criar tag'}
+              </button>
             </div>
           )}
-          {/* Tags demo se não tiver dados reais */}
-          {tags.length === 0 && [
-            { tag: 'interesse:bijuterias', total: 24 },
-            { tag: 'interesse:perolas', total: 18 },
-            { tag: 'comprador:frequente', total: 12 },
-            { tag: 'comprador:novo', total: 31 },
-            { tag: 'vip', total: 7 },
-            { tag: 'ticket:alto', total: 9 },
-            { tag: 'avaliacao:positiva', total: 45 },
-            { tag: 'interesse:atacado', total: 6 },
-            { tag: 'devolucao:historico', total: 4 },
-            { tag: 'avise:estoque', total: 11 },
-          ].map(t => (
-            <button key={t.tag} onClick={() => carregarContatos(t.tag)}
-              className="w-full flex items-center justify-between px-4 py-2.5 border-l-2 transition-all text-left"
-              style={{
-                borderLeftColor: selTag === t.tag ? tagCor(t.tag) : 'transparent',
-                background: selTag === t.tag ? `${tagCor(t.tag)}10` : 'transparent',
-              }}>
-              <TagBadge tag={t.tag} />
-              <span className="text-[11px] font-semibold" style={{ color: 'var(--label-3)' }}>{t.total}</span>
-            </button>
-          ))}
-          {tags.map(t => (
-            <button key={t.tag} onClick={() => carregarContatos(t.tag)}
-              className="w-full flex items-center justify-between px-4 py-2.5 border-l-2 transition-all text-left"
-              style={{
-                borderLeftColor: selTag === t.tag ? tagCor(t.tag) : 'transparent',
-                background: selTag === t.tag ? `${tagCor(t.tag)}10` : 'transparent',
-              }}>
-              <TagBadge tag={t.tag} />
-              <span className="text-[11px] font-semibold" style={{ color: 'var(--label-3)' }}>{t.total}</span>
-            </button>
-          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto py-2">
+          {loading && (
+            <div className="flex justify-center py-6" style={{ color: 'var(--label-3)' }}>
+              <RefreshCw size={14} className="animate-spin" />
+            </div>
+          )}
+          {tags.map(t => {
+            const cor = tagCor(t.tag)
+            const ativa = tagSel === t.tag
+            return (
+              <div key={t.tag}
+                onDragOver={e => { e.preventDefault(); setDragOver(t.tag) }}
+                onDragLeave={() => setDragOver(null)}
+                onDrop={() => moverContato(dragging, t.tag)}
+                className="group relative"
+                style={{ background: dragOver === t.tag ? cor.bg : 'transparent' }}>
+                <button onClick={() => setTagSel(t.tag)}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left border-l-2 transition-all"
+                  style={{
+                    borderLeftColor: ativa ? cor.color : 'transparent',
+                    background: ativa ? cor.bg : 'transparent',
+                  }}>
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cor.color }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-medium truncate" style={{ color: 'var(--label)' }}>{t.tag}</div>
+                    <div className="text-[11px]" style={{ color: 'var(--label-3)' }}>{t.total || 0} contatos</div>
+                  </div>
+                  {confirmDel === t.tag ? (
+                    <div className="flex gap-1">
+                      <button onClick={e => { e.stopPropagation(); excluirTag(t.tag) }}
+                        className="px-2 py-0.5 rounded text-[10px] font-bold"
+                        style={{ background: 'var(--red)', color: '#fff' }}>Sim</button>
+                      <button onClick={e => { e.stopPropagation(); setConfirmDel(null) }}
+                        className="px-2 py-0.5 rounded text-[10px]"
+                        style={{ background: 'var(--fill)', color: 'var(--label-2)' }}>Não</button>
+                    </div>
+                  ) : (
+                    <button onClick={e => { e.stopPropagation(); setConfirmDel(t.tag) }}
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded transition-opacity"
+                      style={{ color: 'var(--label-3)' }}>
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </button>
+              </div>
+            )
+          })}
         </div>
       </div>
 
-      {/* Conteúdo */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-5" style={{ background: 'var(--bg)' }}>
-        {!selTag ? (
-          <div className="h-full flex flex-col items-center justify-center" style={{ color: 'var(--label-3)' }}>
-            <Tag size={32} className="mb-3 opacity-30" />
-            <p className="text-[14px] font-medium" style={{ color: 'var(--label-2)' }}>Selecione uma tag para ver os contatos</p>
-            <p className="text-[12px] mt-1">As tags são aplicadas automaticamente pela IA durante as conversas</p>
+      {/* Contatos da tag selecionada */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {!tagSel ? (
+          <div className="flex-1 flex items-center justify-center" style={{ color: 'var(--label-3)' }}>
+            <div className="text-center">
+              <Tag size={28} className="mx-auto mb-2 opacity-30" />
+              <p className="text-[13px]">Selecione uma tag</p>
+            </div>
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between">
+            <div className="px-6 py-4 flex items-center justify-between"
+              style={{ borderBottom: '1px solid var(--sep)', background: 'var(--bg-2)' }}>
               <div className="flex items-center gap-3">
-                <TagBadge tag={selTag} />
+                <div className="w-3 h-3 rounded-full" style={{ background: tagCor(tagSel).color }} />
                 <div>
-                  <h2 className="text-[18px] font-bold" style={{ color: 'var(--label)' }}>
-                    {contatos.length || '–'} contatos
-                  </h2>
-                  <p className="text-[12px]" style={{ color: 'var(--label-3)' }}>com a tag "{selTag}"</p>
+                  <h3 className="text-[16px] font-semibold" style={{ color: 'var(--label)' }}>{tagSel}</h3>
+                  <p className="text-[11px]" style={{ color: 'var(--label-3)' }}>
+                    {contatos.length} contatos · Arraste para mover entre tags
+                  </p>
                 </div>
+              </div>
+              <div className="text-[11px] px-3 py-1.5 rounded-full"
+                style={{ background: 'var(--fill)', color: 'var(--label-3)', border: '1px solid var(--sep)' }}>
+                <GripVertical size={12} className="inline mr-1" />
+                Arraste para outra tag
               </div>
             </div>
 
-            {/* Envio em massa segmentado */}
-            <div className="card p-5 space-y-3"
-              style={{ border: `1px solid ${tagCor(selTag)}30`, background: `${tagCor(selTag)}06` }}>
-              <h3 className="text-[14px] font-semibold flex items-center gap-2" style={{ color: tagCor(selTag) }}>
-                <Send size={14} /> Disparar para este segmento
-              </h3>
-              <textarea value={massaMsg} onChange={e => setMassaMsg(e.target.value)} rows={3}
-                placeholder={`Mensagem para clientes com tag "${selTag}"...\nUse {{nome}} para personalizar`}
-                style={{ ...inp, resize: 'none', lineHeight: 1.6 }}
-                onFocus={focus} onBlur={blur} />
-              <div className="flex items-center justify-between">
-                <span className="text-[12px]" style={{ color: 'var(--label-3)' }}>
-                  {contatos.length || '–'} destinatários · Delay 1.5s entre envios
-                </span>
-                <button onClick={dispararMassa} disabled={!massaMsg.trim() || sending}
-                  className="flex items-center gap-2 px-4 py-2 rounded-[10px] text-[13px] font-semibold transition-all"
-                  style={{ background: tagCor(selTag), color: '#000', opacity: (!massaMsg.trim() || sending) ? 0.5 : 1 }}>
-                  {sending ? <RefreshCw size={13} className="animate-spin" /> : <Send size={13} />}
-                  Disparar
-                </button>
-              </div>
-            </div>
-
-            {/* Lista de contatos */}
-            <div className="card overflow-hidden">
-              <div className="px-5 py-3 border-b" style={{ borderColor: 'var(--sep)' }}>
-                <span className="text-[13px] font-semibold" style={{ color: 'var(--label)' }}>Contatos neste segmento</span>
-              </div>
-              {(contatos.length ? contatos : [
-                { telefone:'11 9xxxx-4821', nome:'Maria F.', tags:['interesse:bijuterias','comprador:frequente'], ltv:'289,90', total_msgs:12 },
-                { telefone:'85 9xxxx-5512', nome:'Lucia M.',  tags:['interesse:bijuterias','vip'],                ltv:'621,00', total_msgs:22 },
-                { telefone:'11 9xxxx-2255', nome:'Carla R.',  tags:['interesse:bijuterias','interesse:atacado'],  ltv:'380,00', total_msgs:31 },
-              ]).map((c, i) => (
-                <div key={i} className="flex items-center gap-4 px-5 py-3 transition-all"
-                  style={{ borderBottom: '1px solid var(--sep)' }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--fill)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
-                    style={{ background: tagCor(selTag), color: '#000' }}>
-                    {(c.nome||'CL').slice(0,2).toUpperCase()}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-[13px] font-semibold" style={{ color: 'var(--label)' }}>{c.nome || 'Cliente'}</div>
-                    <div className="text-[11px] font-mono" style={{ color: 'var(--label-3)' }}>{c.telefone}</div>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 max-w-[200px] justify-end">
-                    {(c.tags || []).slice(0,3).map(t => <TagBadge key={t} tag={t} />)}
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className="text-[12px] font-semibold" style={{ color: 'var(--accent)' }}>R$ {c.ltv || '0,00'}</div>
-                    <div className="text-[10px]" style={{ color: 'var(--label-3)' }}>{c.total_msgs || 0} msgs</div>
-                  </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {loadingC ? (
+                <div className="flex justify-center py-8" style={{ color: 'var(--label-3)' }}>
+                  <RefreshCw size={14} className="animate-spin" />
                 </div>
-              ))}
+              ) : contatos.length === 0 ? (
+                <div className="flex flex-col items-center py-16" style={{ color: 'var(--label-3)' }}>
+                  <Users size={28} className="mb-2 opacity-30" />
+                  <p className="text-[13px]">Nenhum contato nesta tag</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {contatos.map(c => {
+                    const cor = tagCor(tagSel)
+                    return (
+                      <div key={c.telefone}
+                        draggable
+                        onDragStart={() => setDragging(c.telefone)}
+                        onDragEnd={() => { setDragging(null); setDragOver(null) }}
+                        className="group flex items-center gap-3 p-3 rounded-[12px] cursor-grab active:cursor-grabbing transition-all"
+                        style={{
+                          background: dragging === c.telefone ? cor.bg : 'var(--bg-2)',
+                          border: `1px solid ${dragging === c.telefone ? cor.border : 'var(--sep)'}`,
+                        }}>
+                        <GripVertical size={12} style={{ color: 'var(--label-3)', flexShrink: 0 }} />
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                          style={{ background: cor.bg, color: cor.color }}>
+                          {(c.nome || c.telefone).slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[12px] font-medium truncate" style={{ color: 'var(--label)' }}>
+                            {c.nome || 'Sem nome'}
+                          </div>
+                          <div className="text-[10px] font-mono truncate" style={{ color: 'var(--label-3)' }}>
+                            {c.telefone}
+                          </div>
+                        </div>
+                        <button onClick={() => removerContatoDaTag(c.telefone)}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded transition-opacity flex-shrink-0"
+                          style={{ color: 'var(--label-3)' }}>
+                          <X size={11} />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </>
         )}

@@ -76,6 +76,7 @@ export default function PageConversas({ api }) {
   const [usedSugs,  setUsedSugs]  = useState(new Set())
   const [showEmoji, setShowEmoji] = useState(false)
   const [showMedia, setShowMedia] = useState(false)
+  const [statusConv, setStatusConv] = useState({}) // { telefone: 'pendente'|'concluida' }
   const [mediaUrl,  setMediaUrl]  = useState('')
   const [mediaTipo, setMediaTipo] = useState('image')
   const [loadingHist, setLoadingHist] = useState(false)
@@ -320,6 +321,23 @@ export default function PageConversas({ api }) {
               </button>
             </div>
 
+            {/* Status da conversa */}
+            <div className="flex gap-1">
+              {['pendente','concluida'].map(s => (
+                <button key={s} onClick={() => setStatusConv(prev => ({ ...prev, [sel.telefone]: s }))}
+                  className="text-[10px] font-semibold px-2.5 py-1 rounded-full transition-all"
+                  style={{
+                    background: statusConv[sel.telefone] === s || (!statusConv[sel.telefone] && s === 'pendente')
+                      ? s === 'concluida' ? 'rgba(50,215,75,0.15)' : 'rgba(255,159,10,0.15)'
+                      : 'var(--fill)',
+                    color: statusConv[sel.telefone] === s || (!statusConv[sel.telefone] && s === 'pendente')
+                      ? s === 'concluida' ? 'var(--accent)' : 'var(--orange)'
+                      : 'var(--label-3)',
+                  }}>
+                  {s === 'pendente' ? '⏳ Pendente' : '✅ Concluída'}
+                </button>
+              ))}
+            </div>
             {(() => { const tc=TIPO_CFG[detectarTipo(sel.tags||[])]; return (
               <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
                 style={{ background:tc.bg, color:tc.color }}>{tc.label}</span>
