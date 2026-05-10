@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
-import { Clock, Users, Zap, CheckCircle, RefreshCw, ArrowUp } from 'lucide-react'
+import { Clock, Users, Zap, CheckCircle, RefreshCw, ArrowUp, AlertCircle } from 'lucide-react'
 
 const PRIORIDADE_CFG = {
-  1: { label: 'Urgente', color: 'var(--red)',    bg: 'rgba(255,69,58,0.12)'   },
-  2: { label: 'Alta',    color: 'var(--orange)', bg: 'rgba(255,159,10,0.12)'  },
-  3: { label: 'Normal',  color: 'var(--blue)',   bg: 'rgba(10,132,255,0.12)'  },
-  4: { label: 'Baixa',   color: 'var(--label-3)', bg: 'var(--fill)'           },
+  1: { label: 'Urgente', color: 'var(--red)',    bg: 'rgba(255,69,58,0.12)'  },
+  2: { label: 'Alta',    color: 'var(--orange)', bg: 'rgba(255,159,10,0.12)' },
+  3: { label: 'Normal',  color: 'var(--blue)',   bg: 'rgba(10,132,255,0.12)' },
+  4: { label: 'Baixa',   color: 'var(--label-3)','bg': 'var(--fill)'         },
 }
 
+// Contador de tempo em tempo real
 function Contador({ criadoEm }) {
   const [seg, setSeg] = useState(0)
+
   useEffect(() => {
     const calc = () => setSeg(Math.floor((Date.now() - new Date(criadoEm).getTime()) / 1000))
     calc()
@@ -18,28 +20,29 @@ function Contador({ criadoEm }) {
   }, [criadoEm])
 
   const cor = seg < 120 ? 'var(--accent)' : seg < 300 ? 'var(--orange)' : 'var(--red)'
-  const fmt = seg < 60 ? `${seg}s` : seg < 3600 ? `${Math.floor(seg/60)}m${seg%60}s` : `${Math.floor(seg/3600)}h${Math.floor((seg%3600)/60)}m`
+  const fmt = seg < 60
+    ? `${seg}s`
+    : seg < 3600
+    ? `${Math.floor(seg/60)}m ${seg % 60}s`
+    : `${Math.floor(seg/3600)}h ${Math.floor((seg%3600)/60)}m`
 
   return (
-    <span className="flex items-center gap-1 font-mono font-bold text-[13px]" style={{ color: cor }}>
-      <Clock size={12} style={{ color: cor }} />
+    <div className="flex items-center gap-1.5 font-mono font-bold text-[13px]" style={{ color: cor }}>
+      <Clock size={12} />
       {fmt}
-    </span>
+      {seg >= 300 && <AlertCircle size={12} style={{ color: 'var(--red)' }} />}
+    </div>
   )
 }
 
-const DEMO_FILA = [
-  { id:1, telefone:'11 9xxxx-0092', tipo:'devolucao', prioridade:1, nome_contato:'Ricardo P.', dados:{motivo:'Pedido defeituoso'}, status:'aguardando', criado_em: new Date(Date.now()-480000).toISOString(), tags:['devolucao:historico'] },
-  { id:2, telefone:'11 9xxxx-2255', tipo:'handoff',   prioridade:1, nome_contato:'Carla R.',   dados:{motivo:'Solicitou humano'},  status:'aguardando', criado_em: new Date(Date.now()-230000).toISOString(), tags:['vip','comprador:frequente'] },
-  { id:3, telefone:'31 9xxxx-7744', tipo:'pedido',    prioridade:2, nome_contato:'Ana S.',     dados:{},                           status:'aguardando', criado_em: new Date(Date.now()-95000).toISOString(),  tags:['interesse:bijuterias'] },
-  { id:4, telefone:'21 9xxxx-3310', tipo:'duvida',    prioridade:3, nome_contato:'João C.',    dados:{},                           status:'aguardando', criado_em: new Date(Date.now()-45000).toISOString(),  tags:[] },
-]
+const BASE = import.meta.env.VITE_API_URL || ''
 
-export default function PageFila({ api }) {
-  const [fila,    setFila]    = useState(DEMO_FILA)
-  const [stats,   setStats]   = useState({ aguardando: 4, em_atendimento: 1, concluidos_hoje: 23, tempo_medio_min: 1.6 })
-  const [tab,     setTab]     = useState('aguardando')
-  const [loading, setLoading] = useState(false)
+export default function PageFila({ api: apiProp }) {
+  const api = apiProp || BASE
+  const [fila,  setFila]  = useState([])
+  const [stats, setStats] = useState({ aguardando: 0, em_atendimento: 0, concluidos_hoje: 0, tempo_medio_min: 0 })
+  const [tab,   setTab]   = useState('aguardando')
+  const [loading, setLoading] = useState(true)
 
   const carregar = async () => {
     try {
@@ -50,35 +53,33 @@ export default function PageFila({ api }) {
         if (d.stats) setStats(d.stats)
       }
     } catch {}
+    setLoading(false)
   }
 
   useEffect(() => {
     carregar()
     const i = setInterval(carregar, 5000)
     return () => clearInterval(i)
-  }, [tab, api])
+  }, [tab])
 
   const atender = async (item) => {
     try {
-      const r = await fetch(`${api}/api/fase5/fila/${encodeURIComponent(item.telefone)}/status`, {
+      await fetch(`${api}/api/fase5/fila/${encodeURIComponent(item.telefone)}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'em_atendimento' })
       })
-      // Remove da lista mesmo se der erro (UI responsiva)
-      setFila(prev => prev.filter(x => x.telefone !== item.telefone))
-      setStats(prev => ({
-        ...prev,
-        aguardando: Math.max(0, parseInt(prev.aguardando||0) - 1),
-        em_atendimento: parseInt(prev.em_atendimento||0) + 1
-      }))
-    } catch (e) {
-      console.error('Erro atender:', e.message)
-    }
+    } catch {}
+    setFila(prev => prev.filter(x => x.telefone !== item.telefone))
+    setStats(prev => ({
+      ...prev,
+      aguardando: Math.max(0, parseInt(prev.aguardando || 0) - 1),
+      em_atendimento: parseInt(prev.em_atendimento || 0) + 1
+    }))
   }
 
   const urgentes = fila.filter(f => f.prioridade <= 1)
-  const outros   = fila.filter(f => f.prioridade > 1)
+  const normais  = fila.filter(f => f.prioridade > 1)
 
   return (
     <div className="h-full overflow-y-auto p-6 space-y-5" style={{ background: 'var(--bg)' }}>
@@ -91,7 +92,7 @@ export default function PageFila({ api }) {
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold"
           style={{ background: 'var(--accent-dim)', color: 'var(--accent)' }}>
           <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent)' }} />
-          Atualiza automaticamente
+          Atualiza a cada 5s
         </div>
       </div>
 
@@ -101,7 +102,7 @@ export default function PageFila({ api }) {
           { v: parseInt(stats.aguardando||0),      l: 'Na fila',         c: 'var(--orange)', icon: Users },
           { v: parseInt(stats.em_atendimento||0),  l: 'Em atendimento',  c: 'var(--blue)',   icon: Zap },
           { v: parseInt(stats.concluidos_hoje||0), l: 'Concluídos hoje', c: 'var(--accent)', icon: CheckCircle },
-          { v: `${parseFloat(stats.tempo_medio_min||0).toFixed(1)}min`, l:'Tempo médio', c:'var(--purple)', icon: Clock },
+          { v: `${parseFloat(stats.tempo_medio_min||0).toFixed(1)}min`, l: 'Tempo médio', c: 'var(--purple)', icon: Clock },
         ].map((k, i) => (
           <div key={i} className="card p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -132,46 +133,45 @@ export default function PageFila({ api }) {
         ))}
       </div>
 
-      {/* Urgentes */}
-      {tab === 'aguardando' && urgentes.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <ArrowUp size={14} style={{ color: 'var(--red)' }} />
-            <span className="text-[12px] font-semibold" style={{ color: 'var(--red)' }}>
-              Aguardando mais de 5 minutos
-            </span>
-          </div>
-          <div className="space-y-2">
-            {urgentes.map(item => <FilaItem key={item.id || item.telefone} item={item} onAtender={atender} />)}
-          </div>
-        </div>
-      )}
-
-      {/* Normal */}
-      {tab === 'aguardando' && outros.length > 0 && (
-        <div>
-          {urgentes.length > 0 && (
-            <div className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--label-3)' }}>
-              Demais atendimentos
+      {/* Lista */}
+      {tab === 'aguardando' && <>
+        {urgentes.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <ArrowUp size={14} style={{ color: 'var(--red)' }} />
+              <span className="text-[12px] font-semibold" style={{ color: 'var(--red)' }}>
+                Aguardando mais de 5 minutos — ação urgente
+              </span>
             </div>
-          )}
-          <div className="space-y-2">
-            {outros.map(item => <FilaItem key={item.id || item.telefone} item={item} onAtender={atender} />)}
+            <div className="space-y-2">
+              {urgentes.map(item => <FilaItem key={item.telefone} item={item} onAtender={atender} />)}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {fila.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16" style={{ color: 'var(--label-3)' }}>
-          <CheckCircle size={36} className="mb-3 opacity-30" style={{ color: 'var(--accent)' }} />
-          <p className="text-[14px] font-medium" style={{ color: 'var(--label-2)' }}>
-            {tab === 'aguardando' ? 'Nenhum cliente aguardando' : 'Nenhum registro'}
-          </p>
-          <p className="text-[12px] mt-1">
-            {tab === 'aguardando' ? 'A IA está resolvendo tudo! 🤖' : ''}
-          </p>
-        </div>
-      )}
+        {normais.length > 0 && (
+          <div>
+            {urgentes.length > 0 && (
+              <div className="text-[11px] font-semibold uppercase tracking-wider mb-3 mt-2" style={{ color: 'var(--label-3)' }}>
+                Demais atendimentos
+              </div>
+            )}
+            <div className="space-y-2">
+              {normais.map(item => <FilaItem key={item.telefone} item={item} onAtender={atender} />)}
+            </div>
+          </div>
+        )}
+
+        {fila.length === 0 && !loading && (
+          <div className="flex flex-col items-center justify-center py-16" style={{ color: 'var(--label-3)' }}>
+            <CheckCircle size={36} className="mb-3 opacity-30" style={{ color: 'var(--accent)' }} />
+            <p className="text-[14px] font-medium" style={{ color: 'var(--label-2)' }}>
+              Nenhum cliente aguardando
+            </p>
+            <p className="text-[12px] mt-1">A IA está resolvendo tudo! 🤖</p>
+          </div>
+        )}
+      </>}
     </div>
   )
 }
@@ -182,12 +182,12 @@ function FilaItem({ item, onAtender }) {
     <div className="card p-4 flex items-center gap-4">
       <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-[12px] flex-shrink-0"
         style={{ background: pc.bg, color: pc.color }}>
-        {(item.nome_contato||'CL').slice(0,2).toUpperCase()}
+        {(item.nome_contato || item.nome || 'CL').slice(0,2).toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
           <span className="text-[14px] font-semibold" style={{ color: 'var(--label)' }}>
-            {item.nome_contato || 'Cliente'}
+            {item.nome_contato || item.nome || 'Cliente'}
           </span>
           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
             style={{ background: pc.bg, color: pc.color }}>
@@ -206,9 +206,10 @@ function FilaItem({ item, onAtender }) {
         )}
       </div>
       <div className="flex items-center gap-4 flex-shrink-0">
-        <Contador criadoEm={item.criado_em} />
+        {/* Contador em tempo real */}
+        <Contador criadoEm={item.criado_em || item.solicitado_em || new Date().toISOString()} />
         <button onClick={() => onAtender(item)}
-          className="px-3 py-2 rounded-[10px] text-[12px] font-semibold transition-all hover:opacity-90"
+          className="px-4 py-2 rounded-[10px] text-[13px] font-semibold transition-all hover:opacity-90"
           style={{ background: 'var(--blue)', color: '#fff' }}>
           Atender
         </button>

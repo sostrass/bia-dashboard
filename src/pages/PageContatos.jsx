@@ -1,122 +1,244 @@
-import { useState } from 'react'
-import { Send, Users } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Search, RefreshCw, Bot, User, Tag, Phone, Filter, CheckSquare, Square, Send } from 'lucide-react'
+import ModalPerfilCliente from '../components/ModalPerfilCliente'
 
-const CAT_C = {Bijuterias:'#BF5AF2',Pérolas:'#FFD60A','Linhas/Fios':'#32D74B','Fitas/Rendas':'#FF453A',Miçangas:'#FF9F0A',Atacado:'#0A84FF',Zíperes:'#FF453A',Botões:'#BF5AF2'}
-const CONTACTS = [
-  {tel:'11 9xxxx-4821',nome:'Maria F.',cats:['Bijuterias','Pérolas'],msgs:12,ultima:'Hoje 14:32'},
-  {tel:'21 9xxxx-3310',nome:'João C.',cats:['Linhas/Fios'],msgs:5,ultima:'Hoje 14:18'},
-  {tel:'31 9xxxx-7744',nome:'Ana S.',cats:['Fitas/Rendas','Bijuterias'],msgs:8,ultima:'Hoje 14:05'},
-  {tel:'85 9xxxx-5512',nome:'Lucia M.',cats:['Pérolas','Miçangas'],msgs:22,ultima:'Hoje 13:22'},
-  {tel:'48 9xxxx-8831',nome:'Pedro T.',cats:['Zíperes','Botões'],msgs:4,ultima:'Hoje 13:10'},
-  {tel:'11 9xxxx-2255',nome:'Carla R.',cats:['Atacado','Bijuterias'],msgs:31,ultima:'Hoje 12:55'},
-  {tel:'41 9xxxx-6634',nome:'Felipe N.',cats:['Miçangas'],msgs:7,ultima:'Ontem 15:20'},
-  {tel:'19 9xxxx-0081',nome:'Sandra L.',cats:['Pérolas'],msgs:18,ultima:'Ontem 11:45'},
-]
+const BASE = import.meta.env.VITE_API_URL || ''
 
-export default function PageContatos({ api }) {
-  const [filter,setFilter]=useState('Todas')
-  const [massaMsg,setMassaMsg]=useState('')
-  const [massaCat,setMassaCat]=useState('Todas')
-  const allCats=['Todas',...Object.keys(CAT_C)]
-  const filtered=filter==='Todas'?CONTACTS:CONTACTS.filter(c=>c.cats.includes(filter))
-  const massaCount=(massaCat==='Todas'?CONTACTS:CONTACTS.filter(c=>c.cats.includes(massaCat))).length
-  const dispatch=async()=>{
-    if(!massaMsg.trim()){alert('Digite uma mensagem!');return}
-    try{const r=await fetch(`${api}/api/contatos/enviar-massa`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({categoria:massaCat==='Todas'?null:massaCat,mensagem:massaMsg})});const d=await r.json();alert(`Disparando para ${d.total} contatos!`)}
-    catch{alert('Erro ao disparar.')}
+const TAG_CORES = {
+  'comprador:novo':       { bg: 'rgba(10,132,255,0.1)',  color: 'var(--blue)'   },
+  'comprador:frequente':  { bg: 'rgba(50,215,75,0.1)',   color: 'var(--accent)' },
+  'carrinho:abandonado':  { bg: 'rgba(255,159,10,0.1)',  color: 'var(--orange)' },
+  'interesse:perolas':    { bg: 'rgba(191,90,242,0.1)',  color: 'var(--purple)' },
+  'interesse:bijuterias': { bg: 'rgba(191,90,242,0.1)',  color: 'var(--purple)' },
+  'interesse:atacado':    { bg: 'rgba(255,69,58,0.1)',   color: 'var(--red)'    },
+  'vip':                  { bg: 'rgba(255,214,10,0.1)',  color: 'var(--yellow)' },
+  default:                { bg: 'var(--fill)',            color: 'var(--label-3)' },
+}
+
+function tagCor(tag) {
+  return TAG_CORES[tag] || TAG_CORES.default
+}
+
+export default function PageContatos({ api: apiProp }) {
+  const api = apiProp || BASE
+
+  const [contatos,    setContatos]    = useState([])
+  const [loading,     setLoading]     = useState(true)
+  const [busca,       setBusca]       = useState('')
+  const [filtroModo,  setFiltroModo]  = useState('todos') // todos | ia | manual
+  const [selecionados, setSelecionados] = useState(new Set())
+  const [perfilAberto, setPerfilAberto] = useState(null)
+  const [atualizando,  setAtualizando]  = useState(new Set())
+
+  const carregar = useCallback(async () => {
+    try {
+      const r = await fetch(`${api}/api/contatos`)
+      if (r.ok) {
+        const d = await r.json()
+        setContatos(d.contatos || d || [])
+      }
+    } catch {}
+    setLoading(false)
+  }, [api])
+
+  useEffect(() => { carregar() }, [carregar])
+
+  const toggleModo = async (telefone, modoAtual) => {
+    const novoModo = modoAtual === 'manual' ? 'auto' : 'manual'
+    setAtualizando(prev => new Set([...prev, telefone]))
+    try {
+      await fetch(`${api}/api/contatos/${telefone}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modo: novoModo })
+      })
+      setContatos(prev => prev.map(c =>
+        c.telefone === telefone ? { ...c, modo: novoModo } : c
+      ))
+    } catch {}
+    setAtualizando(prev => { const n = new Set(prev); n.delete(telefone); return n })
   }
-  const inp = {background:'var(--bg-3)',border:'1px solid var(--sep)',color:'var(--label)',borderRadius:10,outline:'none',transition:'border-color .15s',fontFamily:'inherit'}
+
+  const toggleSel = (telefone) => {
+    setSelecionados(prev => {
+      const n = new Set(prev)
+      n.has(telefone) ? n.delete(telefone) : n.add(telefone)
+      return n
+    })
+  }
+
+  const toggleTodos = () => {
+    if (selecionados.size === filtrados.length) setSelecionados(new Set())
+    else setSelecionados(new Set(filtrados.map(c => c.telefone)))
+  }
+
+  const filtrados = contatos.filter(c => {
+    const ok_busca = !busca ||
+      (c.nome || '').toLowerCase().includes(busca.toLowerCase()) ||
+      c.telefone.includes(busca)
+    const ok_modo = filtroModo === 'todos' ||
+      (filtroModo === 'ia'     && c.modo !== 'manual') ||
+      (filtroModo === 'manual' && c.modo === 'manual')
+    return ok_busca && ok_modo
+  })
 
   return (
-    <div className="h-full flex overflow-hidden p-5 gap-5">
-      <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-        <div className="flex items-center justify-between">
-          <h2 className="text-[22px] font-bold tracking-tight" style={{color:'var(--label)'}}>Contatos</h2>
-          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold" style={{background:'var(--fill)',color:'var(--label-2)'}}>
-            <Users size={12}/> {CONTACTS.length} total
-          </span>
-        </div>
-        {/* Category pills */}
-        <div className="flex flex-wrap gap-2">
-          {allCats.map(c=>(
-            <button key={c} onClick={()=>setFilter(c)}
-              className="px-3 py-1.5 rounded-full text-[11px] font-medium border transition-all"
-              style={{background:filter===c?'var(--accent-dim)':'transparent',borderColor:filter===c?'var(--accent)':'var(--sep)',color:filter===c?'var(--accent)':'var(--label-3)'}}>
-              {c}
+    <div className="h-full flex flex-col overflow-hidden" style={{ background: 'var(--bg)' }}>
+
+      {/* Header */}
+      <div className="px-6 py-4 flex-shrink-0" style={{ borderBottom: '1px solid var(--sep)', background: 'var(--bg-2)' }}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-[22px] font-bold tracking-tight" style={{ color: 'var(--label)' }}>Contatos</h2>
+            <p className="text-[13px] mt-0.5" style={{ color: 'var(--label-3)' }}>
+              {contatos.length} contatos · {contatos.filter(c => c.modo !== 'manual').length} na IA
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {selecionados.size > 0 && (
+              <button className="flex items-center gap-2 px-4 py-2 rounded-[10px] text-[13px] font-semibold"
+                style={{ background: 'var(--blue)', color: '#fff' }}>
+                <Send size={13} /> Enviar para {selecionados.size} contato{selecionados.size > 1 ? 's' : ''}
+              </button>
+            )}
+            <button onClick={carregar} className="p-2 rounded-[8px]"
+              style={{ background: 'var(--fill)', color: 'var(--label-3)' }}>
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             </button>
-          ))}
+          </div>
         </div>
-        {/* Table */}
-        <div className="card overflow-hidden flex flex-col flex-1">
-          <table className="w-full">
-            <thead>
-              <tr style={{borderBottom:'1px solid var(--sep)'}}>
-                {['Cliente','Categorias','Mensagens','Último contato'].map(h=>(
-                  <th key={h} className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-wider" style={{color:'var(--label-3)'}}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((c,i)=>(
-                <tr key={i} className="transition-all" style={{borderBottom:'1px solid var(--sep)'}}
-                  onMouseEnter={e=>e.currentTarget.style.background='var(--fill)'}
-                  onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0" style={{background:CAT_C[c.cats[0]]||'#636366',color:'#000'}}>{c.nome.slice(0,2).toUpperCase()}</div>
-                      <div>
-                        <div className="text-[13px] font-semibold" style={{color:'var(--label)'}}>{c.nome}</div>
-                        <div className="text-[11px] font-mono" style={{color:'var(--label-3)'}}>{c.tel}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3">
-                    <div className="flex flex-wrap gap-1.5">
-                      {c.cats.map(cat=>(
-                        <span key={cat} className="badge text-[10px]" style={{background:`${CAT_C[cat]||'#fff'}18`,color:CAT_C[cat]||'var(--label-2)'}}>{cat}</span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 text-[13px] font-semibold" style={{color:'var(--label)'}}>{c.msgs}</td>
-                  <td className="px-5 py-3 text-[12px]" style={{color:'var(--label-3)'}}>{c.ultima}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+        {/* Busca e filtros */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 relative">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--label-3)' }} />
+            <input value={busca} onChange={e => setBusca(e.target.value)}
+              placeholder="Buscar por nome ou telefone..."
+              className="w-full pl-8 pr-3 py-2 text-[13px] rounded-[10px] outline-none"
+              style={{ background: 'var(--bg-3)', border: '1px solid var(--sep)', color: 'var(--label)' }} />
+          </div>
+
+          {/* Filtro modo */}
+          <div className="flex p-0.5 rounded-[10px]" style={{ background: 'var(--fill)' }}>
+            {[['todos','Todos'],['ia','IA'],['manual','Manual']].map(([v,l]) => (
+              <button key={v} onClick={() => setFiltroModo(v)}
+                className="px-3 py-1.5 rounded-[8px] text-[12px] font-medium transition-all"
+                style={{ background: filtroModo === v ? 'var(--bg-2)' : 'transparent', color: filtroModo === v ? 'var(--label)' : 'var(--label-3)' }}>
+                {l}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-      {/* Massa panel */}
-      <div className="w-72 flex-shrink-0 card p-5 flex flex-col gap-4 overflow-y-auto scroll-hidden">
-        <div>
-          <h3 className="text-[17px] font-semibold" style={{color:'var(--label)'}}>Envio em Massa</h3>
-          <p className="text-[12px] mt-0.5" style={{color:'var(--label-3)'}}>Segmente e dispare mensagens</p>
+
+      {/* Tabela */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Cabeçalho tabela */}
+        <div className="flex items-center gap-4 px-6 py-2.5 sticky top-0"
+          style={{ background: 'var(--bg-2)', borderBottom: '1px solid var(--sep)' }}>
+          <button onClick={toggleTodos} style={{ color: 'var(--label-3)', flexShrink: 0 }}>
+            {selecionados.size === filtrados.length && filtrados.length > 0
+              ? <CheckSquare size={15} style={{ color: 'var(--accent)' }} />
+              : <Square size={15} />}
+          </button>
+          <div className="flex-1 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--label-3)' }}>Nome / Telefone</div>
+          <div className="w-32 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--label-3)' }}>Atendimento</div>
+          <div className="w-40 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--label-3)' }}>Tags</div>
+          <div className="w-20 text-[11px] font-semibold uppercase tracking-wider text-right" style={{ color: 'var(--label-3)' }}>Msgs</div>
         </div>
-        <div>
-          <label className="text-[11px] font-medium block mb-1.5" style={{color:'var(--label-3)'}}>CATEGORIA</label>
-          <select value={massaCat} onChange={e=>setMassaCat(e.target.value)} className="w-full px-3 py-2 text-[13px]" style={{...inp,fontSize:13}}>
-            {allCats.map(c=><option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-[11px] font-medium block mb-1.5" style={{color:'var(--label-3)'}}>MENSAGEM <span className="normal-case font-normal">— use {'{{nome}}'}</span></label>
-          <textarea value={massaMsg} onChange={e=>setMassaMsg(e.target.value)} rows={6}
-            className="w-full px-3 py-2 text-[13px] resize-none"
-            style={{...inp,lineHeight:1.6}}
-            placeholder={'Olá {{nome}}! Temos uma novidade pra você…'}
-            onFocus={e=>e.target.style.borderColor='var(--accent)'}
-            onBlur={e=>e.target.style.borderColor='var(--sep)'}
-          />
-        </div>
-        <div className="rounded-[12px] p-3" style={{background:'var(--bg-3)',border:'1px solid var(--sep)'}}>
-          <p className="text-[11px]" style={{color:'var(--label-3)'}}>Alcance estimado</p>
-          <p className="text-[28px] font-bold tracking-tight" style={{color:'var(--accent)'}}>{massaCount} <span className="text-[13px] font-normal" style={{color:'var(--label-3)'}}>contatos</span></p>
-        </div>
-        <div className="flex-1"/>
-        <button onClick={dispatch} className="w-full flex items-center justify-center gap-2 py-3 rounded-[12px] font-semibold text-[14px] transition-all" style={{background:'var(--accent)',color:'#000'}}>
-          <Send size={15}/> Disparar
-        </button>
-        <p className="text-[10px] text-center" style={{color:'var(--label-4)'}}>Delay 1.5s entre envios</p>
+
+        {loading && (
+          <div className="flex justify-center py-8" style={{ color: 'var(--label-3)' }}>
+            <RefreshCw size={14} className="animate-spin" />
+          </div>
+        )}
+
+        {!loading && filtrados.length === 0 && (
+          <div className="flex flex-col items-center py-16" style={{ color: 'var(--label-3)' }}>
+            <Phone size={28} className="mb-2 opacity-30" />
+            <p className="text-[13px]">Nenhum contato encontrado</p>
+          </div>
+        )}
+
+        {filtrados.map(c => {
+          const isManual = c.modo === 'manual'
+          const sel = selecionados.has(c.telefone)
+          const atualizand = atualizando.has(c.telefone)
+
+          return (
+            <div key={c.telefone}
+              className="flex items-center gap-4 px-6 py-3 border-b transition-all"
+              style={{ borderColor: 'var(--sep)', background: sel ? 'var(--accent-dim)' : 'transparent' }}>
+
+              {/* Checkbox */}
+              <button onClick={() => toggleSel(c.telefone)} style={{ color: sel ? 'var(--accent)' : 'var(--label-3)', flexShrink: 0 }}>
+                {sel ? <CheckSquare size={15} style={{ color: 'var(--accent)' }} /> : <Square size={15} />}
+              </button>
+
+              {/* Nome e telefone */}
+              <button className="flex-1 flex items-center gap-3 text-left min-w-0"
+                onClick={() => setPerfilAberto(c)}>
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+                  style={{ background: isManual ? 'rgba(10,132,255,0.15)' : 'var(--accent-dim)', color: isManual ? 'var(--blue)' : 'var(--accent)' }}>
+                  {(c.nome || c.telefone).slice(0,2).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[13px] font-semibold truncate" style={{ color: 'var(--label)' }}>
+                    {c.nome || 'Sem nome'}
+                  </div>
+                  <div className="text-[11px] font-mono" style={{ color: 'var(--label-3)' }}>{c.telefone}</div>
+                </div>
+              </button>
+
+              {/* Toggle IA/Manual */}
+              <div className="w-32 flex items-center gap-2">
+                <button onClick={() => toggleModo(c.telefone, c.modo)} disabled={atualizand}
+                  className="relative flex-shrink-0"
+                  style={{ width: 36, height: 20, borderRadius: 10, background: isManual ? 'var(--blue)' : 'var(--accent)', transition: 'background .2s', opacity: atualizand ? 0.6 : 1 }}>
+                  <span className="absolute top-0.5 h-4 w-4 bg-white rounded-full shadow transition-all duration-200"
+                    style={{ left: isManual ? 'calc(100% - 18px)' : '2px' }} />
+                </button>
+                <span className="text-[11px] font-medium" style={{ color: isManual ? 'var(--blue)' : 'var(--accent)' }}>
+                  {isManual ? 'Manual' : 'IA'}
+                </span>
+              </div>
+
+              {/* Tags */}
+              <div className="w-40 flex flex-wrap gap-1">
+                {(c.tags || []).slice(0,2).map((t, i) => {
+                  const cor = tagCor(t)
+                  return (
+                    <span key={i} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                      style={{ background: cor.bg, color: cor.color }}>
+                      {t.replace('interesse:', '').replace('comprador:', '').replace('carrinho:', '')}
+                    </span>
+                  )
+                })}
+                {(c.tags || []).length > 2 && (
+                  <span className="text-[9px]" style={{ color: 'var(--label-3)' }}>+{c.tags.length - 2}</span>
+                )}
+              </div>
+
+              {/* Total msgs */}
+              <div className="w-20 text-right">
+                <span className="text-[13px] font-semibold" style={{ color: 'var(--label)' }}>
+                  {c.total_msgs || 0}
+                </span>
+              </div>
+            </div>
+          )
+        })}
       </div>
+
+      {/* Modal perfil */}
+      {perfilAberto && (
+        <ModalPerfilCliente
+          telefone={perfilAberto.telefone}
+          nome={perfilAberto.nome}
+          api={api}
+          onClose={() => setPerfilAberto(null)}
+        />
+      )}
     </div>
   )
 }
