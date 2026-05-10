@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { Clock, Users, Zap, CheckCircle, RefreshCw, ArrowUp } from 'lucide-react'
 
 const PRIORIDADE_CFG = {
-  1: { label: 'Urgente', color: 'var(--red)',    bg: 'var(--red-dim)'  },
-  2: { label: 'Alta',    color: 'var(--orange)', bg: 'rgba(255,159,10,0.12)' },
-  3: { label: 'Normal',  color: 'var(--blue)',   bg: 'var(--blue-dim)' },
-  4: { label: 'Baixa',   color: 'var(--label-3)', bg: 'var(--fill)'   },
+  1: { label: 'Urgente', color: 'var(--red)',    bg: 'rgba(255,69,58,0.12)'   },
+  2: { label: 'Alta',    color: 'var(--orange)', bg: 'rgba(255,159,10,0.12)'  },
+  3: { label: 'Normal',  color: 'var(--blue)',   bg: 'rgba(10,132,255,0.12)'  },
+  4: { label: 'Baixa',   color: 'var(--label-3)', bg: 'var(--fill)'           },
 }
 
 function Contador({ criadoEm }) {
@@ -28,45 +28,53 @@ function Contador({ criadoEm }) {
   )
 }
 
-// Dados demo
 const DEMO_FILA = [
   { id:1, telefone:'11 9xxxx-0092', tipo:'devolucao', prioridade:1, nome_contato:'Ricardo P.', dados:{motivo:'Pedido defeituoso'}, status:'aguardando', criado_em: new Date(Date.now()-480000).toISOString(), tags:['devolucao:historico'] },
-  { id:2, telefone:'11 9xxxx-2255', tipo:'handoff',   prioridade:1, nome_contato:'Carla R.',  dados:{motivo:'Solicitou humano'},  status:'aguardando', criado_em: new Date(Date.now()-230000).toISOString(), tags:['vip','comprador:frequente'] },
-  { id:3, telefone:'31 9xxxx-7744', tipo:'pedido',    prioridade:2, nome_contato:'Ana S.',    dados:{},                           status:'aguardando', criado_em: new Date(Date.now()-95000).toISOString(),  tags:['interesse:bijuterias'] },
-  { id:4, telefone:'21 9xxxx-3310', tipo:'duvida',    prioridade:3, nome_contato:'João C.',   dados:{},                           status:'aguardando', criado_em: new Date(Date.now()-45000).toISOString(),  tags:[] },
-  { id:5, telefone:'85 9xxxx-5512', tipo:'duvida',    prioridade:3, nome_contato:'Lucia M.',  dados:{},                           status:'aguardando', criado_em: new Date(Date.now()-12000).toISOString(),  tags:['vip'] },
+  { id:2, telefone:'11 9xxxx-2255', tipo:'handoff',   prioridade:1, nome_contato:'Carla R.',   dados:{motivo:'Solicitou humano'},  status:'aguardando', criado_em: new Date(Date.now()-230000).toISOString(), tags:['vip','comprador:frequente'] },
+  { id:3, telefone:'31 9xxxx-7744', tipo:'pedido',    prioridade:2, nome_contato:'Ana S.',     dados:{},                           status:'aguardando', criado_em: new Date(Date.now()-95000).toISOString(),  tags:['interesse:bijuterias'] },
+  { id:4, telefone:'21 9xxxx-3310', tipo:'duvida',    prioridade:3, nome_contato:'João C.',    dados:{},                           status:'aguardando', criado_em: new Date(Date.now()-45000).toISOString(),  tags:[] },
 ]
 
 export default function PageFila({ api }) {
   const [fila,    setFila]    = useState(DEMO_FILA)
-  const [stats,   setStats]   = useState({ aguardando: 5, em_atendimento: 1, concluidos_hoje: 23, tempo_medio_min: 1.6 })
-  const [loading, setLoading] = useState(false)
+  const [stats,   setStats]   = useState({ aguardando: 4, em_atendimento: 1, concluidos_hoje: 23, tempo_medio_min: 1.6 })
   const [tab,     setTab]     = useState('aguardando')
+  const [loading, setLoading] = useState(false)
+
+  const carregar = async () => {
+    try {
+      const r = await fetch(`${api}/api/fase5/fila?status=${tab}`)
+      if (r.ok) {
+        const d = await r.json()
+        if (d.fila?.length) setFila(d.fila)
+        if (d.stats) setStats(d.stats)
+      }
+    } catch {}
+  }
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const r = await fetch(`${api}/api/fase5/fila?status=${tab}`)
-        if (r.ok) {
-          const d = await r.json()
-          if (d.fila?.length) setFila(d.fila)
-          if (d.stats) setStats(d.stats)
-        }
-      } catch {}
-    }
-    load()
-    const i = setInterval(load, 5000)
+    carregar()
+    const i = setInterval(carregar, 5000)
     return () => clearInterval(i)
   }, [tab, api])
 
   const atender = async (item) => {
     try {
-      await fetch(`${api}/api/fase5/fila/${item.telefone}/status`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const r = await fetch(`${api}/api/fase5/fila/${encodeURIComponent(item.telefone)}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'em_atendimento' })
       })
+      // Remove da lista mesmo se der erro (UI responsiva)
       setFila(prev => prev.filter(x => x.telefone !== item.telefone))
-    } catch {}
+      setStats(prev => ({
+        ...prev,
+        aguardando: Math.max(0, parseInt(prev.aguardando||0) - 1),
+        em_atendimento: parseInt(prev.em_atendimento||0) + 1
+      }))
+    } catch (e) {
+      console.error('Erro atender:', e.message)
+    }
   }
 
   const urgentes = fila.filter(f => f.prioridade <= 1)
@@ -90,9 +98,9 @@ export default function PageFila({ api }) {
       {/* KPIs */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { v: parseInt(stats.aguardando||0),       l: 'Na fila',          c: 'var(--orange)', icon: Users },
-          { v: parseInt(stats.em_atendimento||0),   l: 'Em atendimento',   c: 'var(--blue)',   icon: Zap },
-          { v: parseInt(stats.concluidos_hoje||0),  l: 'Concluídos hoje',  c: 'var(--accent)', icon: CheckCircle },
+          { v: parseInt(stats.aguardando||0),      l: 'Na fila',         c: 'var(--orange)', icon: Users },
+          { v: parseInt(stats.em_atendimento||0),  l: 'Em atendimento',  c: 'var(--blue)',   icon: Zap },
+          { v: parseInt(stats.concluidos_hoje||0), l: 'Concluídos hoje', c: 'var(--accent)', icon: CheckCircle },
           { v: `${parseFloat(stats.tempo_medio_min||0).toFixed(1)}min`, l:'Tempo médio', c:'var(--purple)', icon: Clock },
         ].map((k, i) => (
           <div key={i} className="card p-4">
@@ -134,7 +142,7 @@ export default function PageFila({ api }) {
             </span>
           </div>
           <div className="space-y-2">
-            {urgentes.map(item => <FilaItem key={item.id} item={item} onAtender={atender} />)}
+            {urgentes.map(item => <FilaItem key={item.id || item.telefone} item={item} onAtender={atender} />)}
           </div>
         </div>
       )}
@@ -148,7 +156,7 @@ export default function PageFila({ api }) {
             </div>
           )}
           <div className="space-y-2">
-            {outros.map(item => <FilaItem key={item.id} item={item} onAtender={atender} />)}
+            {outros.map(item => <FilaItem key={item.id || item.telefone} item={item} onAtender={atender} />)}
           </div>
         </div>
       )}

@@ -42,7 +42,7 @@ export default function PageHandoff({ api }) {
   const [historico,  setHistorico]  = useState([])
   const [sel,        setSel]        = useState(null)
   const [msg,        setMsg]        = useState('')
-  const [retornoMsg, setRetornoMsg] = useState('Olá! Nossa equipe assumiu o seu atendimento. Como posso ajudar?')
+  const [retornoMsg, setRetornoMsg] = useState('Ol\u00e1! Nossa equipe assumiu o seu atendimento. Como posso ajudar?')
   const [loading,    setLoading]    = useState(true)
   const [sending,    setSending]    = useState(false)
   const [tab,        setTab]        = useState('aguardando')
@@ -93,10 +93,10 @@ export default function PageHandoff({ api }) {
     if (!msg.trim() || !sel || sending) return
     setSending(true)
     try {
-      await fetch(`${api}/webhook/manual`, {
+      await fetch(`${api}/api/dashboard/enviar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: sel.telefone, message: msg })
+        body: JSON.stringify({ telefone: sel.telefone, mensagem: msg })
       })
       setMsg('')
     } catch {}
@@ -109,7 +109,7 @@ export default function PageHandoff({ api }) {
   return (
     <div className="h-full flex overflow-hidden">
 
-      {/* ── Fila de handoffs ── */}
+      {/* \u2500\u2500 Fila de handoffs \u2500\u2500 */}
       <div className="w-[300px] flex-shrink-0 flex flex-col"
         style={{ background: 'var(--bg-2)', borderRight: '1px solid var(--sep)' }}>
 
@@ -153,7 +153,7 @@ export default function PageHandoff({ api }) {
                 {tab === 'aguardando' ? 'Nenhum cliente aguardando' : 'Nenhum atendimento finalizado'}
               </p>
               <p className="text-[11px] mt-1" style={{ color: 'var(--label-3)' }}>
-                {tab === 'aguardando' ? 'A IA está resolvendo tudo! 🤖' : 'O histórico aparece aqui'}
+                {tab === 'aguardando' ? 'A IA est\u00e1 resolvendo tudo! \ud83e\udd16' : 'O hist\u00f3rico aparece aqui'}
               </p>
             </div>
           )}
@@ -173,7 +173,7 @@ export default function PageHandoff({ api }) {
         </div>
       </div>
 
-      {/* ── Painel de atendimento ── */}
+      {/* \u2500\u2500 Painel de atendimento \u2500\u2500 */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {!sel ? (
           <div className="flex-1 flex flex-col items-center justify-center" style={{ background: 'var(--bg)' }}>
@@ -224,11 +224,11 @@ export default function PageHandoff({ api }) {
               </div>
             </div>
 
-            {/* Área de conversa */}
+            {/* \u00c1rea de conversa */}
             <div className="flex-1 flex items-center justify-center" style={{ background: 'var(--bg)' }}>
               <div className="text-center" style={{ color: 'var(--label-3)' }}>
                 <MessageSquare size={32} className="mx-auto mb-3 opacity-30" />
-                <p className="text-[13px]">Histórico carregado do painel de Conversas</p>
+                <p className="text-[13px]">Hist\u00f3rico carregado do painel de Conversas</p>
                 <p className="text-[11px] mt-1">Use o campo abaixo para responder ao cliente</p>
               </div>
             </div>
@@ -292,7 +292,7 @@ function HandoffCard({ h, onAssumir, sel }) {
           </div>
           <div className="text-[11px] font-mono mb-1.5" style={{ color: 'var(--label-3)' }}>{h.telefone}</div>
           <div className="text-[11px] mb-2" style={{ color: 'var(--label-2)' }}>
-            {h.motivo?.slice(0, 80)}{h.motivo?.length > 80 ? '…' : ''}
+            {h.motivo?.slice(0, 80)}{h.motivo?.length > 80 ? '\u2026' : ''}
           </div>
           <ContadorEspera solicitadoEm={h.solicitado_em} />
         </div>
