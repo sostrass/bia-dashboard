@@ -330,9 +330,13 @@ export default function PageConversas({ api: apiProp }) {
   const [usedSugs,   setUsedSugs]   = useState(new Set())
   const [showEmoji,  setShowEmoji]  = useState(false)
   const [emojiCat,    setEmojiCat]    = useState(0)
+  const [showMedia,  setShowMedia]  = useState(false)
+  const [mediaUrl,   setMediaUrl]   = useState('')
+  const [mediaTipo,  setMediaTipo]  = useState('image')
   const [loadingH,   setLoadingH]   = useState(false)
   const chatRef  = useRef(null)
   const inputRef = useRef(null)
+  const fileRef  = useRef(null)
 
   const carregarConvs = useCallback(async () => {
     try {
@@ -360,13 +364,20 @@ export default function PageConversas({ api: apiProp }) {
           status: m.direcao === 'saida' ? 'delivered' : undefined,
         }))
         setMsgs(prev => {
-          const ultimaAnterior = prev[prev.length-1]?.t || ''
-          const ultimaNova     = conv[conv.length-1]?.t  || ''
-          const mudou = conv.length !== prev.length || ultimaNova !== ultimaAnterior
-          if (mudou) {
-            if (conv.length > prev.length)
-              setTimeout(() => chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' }), 80)
-            return conv
+          // Filtra mensagens locais (ainda não salvas no banco, id começa com 'local-')
+          const locais = prev.filter(m => String(m.id||'').startsWith('local-'))
+
+          // Só atualiza se o banco tem mais mensagens que o estado atual (descontando locais)
+          const prevSemLocais = prev.length - locais.length
+          const temNovo = conv.length > prevSemLocais
+
+          if (temNovo || inicial) {
+            // Junta mensagens do banco com locais que ainda não apareceram no banco
+            const idsNoBanco = new Set(conv.map(m => m.t))
+            const locaisPendentes = locais.filter(m => !idsNoBanco.has(m.t))
+            const resultado = [...conv, ...locaisPendentes]
+            setTimeout(() => chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' }), 80)
+            return resultado
           }
           return prev
         })
@@ -639,6 +650,48 @@ export default function PageConversas({ api: apiProp }) {
           )}
 
           {/* Emoji picker */}
+          {/* Modal de mídia */}
+          {showMedia && (
+            <div className="flex-shrink-0 px-4 py-3 space-y-2" style={{ borderTop:'1px solid var(--sep)', background:'var(--bg-3)' }}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[12px] font-semibold" style={{ color:'var(--label)' }}>Enviar Mídia</span>
+                <button onClick={() => setShowMedia(false)} style={{ color:'var(--label-3)' }}><X size={14}/></button>
+              </div>
+              <div className="flex gap-2">
+                {[['image','🖼️ Imagem'],['video','🎥 Vídeo'],['document','📄 Documento'],['audio','🎵 Áudio']].map(([v,l])=>(
+                  <button key={v} onClick={() => setMediaTipo(v)}
+                    className="px-2.5 py-1.5 rounded-[8px] text-[11px] font-medium border transition-all"
+                    style={{ background:mediaTipo===v?'var(--accent-dim)':'transparent', borderColor:mediaTipo===v?'var(--accent-border)':'var(--sep)', color:mediaTipo===v?'var(--accent)':'var(--label-2)' }}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input value={mediaUrl} onChange={e => setMediaUrl(e.target.value)}
+                  placeholder="URL da mídia (https://...)"
+                  className="flex-1 px-3 py-2 rounded-[9px] text-[12px] outline-none"
+                  style={{ background:'var(--bg-2)', border:'1px solid var(--sep)', color:'var(--label)' }} />
+                <button onClick={async () => {
+                  if (!mediaUrl.trim() || !sel) return
+                  const msg = `[${mediaTipo}: ${mediaUrl}]`
+                  await fetch(\`\${api}/api/dashboard/enviar\`, {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ telefone:sel.telefone, mensagem:mediaUrl })
+                  })
+                  setMsgs(prev => [...prev, { r:'m', t:msg, h:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}), status:'sent' }])
+                  setMediaUrl(''); setShowMedia(false)
+                }} disabled={!mediaUrl.trim()}
+                  className="px-3 py-2 rounded-[9px] text-[12px] font-semibold"
+                  style={{ background:'var(--accent)', color:'#000', opacity:!mediaUrl.trim()?0.5:1 }}>
+                  Enviar
+                </button>
+              </div>
+              <p className="text-[10px]" style={{ color:'var(--label-4)' }}>
+                Cole a URL da mídia. Para imagens locais, use um serviço como imgur.com ou imgbb.com
+              </p>
+            </div>
+          )}
+
           {showEmoji && (
             <div className="flex-shrink-0" style={{ borderTop:'1px solid var(--sep)', background:'var(--bg-3)', maxHeight:220, overflow:'hidden', display:'flex', flexDirection:'column' }}>
               {/* Abas de categoria */}
@@ -668,11 +721,35 @@ export default function PageConversas({ api: apiProp }) {
           <div className="px-3 py-2.5 flex-shrink-0" style={{ background:'var(--bg-2)', borderTop:'1px solid var(--sep)' }}>
             {isManual ? (
               <div className="flex items-end gap-2">
-                <button onClick={() => {setShowEmoji(v=>!v)}}
+                <button onClick={() => { setShowEmoji(v=>!v); setShowMedia(false) }}
                   className="p-1.5 rounded-[7px] flex-shrink-0"
                   style={{ color:'var(--label-3)', background:showEmoji?'var(--fill)':'transparent' }}>
                   <Smile size={15}/>
                 </button>
+                <button onClick={() => { setShowMedia(v=>!v); setShowEmoji(false) }}
+                  className="p-1.5 rounded-[7px] flex-shrink-0"
+                  title="Enviar mídia por URL"
+                  style={{ color:'var(--label-3)', background:showMedia?'var(--fill)':'transparent' }}>
+                  <Paperclip size={15}/>
+                </button>
+                <button onClick={() => fileRef.current?.click()}
+                  className="p-1.5 rounded-[7px] flex-shrink-0"
+                  title="Enviar arquivo local"
+                  style={{ color:'var(--label-3)' }}>
+                  <Image size={15}/>
+                </button>
+                <input ref={fileRef} type="file" accept="image/*,video/*,application/pdf,.doc,.docx"
+                  className="hidden"
+                  onChange={async e => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    // Mostra nome do arquivo no chat localmente
+                    const msg = `[Arquivo: ${file.name}]`
+                    setMsgs(prev => [...prev, { r:'m', t:msg, h:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}), status:'sent' }])
+                    setInput(prev => prev + (prev ? '\n' : '') + msg)
+                    e.target.value = ''
+                  }}
+                />
                 <div className="flex-1 flex items-end px-3 py-2 rounded-[14px]"
                   style={{ background:'var(--bg-3)', border:'1px solid var(--sep)' }}>
                   <textarea ref={inputRef} value={input}
