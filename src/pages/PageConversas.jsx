@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import {
   Send, Bot, User, Zap, Search, RefreshCw, Image,
   Paperclip, Smile, Phone, CheckCheck, Clock, X, Package,
-  ShoppingBag, ChevronRight, Star, Truck, CreditCard, Tag
+  ShoppingBag, ChevronRight, ChevronDown, Truck, CreditCard, Tag
 } from 'lucide-react'
 
 const BASE = import.meta.env.VITE_API_URL || ''
@@ -56,201 +56,244 @@ function Avatar({ nome, telefone, size = 36, online = false }) {
       </div>
       {online && <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full border"
         style={{ background: 'var(--accent)', borderColor: 'var(--bg-2)' }} />}
+    // Painel lateral direito — pedidos Bling + catálogo
+function PedidoCard({ pedido, telefone, api, onEnviar }) {
+  const [expandido, setExpandido] = React.useState(false)
+  const [enviando,  setEnviando]  = React.useState(null)
+
+  const STATUS_CFG = {
+    open:      { label:'Em aberto',    color:'var(--orange)', bg:'rgba(245,158,11,0.1)'  },
+    closed:    { label:'Entregue',     color:'var(--accent)', bg:'rgba(0,212,170,0.1)'   },
+    cancelled: { label:'Cancelado',    color:'var(--red)',    bg:'rgba(226,75,74,0.1)'   },
+    refunded:  { label:'Devolvido',    color:'var(--purple)', bg:'rgba(167,139,250,0.1)' },
+    invoiced:  { label:'NFe emitida',  color:'var(--blue)',   bg:'rgba(74,159,255,0.1)'  },
+    shipped:   { label:'Enviado',      color:'var(--blue)',   bg:'rgba(74,159,255,0.1)'  },
+    progress:  { label:'Em andamento', color:'var(--blue)',   bg:'rgba(74,159,255,0.1)'  },
+    failed:    { label:'Não entregue', color:'var(--red)',    bg:'rgba(226,75,74,0.1)'   },
+  }
+  const sc = STATUS_CFG[pedido.status] || STATUS_CFG.open
+
+  const enviar = async (acao) => {
+    setEnviando(acao)
+    try {
+      const r = await fetch(`${api}/api/contatos/${telefone}/pedidos/${pedido.id}/enviar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao })
+      })
+      const d = await r.json()
+      if (d.ok) onEnviar?.(d.mensagem)
+    } catch {}
+    setEnviando(null)
+  }
+
+  return (
+    <div className="mx-2 my-2 rounded-[10px] overflow-hidden"
+      style={{ background:'var(--bg-3)', border:'1px solid var(--sep)' }}>
+      <div className="px-3 py-2.5">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1">
+            <span className="text-[12px] font-bold" style={{ color:'var(--label)' }}>#{pedido.numero}</span>
+            {pedido.numero_loja !== '—' && <span className="text-[9px]" style={{ color:'var(--label-4)' }}>· #{pedido.numero_loja}</span>}
+          </div>
+          <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-[4px]"
+            style={{ background:sc.bg, color:sc.color }}>{sc.label}</span>
+        </div>
+        <div className="space-y-1">
+          {[
+            { l:'Total',     v:`R$ ${pedido.total}`,      show:true },
+            { l:'Data',      v:pedido.data,                show:true },
+            { l:'Pagamento', v:pedido.forma_pagamento,     show:pedido.forma_pagamento!=='—' },
+            { l:'Frete',     v:pedido.frete,               show:pedido.frete!=='—' },
+            { l:'Envio',     v:pedido.transportadora,      show:pedido.transportadora!=='—' },
+            { l:'Prazo',     v:pedido.prazo,               show:pedido.prazo!=='—' },
+          ].filter(r=>r.show).map((r,i) => (
+            <div key={i} className="flex justify-between">
+              <span className="text-[9px]" style={{ color:'var(--label-4)' }}>{r.l}</span>
+              <span className="text-[9px] font-medium" style={{ color:'var(--label-2)' }}>{r.v}</span>
+            </div>
+          ))}
+          {pedido.rastreio !== '—' && (
+            <div className="flex justify-between items-center pt-1 mt-1" style={{ borderTop:'1px solid var(--sep)' }}>
+              <span className="text-[9px]" style={{ color:'var(--label-4)' }}>Rastreio</span>
+              <span className="text-[9px] font-bold font-mono" style={{ color:'var(--blue)' }}>{pedido.rastreio}</span>
+            </div>
+          )}
+        </div>
+        {pedido.produtos?.length > 0 && (
+          <button onClick={() => setExpandido(v=>!v)}
+            className="w-full flex items-center justify-between mt-2 pt-2 text-[9px]"
+            style={{ borderTop:'1px solid var(--sep)', color:'var(--label-3)' }}>
+            <span>{pedido.itens}</span>
+            {expandido ? <ChevronDown size={10}/> : <ChevronDown size={10} style={{ transform:'rotate(-90deg)' }}/>}
+          </button>
+        )}
+        {expandido && pedido.produtos?.map((prod,i) => (
+          <div key={i} className="mt-1.5 p-2 rounded-[7px]" style={{ background:'var(--bg-2)' }}>
+            <div className="text-[9px] leading-tight" style={{ color:'var(--label)' }}>{prod.nome}</div>
+            <div className="text-[8px] mt-0.5" style={{ color:'var(--label-4)' }}>{prod.qtd}x · R$ {prod.preco}</div>
+          </div>
+        ))}
+      </div>
+      {/* Botões de ação */}
+      <div className="px-2 pb-2 flex gap-1">
+        <button onClick={() => enviar('resumo')} disabled={!!enviando}
+          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-[7px] text-[9px] font-semibold"
+          style={{ background:'rgba(0,212,170,0.1)', color:'var(--accent)', border:'1px solid rgba(0,212,170,0.2)' }}>
+          {enviando==='resumo' ? <RefreshCw size={9} className="animate-spin"/> : <Send size={9}/>} Resumo
+        </button>
+        {pedido.rastreio !== '—' && (
+          <button onClick={() => enviar('rastreio')} disabled={!!enviando}
+            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-[7px] text-[9px] font-semibold"
+            style={{ background:'rgba(74,159,255,0.1)', color:'var(--blue)', border:'1px solid rgba(74,159,255,0.2)' }}>
+            {enviando==='rastreio' ? <RefreshCw size={9} className="animate-spin"/> : <Truck size={9}/>} Rastreio
+          </button>
+        )}
+        {pedido.produtos?.length > 0 && (
+          <button onClick={() => enviar('produtos')} disabled={!!enviando}
+            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-[7px] text-[9px] font-semibold"
+            style={{ background:'rgba(167,139,250,0.1)', color:'var(--purple)', border:'1px solid rgba(167,139,250,0.2)' }}>
+            {enviando==='produtos' ? <RefreshCw size={9} className="animate-spin"/> : <Package size={9}/>} Produtos
+          </button>
+        )}
+      </div>
     </div>
   )
 }
 
-// Painel lateral direito — pedidos Bling + catálogo
 function PainelCliente({ sel, api }) {
-  const [aba,      setAba]      = useState('pedidos')
-  const [pedidos,  setPedidos]  = useState([])
-  const [produtos, setProdutos] = useState([])
-  const [buscaProd,setBuscaProd]= useState('')
-  const [loading,  setLoading]  = useState(false)
+  const [aba,       setAba]      = useState('pedidos')
+  const [pedidos,   setPedidos]  = useState([])
+  const [produtos,  setProdutos] = useState([])
+  const [buscaProd, setBuscaProd]= useState('')
+  const [loading,   setLoading]  = useState(false)
+  const [aviso,     setAviso]    = useState('')
+  const [enviado,   setEnviado]  = useState('')
 
-  // Busca pedidos do Bling via backend
   useEffect(() => {
     if (!sel?.telefone) return
-    setLoading(true)
+    setLoading(true); setPedidos([]); setAviso('')
     fetch(`${api}/api/contatos/${sel.telefone}/pedidos`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => { setPedidos(d?.pedidos || d || []); setLoading(false) })
+      .then(d => { setPedidos(d?.pedidos||[]); setAviso(d?.aviso||''); setLoading(false) })
       .catch(() => setLoading(false))
   }, [sel?.telefone, api])
 
-  // Busca catálogo Nuvemshop
   useEffect(() => {
     if (aba !== 'catalogo' || !buscaProd.trim()) return
     const t = setTimeout(() => {
       fetch(`${api}/api/fase5/portfolio?q=${encodeURIComponent(buscaProd)}`)
         .then(r => r.ok ? r.json() : null)
-        .then(d => setProdutos(d?.produtos || []))
+        .then(d => setProdutos(d?.produtos||[]))
         .catch(() => {})
     }, 400)
     return () => clearTimeout(t)
   }, [buscaProd, aba, api])
 
-  const statusCfg = (s) => STATUS_PEDIDO[s] || { label: s || 'Desconhecido', color: 'var(--label-3)', bg: 'var(--fill)' }
-
   return (
-    <div className="flex flex-col overflow-hidden" style={{ background: 'var(--bg-2)', borderLeft: '1px solid var(--sep)', width: 210 }}>
-      {/* Abas */}
-      <div className="flex border-b flex-shrink-0" style={{ borderColor: 'var(--sep)' }}>
+    <div className="flex flex-col overflow-hidden" style={{ background:'var(--bg-2)', borderLeft:'1px solid var(--sep)', width:210, flexShrink:0 }}>
+      <div className="flex border-b flex-shrink-0" style={{ borderColor:'var(--sep)' }}>
         {[['pedidos','Pedidos'],['catalogo','Catálogo'],['perfil','Perfil']].map(([v,l]) => (
           <button key={v} onClick={() => setAba(v)}
             className="flex-1 py-2 text-[10px] font-semibold transition-all"
-            style={{
-              color: aba === v ? 'var(--accent)' : 'var(--label-4)',
-              borderBottom: `2px solid ${aba === v ? 'var(--accent)' : 'transparent'}`,
-              background: 'transparent',
-            }}>
+            style={{ color:aba===v?'var(--accent)':'var(--label-4)', borderBottom:`2px solid ${aba===v?'var(--accent)':'transparent'}`, background:'transparent' }}>
             {l}
           </button>
         ))}
       </div>
-
+      {enviado && (
+        <div className="px-3 py-1.5 text-[10px] font-semibold text-center"
+          style={{ background:'rgba(0,212,170,0.1)', color:'var(--accent)' }}>{enviado}</div>
+      )}
       <div className="flex-1 overflow-y-auto scroll-hidden">
-
-        {/* PEDIDOS */}
         {aba === 'pedidos' && (
-          <div className="p-0">
-            {loading && (
-              <div className="flex justify-center py-6" style={{ color: 'var(--label-3)' }}>
-                <RefreshCw size={13} className="animate-spin" />
+          <div>
+            {aviso && (
+              <div className="mx-2 mt-2 px-3 py-2 rounded-[8px] text-[9px]"
+                style={{ background:'rgba(245,158,11,0.1)', color:'var(--orange)', border:'1px solid rgba(245,158,11,0.2)' }}>
+                {aviso}
               </div>
             )}
+            {loading && <div className="flex justify-center py-6" style={{ color:'var(--label-3)' }}><RefreshCw size={13} className="animate-spin"/></div>}
             {!loading && pedidos.length === 0 && (
               <div className="flex flex-col items-center py-8 px-4 text-center">
-                <ShoppingBag size={22} className="mb-2 opacity-30" style={{ color: 'var(--label-3)' }} />
-                <p className="text-[11px]" style={{ color: 'var(--label-3)' }}>Nenhum pedido encontrado</p>
-                <p className="text-[10px] mt-1" style={{ color: 'var(--label-4)' }}>Verifique a integração Bling</p>
+                <ShoppingBag size={22} className="mb-2 opacity-30" style={{ color:'var(--label-3)' }}/>
+                <p className="text-[11px]" style={{ color:'var(--label-3)' }}>Nenhum pedido encontrado</p>
+                <p className="text-[10px] mt-1" style={{ color:'var(--label-4)' }}>Vincule CPF ao contato para filtrar</p>
               </div>
             )}
-            {pedidos.map((p, i) => {
-              const sc = statusCfg(p.status || p.status_pagamento || 'open')
-              return (
-                <div key={p.id || i} className="mx-3 my-2 rounded-[10px] p-3"
-                  style={{ background: 'var(--bg-3)', border: '1px solid var(--sep)' }}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold" style={{ color: 'var(--label)' }}>
-                      #{p.numero || p.number || p.id}
-                    </span>
-                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-[4px]"
-                      style={{ background: sc.bg, color: sc.color }}>
-                      {sc.label}
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    {[
-                      { icon: CreditCard, l: 'Valor',     v: `R$ ${parseFloat(p.total || 0).toFixed(2)}` },
-                      { icon: CreditCard, l: 'Pagamento', v: p.forma_pagamento || p.payment_status || '—' },
-                      { icon: Truck,      l: 'Envio',     v: p.transportadora || p.shipping_method || '—' },
-                      { icon: Package,    l: 'Rastreio',  v: p.rastreio || p.tracking_number || '—', link: true },
-                      { icon: ShoppingBag,l: 'Itens',    v: p.itens || p.items_count || (p.produtos?.length ? `${p.produtos.length} produto(s)` : '—') },
-                      { icon: Clock,      l: 'Data',      v: p.data || (p.created_at ? new Date(p.created_at).toLocaleDateString('pt-BR') : '—') },
-                    ].map((row, j) => (
-                      <div key={j} className="flex justify-between items-center">
-                        <span className="text-[9px]" style={{ color: 'var(--label-4)' }}>{row.l}</span>
-                        <span className="text-[9px] font-medium max-w-[100px] truncate text-right"
-                          style={{ color: row.link && row.v !== '—' ? 'var(--blue)' : 'var(--label-2)' }}>
-                          {row.v}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
+            {pedidos.map((p,i) => (
+              <PedidoCard key={p.id||i} pedido={p} telefone={sel.telefone} api={api}
+                onEnviar={msg => { setEnviado('✓ Enviado no chat!'); setTimeout(()=>setEnviado(''),3000) }} />
+            ))}
           </div>
         )}
-
-        {/* CATÁLOGO */}
         {aba === 'catalogo' && (
           <div>
-            <div className="p-2 border-b" style={{ borderColor: 'var(--sep)' }}>
+            <div className="p-2 border-b" style={{ borderColor:'var(--sep)' }}>
               <div className="relative">
-                <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--label-3)' }} />
-                <input value={buscaProd} onChange={e => setBuscaProd(e.target.value)}
-                  placeholder="Buscar produto..."
+                <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color:'var(--label-3)' }}/>
+                <input value={buscaProd} onChange={e=>setBuscaProd(e.target.value)} placeholder="Buscar produto..."
                   className="w-full pl-7 pr-2 py-1.5 rounded-[8px] text-[10px] outline-none"
-                  style={{ background: 'var(--bg-3)', border: '1px solid var(--sep)', color: 'var(--label)' }} />
+                  style={{ background:'var(--bg-3)', border:'1px solid var(--sep)', color:'var(--label)' }}/>
               </div>
             </div>
             {produtos.length === 0 && (
               <div className="flex flex-col items-center py-8 px-4 text-center">
-                <Package size={22} className="mb-2 opacity-30" style={{ color: 'var(--label-3)' }} />
-                <p className="text-[11px]" style={{ color: 'var(--label-3)' }}>
-                  {buscaProd ? 'Nenhum produto encontrado' : 'Digite para buscar'}
-                </p>
+                <Package size={22} className="mb-2 opacity-30" style={{ color:'var(--label-3)' }}/>
+                <p className="text-[11px]" style={{ color:'var(--label-3)' }}>{buscaProd?'Nenhum produto':'Digite para buscar'}</p>
               </div>
             )}
-            {produtos.map((p, i) => (
-              <div key={p.id || i} className="flex items-center gap-2 px-3 py-2.5 border-b"
-                style={{ borderColor: 'var(--sep)' }}>
+            {produtos.map((p,i) => (
+              <div key={p.id||i} className="flex items-center gap-2 px-3 py-2.5 border-b" style={{ borderColor:'var(--sep)' }}>
                 <div className="w-8 h-8 rounded-[6px] flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'var(--bg-3)', border: '1px solid var(--sep)' }}>
-                  {p.imagem ? (
-                    <img src={p.imagem} alt="" className="w-full h-full object-cover rounded-[6px]" />
-                  ) : (
-                    <Package size={12} style={{ color: 'var(--label-3)' }} />
-                  )}
+                  style={{ background:'var(--bg-3)', border:'1px solid var(--sep)' }}>
+                  {p.imagem ? <img src={p.imagem} alt="" className="w-full h-full object-cover rounded-[6px]"/>
+                            : <Package size={12} style={{ color:'var(--label-3)' }}/>}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[10px] font-medium truncate" style={{ color: 'var(--label)' }}>{p.nome}</div>
+                  <div className="text-[10px] font-medium truncate" style={{ color:'var(--label)' }}>{p.nome}</div>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] font-bold" style={{ color: 'var(--accent)' }}>
-                      R$ {parseFloat(p.preco || 0).toFixed(2)}
-                    </span>
-                    <span className="text-[9px]" style={{ color: p.disponivel ? 'var(--accent)' : 'var(--red)' }}>
-                      {p.disponivel ? `${p.estoque} un.` : 'Sem estoque'}
-                    </span>
+                    <span className="text-[10px] font-bold" style={{ color:'var(--accent)' }}>R$ {parseFloat(p.preco||0).toFixed(2)}</span>
+                    <span className="text-[9px]" style={{ color:p.disponivel?'var(--accent)':'var(--red)' }}>{p.disponivel?`${p.estoque} un.`:'Sem estoque'}</span>
                   </div>
                 </div>
               </div>
             ))}
           </div>
         )}
-
-        {/* PERFIL */}
         {aba === 'perfil' && sel && (
           <div className="p-3 space-y-3">
-            <div className="rounded-[10px] p-3 text-center" style={{ background: 'var(--bg-3)', border: '1px solid var(--sep)' }}>
-              <Avatar nome={sel.nome} telefone={sel.telefone} size={44} />
-              <div className="text-[12px] font-semibold mt-2" style={{ color: 'var(--label)' }}>
-                {sel.nome || 'Sem nome'}
+            <div className="rounded-[10px] p-3 text-center" style={{ background:'var(--bg-3)', border:'1px solid var(--sep)' }}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-[13px] mx-auto mb-2"
+                style={{ background:'rgba(0,212,170,0.15)', color:'var(--accent)' }}>
+                {(sel.nome||sel.telefone).slice(0,2).toUpperCase()}
               </div>
-              <div className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--label-3)' }}>
-                {sel.telefone}
+              <div className="text-[12px] font-semibold" style={{ color:'var(--label)' }}>{sel.nome||'Sem nome'}</div>
+              <div className="text-[10px] font-mono mt-0.5" style={{ color:'var(--label-3)' }}>{sel.telefone}</div>
+            </div>
+            {[{l:'Total msgs',v:sel.total_msgs||0},{l:'Última',v:sel.ultima_msg?new Date(sel.ultima_msg).toLocaleDateString('pt-BR'):'—'}].map((r,i)=>(
+              <div key={i} className="flex justify-between px-1">
+                <span className="text-[10px]" style={{ color:'var(--label-4)' }}>{r.l}</span>
+                <span className="text-[10px] font-medium" style={{ color:'var(--label-2)' }}>{r.v}</span>
               </div>
-            </div>
-            <div className="space-y-2">
-              {[
-                { l: 'Total mensagens', v: sel.total_msgs || 0 },
-                { l: 'Última interação', v: sel.ultima_msg ? new Date(sel.ultima_msg).toLocaleDateString('pt-BR') : '—' },
-              ].map((r, i) => (
-                <div key={i} className="flex justify-between px-1">
-                  <span className="text-[10px]" style={{ color: 'var(--label-4)' }}>{r.l}</span>
-                  <span className="text-[10px] font-medium" style={{ color: 'var(--label-2)' }}>{r.v}</span>
-                </div>
-              ))}
-            </div>
-            {(sel.tags || []).length > 0 && (
-              <div>
-                <div className="text-[9px] font-semibold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--label-4)' }}>Tags</div>
-                <div className="flex flex-wrap gap-1">
-                  {sel.tags.map((t, i) => (
-                    <span key={i} className="text-[9px] px-1.5 py-0.5 rounded-[4px]"
-                      style={{ background: 'var(--fill)', color: 'var(--label-3)', border: '1px solid var(--sep)' }}>
-                      {t}
-                    </span>
-                  ))}
-                </div>
+            ))}
+            {(sel.tags||[]).length>0&&(
+              <div className="flex flex-wrap gap-1">
+                {sel.tags.map((t,i)=>(
+                  <span key={i} className="text-[9px] px-1.5 py-0.5 rounded-[4px]"
+                    style={{ background:'var(--fill)', color:'var(--label-3)', border:'1px solid var(--sep)' }}>{t}</span>
+                ))}
               </div>
             )}
           </div>
         )}
       </div>
     </div>
+  )
+}
+
+ </div>
   )
 }
 
