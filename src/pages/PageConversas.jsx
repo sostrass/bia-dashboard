@@ -364,19 +364,23 @@ export default function PageConversas({ api: apiProp }) {
           status: m.direcao === 'saida' ? 'delivered' : undefined,
         }))
         setMsgs(prev => {
-          // Filtra mensagens locais (ainda não salvas no banco, id começa com 'local-')
+          // Separa mensagens locais (enviadas pelo atendente, ainda não confirmadas no banco)
           const locais = prev.filter(m => String(m.id||'').startsWith('local-'))
 
-          // Só atualiza se o banco tem mais mensagens que o estado atual (descontando locais)
-          const prevSemLocais = prev.length - locais.length
-          const temNovo = conv.length > prevSemLocais
+          // Verifica se chegou algo novo no banco
+          const ultimaAnterior = prev.filter(m => !String(m.id||'').startsWith('local-')).slice(-1)[0]?.t || ''
+          const ultimaNova     = conv.slice(-1)[0]?.t || ''
+          const bancoCresceu   = conv.length > (prev.length - locais.length)
+          const conteudoMudou  = ultimaNova !== ultimaAnterior
+          const deveAtualizar  = bancoCresceu || conteudoMudou || inicial
 
-          if (temNovo || inicial) {
-            // Junta mensagens do banco com locais que ainda não apareceram no banco
-            const idsNoBanco = new Set(conv.map(m => m.t))
-            const locaisPendentes = locais.filter(m => !idsNoBanco.has(m.t))
+          if (deveAtualizar) {
+            // Remove locais que já chegaram no banco (pelo conteúdo)
+            const textosBanco = new Set(conv.map(m => m.t.trim()))
+            const locaisPendentes = locais.filter(m => !textosBanco.has(m.t.trim()))
             const resultado = [...conv, ...locaisPendentes]
-            setTimeout(() => chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' }), 80)
+            if (bancoCresceu || inicial)
+              setTimeout(() => chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' }), 80)
             return resultado
           }
           return prev
@@ -418,7 +422,7 @@ export default function PageConversas({ api: apiProp }) {
     const t = (texto || input).trim()
     if (!t || sending || !sel) return
     const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    setMsgs(prev => [...prev, { r: 'm', t, h: hora, status: 'sent' }])
+    setMsgs(prev => [...prev, { id: `local-${Date.now()}`, r: 'm', t, h: hora, status: 'sent' }])
     setInput(''); setUsedSugs(new Set()); setShowEmoji(false)
     setSending(true)
     try {
