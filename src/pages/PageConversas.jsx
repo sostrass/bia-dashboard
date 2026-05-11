@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   Send, Bot, User, Zap, Search, RefreshCw, Image,
   Paperclip, Smile, Phone, CheckCheck, Clock, X, Package,
@@ -58,8 +58,8 @@ function Avatar({ nome, telefone, size = 36, online = false }) {
         style={{ background: 'var(--accent)', borderColor: 'var(--bg-2)' }} />}
     // Painel lateral direito — pedidos Bling + catálogo
 function PedidoCard({ pedido, telefone, api, onEnviar }) {
-  const [expandido, setExpandido] = React.useState(false)
-  const [enviando,  setEnviando]  = React.useState(null)
+  const [expandido, setExpandido] = useState(false)
+  const [enviando,  setEnviando]  = useState(null)
 
   const STATUS_CFG = {
     open:      { label:'Em aberto',    color:'var(--orange)', bg:'rgba(245,158,11,0.1)'  },
