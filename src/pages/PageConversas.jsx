@@ -297,10 +297,6 @@ function PainelCliente({ sel, api }) {
   )
 }
 
- </div>
-  )
-}
-
 export default function PageConversas({ api: apiProp }) {
   const api = apiProp || BASE
   const [convs,      setConvs]      = useState([])
