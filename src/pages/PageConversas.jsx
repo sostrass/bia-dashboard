@@ -364,26 +364,22 @@ export default function PageConversas({ api: apiProp }) {
           status: m.direcao === 'saida' ? 'delivered' : undefined,
         }))
         setMsgs(prev => {
-          // Separa mensagens locais (enviadas pelo atendente, ainda não confirmadas no banco)
+          // Separa mensagens locais pendentes (ainda não salvas no banco)
           const locais = prev.filter(m => String(m.id||'').startsWith('local-'))
+          const textosBanco = new Set(conv.map(m => m.t?.trim()))
 
-          // Verifica se chegou algo novo no banco
-          const ultimaAnterior = prev.filter(m => !String(m.id||'').startsWith('local-')).slice(-1)[0]?.t || ''
-          const ultimaNova     = conv.slice(-1)[0]?.t || ''
-          const bancoCresceu   = conv.length > (prev.length - locais.length)
-          const conteudoMudou  = ultimaNova !== ultimaAnterior
-          const deveAtualizar  = bancoCresceu || conteudoMudou || inicial
+          // Remove locais que já apareceram no banco
+          const locaisPendentes = locais.filter(m => !textosBanco.has(m.t?.trim()))
 
-          if (deveAtualizar) {
-            // Remove locais que já chegaram no banco (pelo conteúdo)
-            const textosBanco = new Set(conv.map(m => m.t.trim()))
-            const locaisPendentes = locais.filter(m => !textosBanco.has(m.t.trim()))
-            const resultado = [...conv, ...locaisPendentes]
-            if (bancoCresceu || inicial)
-              setTimeout(() => chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' }), 80)
-            return resultado
+          // Sempre atualiza com dados do banco + pendentes locais
+          const resultado = [...conv, ...locaisPendentes]
+
+          // Scrolla se chegou mensagem nova
+          if (conv.length > (prev.length - locais.length) || inicial) {
+            setTimeout(() => chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' }), 80)
           }
-          return prev
+
+          return resultado
         })
       }
     } catch {}
