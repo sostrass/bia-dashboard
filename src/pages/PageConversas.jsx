@@ -38,7 +38,7 @@ const STATUS_PEDIDO = {
 // Gera sugestões de resposta via IA com base no contexto
 async function gerarSugestoesIA(api, telefone, ultimaMensagemCliente) {
   try {
-    const r = await fetch(`${api}/api/ia/sugestoes`, {
+    const r = await fetch(`${api}/api/sugestoes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ telefone, mensagem: ultimaMensagemCliente })
@@ -325,7 +325,8 @@ export default function PageConversas({ api: apiProp }) {
   const [input,      setInput]      = useState('')
   const [modeMap,    setModeMap]    = useState({})
   const [statusMap,  setStatusMap]  = useState({})
-  const [sending,    setSending]    = useState(false)
+  const [sending,      setSending]      = useState(false)
+  const [pollingPausado, setPollingPausado] = useState(false)
   const [sugestoes,  setSugestoes]  = useState([])
   const [usedSugs,   setUsedSugs]   = useState(new Set())
   const [showEmoji,  setShowEmoji]  = useState(false)
@@ -388,18 +389,36 @@ export default function PageConversas({ api: apiProp }) {
 
   useEffect(() => {
     if (!sel) return
-    const i = setInterval(() => carregarHistorico(sel.telefone, false), 5000)
+    const i = setInterval(() => {
+      if (!pollingPausado) carregarHistorico(sel.telefone, false)
+    }, 5000)
     return () => clearInterval(i)
-  }, [sel?.telefone, carregarHistorico])
+  }, [sel?.telefone, carregarHistorico, pollingPausado])
 
   useEffect(() => { chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' }) }, [msgs])
 
   const isManual = (modeMap[sel?.telefone] || 'auto') === 'manual'
 
-  const selecionarConv = useCallback((c) => {
+  const selecionarConv = useCallback(async (c) => {
     setSel(c); carregarHistorico(c.telefone, true)
     setInput(''); setUsedSugs(new Set()); setShowEmoji(false)
-  }, [carregarHistorico])
+    // Carrega modo atual do banco
+    try {
+      const r = await fetch(`${api}/api/contatos/${c.telefone}`)
+      if (r.ok) {
+        const d = await r.json()
+        if (d.modo) setModeMap(m => ({ ...m, [c.telefone]: d.modo }))
+      }
+    } catch {}
+    // Carrega status atual
+    try {
+      const r2 = await fetch(`${api}/api/fase5/conversas/${c.telefone}/status`)
+      if (r2.ok) {
+        const d2 = await r2.json()
+        if (d2.status) setStatusMap(m => ({ ...m, [c.telefone]: d2.status }))
+      }
+    } catch {}
+  }, [carregarHistorico, api])
 
   useEffect(() => {
     if (!isManual || !sel) { setSugestoes([]); return }
@@ -412,15 +431,30 @@ export default function PageConversas({ api: apiProp }) {
     }
   }, [isManual, sel, msgs])
 
-  const toggleMode = () => setModeMap(m => ({ ...m, [sel.telefone]: isManual ? 'auto' : 'manual' }))
+  const toggleMode = async () => {
+    const novoModo = isManual ? 'auto' : 'manual'
+    setModeMap(m => ({ ...m, [sel.telefone]: novoModo }))
+    // Persiste no banco
+    try {
+      await fetch(`${api}/api/contatos/${sel.telefone}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modo: novoModo })
+      })
+    } catch {}
+  }
 
   const send = async (texto) => {
     const t = (texto || input).trim()
     if (!t || sending || !sel) return
     const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    setMsgs(prev => [...prev, { id: `local-${Date.now()}`, r: 'm', t, h: hora, status: 'sent' }])
+    const localId = `local-${Date.now()}`
+    setMsgs(prev => [...prev, { id: localId, r: 'm', t, h: hora, status: 'sent' }])
     setInput(''); setUsedSugs(new Set()); setShowEmoji(false)
     setSending(true)
+    // Pausa o polling por 3 segundos para não sobrescrever a mensagem local
+    setPollingPausado(true)
+    setTimeout(() => setPollingPausado(false), 3000)
     try {
       await fetch(`${api}/api/dashboard/enviar`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -541,7 +575,16 @@ export default function PageConversas({ api: apiProp }) {
             {/* Status */}
             <div className="flex items-center gap-1.5">
               {['pendente','concluida'].map(s => (
-                <button key={s} onClick={() => setStatusMap(m => ({...m,[sel.telefone]:s}))}
+                <button key={s} onClick={async () => {
+                  setStatusMap(m => ({...m,[sel.telefone]:s}))
+                  try {
+                    await fetch(`${api}/api/fase5/conversas/${sel.telefone}/status`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ status: s })
+                    })
+                  } catch {}
+                }}
                   className="text-[9px] font-bold px-2 py-1 rounded-[5px] transition-all"
                   style={{
                     background: convStatus(sel.telefone)===s
