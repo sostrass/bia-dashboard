@@ -678,7 +678,7 @@ export default function PageConversas({ api: apiProp }) {
                 <button onClick={async () => {
                   if (!mediaUrl.trim() || !sel) return
                   const msg = `[${mediaTipo}: ${mediaUrl}]`
-                  await fetch(\`\${api}/api/dashboard/enviar\`, {
+                  await fetch(`${api}/api/dashboard/enviar`, {
                     method:'POST', headers:{'Content-Type':'application/json'},
                     body: JSON.stringify({ telefone:sel.telefone, mensagem:mediaUrl })
                   })
