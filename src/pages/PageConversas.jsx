@@ -341,8 +341,11 @@ export default function PageConversas({ api: apiProp }) {
           status: m.direcao === 'saida' ? 'delivered' : undefined,
         }))
         setMsgs(prev => {
-          if (conv.length !== prev.length) {
-            if (inicial || conv.length > prev.length)
+          const ultimaAnterior = prev[prev.length-1]?.t || ''
+          const ultimaNova     = conv[conv.length-1]?.t  || ''
+          const mudou = conv.length !== prev.length || ultimaNova !== ultimaAnterior
+          if (mudou) {
+            if (conv.length > prev.length)
               setTimeout(() => chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' }), 80)
             return conv
           }
