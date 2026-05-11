@@ -56,7 +56,11 @@ function Avatar({ nome, telefone, size = 36, online = false }) {
       </div>
       {online && <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full border"
         style={{ background: 'var(--accent)', borderColor: 'var(--bg-2)' }} />}
-    // Painel lateral direito — pedidos Bling + catálogo
+    </div>
+  )
+}
+
+// Painel lateral direito — pedidos Bling + catálogo
 function PedidoCard({ pedido, telefone, api, onEnviar }) {
   const [expandido, setExpandido] = useState(false)
   const [enviando,  setEnviando]  = useState(null)
