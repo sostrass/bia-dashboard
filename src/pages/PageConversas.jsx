@@ -13,13 +13,15 @@ const TIPO_CFG = {
   duv: { label:'Dúvida',    bg:'rgba(0,212,170,0.1)',    color:'var(--accent)' },
 }
 
-const SUGESTOES = {
-  dev: ['Qual o número do pedido?','Pode enviar uma foto?','Vou abrir a devolução agora!'],
-  ped: ['Qual produto você procura?','Vou verificar o estoque!','Qual forma de pagamento prefere?'],
-  duv: ['Claro, deixa eu verificar!','Pode me dar mais detalhes?','Vou te ajudar agora! 😊'],
-}
-
-const EMOJI_COMUNS = ['😊','👍','🙏','💚','📦','🔍','✅','❌','⏳','🎉','💰','📬','🚚','⭐']
+const EMOJI_CATEGORIAS = [
+  { label:'😊 Expressões', emojis:['😊','😃','😄','🤩','😍','🥰','😂','🤣','😅','😁','🙂','🤗','😌','🤔','😐','🙄','😒','😔','😟','😕','😣','😫','😩','😤','😠','😡','😱','😨','😰','😥','😴','😵','🤢','🤧','😷'] },
+  { label:'👍 Gestos',     emojis:['👍','👎','👌','✌️','🤞','🤙','👈','👉','👆','👇','✋','🖐️','👋','💪','🙌','👐','🤝','🙏','✍️','👏','🤏','🫶','🫂'] },
+  { label:'❤️ Amor',       emojis:['❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','♥️','💋','🫀'] },
+  { label:'📦 Negócios',   emojis:['📦','🛍️','🛒','💳','💰','💵','🏷️','📋','📄','📊','📈','📉','📆','📌','📎','✂️','🖊️','📝','💼','🗂️','📁','📂'] },
+  { label:'✅ Símbolos',   emojis:['✅','❌','⭕','🚫','⛔','💯','⚠️','♻️','✔️','❎','🔴','🟠','🟡','🟢','🔵','🟣','⚫','⚪','🔶','🔷','🔸','🔹','🔺','🔻','💠','🔘','🔲','🔳'] },
+  { label:'🚚 Entrega',    emojis:['🚚','🚛','🚜','🚗','🚕','🚌','✈️','🚀','🛸','🚁','🚢','🚤','🚂','📬','📮','📪','📫','📭','📦','🏠','🏢','🏪','🏬'] },
+  { label:'⭐ Especiais',  emojis:['⭐','🌟','💫','✨','🎉','🎊','🎈','🎁','🏆','🥇','🔔','💡','🔥','❄️','🌈','☀️','🌙','⚡','🎯','🎲','🎮','🧩','🪄','🎪'] },
+]
 
 const STATUS_PEDIDO = {
   'pending':     { label: 'Pendente',      color: 'var(--orange)', bg: 'rgba(245,158,11,0.1)'  },
@@ -31,6 +33,22 @@ const STATUS_PEDIDO = {
   'closed':      { label: 'Entregue',      color: 'var(--accent)', bg: 'rgba(0,212,170,0.1)'   },
   'cancelled':   { label: 'Cancelado',     color: 'var(--red)',    bg: 'rgba(226,75,74,0.1)'   },
   'shipped':     { label: 'Enviado',       color: 'var(--blue)',   bg: 'rgba(74,159,255,0.1)'  },
+}
+
+// Gera sugestões de resposta via IA com base no contexto
+async function gerarSugestoesIA(api, telefone, ultimaMensagemCliente) {
+  try {
+    const r = await fetch(`${api}/api/ia/sugestoes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ telefone, mensagem: ultimaMensagemCliente })
+    })
+    if (r.ok) {
+      const d = await r.json()
+      return d.sugestoes || []
+    }
+  } catch {}
+  return []
 }
 
 function detectarTipo(tags = []) {
@@ -311,6 +329,7 @@ export default function PageConversas({ api: apiProp }) {
   const [sugestoes,  setSugestoes]  = useState([])
   const [usedSugs,   setUsedSugs]   = useState(new Set())
   const [showEmoji,  setShowEmoji]  = useState(false)
+  const [emojiCat,    setEmojiCat]    = useState(0)
   const [loadingH,   setLoadingH]   = useState(false)
   const chatRef  = useRef(null)
   const inputRef = useRef(null)
@@ -373,10 +392,14 @@ export default function PageConversas({ api: apiProp }) {
 
   useEffect(() => {
     if (!isManual || !sel) { setSugestoes([]); return }
-    const tipo = detectarTipo(sel.tags || [])
-    setSugestoes(SUGESTOES[tipo] || SUGESTOES.duv)
     setUsedSugs(new Set())
-  }, [isManual, sel])
+    // Busca sugestões dinâmicas baseadas na última mensagem do cliente
+    const ultimaDoCliente = msgs.filter(m => m.r === 'u').slice(-1)[0]?.t
+    if (ultimaDoCliente) {
+      gerarSugestoesIA(api, sel.telefone, ultimaDoCliente)
+        .then(sugs => { if (sugs.length > 0) setSugestoes(sugs) })
+    }
+  }, [isManual, sel, msgs])
 
   const toggleMode = () => setModeMap(m => ({ ...m, [sel.telefone]: isManual ? 'auto' : 'manual' }))
 
@@ -617,11 +640,25 @@ export default function PageConversas({ api: apiProp }) {
 
           {/* Emoji picker */}
           {showEmoji && (
-            <div className="flex-shrink-0 px-3 py-2" style={{ borderTop:'1px solid var(--sep)', background:'var(--bg-3)' }}>
-              <div className="flex flex-wrap gap-1.5">
-                {EMOJI_COMUNS.map(e => (
-                  <button key={e} onClick={() => { setInput(p=>p+e); setShowEmoji(false); inputRef.current?.focus() }}
-                    className="text-lg hover:scale-125 transition-transform">{e}</button>
+            <div className="flex-shrink-0" style={{ borderTop:'1px solid var(--sep)', background:'var(--bg-3)', maxHeight:220, overflow:'hidden', display:'flex', flexDirection:'column' }}>
+              {/* Abas de categoria */}
+              <div className="flex overflow-x-auto scroll-hidden px-2 pt-2 gap-1 flex-shrink-0">
+                {EMOJI_CATEGORIAS.map((cat, ci) => (
+                  <button key={ci}
+                    onClick={() => setEmojiCat(ci)}
+                    className="flex-shrink-0 text-[11px] px-2 py-1 rounded-[6px] transition-all"
+                    style={{ background: emojiCat===ci ? 'var(--accent-dim)' : 'var(--fill)', color: emojiCat===ci ? 'var(--accent)' : 'var(--label-3)' }}>
+                    {cat.label.split(' ')[0]}
+                  </button>
+                ))}
+              </div>
+              {/* Emojis da categoria selecionada */}
+              <div className="flex flex-wrap gap-1 p-2 overflow-y-auto scroll-hidden">
+                {(EMOJI_CATEGORIAS[emojiCat]?.emojis || []).map(e => (
+                  <button key={e} onClick={() => { setInput(p=>p+e); inputRef.current?.focus() }}
+                    className="text-[18px] w-8 h-8 flex items-center justify-center rounded-[6px] hover:bg-[var(--fill)] transition-all">
+                    {e}
+                  </button>
                 ))}
               </div>
             </div>
