@@ -1,52 +1,70 @@
 import { useState, useEffect, useRef } from 'react'
-import { User, Bot, Clock, CheckCircle, MessageSquare, RefreshCw, AlertCircle, Send } from 'lucide-react'
+import { User, Bot, Clock, CheckCircle, MessageSquare, RefreshCw,
+         AlertCircle, Send, Phone, CreditCard, Package, Zap, X } from 'lucide-react'
+
+const BASE = import.meta.env.VITE_API_URL || ''
 
 function formatarTempo(segundos) {
-  if (segundos < 60) return `${segundos}s`
-  if (segundos < 3600) return `${Math.floor(segundos/60)}min ${segundos%60}s`
-  return `${Math.floor(segundos/3600)}h ${Math.floor((segundos%3600)/60)}min`
+  if (segundos < 60)   return `${segundos}s`
+  if (segundos < 3600) return `${Math.floor(segundos/60)}m ${segundos%60}s`
+  return `${Math.floor(segundos/3600)}h ${Math.floor((segundos%3600)/60)}m`
 }
 
-function corEspera(segundos) {
-  if (segundos < 120)  return 'var(--accent)' // verde < 2min
-  if (segundos < 300)  return 'var(--orange)'  // laranja < 5min
-  return 'var(--red)'                           // vermelho > 5min
+function corEspera(seg) {
+  if (seg < 120) return 'var(--accent)'
+  if (seg < 300) return 'var(--orange)'
+  return 'var(--red)'
 }
 
 function ContadorEspera({ solicitadoEm }) {
-  const [segundos, setSegundos] = useState(0)
-
+  const [seg, setSeg] = useState(0)
   useEffect(() => {
-    const calc = () => {
-      const diff = Math.floor((Date.now() - new Date(solicitadoEm).getTime()) / 1000)
-      setSegundos(Math.max(0, diff))
-    }
+    const calc = () => setSeg(Math.floor((Date.now() - new Date(solicitadoEm).getTime()) / 1000))
     calc()
     const i = setInterval(calc, 1000)
     return () => clearInterval(i)
   }, [solicitadoEm])
-
-  const cor = corEspera(segundos)
   return (
-    <div className="flex items-center gap-1.5">
-      <Clock size={12} style={{ color: cor }} />
-      <span className="text-[13px] font-bold font-mono" style={{ color: cor }}>
-        {formatarTempo(segundos)}
-      </span>
+    <span className="flex items-center gap-1 font-mono font-bold text-[12px]"
+      style={{ color: corEspera(seg) }}>
+      <Clock size={11}/> {formatarTempo(seg)}
+    </span>
+  )
+}
+
+function StatusPagamento({ pedidos }) {
+  if (!pedidos?.length) return null
+  const ultimo = pedidos[0]
+  const STATUS = {
+    open:      { label:'Pagamento pendente', color:'var(--orange)', icon:'⏳' },
+    paid:      { label:'Pago',              color:'var(--accent)', icon:'✅' },
+    closed:    { label:'Entregue',          color:'var(--accent)', icon:'📦' },
+    shipped:   { label:'Enviado',           color:'var(--blue)',   icon:'🚚' },
+    progress:  { label:'Em andamento',      color:'var(--blue)',   icon:'🔄' },
+    cancelled: { label:'Cancelado',         color:'var(--red)',    icon:'❌' },
+  }
+  const sc = STATUS[ultimo.status] || STATUS.progress
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 rounded-[8px] text-[11px] font-semibold"
+      style={{ background:`${sc.color}10`, color:sc.color, border:`1px solid ${sc.color}30` }}>
+      {sc.icon} #{ultimo.numero} · {sc.label}
+      {ultimo.total && <span style={{ opacity:0.7 }}>· {ultimo.total}</span>}
     </div>
   )
 }
 
-export default function PageHandoff({ api }) {
-  const [handoffs,   setHandoffs]   = useState([])
-  const [historico,  setHistorico]  = useState([])
-  const [sel,        setSel]        = useState(null)
-  const [msg,        setMsg]        = useState('')
-  const [retornoMsg, setRetornoMsg] = useState('Ol\u00e1! Nossa equipe assumiu o seu atendimento. Como posso ajudar?')
-  const [loading,    setLoading]    = useState(true)
-  const [sending,    setSending]    = useState(false)
-  const [tab,        setTab]        = useState('aguardando')
-  const intervalRef = useRef(null)
+export default function PageHandoff({ api: apiProp }) {
+  const api = apiProp || BASE
+  const [handoffs,  setHandoffs]  = useState([])
+  const [sel,       setSel]       = useState(null)
+  const [historico, setHistorico] = useState([])
+  const [pedidos,   setPedidos]   = useState([])
+  const [msg,       setMsg]       = useState('')
+  const [sending,   setSending]   = useState(false)
+  const [tab,       setTab]       = useState('aguardando')
+  const [loading,   setLoading]   = useState(true)
+  const chatRef    = useRef(null)
+  const intervalRef= useRef(null)
 
   const carregar = async () => {
     try {
@@ -56,10 +74,9 @@ export default function PageHandoff({ api }) {
         setHandoffs(d.handoffs || [])
       }
     } catch {}
-    finally { setLoading(false) }
+    setLoading(false)
   }
 
-  // Atualiza a cada 5 segundos automaticamente
   useEffect(() => {
     carregar()
     intervalRef.current = setInterval(carregar, 5000)
@@ -71,87 +88,121 @@ export default function PageHandoff({ api }) {
       await fetch(`${api}/api/fase3/handoffs/${h.telefone}/atender`, { method: 'POST' })
       setSel(h)
       setHandoffs(prev => prev.filter(x => x.telefone !== h.telefone))
-      // Carrega histórico do cliente
-      carregarHistorico(h.telefone)
+      carregarHistorico(h.telefone, true)
+      carregarPedidos(h.telefone)
     } catch {}
   }
 
   const carregarHistorico = async (telefone, inicial = true) => {
+    if (inicial) setHistorico([])
     try {
       const r = await fetch(`${api}/api/dashboard/historico/${telefone}`)
       if (r.ok) {
         const d = await r.json()
-        const msgs = d.mensagens || []
-        // Só atualiza se mudou — evita piscar
-        setHistorico(prev => msgs.length !== prev.length ? msgs : prev)
+        setHistorico(prev => {
+          const msgs = d.mensagens || []
+          if (msgs.length !== prev.length) {
+            setTimeout(() => chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' }), 100)
+            return msgs
+          }
+          return prev
+        })
       }
     } catch {}
   }
 
-  // Polling silencioso do histórico quando está em atendimento
+  const carregarPedidos = async (telefone) => {
+    try {
+      const r = await fetch(`${api}/api/contatos/${telefone}/pedidos`)
+      if (r.ok) {
+        const d = await r.json()
+        setPedidos(d.pedidos || [])
+      }
+    } catch {}
+  }
+
   useEffect(() => {
     if (!sel) return
     const i = setInterval(() => carregarHistorico(sel.telefone, false), 5000)
     return () => clearInterval(i)
   }, [sel?.telefone])
 
+  useEffect(() => {
+    chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' })
+  }, [historico])
+
   const retomarIA = async (telefone) => {
-    if (!retornoMsg.trim()) return
-    setSending(true)
     try {
-      await fetch(`${api}/webhook/handoff/retomar-ia`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      await fetch(`${api}/api/fase3/handoffs/${telefone}/retomar-ia`, { method: 'POST' })
+      const retornoMsg = 'Obrigado pelo contato! A Molise voltará a te atender. 😊'
+      await fetch(`${api}/api/dashboard/enviar`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ telefone, mensagem: retornoMsg })
       })
       setSel(null)
+      setHistorico([])
+      setPedidos([])
       await carregar()
     } catch {}
-    setSending(false)
+  }
+
+  const resolver = async (telefone) => {
+    try {
+      await fetch(`${api}/api/fase3/handoffs/${telefone}/resolver`, { method: 'POST' })
+      setSel(null); setHistorico([]); setPedidos([])
+      await carregar()
+    } catch {}
   }
 
   const enviarMensagem = async () => {
-    if (!msg.trim() || !sel || sending) return
+    if (!msg.trim() || sending || !sel) return
+    const texto = msg.trim()
+    setMsg('')
     setSending(true)
+    setHistorico(prev => [...prev, {
+      id: `local-${Date.now()}`, mensagem: texto, direcao: 'saida',
+      modo: 'manual', hora: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+    }])
     try {
       await fetch(`${api}/api/dashboard/enviar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telefone: sel.telefone, mensagem: msg })
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telefone: sel.telefone, mensagem: texto })
       })
-      setMsg('')
+      setTimeout(() => carregarHistorico(sel.telefone, false), 1000)
     } catch {}
     setSending(false)
   }
 
-  const urgentes = handoffs.filter(h => (h.segundos_espera || 0) >= 300)
-  const normais  = handoffs.filter(h => (h.segundos_espera || 0) < 300)
+  const urgentes = handoffs.filter(h => {
+    const seg = Math.floor((Date.now() - new Date(h.solicitado_em||h.criado_em||Date.now()).getTime()) / 1000)
+    return seg > 300
+  })
+  const normais = handoffs.filter(h => {
+    const seg = Math.floor((Date.now() - new Date(h.solicitado_em||h.criado_em||Date.now()).getTime()) / 1000)
+    return seg <= 300
+  })
 
   return (
-    <div className="h-full flex overflow-hidden">
+    <div className="h-full flex overflow-hidden" style={{ background: 'var(--bg)' }}>
 
-      {/* \u2500\u2500 Fila de handoffs \u2500\u2500 */}
-      <div className="w-[300px] flex-shrink-0 flex flex-col"
-        style={{ background: 'var(--bg-2)', borderRight: '1px solid var(--sep)' }}>
+      {/* Lista de handoffs */}
+      <div className="w-[280px] flex-shrink-0 flex flex-col"
+        style={{ background:'var(--bg-2)', borderRight:'1px solid var(--sep)' }}>
 
-        <div className="px-4 pt-4 pb-3" style={{ borderBottom: '1px solid var(--sep)' }}>
+        <div className="px-4 py-4 flex-shrink-0" style={{ borderBottom:'1px solid var(--sep)' }}>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-[17px] font-semibold" style={{ color: 'var(--label)' }}>Fila de Atendimento</h2>
-            <button onClick={carregar} className="p-1.5 rounded-[8px] transition-all" style={{ color: 'var(--label-3)' }}>
-              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            </button>
+            <h2 className="text-[17px] font-bold" style={{ color:'var(--label)' }}>Atendimento</h2>
+            <button onClick={carregar} style={{ color:'var(--label-3)' }}><RefreshCw size={13}/></button>
           </div>
-
-          {/* Tabs */}
-          <div className="flex gap-1 p-0.5 rounded-[10px]" style={{ background: 'var(--fill)' }}>
-            {[['aguardando','Aguardando'],['atendido','Atendidos']].map(([v,l]) => (
+          <div className="flex p-0.5 rounded-[9px]" style={{ background:'var(--fill)' }}>
+            {[['aguardando','Aguardando'],['em_atendimento','Ativo'],['resolvido','Resolvidos']].map(([v,l]) => (
               <button key={v} onClick={() => setTab(v)}
-                className="flex-1 py-1.5 rounded-[8px] text-[11px] font-medium transition-all"
-                style={{ background: tab===v?'var(--bg-2)':'transparent', color: tab===v?'var(--label)':'var(--label-3)' }}>
+                className="flex-1 py-1.5 rounded-[7px] text-[10px] font-medium transition-all"
+                style={{ background:tab===v?'var(--bg-2)':'transparent', color:tab===v?'var(--label)':'var(--label-3)' }}>
                 {l}
-                {v === 'aguardando' && handoffs.length > 0 && (
-                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold"
-                    style={{ background: urgentes.length > 0 ? 'var(--red)' : 'var(--accent)', color: '#000' }}>
+                {v==='aguardando' && handoffs.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold"
+                    style={{ background:urgentes.length>0?'var(--red)':'var(--accent)', color:'#000' }}>
                     {handoffs.length}
                   </span>
                 )}
@@ -160,208 +211,179 @@ export default function PageHandoff({ api }) {
           </div>
         </div>
 
-        <div className="overflow-y-auto flex-1">
-          {loading && (
-            <div className="flex items-center justify-center py-8" style={{ color: 'var(--label-3)' }}>
-              <RefreshCw size={16} className="animate-spin mr-2" /> Carregando...
-            </div>
-          )}
+        <div className="flex-1 overflow-y-auto scroll-hidden">
+          {loading && <div className="flex justify-center py-8" style={{ color:'var(--label-3)' }}><RefreshCw size={14} className="animate-spin"/></div>}
 
           {!loading && handoffs.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-              <CheckCircle size={32} className="mb-3 opacity-30" style={{ color: 'var(--accent)' }} />
-              <p className="text-[13px] font-medium" style={{ color: 'var(--label-2)' }}>
-                {tab === 'aguardando' ? 'Nenhum cliente aguardando' : 'Nenhum atendimento finalizado'}
-              </p>
-              <p className="text-[11px] mt-1" style={{ color: 'var(--label-3)' }}>
-                {tab === 'aguardando' ? 'A IA est\u00e1 resolvendo tudo! \ud83e\udd16' : 'O hist\u00f3rico aparece aqui'}
+            <div className="flex flex-col items-center py-10 px-4 text-center">
+              <CheckCircle size={28} className="mb-2 opacity-20" style={{ color:'var(--accent)' }}/>
+              <p className="text-[12px]" style={{ color:'var(--label-3)' }}>
+                {tab==='aguardando' ? 'Nenhum cliente aguardando' : 'Nenhum registro'}
               </p>
             </div>
           )}
 
-          {/* Urgentes primeiro */}
           {urgentes.length > 0 && (
-            <div>
-              <div className="px-4 py-2 text-[10px] font-semibold uppercase tracking-wider"
-                style={{ background: 'rgba(255,69,58,0.06)', color: 'var(--red)', borderBottom: '1px solid rgba(255,69,58,0.15)' }}>
-                Esperando mais de 5 minutos
-              </div>
-              {urgentes.map(h => <HandoffCard key={h.id} h={h} onAssumir={assumir} sel={sel} />)}
+            <div className="px-3 py-2 text-[10px] font-semibold flex items-center gap-1.5"
+              style={{ background:'rgba(226,75,74,0.08)', color:'var(--red)', borderBottom:'1px solid rgba(226,75,74,0.15)' }}>
+              <AlertCircle size={11}/> {urgentes.length} aguardando +5min
             </div>
           )}
 
-          {normais.map(h => <HandoffCard key={h.id} h={h} onAssumir={assumir} sel={sel} />)}
+          {handoffs.map(h => (
+            <HandoffCard key={h.id||h.telefone} h={h} onAssumir={assumir} sel={sel}/>
+          ))}
         </div>
       </div>
 
-      {/* \u2500\u2500 Painel de atendimento \u2500\u2500 */}
+      {/* Área de chat */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {!sel ? (
-          <div className="flex-1 flex flex-col items-center justify-center" style={{ background: 'var(--bg)' }}>
-            <div className="text-center max-w-sm">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-                style={{ background: 'var(--fill)' }}>
-                <User size={28} style={{ color: 'var(--label-3)' }} />
-              </div>
-              <h3 className="text-[17px] font-semibold mb-2" style={{ color: 'var(--label)' }}>
-                Selecione um atendimento
-              </h3>
-              <p className="text-[13px]" style={{ color: 'var(--label-3)' }}>
-                Clique em "Atender" na fila ao lado para assumir a conversa de um cliente
-              </p>
+          <div className="flex-1 flex items-center justify-center" style={{ background:'var(--bg)' }}>
+            <div className="text-center" style={{ color:'var(--label-3)' }}>
+              <MessageSquare size={32} className="mx-auto mb-3 opacity-20"/>
+              <p className="text-[14px]" style={{ color:'var(--label-2)' }}>Selecione um atendimento</p>
+              <p className="text-[12px] mt-1">Clique em "Atender" na lista ao lado</p>
             </div>
           </div>
-        ) : (
-          <>
-            {/* Header */}
-            <div className="px-5 py-3 flex items-center gap-3 flex-shrink-0"
-              style={{ background: 'var(--bg-2)', borderBottom: '1px solid var(--sep)' }}>
-              <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-[12px]"
-                style={{ background: 'var(--blue)', color: '#fff' }}>
-                {(sel.nome_cliente || sel.nome_contato || 'CL').slice(0,2).toUpperCase()}
+        ) : <>
+
+          {/* Header do chat */}
+          <div className="px-5 py-3 flex items-center gap-3 flex-shrink-0"
+            style={{ background:'var(--bg-2)', borderBottom:'1px solid var(--sep)' }}>
+            <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-[12px] flex-shrink-0"
+              style={{ background:'rgba(0,212,170,0.15)', color:'var(--accent)' }}>
+              {(sel.nome_contato||sel.nome||sel.telefone||'CL').slice(0,2).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[14px] font-bold" style={{ color:'var(--label)' }}>
+                {sel.nome_contato || sel.nome || 'Cliente'}
               </div>
-              <div className="flex-1">
-                <div className="text-[15px] font-semibold" style={{ color: 'var(--label)' }}>
-                  {sel.nome_cliente || sel.nome_contato || 'Cliente'}
-                </div>
-                <div className="text-[11px]" style={{ color: 'var(--label-3)' }}>{sel.telefone}</div>
-              </div>
-              <div className="flex items-center gap-2">
-                <ContadorEspera solicitadoEm={sel.solicitado_em} />
-                <span className="text-[10px] font-semibold px-2 py-1 rounded-full"
-                  style={{ background: 'rgba(10,132,255,0.12)', color: 'var(--blue)' }}>
-                  Modo Manual Ativo
-                </span>
-              </div>
+              <div className="text-[11px] font-mono" style={{ color:'var(--label-4)' }}>{sel.telefone}</div>
             </div>
 
-            {/* Motivo do handoff */}
-            <div className="px-5 py-2.5 flex items-start gap-2 flex-shrink-0"
-              style={{ background: 'rgba(255,159,10,0.06)', borderBottom: '1px solid rgba(255,159,10,0.15)' }}>
-              <AlertCircle size={13} style={{ color: 'var(--orange)', flexShrink: 0, marginTop: 1 }} />
-              <div>
-                <span className="text-[11px] font-semibold" style={{ color: 'var(--orange)' }}>Motivo do handoff: </span>
-                <span className="text-[11px]" style={{ color: 'var(--label-2)' }}>{sel.motivo}</span>
-              </div>
-            </div>
+            {/* Status de pagamento */}
+            <StatusPagamento pedidos={pedidos} />
 
-            {/* Histórico real do cliente */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2" style={{ background: 'var(--bg)' }}>
-              {historico.length === 0 && (
-                <div className="flex items-center justify-center h-full" style={{ color: 'var(--label-3)' }}>
-                  <div className="text-center">
-                    <MessageSquare size={28} className="mx-auto mb-2 opacity-30" />
-                    <p className="text-[12px]">Carregando histórico...</p>
-                  </div>
+            {/* Ações */}
+            <div className="flex items-center gap-2">
+              <button onClick={() => retomarIA(sel.telefone)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[11px] font-semibold"
+                style={{ background:'rgba(0,212,170,0.1)', color:'var(--accent)', border:'1px solid rgba(0,212,170,0.2)' }}>
+                <Bot size={11}/> Passar para IA
+              </button>
+              <button onClick={() => resolver(sel.telefone)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[11px] font-semibold"
+                style={{ background:'rgba(74,159,255,0.1)', color:'var(--blue)', border:'1px solid rgba(74,159,255,0.2)' }}>
+                <CheckCircle size={11}/> Resolver
+              </button>
+            </div>
+          </div>
+
+          {/* Histórico real */}
+          <div ref={chatRef} className="flex-1 overflow-y-auto scroll-hidden px-5 py-4 space-y-2"
+            style={{ background:'var(--bg)' }}>
+            {historico.length === 0 && (
+              <div className="flex items-center justify-center h-full" style={{ color:'var(--label-3)' }}>
+                <div className="text-center">
+                  <MessageSquare size={24} className="mx-auto mb-2 opacity-20"/>
+                  <p className="text-[12px]">Carregando histórico...</p>
                 </div>
-              )}
-              {historico.map((m, i) => {
-                const isUser = m.direcao === 'entrada'
-                const isBot  = m.direcao === 'saida' && m.modo !== 'manual'
-                const isMe   = m.direcao === 'saida' && m.modo === 'manual' 
-                return (
-                  <div key={m.id || i} className={`flex gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
-                    {!isUser && (
-                      <div className="rounded-full flex items-center justify-center font-semibold flex-shrink-0 text-[9px]"
-                        style={{ width:26, height:26, background: isBot ? 'var(--accent)' : 'var(--blue)', color:'#fff' }}>
-                        {isBot ? 'IA' : 'AT'}
-                      </div>
-                    )}
-                    <div className="max-w-[76%]">
-                      <div className="px-3.5 py-2.5 rounded-[16px] text-[13px] leading-relaxed whitespace-pre-line"
-                        style={{
-                          background: isUser ? 'var(--blue)' : isMe ? 'var(--bg-4)' : 'var(--bg-3)',
-                          color: isUser ? '#fff' : 'var(--label)',
-                          borderBottomLeftRadius: isBot ? 4 : 16,
-                          borderBottomRightRadius: isUser ? 4 : 16,
-                          border: (!isUser) ? '1px solid var(--sep)' : 'none',
-                        }}>
-                        {m.mensagem || m.conteudo || ''}
-                      </div>
-                      <div className={`text-[10px] mt-1 px-1 ${isUser ? 'text-right' : ''}`} style={{ color:'var(--label-3)' }}>
-                        {m.hora}
-                      </div>
+              </div>
+            )}
+            {historico.map((m, i) => {
+              const isUser = m.direcao === 'entrada'
+              const isBot  = m.direcao === 'saida' && m.modo !== 'manual'
+              const isMe   = m.direcao === 'saida' && m.modo === 'manual'
+              return (
+                <div key={m.id||i} className={`flex gap-2 ${isUser?'justify-end':'justify-start'}`}>
+                  {!isUser && (
+                    <div className="rounded-full flex items-center justify-center text-[8px] font-bold flex-shrink-0 mt-auto"
+                      style={{ width:22, height:22, background:isBot?'rgba(0,212,170,0.15)':'rgba(74,159,255,0.15)', color:isBot?'var(--accent)':'var(--blue)' }}>
+                      {isBot?'IA':'AT'}
                     </div>
-                    {isUser && (
-                      <div className="rounded-full flex items-center justify-center font-semibold flex-shrink-0 text-[9px]"
-                        style={{ width:26, height:26, background:'var(--fill)', color:'var(--label-2)' }}>
-                        {(sel?.nome_cliente||sel?.nome_contato||'CL').slice(0,2).toUpperCase()}
-                      </div>
-                    )}
+                  )}
+                  <div className="max-w-[74%]">
+                    <div className="px-3 py-2 text-[12px] leading-relaxed whitespace-pre-line rounded-[14px]"
+                      style={{
+                        background: isUser?'rgba(74,159,255,0.12)':isMe?'var(--bg-3)':'var(--bg-2)',
+                        color: isUser?'var(--blue)':'var(--label)',
+                        borderBottomLeftRadius: !isUser?3:14,
+                        borderBottomRightRadius: isUser?3:14,
+                        border:'1px solid var(--sep)',
+                      }}>
+                      {m.mensagem||m.conteudo||''}
+                    </div>
+                    <div className={`text-[9px] mt-0.5 px-1 ${isUser?'text-right':''}`} style={{ color:'var(--label-4)' }}>
+                      {m.hora}
+                    </div>
                   </div>
-                )
-              })}
-            </div>
-
-            {/* Input de resposta */}
-            <div className="p-4 flex-shrink-0" style={{ background: 'var(--bg-2)', borderTop: '1px solid var(--sep)' }}>
-              <div className="flex gap-2 mb-3">
-                <div className="flex-1 px-4 py-2.5 rounded-[22px] flex items-end gap-2"
-                  style={{ background: 'var(--bg-3)', border: '1px solid var(--sep)' }}>
-                  <textarea
-                    value={msg}
-                    onChange={e => setMsg(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarMensagem() } }}
-                    placeholder="Digite sua mensagem para o cliente..."
-                    rows={2}
-                    className="flex-1 bg-transparent resize-none outline-none text-[13px] leading-relaxed"
-                    style={{ color: 'var(--label)' }}
-                  />
+                  {isUser && (
+                    <div className="rounded-full flex items-center justify-center text-[8px] font-bold flex-shrink-0 mt-auto"
+                      style={{ width:22, height:22, background:'var(--fill)', color:'var(--label-3)' }}>
+                      CL
+                    </div>
+                  )}
                 </div>
-                <button onClick={enviarMensagem} disabled={!msg.trim() || sending}
-                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 self-end transition-all"
-                  style={{ background: msg.trim() ? 'var(--blue)' : 'var(--fill)', color: msg.trim() ? '#fff' : 'var(--label-3)' }}>
-                  {sending ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />}
-                </button>
-              </div>
+              )
+            })}
+          </div>
 
-              {/* Retornar para IA */}
-              <div className="flex items-center gap-2 p-3 rounded-[12px]"
-                style={{ background: 'var(--accent-dim)', border: '1px solid var(--accent-border)' }}>
-                <Bot size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-                <input value={retornoMsg} onChange={e => setRetornoMsg(e.target.value)}
-                  className="flex-1 bg-transparent outline-none text-[12px]"
-                  style={{ color: 'var(--label-2)' }}
-                  placeholder="Mensagem ao retornar para IA..."
-                />
-                <button onClick={() => retomarIA(sel.telefone)} disabled={sending}
-                  className="px-3 py-1.5 rounded-[8px] text-[12px] font-semibold flex-shrink-0 transition-all"
-                  style={{ background: 'var(--accent)', color: '#000' }}>
-                  {sending ? '...' : 'Retornar para IA'}
-                </button>
+          {/* Input */}
+          <div className="px-4 py-3 flex-shrink-0" style={{ background:'var(--bg-2)', borderTop:'1px solid var(--sep)' }}>
+            <div className="flex items-end gap-2">
+              <div className="flex-1 px-3 py-2 rounded-[12px]"
+                style={{ background:'var(--bg-3)', border:'1px solid var(--sep)' }}>
+                <textarea value={msg} onChange={e => setMsg(e.target.value)}
+                  onKeyDown={e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviarMensagem()} }}
+                  placeholder="Responder ao cliente... (Enter envia)"
+                  rows={1} className="w-full bg-transparent resize-none outline-none text-[13px] leading-relaxed scroll-hidden"
+                  style={{ color:'var(--label)', maxHeight:80, minHeight:22 }}
+                  onInput={e => { e.target.style.height='auto'; e.target.style.height=Math.min(e.target.scrollHeight,80)+'px' }}/>
               </div>
+              <button onClick={enviarMensagem} disabled={!msg.trim()||sending}
+                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background:msg.trim()?'var(--accent)':'var(--fill)', color:msg.trim()?'#000':'var(--label-3)' }}>
+                {sending?<RefreshCw size={15} className="animate-spin"/>:<Send size={15}/>}
+              </button>
             </div>
-          </>
-        )}
+          </div>
+        </>}
       </div>
     </div>
   )
 }
 
 function HandoffCard({ h, onAssumir, sel }) {
-  const isSelected = sel?.telefone === h.telefone
+  const isActive = sel?.telefone === h.telefone
+  const ts = h.solicitado_em || h.criado_em || new Date().toISOString()
+  const seg = Math.floor((Date.now() - new Date(ts).getTime()) / 1000)
+  const urgente = seg > 300
+
   return (
-    <div className="px-4 py-3 border-b transition-all"
-      style={{ borderColor: 'var(--sep)', background: isSelected ? 'var(--accent-dim)' : 'transparent' }}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[13px] font-semibold truncate" style={{ color: 'var(--label)' }}>
-              {h.nome_cliente || h.nome_contato || 'Cliente'}
-            </span>
-          </div>
-          <div className="text-[11px] font-mono mb-1.5" style={{ color: 'var(--label-3)' }}>{h.telefone}</div>
-          <div className="text-[11px] mb-2" style={{ color: 'var(--label-2)' }}>
-            {h.motivo?.slice(0, 80)}{h.motivo?.length > 80 ? '\u2026' : ''}
-          </div>
-          <ContadorEspera solicitadoEm={h.solicitado_em} />
+    <button onClick={() => onAssumir(h)}
+      className="w-full text-left px-4 py-3 border-b transition-all border-l-2"
+      style={{
+        borderBottomColor:'var(--sep)',
+        borderLeftColor: isActive?'var(--accent)':urgente?'var(--red)':'transparent',
+        background: isActive?'rgba(0,212,170,0.05)':urgente?'rgba(226,75,74,0.03)':'transparent',
+      }}>
+      <div className="flex items-start gap-3">
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+          style={{ background:urgente?'rgba(226,75,74,0.15)':'rgba(0,212,170,0.15)', color:urgente?'var(--red)':'var(--accent)' }}>
+          {(h.nome_contato||h.nome||h.telefone||'CL').slice(0,2).toUpperCase()}
         </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[12px] font-semibold truncate" style={{ color:'var(--label)' }}>
+            {h.nome_contato || h.nome || 'Cliente'}
+          </div>
+          <div className="text-[10px] font-mono truncate" style={{ color:'var(--label-3)' }}>{h.telefone}</div>
+          {h.dados?.motivo && (
+            <div className="text-[10px] mt-0.5 truncate" style={{ color:'var(--label-3)' }}>{h.dados.motivo}</div>
+          )}
+        </div>
+        <ContadorEspera solicitadoEm={ts}/>
       </div>
-      <button onClick={() => onAssumir(h)}
-        className="w-full mt-2 py-1.5 rounded-[8px] text-[12px] font-semibold transition-all"
-        style={{ background: 'var(--blue)', color: '#fff' }}>
-        Atender
-      </button>
-    </div>
+    </button>
   )
 }
