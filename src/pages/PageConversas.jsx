@@ -335,9 +335,10 @@ export default function PageConversas({ api: apiProp }) {
   const [mediaUrl,   setMediaUrl]   = useState('')
   const [mediaTipo,  setMediaTipo]  = useState('image')
   const [loadingH,   setLoadingH]   = useState(false)
-  const chatRef  = useRef(null)
-  const inputRef = useRef(null)
-  const fileRef  = useRef(null)
+  const chatRef    = useRef(null)
+  const inputRef   = useRef(null)
+  const fileRef    = useRef(null)
+  const telAtualRef = useRef(null)
 
   const carregarConvs = useCallback(async () => {
     try {
@@ -352,6 +353,9 @@ export default function PageConversas({ api: apiProp }) {
     return () => clearInterval(i)
   }, [carregarConvs])
 
+  // Ref para o telefone atual — evita closure stale no polling
+  const telAtualRef = useRef(null)
+
   const carregarHistorico = useCallback(async (telefone, inicial = false) => {
     if (inicial) { setLoadingH(true); setMsgs([]) }
     try {
@@ -364,40 +368,50 @@ export default function PageConversas({ api: apiProp }) {
         t:  m.mensagem || '',
         h:  m.hora || '--:--',
       }))
-      setMsgs(prev => {
-        // Só atualiza se mudou algo
-        const ultimaBanco = conv[conv.length-1]?.t || ''
-        const ultimaLocal = prev.filter(m=>!String(m.id||'').startsWith('local-')).slice(-1)[0]?.t || ''
-        const mesmoConteudo = conv.length === prev.filter(m=>!String(m.id||'').startsWith('local-')).length && ultimaBanco === ultimaLocal
-        if (mesmoConteudo && !inicial) return prev
 
-        // Mantém mensagens locais pendentes que ainda não chegaram no banco
-        const idsBanco  = new Set(conv.map(m => m.id))
+      // Só aplica se ainda é o mesmo telefone selecionado
+      if (telAtualRef.current !== telefone) return
+
+      setMsgs(prev => {
+        // Mantém locais pendentes
         const txtBanco  = new Set(conv.map(m => m.t?.trim()))
         const pendentes = prev.filter(m =>
           String(m.id||'').startsWith('local-') && !txtBanco.has(m.t?.trim())
         )
         const resultado = [...conv, ...pendentes]
+
+        // Scrolla apenas se chegou mensagem nova
         if (resultado.length > prev.length || inicial) {
-          setTimeout(() => chatRef.current?.scrollTo({ top:99999, behavior:'smooth' }), 80)
-          // Se chegou mensagem nova do cliente, volta status para pendente
-          const ultimaMsg = conv[conv.length-1]
-          if (ultimaMsg?.r === 'u' && !inicial) {
+          setTimeout(() => chatRef.current?.scrollTo({ top:99999, behavior:'smooth' }), 50)
+          // Mensagem nova do cliente → volta para pendente
+          const ultima = conv[conv.length-1]
+          if (ultima?.r === 'u' && !inicial) {
             setStatusMap(m => ({ ...m, [telefone]: 'pendente' }))
           }
         }
         return resultado
       })
-    } catch {}
+    } catch (e) {
+      console.error('Erro histórico:', e.message)
+    }
     if (inicial) setLoadingH(false)
   }, [api])
 
   useEffect(() => {
-    if (!sel) return
+    if (!sel?.telefone) return
+    telAtualRef.current = sel.telefone
+    // Carrega imediatamente
     carregarHistorico(sel.telefone, true)
-    const i = setInterval(() => carregarHistorico(sel.telefone, false), 3000)
-    return () => clearInterval(i)
-  }, [sel?.telefone])
+    // Polling a cada 3 segundos
+    const intervalo = setInterval(() => {
+      if (telAtualRef.current === sel.telefone) {
+        carregarHistorico(sel.telefone, false)
+      }
+    }, 3000)
+    return () => {
+      clearInterval(intervalo)
+    }
+  }, [sel?.telefone, carregarHistorico])
 
   useEffect(() => { chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' }) }, [msgs])
 
