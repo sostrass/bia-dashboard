@@ -356,7 +356,7 @@ export default function PageConversas({ api: apiProp }) {
   const carregarHistorico = useCallback(async (telefone, inicial = false) => {
     if (inicial) { setLoadingH(true); setMsgs([]) }
     try {
-      const r = await fetch(`${api}/api/dashboard/historico/${telefone}`)
+      const r = await fetch(`${api}/api/dashboard/historico/${telefone}?limit=50`)
       if (!r.ok) return
       const d = await r.json()
       const conv = (d.mensagens || []).map(m => ({
@@ -379,7 +379,8 @@ export default function PageConversas({ api: apiProp }) {
 
         // Scrolla apenas se chegou mensagem nova
         if (resultado.length > prev.length || inicial) {
-          setTimeout(() => chatRef.current?.scrollTo({ top:99999, behavior:'smooth' }), 50)
+          const behavior = inicial ? 'instant' : 'smooth'
+          setTimeout(() => chatRef.current?.scrollTo({ top:99999, behavior }), 50)
           // Mensagem nova do cliente → volta para pendente
           const ultima = conv[conv.length-1]
           if (ultima?.r === 'u' && !inicial) {
