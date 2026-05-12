@@ -353,9 +353,6 @@ export default function PageConversas({ api: apiProp }) {
     return () => clearInterval(i)
   }, [carregarConvs])
 
-  // Ref para o telefone atual — evita closure stale no polling
-  const telAtualRef = useRef(null)
-
   const carregarHistorico = useCallback(async (telefone, inicial = false) => {
     if (inicial) { setLoadingH(true); setMsgs([]) }
     try {
