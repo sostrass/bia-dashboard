@@ -1,218 +1,129 @@
-import { useState, useEffect, useRef } from 'react'
-import { Clock, Users, Zap, CheckCircle, RefreshCw, ArrowUp, AlertCircle } from 'lucide-react'
-
-const PRIORIDADE_CFG = {
-  1: { label: 'Urgente', color: 'var(--red)',    bg: 'rgba(255,69,58,0.12)'  },
-  2: { label: 'Alta',    color: 'var(--orange)', bg: 'rgba(255,159,10,0.12)' },
-  3: { label: 'Normal',  color: 'var(--blue)',   bg: 'rgba(10,132,255,0.12)' },
-  4: { label: 'Baixa',   color: 'var(--label-3)','bg': 'var(--fill)'         },
-}
-
-// Contador de tempo em tempo real
-function Contador({ criadoEm }) {
-  const [seg, setSeg] = useState(0)
-
-  useEffect(() => {
-    const calc = () => setSeg(Math.floor((Date.now() - new Date(criadoEm).getTime()) / 1000))
-    calc()
-    const i = setInterval(calc, 1000)
-    return () => clearInterval(i)
-  }, [criadoEm])
-
-  const cor = seg < 120 ? 'var(--accent)' : seg < 300 ? 'var(--orange)' : 'var(--red)'
-  const fmt = seg < 60
-    ? `${seg}s`
-    : seg < 3600
-    ? `${Math.floor(seg/60)}m ${seg % 60}s`
-    : `${Math.floor(seg/3600)}h ${Math.floor((seg%3600)/60)}m`
-
-  return (
-    <div className="flex items-center gap-1.5 font-mono font-bold text-[13px]" style={{ color: cor }}>
-      <Clock size={12} />
-      {fmt}
-      {seg >= 300 && <AlertCircle size={12} style={{ color: 'var(--red)' }} />}
-    </div>
-  )
-}
+import { useState, useEffect, useCallback } from 'react'
+import { Clock, AlertCircle, RefreshCw, MessageSquare, User, CheckCircle } from 'lucide-react'
 
 const BASE = import.meta.env.VITE_API_URL || ''
 
-export default function PageFila({ api: apiProp }) {
-  const api = apiProp || BASE
-  const [fila,  setFila]  = useState([])
-  const [stats, setStats] = useState({ aguardando: 0, em_atendimento: 0, concluidos_hoje: 0, tempo_medio_min: 0 })
-  const [tab,   setTab]   = useState('aguardando')
-  const [loading, setLoading] = useState(true)
+function formatarEspera(min) {
+  const m = Math.round(min || 0)
+  if (m < 1)  return 'Agora'
+  if (m < 60) return `${m}min`
+  return `${Math.floor(m/60)}h ${m%60}min`
+}
 
-  const carregar = async () => {
+function corEspera(min) {
+  if (min < 5)  return 'var(--accent)'
+  if (min < 15) return 'var(--orange)'
+  return 'var(--red)'
+}
+
+export default function PageFila({ api: apiProp, onAtender }) {
+  const api = apiProp || BASE
+  const [fila,    setFila]    = useState([])
+  const [loading, setLoading] = useState(true)
+  const [tick,    setTick]    = useState(0)
+
+  const carregar = useCallback(async () => {
     try {
-      const r = await fetch(`${api}/api/fase5/fila?status=${tab}`)
+      const r = await fetch(`${api}/api/dashboard/fila`)
       if (r.ok) {
         const d = await r.json()
-        if (d.fila?.length) setFila(d.fila)
-        if (d.stats) setStats(d.stats)
+        setFila(d.fila || [])
       }
     } catch {}
     setLoading(false)
-  }
+  }, [api])
 
   useEffect(() => {
     carregar()
-    const i = setInterval(carregar, 5000)
+    const i = setInterval(() => { carregar(); setTick(t=>t+1) }, 10000)
     return () => clearInterval(i)
-  }, [tab])
+  }, [carregar])
 
-  const atender = async (item) => {
-    try {
-      await fetch(`${api}/api/fase5/fila/${encodeURIComponent(item.telefone)}/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'em_atendimento' })
-      })
-    } catch {}
-    setFila(prev => prev.filter(x => x.telefone !== item.telefone))
-    setStats(prev => ({
-      ...prev,
-      aguardando: Math.max(0, parseInt(prev.aguardando || 0) - 1),
-      em_atendimento: parseInt(prev.em_atendimento || 0) + 1
-    }))
-  }
-
-  const urgentes = fila.filter(f => f.prioridade <= 1)
-  const normais  = fila.filter(f => f.prioridade > 1)
+  const urgentes = fila.filter(f => (f.minutos_espera||0) >= 10)
+  const normais  = fila.filter(f => (f.minutos_espera||0) < 10)
 
   return (
-    <div className="h-full overflow-y-auto p-6 space-y-5" style={{ background: 'var(--bg)' }}>
-
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-[22px] font-bold tracking-tight" style={{ color: 'var(--label)' }}>Fila de Atendimento</h2>
-          <p className="text-[13px] mt-0.5" style={{ color: 'var(--label-3)' }}>Organizada por prioridade e tempo de espera</p>
-        </div>
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold"
-          style={{ background: 'var(--accent-dim)', color: 'var(--accent)' }}>
-          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent)' }} />
-          Atualiza a cada 5s
-        </div>
-      </div>
-
-      {/* KPIs */}
-      <div className="grid grid-cols-4 gap-4">
-        {[
-          { v: parseInt(stats.aguardando||0),      l: 'Na fila',         c: 'var(--orange)', icon: Users },
-          { v: parseInt(stats.em_atendimento||0),  l: 'Em atendimento',  c: 'var(--blue)',   icon: Zap },
-          { v: parseInt(stats.concluidos_hoje||0), l: 'Concluídos hoje', c: 'var(--accent)', icon: CheckCircle },
-          { v: `${parseFloat(stats.tempo_medio_min||0).toFixed(1)}min`, l: 'Tempo médio', c: 'var(--purple)', icon: Clock },
-        ].map((k, i) => (
-          <div key={i} className="card p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 rounded-[8px]" style={{ background: `${k.c}15` }}>
-                <k.icon size={14} style={{ color: k.c }} />
-              </div>
-            </div>
-            <div className="text-[28px] font-bold tracking-tight" style={{ color: k.c }}>{k.v}</div>
-            <div className="text-[12px] mt-0.5" style={{ color: 'var(--label-3)' }}>{k.l}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 p-0.5 rounded-[10px] w-fit" style={{ background: 'var(--fill)' }}>
-        {[['aguardando','Aguardando'],['em_atendimento','Em Atendimento'],['concluido','Concluídos']].map(([v,l]) => (
-          <button key={v} onClick={() => setTab(v)}
-            className="px-4 py-1.5 rounded-[8px] text-[12px] font-medium transition-all"
-            style={{ background: tab===v?'var(--bg-2)':'transparent', color: tab===v?'var(--label)':'var(--label-3)' }}>
-            {l}
-            {v==='aguardando' && fila.length > 0 && (
-              <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
-                style={{ background: urgentes.length>0?'var(--red)':'var(--accent)', color:'#000' }}>
-                {fila.length}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* Lista */}
-      {tab === 'aguardando' && <>
-        {urgentes.length > 0 && (
+    <div className="h-full flex flex-col overflow-hidden" style={{ background:'var(--bg)' }}>
+      <div className="px-6 py-4 flex-shrink-0" style={{ borderBottom:'1px solid var(--sep)', background:'var(--bg-2)' }}>
+        <div className="flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <ArrowUp size={14} style={{ color: 'var(--red)' }} />
-              <span className="text-[12px] font-semibold" style={{ color: 'var(--red)' }}>
-                Aguardando mais de 5 minutos — ação urgente
-              </span>
-            </div>
-            <div className="space-y-2">
-              {urgentes.map(item => <FilaItem key={item.telefone} item={item} onAtender={atender} />)}
-            </div>
-          </div>
-        )}
-
-        {normais.length > 0 && (
-          <div>
-            {urgentes.length > 0 && (
-              <div className="text-[11px] font-semibold uppercase tracking-wider mb-3 mt-2" style={{ color: 'var(--label-3)' }}>
-                Demais atendimentos
-              </div>
-            )}
-            <div className="space-y-2">
-              {normais.map(item => <FilaItem key={item.telefone} item={item} onAtender={atender} />)}
-            </div>
-          </div>
-        )}
-
-        {fila.length === 0 && !loading && (
-          <div className="flex flex-col items-center justify-center py-16" style={{ color: 'var(--label-3)' }}>
-            <CheckCircle size={36} className="mb-3 opacity-30" style={{ color: 'var(--accent)' }} />
-            <p className="text-[14px] font-medium" style={{ color: 'var(--label-2)' }}>
-              Nenhum cliente aguardando
+            <h2 className="text-[22px] font-bold" style={{ color:'var(--label)' }}>Fila de Atendimento</h2>
+            <p className="text-[13px] mt-0.5" style={{ color:'var(--label-3)' }}>
+              {fila.length} aguardando · atualiza a cada 10s
             </p>
-            <p className="text-[12px] mt-1">A IA está resolvendo tudo! 🤖</p>
+          </div>
+          <button onClick={carregar} className="p-2 rounded-[9px]" style={{ background:'var(--fill)' }}>
+            <RefreshCw size={14} style={{ color:'var(--label-3)' }} className={loading?'animate-spin':''} />
+          </button>
+        </div>
+
+        {urgentes.length > 0 && (
+          <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-[10px] text-[12px]"
+            style={{ background:'rgba(226,75,74,0.08)', border:'1px solid rgba(226,75,74,0.2)', color:'var(--red)' }}>
+            <AlertCircle size={14} />
+            {urgentes.length} cliente(s) aguardando há mais de 10 minutos!
           </div>
         )}
-      </>}
-    </div>
-  )
-}
+      </div>
 
-function FilaItem({ item, onAtender }) {
-  const pc = PRIORIDADE_CFG[item.prioridade] || PRIORIDADE_CFG[3]
-  return (
-    <div className="card p-4 flex items-center gap-4">
-      <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-[12px] flex-shrink-0"
-        style={{ background: pc.bg, color: pc.color }}>
-        {(item.nome_contato || item.nome || 'CL').slice(0,2).toUpperCase()}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-[14px] font-semibold" style={{ color: 'var(--label)' }}>
-            {item.nome_contato || item.nome || 'Cliente'}
-          </span>
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-            style={{ background: pc.bg, color: pc.color }}>
-            {pc.label}
-          </span>
-          {(item.tags||[]).includes('vip') && (
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: 'rgba(255,214,10,0.12)', color: 'var(--yellow)' }}>
-              ⭐ VIP
-            </span>
-          )}
-        </div>
-        <div className="text-[11px] font-mono" style={{ color: 'var(--label-3)' }}>{item.telefone}</div>
-        {item.dados?.motivo && (
-          <div className="text-[11px] mt-1" style={{ color: 'var(--label-2)' }}>{item.dados.motivo}</div>
+      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        {loading && (
+          <div className="flex justify-center py-10" style={{ color:'var(--label-3)' }}>
+            <RefreshCw size={16} className="animate-spin" />
+          </div>
         )}
-      </div>
-      <div className="flex items-center gap-4 flex-shrink-0">
-        {/* Contador em tempo real */}
-        <Contador criadoEm={item.criado_em || item.solicitado_em || new Date().toISOString()} />
-        <button onClick={() => onAtender(item)}
-          className="px-4 py-2 rounded-[10px] text-[13px] font-semibold transition-all hover:opacity-90"
-          style={{ background: 'var(--blue)', color: '#fff' }}>
-          Atender
-        </button>
+
+        {!loading && fila.length === 0 && (
+          <div className="flex flex-col items-center py-16">
+            <CheckCircle size={32} className="mb-3 opacity-20" style={{ color:'var(--accent)' }} />
+            <p className="text-[15px] font-medium" style={{ color:'var(--label-2)' }}>Fila vazia!</p>
+            <p className="text-[13px] mt-1" style={{ color:'var(--label-3)' }}>Todos os clientes foram atendidos</p>
+          </div>
+        )}
+
+        {[...urgentes, ...normais].map((item, i) => {
+          const min = item.minutos_espera || 0
+          const cor = corEspera(min)
+          const iniciais = (item.nome || item.telefone || '??').slice(0,2).toUpperCase()
+          return (
+            <div key={item.telefone} className="card p-4 flex items-start gap-4"
+              style={{ background:'var(--bg-2)', borderLeft:`3px solid ${cor}` }}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-[13px] flex-shrink-0"
+                style={{ background:`${cor}15`, color:cor }}>
+                {iniciais}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[14px] font-semibold" style={{ color:'var(--label)' }}>
+                    {item.nome || 'Cliente'}
+                  </span>
+                  <div className="flex items-center gap-1.5 text-[12px] font-bold" style={{ color:cor }}>
+                    <Clock size={12} />
+                    {formatarEspera(min)}
+                  </div>
+                </div>
+                <p className="text-[12px] mb-3 truncate" style={{ color:'var(--label-3)' }}>
+                  {item.ultima_mensagem_cliente || 'Sem mensagem'}
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono" style={{ color:'var(--label-4)' }}>
+                    {item.telefone}
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full"
+                    style={{ background:'rgba(74,159,255,0.1)', color:'var(--blue)' }}>
+                    {item.msgs_cliente} msg(s)
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => onAtender?.(item)}
+                className="px-4 py-2 rounded-[10px] text-[13px] font-semibold flex-shrink-0"
+                style={{ background:'var(--accent)', color:'#000' }}>
+                Atender
+              </button>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

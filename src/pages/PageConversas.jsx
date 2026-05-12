@@ -356,44 +356,48 @@ export default function PageConversas({ api: apiProp }) {
     if (inicial) { setLoadingH(true); setMsgs([]) }
     try {
       const r = await fetch(`${api}/api/dashboard/historico/${telefone}`)
-      if (r.ok) {
-        const d = await r.json()
-        const conv = (d.mensagens || []).map(m => ({
-          r: m.direcao === 'entrada' ? 'u' : m.modo === 'manual' ? 'm' : 'b',
-          t: m.mensagem || '',
-          h: m.hora || '--:--',
-          status: m.direcao === 'saida' ? 'delivered' : undefined,
-        }))
-        setMsgs(prev => {
-          // Separa mensagens locais pendentes (ainda não salvas no banco)
-          const locais = prev.filter(m => String(m.id||'').startsWith('local-'))
-          const textosBanco = new Set(conv.map(m => m.t?.trim()))
+      if (!r.ok) return
+      const d = await r.json()
+      const conv = (d.mensagens || []).map(m => ({
+        id: String(m.id),
+        r:  m.direcao === 'entrada' ? 'u' : m.modo === 'manual' ? 'm' : 'b',
+        t:  m.mensagem || '',
+        h:  m.hora || '--:--',
+      }))
+      setMsgs(prev => {
+        // Só atualiza se mudou algo
+        const ultimaBanco = conv[conv.length-1]?.t || ''
+        const ultimaLocal = prev.filter(m=>!String(m.id||'').startsWith('local-')).slice(-1)[0]?.t || ''
+        const mesmoConteudo = conv.length === prev.filter(m=>!String(m.id||'').startsWith('local-')).length && ultimaBanco === ultimaLocal
+        if (mesmoConteudo && !inicial) return prev
 
-          // Remove locais que já apareceram no banco
-          const locaisPendentes = locais.filter(m => !textosBanco.has(m.t?.trim()))
-
-          // Sempre atualiza com dados do banco + pendentes locais
-          const resultado = [...conv, ...locaisPendentes]
-
-          // Scrolla se chegou mensagem nova
-          if (conv.length > (prev.length - locais.length) || inicial) {
-            setTimeout(() => chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' }), 80)
+        // Mantém mensagens locais pendentes que ainda não chegaram no banco
+        const idsBanco  = new Set(conv.map(m => m.id))
+        const txtBanco  = new Set(conv.map(m => m.t?.trim()))
+        const pendentes = prev.filter(m =>
+          String(m.id||'').startsWith('local-') && !txtBanco.has(m.t?.trim())
+        )
+        const resultado = [...conv, ...pendentes]
+        if (resultado.length > prev.length || inicial) {
+          setTimeout(() => chatRef.current?.scrollTo({ top:99999, behavior:'smooth' }), 80)
+          // Se chegou mensagem nova do cliente, volta status para pendente
+          const ultimaMsg = conv[conv.length-1]
+          if (ultimaMsg?.r === 'u' && !inicial) {
+            setStatusMap(m => ({ ...m, [telefone]: 'pendente' }))
           }
-
-          return resultado
-        })
-      }
+        }
+        return resultado
+      })
     } catch {}
     if (inicial) setLoadingH(false)
   }, [api])
 
   useEffect(() => {
     if (!sel) return
-    const i = setInterval(() => {
-      if (!pollingPausado) carregarHistorico(sel.telefone, false)
-    }, 5000)
+    carregarHistorico(sel.telefone, true)
+    const i = setInterval(() => carregarHistorico(sel.telefone, false), 3000)
     return () => clearInterval(i)
-  }, [sel?.telefone, carregarHistorico, pollingPausado])
+  }, [sel?.telefone])
 
   useEffect(() => { chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' }) }, [msgs])
 
@@ -448,13 +452,9 @@ export default function PageConversas({ api: apiProp }) {
     const t = (texto || input).trim()
     if (!t || sending || !sel) return
     const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    const localId = `local-${Date.now()}`
-    setMsgs(prev => [...prev, { id: localId, r: 'm', t, h: hora, status: 'sent' }])
+    setMsgs(prev => [...prev, { id: `local-${Date.now()}`, r: 'm', t, h: hora }])
     setInput(''); setUsedSugs(new Set()); setShowEmoji(false)
     setSending(true)
-    // Pausa o polling por 3 segundos para não sobrescrever a mensagem local
-    setPollingPausado(true)
-    setTimeout(() => setPollingPausado(false), 3000)
     try {
       await fetch(`${api}/api/dashboard/enviar`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
