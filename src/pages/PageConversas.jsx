@@ -334,7 +334,10 @@ export default function PageConversas({ api: apiProp }) {
   const [showMedia,  setShowMedia]  = useState(false)
   const [mediaUrl,   setMediaUrl]   = useState('')
   const [mediaTipo,  setMediaTipo]  = useState('image')
-  const [loadingH,   setLoadingH]   = useState(false)
+  const [loadingH,     setLoadingH]     = useState(false)
+  const [temMais,      setTemMais]      = useState(false)
+  const [loadingMais,  setLoadingMais]  = useState(false)
+  const [offsetRef]    = useState({ val: 0 })
   const chatRef    = useRef(null)
   const inputRef   = useRef(null)
   const fileRef    = useRef(null)
@@ -354,9 +357,14 @@ export default function PageConversas({ api: apiProp }) {
   }, [carregarConvs])
 
   const carregarHistorico = useCallback(async (telefone, inicial = false) => {
-    if (inicial) { setLoadingH(true); setMsgs([]) }
+    if (inicial) {
+      setLoadingH(true)
+      setMsgs([])
+      setTemMais(false)
+      offsetRef.val = 0
+    }
     try {
-      const r = await fetch(`${api}/api/dashboard/historico/${telefone}?limit=50`)
+      const r = await fetch(`${api}/api/dashboard/historico/${telefone}?limit=50&offset=0`)
       if (!r.ok) return
       const d = await r.json()
       const conv = (d.mensagens || []).map(m => ({
@@ -366,22 +374,19 @@ export default function PageConversas({ api: apiProp }) {
         h:  m.hora || '--:--',
       }))
 
-      // Só aplica se ainda é o mesmo telefone selecionado
       if (telAtualRef.current !== telefone) return
 
+      setTemMais(d.tem_mais || false)
+
       setMsgs(prev => {
-        // Mantém locais pendentes
         const txtBanco  = new Set(conv.map(m => m.t?.trim()))
         const pendentes = prev.filter(m =>
           String(m.id||'').startsWith('local-') && !txtBanco.has(m.t?.trim())
         )
         const resultado = [...conv, ...pendentes]
-
-        // Scrolla apenas se chegou mensagem nova
         if (resultado.length > prev.length || inicial) {
           const behavior = inicial ? 'instant' : 'smooth'
           setTimeout(() => chatRef.current?.scrollTo({ top:99999, behavior }), 50)
-          // Mensagem nova do cliente → volta para pendente
           const ultima = conv[conv.length-1]
           if (ultima?.r === 'u' && !inicial) {
             setStatusMap(m => ({ ...m, [telefone]: 'pendente' }))
@@ -394,6 +399,39 @@ export default function PageConversas({ api: apiProp }) {
     }
     if (inicial) setLoadingH(false)
   }, [api])
+
+  // Carrega mensagens anteriores (scroll para cima)
+  const carregarMais = useCallback(async () => {
+    if (!sel || loadingMais || !temMais) return
+    setLoadingMais(true)
+    try {
+      const novoOffset = offsetRef.val + 50
+      const r = await fetch(`${api}/api/dashboard/historico/${sel.telefone}?limit=50&offset=${novoOffset}`)
+      if (!r.ok) return
+      const d = await r.json()
+      const antigas = (d.mensagens || []).map(m => ({
+        id: String(m.id),
+        r:  m.direcao === 'entrada' ? 'u' : m.modo === 'manual' ? 'm' : 'b',
+        t:  m.mensagem || '',
+        h:  m.hora || '--:--',
+      }))
+      if (antigas.length > 0) {
+        offsetRef.val = novoOffset
+        setTemMais(d.tem_mais || false)
+        // Salva posição do scroll antes de adicionar mensagens antigas
+        const chat = chatRef.current
+        const scrollAntes = chat ? chat.scrollHeight - chat.scrollTop : 0
+        setMsgs(prev => [...antigas, ...prev])
+        // Mantém posição do scroll (não salta para o topo)
+        setTimeout(() => {
+          if (chat) chat.scrollTop = chat.scrollHeight - scrollAntes
+        }, 50)
+      }
+    } catch (e) {
+      console.error('Erro carregar mais:', e.message)
+    }
+    setLoadingMais(false)
+  }, [sel, loadingMais, temMais, api])
 
   useEffect(() => {
     if (!sel?.telefone) return
@@ -647,6 +685,18 @@ export default function PageConversas({ api: apiProp }) {
           {/* Mensagens */}
           <div ref={chatRef} className="flex-1 overflow-y-auto scroll-hidden px-4 py-3 space-y-2"
             style={{ background: 'var(--bg)' }}>
+            {/* Botão carregar anteriores */}
+            {temMais && !loadingH && (
+              <div className="flex justify-center py-2">
+                <button onClick={carregarMais} disabled={loadingMais}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-semibold transition-all"
+                  style={{ background:'var(--fill)', color:'var(--label-2)', border:'1px solid var(--sep)' }}>
+                  {loadingMais
+                    ? <><RefreshCw size={11} className="animate-spin"/> Carregando...</>
+                    : <><Clock size={11}/> Carregar mensagens anteriores</>}
+                </button>
+              </div>
+            )}
             {loadingH && (
               <div className="flex justify-center py-4" style={{ color:'var(--label-3)' }}>
                 <RefreshCw size={13} className="animate-spin" />
