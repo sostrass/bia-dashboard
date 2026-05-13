@@ -275,9 +275,9 @@ export default function PageTransacional({ api: apiProp }) {
     }
     setDirty(false);setErroIA('')
     // Carrega status Meta se existir
-    const c=configs[selId]
-    if(c?.id){
-      fetch(`${api}/api/meta-templates/status/${c.id}`)
+    const cfgMeta=configs[selId]
+    if(cfgMeta?.id){
+      fetch(`${api}/api/meta-templates/status/${cfgMeta.id}`)
         .then(r=>r.json())
         .then(d=>setMetaStatus(d.status||''))
         .catch(()=>{})
