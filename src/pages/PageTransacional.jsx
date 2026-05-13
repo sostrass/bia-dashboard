@@ -243,7 +243,9 @@ export default function PageTransacional({ api: apiProp }) {
   const [resTeste,  setResTeste]  = useState(null)
   const [delays,    setDelays]    = useState({})
   const [modalGat,  setModalGat]  = useState(null)
-  const [abaDir,    setAbaDir]    = useState('preview') // preview | config | ajuda
+  const [abaDir,     setAbaDir]    = useState('preview')
+  const [submetendo, setSubmetendo]= useState(false)
+  const [metaStatus, setMetaStatus]= useState('')
 
   const carregar = useCallback(async()=>{
     try {
@@ -272,6 +274,14 @@ export default function PageTransacional({ api: apiProp }) {
       else setBlocos([{tipo:'texto',conteudo:'',id:Date.now()}])
     }
     setDirty(false);setErroIA('')
+    // Carrega status Meta se existir
+    const c=configs[selId]
+    if(c?.id){
+      fetch(`${api}/api/meta-templates/status/${c.id}`)
+        .then(r=>r.json())
+        .then(d=>setMetaStatus(d.status||''))
+        .catch(()=>{})
+    } else setMetaStatus('')
   },[selId,configs])
 
   const addBloco=tipo=>{setBlocos(p=>[...p,{tipo,conteudo:'',url:'',texto:'',acao:'reply',valor:'',legenda:'',id:Date.now()}]);setDirty(true)}
@@ -304,6 +314,17 @@ export default function PageTransacional({ api: apiProp }) {
       setTimeout(()=>setSalvoOk(false),2500)
     } catch {}
     setSalvando(false)
+  }
+
+  const submeterMeta=async(templateId)=>{
+    setSubmetendo(true)
+    try {
+      const r=await fetch(`${api}/api/meta-templates/submeter/${templateId}`,{method:'POST'})
+      const d=await r.json()
+      if(d.ok){setMetaStatus(d.status);alert(`✅ ${d.mensagem}`)}
+      else alert(`❌ Erro: ${d.erro}${d.dica?'\n\nDica: '+d.dica:''}`)
+    } catch(e){alert('Erro ao conectar com o servidor')}
+    setSubmetendo(false)
   }
 
   const gerarIA=async()=>{
@@ -453,6 +474,26 @@ export default function PageTransacional({ api: apiProp }) {
                   {salvando?<RefreshCw size={12} className="animate-spin"/>:salvoOk?<CheckCircle size={12}/>:<Save size={12}/>}
                   {salvoOk?'Salvo!':'Salvar'}
                 </button>
+                {/* Enviar para Meta */}
+                {config&&!dirty&&(
+                  <button onClick={()=>submeterMeta(config.id)}
+                    disabled={submetendo}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[11px] font-semibold transition-all"
+                    title="Submeter template para aprovação da Meta WhatsApp Business"
+                    style={{
+                      background: metaStatus==='APPROVED'?'rgba(34,197,94,0.1)':metaStatus==='PENDING'?'rgba(245,158,11,0.1)':'var(--bg-3)',
+                      color:      metaStatus==='APPROVED'?'#22c55e':metaStatus==='PENDING'?'#f59e0b':'var(--label-3)',
+                      border:     metaStatus==='APPROVED'?'1px solid rgba(34,197,94,0.3)':metaStatus==='PENDING'?'1px solid rgba(245,158,11,0.3)':'1px solid var(--sep)',
+                    }}>
+                    {submetendo?<RefreshCw size={11} className="animate-spin"/>:
+                     metaStatus==='APPROVED'?<CheckCircle size={11}/>:
+                     metaStatus==='PENDING'?<Clock size={11}/>:
+                     <SendIcon size={11}/>}
+                    {submetendo?'Enviando...':
+                     metaStatus==='APPROVED'?'Meta ✓':
+                     metaStatus==='PENDING'?'Aguardando':'Enviar p/ Meta'}
+                  </button>
+                )}
               </div>
             </div>
 
