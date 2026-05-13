@@ -69,11 +69,34 @@ function PreviewChat({ agente }) {
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior:'smooth' }) }, [msgs])
 
-  const enviar = () => {
-    if (!input.trim()) return
+  const enviar = async () => {
+    if (!input.trim() || enviando) return
     const txt = input.trim()
-    setMsgs(m => [...m, { r:'u', t:txt }, { r:'b', t:'Estou analisando sua mensagem... Em um sistema real, a IA responderia aqui com base na persona configurada.' }])
     setInput('')
+    setMsgs(m => [...m, { r:'u', t:txt }])
+    setEnviando(true)
+    try {
+      // Chama a API real com a persona do agente atual
+      const r = await fetch(`${api}/api/agentes/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({
+          mensagem:  txt,
+          persona:   agente?.persona || '',
+          instrucoes: agente?.instrucoes || {},
+          nome:      agente?.nome || 'Molise',
+          historico: msgs.filter(m => m.r !== 'sistema').slice(-10).map(m => ({
+            role:  m.r === 'u' ? 'user' : 'model',
+            parts: [{ text: m.t }]
+          }))
+        })
+      })
+      const d = await r.json()
+      setMsgs(m => [...m, { r:'b', t: d.resposta || 'Não consegui processar.' }])
+    } catch {
+      setMsgs(m => [...m, { r:'b', t:'Erro ao conectar. Verifique se o servidor está online.' }])
+    }
+    setEnviando(false)
   }
 
   return (
@@ -115,7 +138,7 @@ function PreviewChat({ agente }) {
       <div className="flex gap-2 p-3 flex-shrink-0" style={{ borderTop:'1px solid var(--sep)' }}>
         <input value={input} onChange={e=>setInput(e.target.value)}
           onKeyDown={e=>e.key==='Enter'&&enviar()}
-          placeholder="Digite sua mensagem..."
+          onKeyDown={e=>e.key==='Enter'&&!e.shiftKey&&enviar()} placeholder="Digite sua mensagem..."
           className="flex-1 px-3 py-2 rounded-[10px] text-[12px] outline-none"
           style={{ background:'var(--bg-3)', border:'1px solid var(--sep)', color:'var(--label)' }}/>
         <button onClick={enviar}
