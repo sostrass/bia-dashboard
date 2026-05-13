@@ -1,5 +1,6 @@
 import { useState, createContext, useContext } from 'react'
 import Shell from './components/Shell'
+import PageOcorrencias from './pages/PageOcorrencias'
 
 export const ThemeCtx = createContext({ theme: 'dark', toggle: () => {} })
 export const useTheme = () => useContext(ThemeCtx)
