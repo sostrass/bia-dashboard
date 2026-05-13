@@ -19,6 +19,7 @@ import PageFila         from '../pages/PageFila'
 import PageConfig       from '../pages/PageConfig'
 import PageEnvioMassa   from '../pages/PageEnvioMassa'
 import PageDisparos     from '../pages/PageDisparos'
+import { NotifBell }    from './NotificationSystem'
 import PageOcorrencias  from '../pages/PageOcorrencias'
 
 const API = import.meta.env.VITE_API_URL || ''
@@ -202,6 +203,10 @@ export default function Shell() {
 
         {/* Footer — status real */}
         <div className="p-3" style={{ borderTop:'1px solid var(--sep)' }}>
+          {/* Sino de notificações */}
+          <div className="mb-2">
+            <NotifBell />
+          </div>
           <div className="space-y-2 mb-3">
             {[
               { n:'Gemini AI',  ok:online  },
