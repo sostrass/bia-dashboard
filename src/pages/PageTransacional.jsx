@@ -4,7 +4,7 @@ import {
   CheckCircle, Plus, Image, FileText, MousePointer, Link as LinkIcon,
   ShoppingBag, CreditCard, Truck, Bell, Star, Package, Clock,
   MessageSquare, AlertCircle, GripVertical, ChevronDown, ChevronUp,
-  Mic, Video, Phone, Copy, Hash, Trash2
+  Mic, Video, Phone, Copy, Hash, Trash2, HelpCircle, Timer, Tag, XCircle
 } from 'lucide-react'
 
 const BASE = import.meta.env.VITE_API_URL || ''
@@ -18,6 +18,18 @@ const GATILHOS = [
   { id:'avise_me',           label:'Produto Disponível',   grupo:'Estoque',       icon:Bell,        cor:'#fb923c', corBg:'rgba(251,146,60,0.1)', desc:'Produto voltou ao estoque',               variaveis:['{{nome_cliente}}','{{nome_produto}}','{{preco_produto}}','{{preco_pix}}','{{link_produto}}','{{foto_produto}}'] },
   { id:'boas_vindas',        label:'Boas-vindas',          grupo:'Relacionamento',icon:Star,        cor:'#e879f9', corBg:'rgba(232,121,249,0.1)',desc:'Primeiro contato do cliente',             variaveis:['{{nome_cliente}}','{{nome_loja}}'] },
   { id:'avaliar_pedido',     label:'Avaliação Pós-venda',  grupo:'Relacionamento',icon:Star,        cor:'#f87171', corBg:'rgba(248,113,113,0.1)',desc:'Pesquisa de satisfação',                  variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  { id:'em_separacao',       label:'Em Separação',         grupo:'Personalizado', icon:Timer,       cor:'#8b5cf6', corBg:'rgba(139,92,246,0.1)', desc:'String #SEPARACAO nas obs. internas do Bling', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  { id:'produto_embalado',   label:'Produto Embalado',     grupo:'Personalizado', icon:Package,     cor:'#06b6d4', corBg:'rgba(6,182,212,0.1)',  desc:'String #EMBALADO nas obs. internas do Bling',  variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  { id:'saiu_entrega',       label:'Saiu para Entrega',    grupo:'Personalizado', icon:Truck,       cor:'#f59e0b', corBg:'rgba(245,158,11,0.1)', desc:'String #SAIU nas obs. internas do Bling',      variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}'] },
+  // ── Fiscais ────────────────────────────────────────────────────────────────
+  { id:'nfe_emitida',        label:'NF-e Emitida',          grupo:'Fiscal',        icon:FileText,    cor:'#06b6d4', corBg:'rgba(6,182,212,0.1)',  desc:'Nota fiscal emitida — link DANFE disponível',  variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{numero_nfe}}','{{link_nfe}}'] },
+  // ── Pós-venda ───────────────────────────────────────────────────────────────
+  { id:'nao_entregue',       label:'Não Entregue',          grupo:'Pós-venda',     icon:AlertCircle, cor:'#ef4444', corBg:'rgba(239,68,68,0.1)',  desc:'Tentativa de entrega falhou',                  variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}'] },
+  { id:'devolucao',          label:'Devolução',             grupo:'Pós-venda',     icon:RefreshCw,   cor:'#f87171', corBg:'rgba(248,113,113,0.1)', desc:'Pedido devolvido ao remetente',                variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  { id:'cancelamento',       label:'Pedido Cancelado',      grupo:'Pós-venda',     icon:XCircle,     cor:'#6b7280', corBg:'rgba(107,114,128,0.1)', desc:'Pedido cancelado no Bling (situacao.id=12)',   variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}'] },
+  // ── Extras personalizados ───────────────────────────────────────────────────
+  { id:'aguardando_retirada',label:'Aguardando Retirada',   grupo:'Personalizado', icon:Clock,       cor:'#a78bfa', corBg:'rgba(167,139,250,0.1)', desc:'String #AGUARDANDO nas obs. internas',         variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  { id:'lembrete_rastreio',  label:'Lembrete de Rastreio',  grupo:'Personalizado', icon:Bell,        cor:'#fb923c', corBg:'rgba(251,146,60,0.1)', desc:'String #RASTREIO nas obs. internas',            variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{link_rastreio}}'] },
 ]
 
 const GRUPOS = [...new Set(GATILHOS.map(g=>g.grupo))]
@@ -31,6 +43,15 @@ const PADROES = {
   avise_me:           { cab:'🔔 Produto disponível!',     img:'{{foto_produto}}', corpo:'Olá *{{nome_cliente}}*!\n\n✨ *{{nome_produto}}* voltou ao estoque!\n\n💳 Cartão: *{{preco_produto}}*\n💰 PIX: *{{preco_pix}}* (10% off)',                        rod:'Estoque limitado — garanta o seu!', bts:[{texto:'Comprar agora',acao:'url',valor:'{{link_produto}}',id:1}] },
   boas_vindas:        { cab:'',                           img:'', corpo:'👋 Olá *{{nome_cliente}}*! Bem-vindo(a) à *{{nome_loja}}*!\n\nSou a Molise, sua assistente virtual. Estou aqui para ajudar com produtos, pedidos, rastreio e muito mais. 😊',  rod:'', bts:[] },
   avaliar_pedido:     { cab:'⭐ Como foi sua experiência?',img:'', corpo:'Olá *{{nome_cliente}}*, seu pedido *#{{numero_pedido}}* foi entregue!\n\nSua opinião nos ajuda a melhorar sempre 🙏',                                                           rod:'Obrigado por comprar conosco!', bts:[{texto:'Adorei! ⭐⭐⭐⭐⭐',acao:'reply',valor:'Fiquei satisfeito',id:1},{texto:'Tive um problema',acao:'reply',valor:'Preciso de ajuda',id:2}] },
+  em_separacao:       { cab:'📋 Pedido em separação!',    img:'', corpo:'Olá *{{nome_cliente}}*! \n\nSeu pedido *#{{numero_pedido}}* está sendo separado. Em breve será embalado e enviado! 📦',                                                               rod:'Mensagem automática.', bts:[] },
+  produto_embalado:   { cab:'📦 Pedido embalado!',        img:'', corpo:'Olá *{{nome_cliente}}*! \n\nSeu pedido *#{{numero_pedido}}* foi embalado e está pronto para despacho. Em breve você receberá o código de rastreio! 🚚',                               rod:'Mensagem automática.', bts:[] },
+  saiu_entrega:       { cab:'🚚 Saiu para entrega!',      img:'', corpo:'Olá *{{nome_cliente}}*! \n\nSeu pedido *#{{numero_pedido}}* saiu para entrega hoje!\n\n🔍 Rastreio: *{{codigo_rastreio}}*',                                                         rod:'Continuaremos monitorando.', bts:[{texto:'Rastrear',acao:'url',valor:'{{link_rastreio}}',id:1}] },
+  nfe_emitida:        { cab:'📄 Nota Fiscal emitida!',    img:'', corpo:'Olá *{{nome_cliente}}*! \n\nA nota fiscal do seu pedido *#{{numero_pedido}}* foi emitida.\n\n📋 NF-e: *{{numero_nfe}}*',                                                            rod:'Guarde para seus registros.', bts:[{texto:'Ver NF-e',acao:'url',valor:'{{link_nfe}}',id:1}] },
+  nao_entregue:       { cab:'⚠️ Tentativa de entrega',    img:'', corpo:'Olá *{{nome_cliente}}*, houve uma tentativa de entrega do pedido *#{{numero_pedido}}* que não foi concluída.\n\n🚚 {{transportadora}}\n🔍 Rastreio: *{{codigo_rastreio}}*',           rod:'Entre em contato com a transportadora.', bts:[{texto:'Rastrear',acao:'url',valor:'{{link_rastreio}}',id:1},{texto:'Preciso de ajuda',acao:'reply',valor:'Ajuda com entrega',id:2}] },
+  devolucao:          { cab:'↩️ Pedido devolvido',         img:'', corpo:'Olá *{{nome_cliente}}*, infelizmente seu pedido *#{{numero_pedido}}* foi devolvido ao remetente.\n\nEntre em contato conosco para resolvermos juntos.',                              rod:'Estamos à disposição.', bts:[{texto:'Falar com atendente',acao:'reply',valor:'Preciso de ajuda com devolução',id:1}] },
+  cancelamento:       { cab:'❌ Pedido cancelado',         img:'', corpo:'Olá *{{nome_cliente}}*, seu pedido *#{{numero_pedido}}* foi cancelado.\n\nSe tiver dúvidas ou quiser fazer um novo pedido, é só nos chamar.',                                        rod:'Obrigado pela compreensão.', bts:[{texto:'Falar conosco',acao:'reply',valor:'Quero saber sobre o cancelamento',id:1}] },
+  aguardando_retirada:{ cab:'📍 Pronto para retirada!',   img:'', corpo:'Olá *{{nome_cliente}}*, seu pedido *#{{numero_pedido}}* está pronto para retirada!\n\nCompareça com seu documento de identidade.',                                                   rod:'Aguardamos sua visita.', bts:[] },
+  lembrete_rastreio:  { cab:'📦 Atualização do seu pedido',img:'', corpo:'Olá *{{nome_cliente}}*, aqui está uma atualização sobre seu pedido *#{{numero_pedido}}*:\n\n🔍 Rastreio: *{{codigo_rastreio}}*',                                                     rod:'Continuaremos monitorando.', bts:[{texto:'Rastrear agora',acao:'url',valor:'{{link_rastreio}}',id:1}] },
 }
 
 // Tipos de bloco extra (quebra de mensagem, áudio, vídeo, ligação)
@@ -45,6 +66,37 @@ const TIPOS_BLOCO = [
   { tipo:'link',      label:'Link',      icon:LinkIcon,      cor:'#f59e0b', desc:'URL clicável' },
   { tipo:'ligar',     label:'Ligar',     icon:Phone,         cor:'#f87171', desc:'Botão de chamada' },
   { tipo:'quebra',    label:'+ Mensagem',icon:Plus,          cor:'#6b7280', desc:'Nova mensagem separada' },
+]
+
+// Strings do Bling e ajuda
+const STRINGS_AJUDA = {
+  pedido_criado:      { bling: 'Automático — situacao.id = 6',  info: 'Disparado quando pedido é criado no Bling' },
+  pagamento_aprovado: { bling: 'Automático — situacao.id = 9',  info: 'Disparado quando pagamento é confirmado' },
+  pagamento_pendente: { bling: 'Automático — situacao.id = 6',  info: 'Disparado quando pedido fica em aberto sem pagamento' },
+  pedido_enviado:     { bling: 'Automático — situacao.id = 27', info: 'Disparado quando pedido é despachado' },
+  pedido_entregue:    { bling: 'Automático — situacao.id = 30', info: 'Disparado quando entrega é confirmada' },
+  avise_me:           { bling: 'Manual via painel',             info: 'Disparado quando produto volta ao estoque' },
+  boas_vindas:        { bling: 'Primeiro contato',              info: 'Disparado na primeira mensagem do cliente' },
+  avaliar_pedido:     { bling: 'Manual via painel',             info: 'Disparado após entrega confirmada' },
+  em_separacao:       { bling: 'String: #SEPARACAO',            info: 'Cole #SEPARACAO no campo Observações Internas do pedido no Bling para disparar' },
+  produto_embalado:   { bling: 'String: #EMBALADO',             info: 'Cole #EMBALADO no campo Observações Internas do pedido no Bling para disparar' },
+  nfe_emitida:        { bling: 'Automático — situacao.id = 24', info: 'Disparado quando NF-e é emitida. Retorna número da nota e link do DANFE.' },
+  nao_entregue:       { bling: 'Automático — situacao.id = 33', info: 'Disparado quando entrega falha. Oriente o cliente a contatar a transportadora.' },
+  devolucao:          { bling: 'Automático — situacao.id = 36', info: 'Disparado quando pedido é devolvido.' },
+  cancelamento:       { bling: 'Automático — situacao.id = 12', info: 'Disparado quando pedido é cancelado no Bling.' },
+  aguardando_retirada:{ bling: 'String: #AGUARDANDO',           info: 'Cole #AGUARDANDO no campo Observações Internas para disparar.' },
+  lembrete_rastreio:  { bling: 'String: #RASTREIO',             info: 'Cole #RASTREIO no campo Observações Internas para enviar atualização de rastreio.' },
+  saiu_entrega:       { bling: 'String: #SAIU',                 info: 'Cole #SAIU no campo Observações Internas do pedido no Bling para disparar' },
+}
+
+const DELAY_OPCOES = [
+  { valor:0,   label:'Envio imediato' },
+  { valor:5,   label:'5 minutos' },
+  { valor:15,  label:'15 minutos' },
+  { valor:30,  label:'30 minutos' },
+  { valor:60,  label:'1 hora' },
+  { valor:120, label:'2 horas' },
+  { valor:240, label:'4 horas' },
 ]
 
 const AMOSTRAS = {
@@ -320,6 +372,8 @@ export default function PageTransacional({ api: apiProp }) {
   const [telTeste, setTelTeste] = useState('')
   const [enviandoT,setEnviandoT]= useState(false)
   const [resTeste, setResTeste] = useState(null)
+  const [delays,   setDelays]   = useState({}) // {gatilhoId: minutos}
+  const [showHelp, setShowHelp] = useState(null)
 
   const carregar = useCallback(async () => {
     try {
@@ -331,6 +385,18 @@ export default function PageTransacional({ api: apiProp }) {
         if (t.gatilho) map[t.gatilho] = { id:t.id, ativo:t.ativo, blocos:t.blocos||[] }
       }
       setConfigs(map)
+      // Carrega delays configurados
+      try {
+        const rd = await fetch(`${api}/api/ia/config`)
+        if (rd.ok) {
+          const dd = await rd.json()
+          const dm = {}
+          for (const [k,v] of Object.entries(dd.config||{})) {
+            if (k.startsWith('delay_')) dm[k.replace('delay_','')] = parseInt(v)||0
+          }
+          setDelays(dm)
+        }
+      } catch {}
     } catch {}
   }, [api])
 
@@ -378,6 +444,16 @@ export default function PageTransacional({ api: apiProp }) {
     const novo=!c.ativo
     setConfigs(prev=>({...prev,[gId]:{...c,ativo:novo}}))
     await fetch(`${api}/api/templates/${c.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({ativo:novo})}).catch(()=>{})
+  }
+
+  const salvarDelay = async (gatilhoId, minutos) => {
+    setDelays(prev => ({...prev, [gatilhoId]: minutos}))
+    try {
+      await fetch(`${api}/api/ia/config`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ chave:`delay_${gatilhoId}`, valor:String(minutos) })
+      })
+    } catch {}
   }
 
   const salvar = async () => {
@@ -501,6 +577,17 @@ export default function PageTransacional({ api: apiProp }) {
             </div>
           )}
           <div className="flex items-center gap-2.5">
+            {/* Delay */}
+            <div className="flex items-center gap-1.5">
+              <Timer size={12} style={{color:'var(--label-3)'}}/>
+              <select value={delays[selId]||0} onChange={e=>salvarDelay(selId,parseInt(e.target.value))}
+                className="px-2 py-1.5 rounded-[8px] text-[11px] outline-none"
+                style={{background:'var(--fill)',border:'1px solid var(--sep)',color:'var(--label-2)'}}>
+                {DELAY_OPCOES.map(d=>(
+                  <option key={d.valor} value={d.valor}>{d.label}</option>
+                ))}
+              </select>
+            </div>
             {config&&(
               <button onClick={()=>toggleAtivo(selId)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] text-[12px] font-semibold transition-all"
@@ -517,6 +604,39 @@ export default function PageTransacional({ api: apiProp }) {
             </button>
           </div>
         </div>
+
+        {/* Barra de info do gatilho — string Bling + delay + help */}
+        {gatilho && STRINGS_AJUDA[selId] && (
+          <div className="flex items-center gap-3 px-6 py-2 flex-shrink-0"
+            style={{borderBottom:'1px solid var(--sep)',background:'var(--bg-3)'}}>
+            <Tag size={11} style={{color:'var(--label-4)',flexShrink:0}}/>
+            <span className="text-[11px]" style={{color:'var(--label-3)'}}>
+              <strong style={{color:'var(--label-2)'}}>Ativação:</strong> {STRINGS_AJUDA[selId].bling}
+            </span>
+            {delays[selId] > 0 && (
+              <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full flex-shrink-0"
+                style={{background:'rgba(245,158,11,0.1)',color:'#f59e0b'}}>
+                <Timer size={9}/> Delay: {DELAY_OPCOES.find(d=>d.valor===delays[selId])?.label}
+              </span>
+            )}
+            <button onClick={()=>setShowHelp(showHelp===selId?null:selId)}
+              className="ml-auto flex-shrink-0" style={{color:'var(--label-4)'}}>
+              <HelpCircle size={13}/>
+            </button>
+            {showHelp === selId && (
+              <div className="absolute right-6 mt-8 z-50 w-[280px] p-3 rounded-[12px] text-[11px]"
+                style={{background:'var(--bg-2)',border:'1px solid var(--sep)',boxShadow:'0 8px 24px rgba(0,0,0,0.15)',marginTop:32}}>
+                <p style={{color:'var(--label)'}}>{STRINGS_AJUDA[selId].info}</p>
+                {selId.includes('em_separacao')||selId.includes('produto_embalado')||selId.includes('saiu_entrega') ? (
+                  <div className="mt-2 p-2 rounded-[8px]" style={{background:'var(--bg-3)'}}>
+                    <p className="font-semibold mb-1" style={{color:'var(--label-2)'}}>Como usar:</p>
+                    <p style={{color:'var(--label-3)'}}>No Bling, abra o pedido → campo <strong>Observações Internas</strong> → digite a string e salve.</p>
+                  </div>
+                ):null}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Corpo: editor + preview */}
         <div className="flex-1 overflow-hidden flex">
