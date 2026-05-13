@@ -4,7 +4,7 @@ import {
   CheckCircle, Plus, Image, FileText, MousePointer, Link as LinkIcon,
   ShoppingBag, CreditCard, Truck, Bell, Star, Package, Clock,
   MessageSquare, AlertCircle, GripVertical, ChevronDown, ChevronUp,
-  Mic, Video, Phone, Copy, Hash, Trash2, HelpCircle, Timer, Tag, XCircle
+  Mic, Video, Phone, Copy, Hash, Trash2, HelpCircle, Timer, Tag, XCircle, Edit3
 } from 'lucide-react'
 
 const BASE = import.meta.env.VITE_API_URL || ''
@@ -374,7 +374,8 @@ export default function PageTransacional({ api: apiProp }) {
   const [dirty,    setDirty]    = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [salvoOk,  setSalvoOk]  = useState(false)
-  const [gerando,  setGerando]  = useState(false)
+  const [gerando,    setGerando]    = useState(false)
+  const [modalGatilho, setModalGatilho] = useState(null) // {mode:'novo'} ou {mode:'editar', gatilho}
   const [erroIA,   setErroIA]   = useState('')
   const [telTeste, setTelTeste] = useState('')
   const [enviandoT,setEnviandoT]= useState(false)
@@ -516,11 +517,18 @@ export default function PageTransacional({ api: apiProp }) {
       <div className="w-[248px] flex-shrink-0 flex flex-col overflow-hidden"
         style={{background:'var(--bg-2)',borderRight:'1px solid var(--sep)'}}>
         <div className="px-4 pt-4 pb-3 flex-shrink-0" style={{borderBottom:'1px solid var(--sep)'}}>
-          <div className="flex items-center gap-2 mb-0.5">
-            <div className="w-6 h-6 rounded-[7px] flex items-center justify-center" style={{background:'var(--accent-dim)'}}>
-              <Zap size={12} style={{color:'var(--accent)'}}/>
+          <div className="flex items-center justify-between mb-0.5">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-[7px] flex items-center justify-center" style={{background:'var(--accent-dim)'}}>
+                <Zap size={12} style={{color:'var(--accent)'}}/>
+              </div>
+              <span className="text-[15px] font-bold" style={{color:'var(--label)'}}>Gatilhos</span>
             </div>
-            <span className="text-[15px] font-bold" style={{color:'var(--label)'}}>Gatilhos</span>
+            <button onClick={()=>setModalGatilho({mode:'novo'})}
+              className="w-6 h-6 rounded-[7px] flex items-center justify-center transition-all hover:scale-110"
+              style={{background:'var(--accent)',color:'#000'}} title="Novo gatilho personalizado">
+              <Plus size={12}/>
+            </button>
           </div>
           <p className="text-[10px]" style={{color:'var(--label-4)'}}>
             {Object.values(configs).filter(c=>c.ativo).length} ativos · {GATILHOS.length} disponíveis
@@ -551,13 +559,21 @@ export default function PageTransacional({ api: apiProp }) {
                         </div>
                       </div>
                     </button>
-                    {c&&(
-                      <button onClick={()=>toggleAtivo(g.id)}
-                        className="p-1.5 rounded-[8px] flex-shrink-0 transition-all"
-                        style={{color:c.ativo?'#22c55e':'var(--label-4)',background:c.ativo?'rgba(34,197,94,0.08)':'transparent'}}>
-                        {c.ativo?<ToggleRight size={18} strokeWidth={2}/>:<ToggleLeft size={18} strokeWidth={1.5}/>}
-                      </button>
-                    )}
+                    <div className="flex items-center gap-0.5">
+                      {g.grupo==='Personalizado'&&(
+                        <button onClick={e=>{e.stopPropagation();setModalGatilho({mode:'editar',gatilho:g})}}
+                          className="p-1 rounded-[6px]" style={{color:'var(--label-4)'}}>
+                          <Edit3 size={10}/>
+                        </button>
+                      )}
+                      {c&&(
+                        <button onClick={()=>toggleAtivo(g.id)}
+                          className="p-1.5 rounded-[8px] flex-shrink-0 transition-all"
+                          style={{color:c.ativo?'#22c55e':'var(--label-4)',background:c.ativo?'rgba(34,197,94,0.08)':'transparent'}}>
+                          {c.ativo?<ToggleRight size={18} strokeWidth={2}/>:<ToggleLeft size={18} strokeWidth={1.5}/>}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )
               })}
@@ -720,14 +736,157 @@ export default function PageTransacional({ api: apiProp }) {
             </div>
           </div>
 
-          {/* Preview */}
+          {/* Preview + Config */}
           <div className="w-[296px] flex-shrink-0 flex flex-col overflow-hidden">
             <div className="px-4 py-3 flex-shrink-0" style={{borderBottom:'1px solid var(--sep)',background:'var(--bg-2)'}}>
               <p className="text-[10px] font-bold uppercase tracking-widest" style={{color:'var(--label-3)'}}>👁 Preview ao vivo</p>
             </div>
-            <div className="flex-1 overflow-y-auto p-5 flex items-start justify-center" style={{background:'var(--bg-3)'}}>
+            <div className="flex-1 overflow-y-auto p-4 flex items-start justify-center" style={{background:'var(--bg-3)'}}>
               <PreviewWA blocos={blocos} label={gatilho?.label}/>
             </div>
+            {/* Configurações do gatilho abaixo do preview */}
+            <div className="flex-shrink-0 p-4 space-y-3" style={{borderTop:'1px solid var(--sep)',background:'var(--bg-2)'}}>
+              <p className="text-[10px] font-bold uppercase tracking-widest" style={{color:'var(--label-3)'}}>⚙️ Configurações</p>
+              {/* Delay */}
+              <div className="rounded-[10px] p-3 space-y-2" style={{background:'var(--bg-3)',border:'1px solid var(--sep)'}}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Timer size={11} style={{color:'var(--label-3)'}}/>
+                    <span className="text-[11px] font-medium" style={{color:'var(--label-2)'}}>Delay de envio</span>
+                  </div>
+                  {delays[selId] > 0 && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{background:'rgba(245,158,11,0.1)',color:'#f59e0b'}}>
+                      {DELAY_OPCOES.find(d=>d.valor===delays[selId])?.label}
+                    </span>
+                  )}
+                </div>
+                <select value={delays[selId]||0} onChange={e=>salvarDelay(selId,parseInt(e.target.value))}
+                  className="w-full px-2.5 py-2 rounded-[8px] text-[11px] outline-none"
+                  style={{background:'var(--bg)',border:'1px solid var(--sep)',color:'var(--label)'}}>
+                  {DELAY_OPCOES.map(d=>(
+                    <option key={d.valor} value={d.valor}>{d.label}</option>
+                  ))}
+                </select>
+                <p className="text-[9px]" style={{color:'var(--label-4)'}}>Tempo de espera após o evento antes de enviar</p>
+              </div>
+              {/* Info de ativação */}
+              {gatilho && STRINGS_AJUDA[selId] && (
+                <div className="rounded-[10px] p-3" style={{background:'var(--bg-3)',border:'1px solid var(--sep)'}}>
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Tag size={10} style={{color:'var(--label-3)'}}/>
+                    <span className="text-[10px] font-semibold" style={{color:'var(--label-2)'}}>Como é ativado</span>
+                  </div>
+                  <p className="text-[10px]" style={{color:'var(--accent)'}}>{STRINGS_AJUDA[selId].bling}</p>
+                  <p className="text-[9px] mt-1" style={{color:'var(--label-4)'}}>{STRINGS_AJUDA[selId].info}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal CRUD gatilho personalizado */}
+      {modalGatilho && (
+        <ModalGatilhoPersonalizado
+          modo={modalGatilho.mode}
+          gatilhoExistente={modalGatilho.gatilho}
+          api={api}
+          onClose={()=>setModalGatilho(null)}
+          onSave={(g)=>{
+            setModalGatilho(null)
+            // Navega para o novo gatilho
+            if(g?.id) setSelId(g.id)
+          }}/>
+      )}
+    </div>
+  )
+}
+
+// ── Modal para criar/editar gatilho personalizado ─────────────────────────────
+function ModalGatilhoPersonalizado({ modo, gatilhoExistente, api, onClose, onSave }) {
+  const [form, setForm] = useState({
+    id:      gatilhoExistente?.id    || '',
+    label:   gatilhoExistente?.label || '',
+    string:  gatilhoExistente?.desc?.match(/#[A-Z]+/)?.[0] || '',
+    desc:    gatilhoExistente?.desc  || '',
+    delay:   0,
+  })
+  const [salvando, setSalvando] = useState(false)
+  const [erro, setErro]         = useState('')
+
+  const salvar = async () => {
+    if (!form.label.trim()) { setErro('Nome obrigatório'); return }
+    setSalvando(true)
+    try {
+      // Salva template com o novo gatilho
+      const gatilhoId = form.id || form.label.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')
+      await fetch(`${api}/api/templates`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          gatilho: gatilhoId,
+          nome:    form.label,
+          blocos:  [{tipo:'texto',conteudo:'',id:1}],
+          ativo:   false,
+        })
+      })
+      onSave({ id: gatilhoId, label: form.label })
+    } catch(e) { setErro(e.message) }
+    setSalvando(false)
+  }
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+      <div className="w-full max-w-[400px] rounded-[18px] overflow-hidden"
+        style={{background:'var(--bg-2)',border:'1px solid var(--sep)'}}>
+        <div className="flex items-center justify-between px-5 py-4"
+          style={{borderBottom:'1px solid var(--sep)',background:'var(--bg-3)'}}>
+          <h3 className="text-[14px] font-bold" style={{color:'var(--label)'}}>
+            {modo==='novo' ? 'Novo gatilho personalizado' : 'Editar gatilho'}
+          </h3>
+          <button onClick={onClose} style={{color:'var(--label-3)'}}><X size={16}/></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="text-[11px] font-medium block mb-1.5" style={{color:'var(--label-2)'}}>
+              Nome do gatilho *
+            </label>
+            <input value={form.label} onChange={e=>setForm(f=>({...f,label:e.target.value}))}
+              placeholder="Ex: Produto em Trânsito"
+              className="w-full px-3 py-2.5 rounded-[10px] text-[13px] outline-none"
+              style={{background:'var(--bg)',border:'1px solid var(--sep)',color:'var(--label)'}}/>
+          </div>
+          <div>
+            <label className="text-[11px] font-medium block mb-1.5" style={{color:'var(--label-2)'}}>
+              String de ativação no Bling
+            </label>
+            <input value={form.string} onChange={e=>setForm(f=>({...f,string:e.target.value.toUpperCase()}))}
+              placeholder="Ex: #TRANSITO"
+              className="w-full px-3 py-2.5 rounded-[10px] text-[13px] outline-none font-mono"
+              style={{background:'var(--bg)',border:'1px solid var(--sep)',color:'var(--accent)'}}/>
+            <p className="text-[10px] mt-1" style={{color:'var(--label-4)'}}>
+              Cole esta string no campo Observações Internas do pedido no Bling para disparar
+            </p>
+          </div>
+          <div>
+            <label className="text-[11px] font-medium block mb-1.5" style={{color:'var(--label-2)'}}>
+              Descrição
+            </label>
+            <input value={form.desc} onChange={e=>setForm(f=>({...f,desc:e.target.value}))}
+              placeholder="Para que serve este gatilho?"
+              className="w-full px-3 py-2.5 rounded-[10px] text-[13px] outline-none"
+              style={{background:'var(--bg)',border:'1px solid var(--sep)',color:'var(--label)'}}/>
+          </div>
+          {erro && (
+            <p className="text-[11px]" style={{color:'var(--red)'}}>{erro}</p>
+          )}
+          <div className="flex gap-3 pt-1">
+            <button onClick={onClose} className="flex-1 py-2.5 rounded-[10px] text-[13px]"
+              style={{background:'var(--fill)',color:'var(--label-2)'}}>Cancelar</button>
+            <button onClick={salvar} disabled={salvando||!form.label.trim()}
+              className="flex-1 py-2.5 rounded-[10px] text-[13px] font-semibold"
+              style={{background:'var(--accent)',color:'#000',opacity:!form.label.trim()?0.5:1}}>
+              {salvando?'Salvando...':'Criar gatilho'}
+            </button>
           </div>
         </div>
       </div>

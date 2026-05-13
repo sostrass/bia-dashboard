@@ -315,6 +315,81 @@ function PainelCliente({ sel, api }) {
   )
 }
 
+// ── Renderiza conteúdo da mensagem com suporte a mídia ────────────────────────
+function MensagemConteudo({ texto = '' }) {
+  // Imagem
+  const imgMatch = texto.match(/\[ENVIAR_IMAGEM:\s*([^\]]+)\]/)
+  if (imgMatch) {
+    const url  = imgMatch[1].trim()
+    const rest = texto.replace(/\[ENVIAR_IMAGEM:[^\]]*\]/, '').trim()
+    return (
+      <div className="space-y-2">
+        <div className="rounded-[10px] overflow-hidden" style={{ maxWidth:220 }}>
+          <img src={url} alt="Imagem" className="w-full object-cover"
+            style={{ maxHeight:180 }}
+            onError={e => { e.target.style.display='none' }}/>
+        </div>
+        {rest && <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{rest}</p>}
+      </div>
+    )
+  }
+
+  // URL de imagem direta
+  const urlImgMatch = texto.match(/https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp)(\?[^\s]*)?/i)
+  if (urlImgMatch) {
+    const url  = urlImgMatch[0]
+    const rest = texto.replace(url, '').trim()
+    return (
+      <div className="space-y-2">
+        <div className="rounded-[10px] overflow-hidden" style={{ maxWidth:220 }}>
+          <img src={url} alt="Imagem" className="w-full object-cover"
+            style={{ maxHeight:180 }}
+            onError={e => { e.target.style.display='none' }}/>
+        </div>
+        {rest && <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{rest}</p>}
+      </div>
+    )
+  }
+
+  // Áudio
+  const audioMatch = texto.match(/https?:\/\/[^\s]+\.(?:mp3|ogg|wav|m4a|opus)(\?[^\s]*)?/i)
+  if (audioMatch) {
+    return (
+      <div className="space-y-1.5">
+        <audio controls className="w-full" style={{ maxWidth:220, height:36 }}>
+          <source src={audioMatch[0]}/>
+        </audio>
+      </div>
+    )
+  }
+
+  // Vídeo
+  const videoMatch = texto.match(/https?:\/\/[^\s]+\.(?:mp4|webm|mov)(\?[^\s]*)?/i)
+  if (videoMatch) {
+    return (
+      <div className="rounded-[10px] overflow-hidden" style={{ maxWidth:220 }}>
+        <video controls className="w-full" style={{ maxHeight:160 }}>
+          <source src={videoMatch[0]}/>
+        </video>
+      </div>
+    )
+  }
+
+  // Texto com formatação WhatsApp (*negrito*, _itálico_)
+  const html = texto
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\n/g,'<br/>')
+    .replace(/\*([^*\n]+)\*/g,'<strong>$1</strong>')
+    .replace(/_([^_\n]+)_/g,'<em>$1</em>')
+    .replace(/https?:\/\/[^\s<]+/g, url => `<a href="${url}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline">${url}</a>`)
+
+  return (
+    <p className="text-[13px] leading-relaxed"
+      dangerouslySetInnerHTML={{ __html: html }}/>
+  )
+}
+
+
 export default function PageConversas({ api: apiProp }) {
   const api = apiProp || BASE
   const [convs,      setConvs]      = useState([])
@@ -721,7 +796,7 @@ export default function PageConversas({ api: apiProp }) {
                         borderBottomRightRadius: (isUser||isMe)?3:16,
                         border: (isBot||isMe)?'1px solid var(--sep)':'1px solid rgba(74,159,255,0.15)',
                       }}>
-                      {m.t}
+                      <MensagemConteudo texto={m.t} />
                     </div>
                     <div className={`flex items-center gap-1 mt-0.5 px-1 ${isUser||isMe?'justify-end':''}`}>
                       <span className="text-[9px]" style={{color:'var(--label-4)'}}>{m.h}</span>
