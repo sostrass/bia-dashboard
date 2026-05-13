@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "start": "npx serve dist --listen $PORT"
+    "start": "vite build && npx serve dist --listen $PORT"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",
