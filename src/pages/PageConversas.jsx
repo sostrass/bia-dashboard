@@ -352,14 +352,17 @@ function PainelInfo({ conv, api }) {
 }
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
-function Chat({ conv, api, status, onStatusChange }) {
+function Chat({ conv, api, status, onStatusChange, modoManual, onAssumir }) {
   const [msgs,    setMsgs]    = useState([])
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(false)
   const [offset,  setOffset]  = useState(0)
+  const [texto, setTexto]   = useState('')
+  const [sending, setSending] = useState(false)
   const bottomRef = useRef(null)
   const prevLen   = useRef(0)
   const loadingRef = useRef(false)
+  const inputRef  = useRef(null)
 
   const carregar = useCallback(async (off=0, silencioso=false) => {
     if (!conv?.telefone || loadingRef.current) return
@@ -393,6 +396,25 @@ function Chat({ conv, api, status, onStatusChange }) {
     return () => clearInterval(i)
   }, [carregar])
 
+  const enviar = async () => {
+    if (!texto.trim() || sending || !modoManual) return
+    const msg = texto.trim()
+    setTexto('')
+    setSending(true)
+    try {
+      const WA_TOKEN  = ''; // não temos acesso aqui — envio pelo backend
+      // Envia via API do backend
+      await fetch(`${api}/api/contatos/${conv.telefone}/mensagem`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mensagem: msg, telefone: conv.telefone })
+      })
+      await carregar(0, true)
+    } catch(e) { console.error('Erro enviar:', e.message) }
+    setSending(false)
+    inputRef.current?.focus()
+  }
+
   useEffect(() => {
     if (msgs.length > prevLen.current && prevLen.current === 0) {
       bottomRef.current?.scrollIntoView({ behavior:'instant' })
@@ -414,27 +436,43 @@ function Chat({ conv, api, status, onStatusChange }) {
     <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0 }}>
       {/* Header */}
       <div style={{
-        padding:'10px 14px', borderBottom:'1px solid var(--sep)',
-        background:'var(--bg-2)', display:'flex', alignItems:'center', gap:10, flexShrink:0,
+        padding:'12px 16px', borderBottom:'1px solid var(--sep)',
+        background:'var(--bg-2)', display:'flex', alignItems:'center', gap:12, flexShrink:0,
       }}>
-        <Avatar nome={conv.nome} telefone={conv.telefone} size={32}/>
+        <Avatar nome={conv.nome} telefone={conv.telefone} size={36}/>
         <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontSize:13, fontWeight:600, color:'var(--label)' }}>{conv.nome||conv.telefone}</div>
-          <div style={{ fontSize:10, color:'var(--label-4)' }}>{conv.total_msgs} mensagens · {conv.hora}</div>
+          <div style={{ fontSize:14, fontWeight:600, color:'var(--label)' }}>{conv.nome||conv.telefone}</div>
+          <div style={{ fontSize:11, color:'var(--label-4)' }}>{conv.total_msgs} mensagens · {conv.hora}</div>
         </div>
-        {/* Seletor de status */}
-        <div style={{ display:'flex', gap:3 }}>
+        {/* Botão assumir conversa */}
+        {onAssumir && (
+          <button onClick={() => onAssumir(conv.telefone)}
+            style={{
+              display:'flex', alignItems:'center', gap:6,
+              padding:'6px 12px', borderRadius:8, border:'1px solid var(--sep)',
+              background: modoManual ? 'rgba(74,159,255,0.12)' : 'var(--fill)',
+              color: modoManual ? '#4a9fff' : 'var(--label-3)',
+              cursor:'pointer', fontSize:12, fontWeight:600, flexShrink:0,
+            }}>
+            <User size={13}/>
+            {modoManual ? 'Manual' : 'Assumir'}
+          </button>
+        )}
+        {/* Seletor de status com labels */}
+        <div style={{ display:'flex', gap:4 }}>
           {STATUS.filter(s=>s.id!=='gatilhos').map(s => (
             <button key={s.id} onClick={() => onStatusChange(conv.telefone, s.id)}
               title={s.label}
               style={{
-                padding:'4px 8px', borderRadius:5, border:'none', cursor:'pointer',
-                fontSize:9, fontWeight:700,
+                display:'flex', flexDirection:'column', alignItems:'center', gap:2,
+                padding:'6px 10px', borderRadius:8, border:'none', cursor:'pointer',
                 background: status===s.id ? s.bg : 'transparent',
                 color: status===s.id ? s.color : 'var(--label-4)',
-                outline: status===s.id ? `1px solid ${s.color}50` : 'none',
+                outline: status===s.id ? `1.5px solid ${s.color}50` : 'none',
+                minWidth:52,
               }}>
-              <s.icon size={10}/>
+              <s.icon size={14}/>
+              <span style={{ fontSize:9, fontWeight:600, whiteSpace:'nowrap' }}>{s.label}</span>
             </button>
           ))}
         </div>
@@ -460,6 +498,50 @@ function Chat({ conv, api, status, onStatusChange }) {
         }
         <div ref={bottomRef}/>
       </div>
+
+      {/* Barra de envio — só quando assumida */}
+      {modoManual ? (
+        <div style={{
+          padding:'10px 14px', borderTop:'1px solid var(--sep)',
+          background:'var(--bg-2)', display:'flex', gap:8, alignItems:'flex-end', flexShrink:0,
+        }}>
+          <div style={{ flex:1, background:'var(--fill)', borderRadius:10, padding:'8px 12px', border:'1px solid var(--sep)' }}>
+            <textarea
+              ref={inputRef}
+              value={texto}
+              onChange={e => setTexto(e.target.value)}
+              onKeyDown={e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); enviar() } }}
+              placeholder="Digite uma mensagem..."
+              rows={1}
+              style={{
+                width:'100%', border:'none', background:'transparent', outline:'none',
+                fontSize:12.5, color:'var(--label)', resize:'none', lineHeight:1.5,
+                maxHeight:100, overflow:'auto',
+              }}
+            />
+          </div>
+          <button onClick={enviar} disabled={sending || !texto.trim()}
+            style={{
+              width:36, height:36, borderRadius:10, border:'none',
+              background: texto.trim() ? 'var(--accent)' : 'var(--fill)',
+              color: texto.trim() ? '#fff' : 'var(--label-4)',
+              cursor: texto.trim() ? 'pointer' : 'default',
+              display:'flex', alignItems:'center', justifyContent:'center',
+              flexShrink:0, transition:'all 0.15s',
+            }}>
+            {sending ? '...' : <Send size={14}/>}
+          </button>
+        </div>
+      ) : (
+        <div style={{
+          padding:'10px 14px', borderTop:'1px solid var(--sep)',
+          background:'var(--bg-2)', display:'flex', alignItems:'center', gap:8, flexShrink:0,
+        }}>
+          <div style={{ flex:1, textAlign:'center', fontSize:11, color:'var(--label-4)' }}>
+            Conversa em modo IA — clique em <strong style={{color:'var(--label-3)'}}>Assumir</strong> para responder manualmente
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -474,6 +556,7 @@ export default function PageConversas({ api: apiProp }) {
   const [statusMap, setStatusMap] = useState({})
   const [busca,     setBusca]     = useState('')
   const [loading,   setLoading]   = useState(true)
+  const [modoMap,   setModoMap]   = useState({})  // tel → manual
 
   const getStatus = (tel) => statusMap[tel] || 'pendente'
 
@@ -621,7 +704,13 @@ export default function PageConversas({ api: apiProp }) {
       {/* Área central + painel lateral */}
       {sel ? (
         <>
-          <Chat conv={sel} api={api} status={getStatus(sel.telefone)} onStatusChange={setConvStatus}/>
+          <Chat
+            conv={sel} api={api}
+            status={getStatus(sel.telefone)}
+            onStatusChange={setConvStatus}
+            modoManual={modoMap[sel.telefone] || false}
+            onAssumir={(tel) => setModoMap(prev => ({ ...prev, [tel]: !prev[tel] }))}
+          />
           <PainelInfo conv={sel} api={api}/>
         </>
       ) : (
