@@ -444,18 +444,22 @@ function Chat({ conv, api, status, onStatusChange, modoManual, onAssumir }) {
           <div style={{ fontSize:14, fontWeight:600, color:'var(--label)' }}>{conv.nome||conv.telefone}</div>
           <div style={{ fontSize:11, color:'var(--label-4)' }}>{conv.total_msgs} mensagens · {conv.hora}</div>
         </div>
-        {/* Botão assumir conversa */}
+        {/* Botão assumir / devolver para IA */}
         {onAssumir && (
           <button onClick={() => onAssumir(conv.telefone)}
             style={{
               display:'flex', alignItems:'center', gap:6,
-              padding:'6px 12px', borderRadius:8, border:'1px solid var(--sep)',
+              padding:'6px 12px', borderRadius:8,
+              border: modoManual ? '1px solid rgba(74,159,255,0.3)' : '1px solid var(--sep)',
               background: modoManual ? 'rgba(74,159,255,0.12)' : 'var(--fill)',
               color: modoManual ? '#4a9fff' : 'var(--label-3)',
-              cursor:'pointer', fontSize:12, fontWeight:600, flexShrink:0,
+              cursor:'pointer', fontSize:11, fontWeight:600, flexShrink:0,
+              transition:'all 0.15s',
             }}>
-            <User size={13}/>
-            {modoManual ? 'Manual' : 'Assumir'}
+            {modoManual
+              ? <><Bot size={13}/> Devolver à IA</>
+              : <><User size={13}/> Assumir</>
+            }
           </button>
         )}
         {/* Seletor de status com labels */}
@@ -557,6 +561,10 @@ export default function PageConversas({ api: apiProp }) {
   const [busca,     setBusca]     = useState('')
   const [loading,   setLoading]   = useState(true)
   const [modoMap,   setModoMap]   = useState({})  // tel → manual
+
+  const toggleModo = useCallback((tel) => {
+    setModoMap(prev => ({ ...prev, [tel]: !prev[tel] }))
+  }, [])
 
   const getStatus = (tel) => statusMap[tel] || 'pendente'
 
@@ -709,7 +717,7 @@ export default function PageConversas({ api: apiProp }) {
             status={getStatus(sel.telefone)}
             onStatusChange={setConvStatus}
             modoManual={modoMap[sel.telefone] || false}
-            onAssumir={(tel) => setModoMap(prev => ({ ...prev, [tel]: !prev[tel] }))}
+            onAssumir={toggleModo}
           />
           <PainelInfo conv={sel} api={api}/>
         </>
