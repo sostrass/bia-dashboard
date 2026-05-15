@@ -647,15 +647,17 @@ export default function PageConversas({ api: apiProp }) {
       if (r.ok) {
         const d = await r.json()
         const novas = d.conversas||[]
+        console.log('[BIA] conversas:', novas.length, '| 1a:', novas[0]?.nome, novas[0]?.status_atendimento)
         setConvs(prev=>{
           const map=new Map(prev.map(c=>[c.telefone,c]))
           return novas.map(c=>({...map.get(c.telefone),...c}))
         })
-        // Popula statusMap com valores do banco (não sobrescreve alterações locais)
+        // Popula statusMap com valores do banco
         setStatusMap(prev=>{
           const novo={...prev}
           novas.forEach(c=>{
-            if (!novo[c.telefone] && c.status_atendimento) {
+            // Usa valor do banco se não há valor local ou se valor local é o default
+            if (c.status_atendimento && (!novo[c.telefone] || novo[c.telefone] === 'pendente')) {
               novo[c.telefone] = c.status_atendimento
             }
           })
