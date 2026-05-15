@@ -21,15 +21,15 @@ const REACOES = ['👍','❤️','😂','😮','😢','🙏']
 
 // ── Tema — variáveis CSS seguras para fundo claro e escuro ────────────────────
 const V = {
-  bg:      'var(--bg, #ffffff)',
-  bg2:     'var(--bg-2, #f8f9fa)',
-  bg3:     'var(--bg-3, #f0f2f5)',
-  label:   'var(--label, #111827)',
-  label2:  'var(--label-2, #374151)',
-  label3:  'var(--label-3, #6b7280)',
-  label4:  'var(--label-4, #9ca3af)',
-  sep:     'var(--sep, #e5e7eb)',
-  fill:    'var(--fill, #f3f4f6)',
+  bg:      'var(--bg)',
+  bg2:     'var(--bg-2)',
+  bg3:     'var(--bg-3)',
+  label:   'var(--label)',
+  label2:  'var(--label-2)',
+  label3:  'var(--label-3)',
+  label4:  'var(--label-4)',
+  sep:     'var(--sep)',
+  fill:    'var(--fill)',
   accent:  'var(--accent, #059669)',
 }
 
@@ -64,17 +64,23 @@ function Bolha({ msg }) {
   const isGatilho = msg.modo === 'transacional'
   const isManual  = msg.modo === 'manual'
   const texto     = (msg.conteudo||'').replace(/\[ENVIAR_IMAGEM:[^\]]*\]/g,'').trim()
+  // Extrai URL de imagem se presente
+  const imgMatch  = (msg.conteudo||'').match(/\[ENVIAR_IMAGEM:\s*([^\]]+)\]/)
+  const imgUrl    = imgMatch?.[1]?.trim()
 
   // Cores com bom contraste
-  const bgMsg    = entrada ? V.bg3
-    : isGatilho ? '#f5f0ff'
-    : isManual  ? '#eff6ff'
-    : '#ecfdf5'
+  // Cores das bolhas — usando CSS variables para funcionar em claro e escuro
+  const bgMsg    = entrada
+    ? 'var(--bg-2, #f0f2f5)'
+    : isGatilho ? 'rgba(139,92,246,0.15)'
+    : isManual  ? 'rgba(59,130,246,0.15)'
+    : 'rgba(5,150,105,0.15)'
 
-  const bordMsg  = entrada ? V.sep
-    : isGatilho ? '#c4b5fd'
-    : isManual  ? '#93c5fd'
-    : '#6ee7b7'
+  const bordMsg  = entrada
+    ? 'var(--sep, #e5e7eb)'
+    : isGatilho ? 'rgba(139,92,246,0.4)'
+    : isManual  ? 'rgba(59,130,246,0.4)'
+    : 'rgba(5,150,105,0.4)'
 
   const labelRem = entrada ? null
     : isGatilho ? '⚡ Gatilho'
