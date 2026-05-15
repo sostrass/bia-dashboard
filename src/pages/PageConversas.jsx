@@ -536,9 +536,12 @@ function Chat({ telefone, nome, totalMsgs, hora, api, status, onStatusChange, mo
         setHasMore(d.hasMore||false)
         setOffset(off===0?novas.length:off+novas.length)
       }
-    } catch {}
-    if (!sil) setLoading(false)
-    fetching.current = false
+    } catch(e) { console.error('historico erro:', e.message) }
+    finally {
+      if (!sil) setLoading(false)
+      fetching.current = false
+    }
+    // fetching.current = false
   }, [telefone, api])
 
   useEffect(()=>{ setMsgs([]); setOffset(0); prevLen.current=0; carregar(0) }, [telefone])
