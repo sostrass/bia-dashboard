@@ -69,18 +69,18 @@ function Bolha({ msg }) {
   const imgUrl    = imgMatch?.[1]?.trim()
 
   // Cores com bom contraste
-  // Cores das bolhas — usando CSS variables para funcionar em claro e escuro
+  // Cores das bolhas — funciona em modo claro e escuro
   const bgMsg    = entrada
-    ? 'var(--bg-2, #f0f2f5)'
-    : isGatilho ? 'rgba(139,92,246,0.15)'
-    : isManual  ? 'rgba(59,130,246,0.15)'
-    : 'rgba(5,150,105,0.15)'
+    ? 'var(--bg-3, var(--bg-2))'
+    : isGatilho ? 'var(--color-background-info,    rgba(139,92,246,0.18))'
+    : isManual  ? 'var(--color-background-warning,  rgba(59,130,246,0.18))'
+    : 'var(--color-background-success, rgba(5,150,105,0.18))'
 
   const bordMsg  = entrada
-    ? 'var(--sep, #e5e7eb)'
-    : isGatilho ? 'rgba(139,92,246,0.4)'
-    : isManual  ? 'rgba(59,130,246,0.4)'
-    : 'rgba(5,150,105,0.4)'
+    ? 'var(--sep)'
+    : isGatilho ? 'var(--color-border-info,    rgba(139,92,246,0.5))'
+    : isManual  ? 'var(--color-border-warning,  rgba(59,130,246,0.5))'
+    : 'var(--color-border-success, rgba(5,150,105,0.5))'
 
   const labelRem = entrada ? null
     : isGatilho ? '⚡ Gatilho'
