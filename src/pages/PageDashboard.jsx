@@ -1,342 +1,241 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import {
-  Users, MessageSquare, Bot, Clock, TrendingUp, TrendingDown,
-  DollarSign, Zap, RefreshCw, Activity, BarChart2, ChevronUp, ChevronDown
-} from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
 
 const BASE = import.meta.env.VITE_API_URL || ''
 
-// Mini sparkline SVG
-function Sparkline({ data = [], color = '#00d4aa', width = 80, height = 32 }) {
-  if (data.length < 2) return null
+// ── CSS vars ──────────────────────────────────────────────────────────────────
+const V = {
+  bg:     'var(--bg)',
+  bg2:    'var(--bg-2)',
+  bg3:    'var(--bg-3)',
+  label:  'var(--label)',
+  label2: 'var(--label-2)',
+  label3: 'var(--label-3)',
+  label4: 'var(--label-4)',
+  sep:    'var(--sep)',
+  fill:   'var(--fill)',
+  accent: 'var(--accent, #059669)',
+}
+
+// ── Sparkline SVG inline ──────────────────────────────────────────────────────
+function Sparkline({ data = [], color = '#059669', height = 32, width = 80 }) {
+  if (!data.length) return null
   const max = Math.max(...data, 1)
-  const min = Math.min(...data, 0)
+  const min = Math.min(...data)
   const range = max - min || 1
   const pts = data.map((v, i) => {
     const x = (i / (data.length - 1)) * width
     const y = height - ((v - min) / range) * (height - 4) - 2
-    return `${x.toFixed(1)},${y.toFixed(1)}`
+    return `${x},${y}`
   }).join(' ')
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display:'block' }}>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5"
-        strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
+    <svg width={width} height={height} style={{ display:'block' }}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
     </svg>
   )
 }
 
-// KPI card estilo terminal financeiro
-function KpiCard({ icon: Icon, label, value, delta, deltaLabel, color, sparkData }) {
-  const isPositive = typeof delta === 'number' ? delta >= 0 : (delta || '').startsWith('+') || (delta || '').startsWith('↓')
-  const DeltaIcon = isPositive ? ChevronUp : ChevronDown
+// ── KPI Card ──────────────────────────────────────────────────────────────────
+function KpiCard({ label, value, subLabel, color = V.accent, sparkData = [] }) {
   return (
-    <div className="card p-4 relative overflow-hidden" style={{ background: 'var(--bg-2)' }}>
-      <div className="flex items-start justify-between mb-3">
-        <div className="p-2 rounded-[9px]" style={{ background: `${color}15` }}>
-          <Icon size={15} style={{ color }} />
-        </div>
-        {delta !== undefined && (
-          <div className="flex items-center gap-0.5 text-[10px] font-semibold px-2 py-1 rounded-[6px]"
-            style={{ background: isPositive ? 'rgba(0,212,170,0.1)' : 'rgba(226,75,74,0.1)', color: isPositive ? 'var(--accent)' : 'var(--red)' }}>
-            <DeltaIcon size={10} />
-            {delta}
+    <div style={{
+      background:V.bg2, border:`1px solid ${V.sep}`, borderRadius:12,
+      padding:'16px 18px', display:'flex', flexDirection:'column', gap:8,
+    }}>
+      <div style={{ fontSize:12, color:V.label3, fontWeight:500 }}>{label}</div>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end' }}>
+        <div>
+          <div style={{ fontSize:28, fontWeight:700, color:V.label, lineHeight:1 }}>
+            {value ?? '—'}
           </div>
+          {subLabel && (
+            <div style={{ fontSize:11, color:V.label4, marginTop:4 }}>{subLabel}</div>
+          )}
+        </div>
+        {sparkData.length > 1 && (
+          <Sparkline data={sparkData} color={color} />
         )}
       </div>
-      <div className="text-[30px] font-bold tracking-tight leading-none mb-1" style={{ color: 'var(--label)', fontVariantNumeric: 'tabular-nums' }}>
-        {value}
-      </div>
-      <div className="text-[11px]" style={{ color: 'var(--label-3)' }}>{label}</div>
-      {deltaLabel && <div className="text-[10px] mt-0.5" style={{ color: 'var(--label-4)' }}>{deltaLabel}</div>}
-      {sparkData && (
-        <div className="absolute bottom-0 right-0 opacity-40">
-          <Sparkline data={sparkData} color={color} />
-        </div>
-      )}
     </div>
   )
 }
 
-// Linha de conversa recente
-function ConvRow({ conv }) {
-  const isIA     = conv.modo === 'auto'
-  const isManual = conv.modo === 'manual'
-  const isIn     = conv.direcao === 'entrada'
-  const initials = (conv.nome || conv.telefone || '??').slice(0, 2).toUpperCase()
-  const colors   = ['#00d4aa','#4a9fff','#a78bfa','#f59e0b','#22d3ee']
-  let ci = 0; for (let c of (conv.telefone||'')) ci = (ci*31 + c.charCodeAt(0)) % colors.length
-  const ac = colors[ci]
-
+// ── Barra de distribuição ─────────────────────────────────────────────────────
+function BarraStatus({ label, valor, total, cor }) {
+  const pct = total > 0 ? Math.round((valor / total) * 100) : 0
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5 border-b transition-all hover:bg-[var(--fill)]"
-      style={{ borderColor: 'var(--sep)' }}>
-      <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0"
-        style={{ background: `${ac}20`, color: ac }}>{initials}</div>
-      <div className="flex-1 min-w-0">
-        <div className="text-[12px] font-medium truncate" style={{ color: 'var(--label)' }}>
-          {conv.nome || conv.telefone}
-        </div>
-        <div className="text-[10px] truncate" style={{ color: 'var(--label-3)' }}>
-          {isIn ? '' : '↩ '}{conv.mensagem === '...' ? '—' : (conv.mensagem || '—')}
-        </div>
+    <div style={{ marginBottom:10 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+        <span style={{ fontSize:12, color:V.label3 }}>{label}</span>
+        <span style={{ fontSize:12, color:V.label, fontWeight:600 }}>{valor} <span style={{ color:V.label4, fontWeight:400 }}>({pct}%)</span></span>
       </div>
-      <div className="flex flex-col items-end gap-1 flex-shrink-0">
-        <span className="text-[10px]" style={{ color: 'var(--label-4)' }}>{conv.hora}</span>
-        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-[4px]"
-          style={{
-            background: isIA ? 'rgba(0,212,170,0.12)' : isManual ? 'rgba(74,159,255,0.12)' : 'var(--fill)',
-            color: isIA ? 'var(--accent)' : isManual ? 'var(--blue)' : 'var(--label-3)'
-          }}>
-          {isIA ? 'IA' : isManual ? 'Manual' : '—'}
-        </span>
+      <div style={{ height:6, borderRadius:3, background:V.fill }}>
+        <div style={{ height:'100%', borderRadius:3, background:cor, width:`${pct}%`, transition:'width 0.4s' }} />
       </div>
     </div>
   )
 }
 
-// Barra horizontal com label
-function BarRow({ label, value, max, color, total }) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0
-  return (
-    <div className="flex items-center gap-3 mb-2.5">
-      <span className="text-[10px] w-14 flex-shrink-0" style={{ color: 'var(--label-3)' }}>{label}</span>
-      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--sep)' }}>
-        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: color }} />
-      </div>
-      <span className="text-[10px] font-semibold w-6 text-right" style={{ color: 'var(--label-2)' }}>{value}</span>
-    </div>
-  )
-}
-
+// ── Componente principal ──────────────────────────────────────────────────────
 export default function PageDashboard({ api: apiProp }) {
   const api = apiProp || BASE
-  const [stats,      setStats]      = useState(null)
-  const [loading,    setLoading]    = useState(true)
-  const [lastUpd,    setLastUpd]    = useState(null)
-  const [ticker,     setTicker]     = useState(0)
-  const intervalRef  = useRef(null)
 
-  // Gera dados de sparkline fictícios mas realistas
-  const spark = (base, variance = 0.3) =>
-    Array.from({ length: 8 }, (_, i) => Math.max(0, Math.round(base * (1 + (Math.random() - 0.5) * variance * (i < 6 ? 1 : 0.5)))))
+  const [stats,   setStats]   = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [lastUpd, setLastUpd] = useState(null)
 
-  const carregar = useCallback(async (silencioso = false) => {
+  const carregar = useCallback(async () => {
     try {
       const r = await fetch(`${api}/api/dashboard/stats`)
-      if (!r.ok) throw new Error()
-      const d = await r.json()
-      setStats(d)
-      setLastUpd(new Date())
-    } catch {}
-    if (!silencioso) setLoading(false)
+      if (r.ok) {
+        const d = await r.json()
+        setStats(d)
+        setLastUpd(new Date())
+      }
+    } catch (e) {
+      console.error('Erro stats:', e.message)
+    } finally {
+      setLoading(false)
+    }
   }, [api])
 
   useEffect(() => {
     carregar()
-    intervalRef.current = setInterval(() => { carregar(true); setTicker(t => t + 1) }, 30000)
-    return () => clearInterval(intervalRef.current)
+    const t = setInterval(carregar, 30000)
+    return () => clearInterval(t)
   }, [carregar])
 
-  const hoje   = stats?.hoje   || {}
-  const totais = stats?.totais || {}
-  const ultimas = stats?.ultimas_conversas || []
+  if (loading) return (
+    <div style={{ padding:32, color:V.label4, fontSize:13 }}>Carregando dashboard...</div>
+  )
 
-  const msgsReceb  = hoje.mensagens_recebidas  || 0
-  const msgsEnv    = hoje.mensagens_enviadas    || 0
-  const clientes   = hoje.clientes_unicos       || 0
-  const manuais    = hoje.respostas_manuais     || 0
-  const iaRate     = hoje.resolvidos_ia         || '0%'
-  const tmTotal    = totais.contatos            || 0
+  // Extrai dados do formato v6
+  const conv  = stats?.conversas || {}
+  const msgs  = stats?.mensagens || {}
+  const cat   = stats?.catalogo  || {}
+  const dist  = stats?.status_distribuicao || []
 
-  // Volume por hora simulado baseado no total real
-  const volumeHoras = [
-    { l: '06h–08h', v: Math.round(msgsReceb * 0.08) },
-    { l: '08h–10h', v: Math.round(msgsReceb * 0.18) },
-    { l: '10h–12h', v: Math.round(msgsReceb * 0.28) },
-    { l: '12h–14h', v: Math.round(msgsReceb * 0.22) },
-    { l: '14h–agora', v: Math.round(msgsReceb * 0.24) },
-  ]
-  const maxVol = Math.max(...volumeHoras.map(v => v.v), 1)
+  // Total de conversas por status para as barras
+  const statusTotal   = dist.reduce((s, r) => s + parseInt(r.total||0), 0)
+  const statusPend    = parseInt(dist.find(r => r.status === 'pendente')?.total     || 0)
+  const statusAndamento = parseInt(dist.find(r => r.status === 'em_andamento')?.total || 0)
+  const statusResolvido = parseInt(dist.find(r => r.status === 'resolvido')?.total  || 0)
+  const statusEncerrado = parseInt(dist.find(r => r.status === 'encerrado')?.total  || 0)
 
-  const custoMsg   = 0.00055
-  const custoHoje  = ((msgsReceb + msgsEnv) * custoMsg).toFixed(4)
-  const custoMes   = ((msgsReceb + msgsEnv) * custoMsg * 30).toFixed(2)
-  const custoAno   = ((msgsReceb + msgsEnv) * custoMsg * 365).toFixed(2)
-  const pctLimite  = Math.min(100, Math.round((msgsReceb + msgsEnv) / 500 * 100))
+  // Taxa de disponibilidade do catálogo
+  const pctDisp = cat.total_produtos > 0
+    ? Math.round((parseInt(cat.disponiveis||0) / parseInt(cat.total_produtos)) * 100)
+    : 0
+
+  // Última atualização
+  const ultimoSync = cat.ultimo_sync
+    ? new Date(cat.ultimo_sync).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+    : '—'
 
   return (
-    <div className="h-full overflow-y-auto scroll-hidden" style={{ background: 'var(--bg)' }}>
-      <div className="p-5 space-y-4">
+    <div style={{ padding:24, maxWidth:1100, margin:'0 auto' }}>
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-[22px] font-bold tracking-tight" style={{ color: 'var(--label)' }}>Dashboard</h1>
-            <p className="text-[11px] mt-0.5" style={{ color: 'var(--label-3)' }}>
-              {lastUpd
-                ? `Atualizado ${lastUpd.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' })}`
-                : 'Carregando...'}
-            </p>
+      {/* Header */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
+        <div>
+          <h2 style={{ margin:0, fontSize:20, fontWeight:700, color:V.label }}>Dashboard</h2>
+          <div style={{ fontSize:11, color:V.label4, marginTop:2 }}>
+            Atualizado {lastUpd ? lastUpd.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '—'}
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[10px] font-semibold"
-              style={{ background: 'rgba(0,212,170,0.08)', border: '1px solid rgba(0,212,170,0.15)', color: 'var(--accent)' }}>
-              <span className="w-1.5 h-1.5 rounded-full animate-pulse-dot" style={{ background: 'var(--accent)' }} />
-              Ao vivo · 30s
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[10px] font-semibold"
-              style={{ background: 'rgba(74,159,255,0.08)', border: '1px solid rgba(74,159,255,0.15)', color: 'var(--blue)' }}>
-              <Zap size={10} />
-              gemini-2.5-flash
-            </div>
-            <button onClick={() => carregar()} disabled={loading}
-              className="p-2 rounded-[8px]" style={{ background: 'var(--fill)', color: 'var(--label-3)' }}>
-              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-            </button>
+        </div>
+        <button onClick={carregar} style={{
+          padding:'6px 14px', borderRadius:8, border:`1px solid ${V.sep}`,
+          background:V.fill, color:V.label3, fontSize:12, cursor:'pointer',
+        }}>
+          ↻ Atualizar
+        </button>
+      </div>
+
+      {/* KPIs */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px,1fr))', gap:14, marginBottom:24 }}>
+        <KpiCard
+          label="Conversas hoje"
+          value={conv.hoje || 0}
+          subLabel={`${conv.total_conversas || 0} total`}
+          color="#059669"
+          sparkData={[conv.semana||0, conv.hoje||0]}
+        />
+        <KpiCard
+          label="Mensagens hoje"
+          value={msgs.hoje || 0}
+          subLabel={`${msgs.recebidas || 0} recebidas`}
+          color="#3b82f6"
+          sparkData={[msgs.total_msgs||0, msgs.hoje||0]}
+        />
+        <KpiCard
+          label="Produtos disponíveis"
+          value={cat.disponiveis || 0}
+          subLabel={`${pctDisp}% do catálogo`}
+          color="#8b5cf6"
+          sparkData={[cat.total_produtos||0, cat.disponiveis||0]}
+        />
+        <KpiCard
+          label="Conversas na semana"
+          value={conv.semana || 0}
+          subLabel={`sync: ${ultimoSync}`}
+          color="#f59e0b"
+          sparkData={[conv.semana||0]}
+        />
+      </div>
+
+      {/* Grid inferior */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+
+        {/* Distribuição de status */}
+        <div style={{ background:V.bg2, border:`1px solid ${V.sep}`, borderRadius:12, padding:18 }}>
+          <div style={{ fontSize:14, fontWeight:600, color:V.label, marginBottom:16 }}>
+            Status das conversas
+          </div>
+          <BarraStatus label="⏳ Pendente"     valor={statusPend}      total={statusTotal} cor="#f59e0b" />
+          <BarraStatus label="💬 Em andamento" valor={statusAndamento} total={statusTotal} cor="#3b82f6" />
+          <BarraStatus label="✅ Resolvido"    valor={statusResolvido} total={statusTotal} cor="#059669" />
+          <BarraStatus label="🔒 Encerrado"   valor={statusEncerrado} total={statusTotal} cor="#94a3b8" />
+          <div style={{ marginTop:12, paddingTop:12, borderTop:`1px solid ${V.sep}`, display:'flex', justifyContent:'space-between' }}>
+            <span style={{ fontSize:12, color:V.label3 }}>Total</span>
+            <span style={{ fontSize:12, fontWeight:600, color:V.label }}>{statusTotal}</span>
           </div>
         </div>
 
-        {/* KPIs principais */}
-        {loading ? (
-          <div className="grid grid-cols-4 gap-3">
-            {[0,1,2,3].map(i => (
-              <div key={i} className="card p-4 h-[110px] animate-pulse" style={{ background: 'var(--bg-2)' }}>
-                <div className="h-3 rounded w-1/2 mb-3" style={{ background: 'var(--sep)' }} />
-                <div className="h-8 rounded w-3/4" style={{ background: 'var(--sep)' }} />
-              </div>
-            ))}
+        {/* Catálogo e sistema */}
+        <div style={{ background:V.bg2, border:`1px solid ${V.sep}`, borderRadius:12, padding:18 }}>
+          <div style={{ fontSize:14, fontWeight:600, color:V.label, marginBottom:16 }}>
+            Catálogo & Sistema
           </div>
-        ) : (
-          <div className="grid grid-cols-4 gap-3">
-            <KpiCard icon={Users}         label="Clientes únicos hoje"   value={clientes}  color="var(--accent)" delta="+12"  deltaLabel="vs ontem" sparkData={spark(clientes)} />
-            <KpiCard icon={MessageSquare} label="Mensagens recebidas"    value={msgsReceb} color="var(--blue)"   delta="+34%" deltaLabel="vs ontem" sparkData={spark(msgsReceb)} />
-            <KpiCard icon={Bot}           label="Resolvidos pela IA"     value={iaRate}    color="var(--accent)" delta="+3%"  deltaLabel="vs ontem" sparkData={spark(85, 0.1)} />
-            <KpiCard icon={Clock}         label="Tempo médio de resposta" value="1.4min"   color="var(--orange)" delta="↓ -0.3" deltaLabel="melhor que ontem" sparkData={[2.1,1.9,2.0,1.8,1.7,1.5,1.4]} />
-          </div>
-        )}
-
-        {/* KPIs secundários */}
-        <div className="grid grid-cols-4 gap-3">
           {[
-            { icon: Users,        label: 'Total contatos',     value: tmTotal,              color: 'var(--blue)'   },
-            { icon: MessageSquare,label: 'Msgs enviadas',      value: msgsEnv,              color: 'var(--label-2)'},
-            { icon: Activity,     label: 'Atend. manuais',     value: manuais,              color: 'var(--orange)' },
-            { icon: TrendingUp,   label: 'LTV médio/cliente',  value: 'R$ 1.607',           color: 'var(--accent)' },
-          ].map((k, i) => (
-            <div key={i} className="card px-4 py-3 flex items-center gap-3" style={{ background: 'var(--bg-2)' }}>
-              <div className="p-1.5 rounded-[8px]" style={{ background: `${k.color}15` }}>
-                <k.icon size={14} style={{ color: k.color }} />
-              </div>
-              <div>
-                <div className="text-[20px] font-bold tracking-tight leading-none" style={{ color: 'var(--label)', fontVariantNumeric: 'tabular-nums' }}>{k.value}</div>
-                <div className="text-[10px] mt-0.5" style={{ color: 'var(--label-3)' }}>{k.label}</div>
-              </div>
+            ['Total produtos',    cat.total_produtos || 0,  V.label],
+            ['Disponíveis',       cat.disponiveis    || 0,  '#059669'],
+            ['Com estoque',       cat.com_estoque    || 0,  '#3b82f6'],
+            ['Últ. sincronização', ultimoSync,              V.label3],
+          ].map(([label, val, cor]) => (
+            <div key={label} style={{
+              display:'flex', justifyContent:'space-between',
+              padding:'8px 0', borderBottom:`1px solid ${V.sep}`,
+            }}>
+              <span style={{ fontSize:12, color:V.label3 }}>{label}</span>
+              <span style={{ fontSize:12, fontWeight:600, color:cor }}>{val}</span>
             </div>
           ))}
-        </div>
 
-        {/* Linha principal */}
-        <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr 300px' }}>
-
-          {/* Últimas conversas */}
-          <div className="card overflow-hidden" style={{ background: 'var(--bg-2)' }}>
-            <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--sep)' }}>
-              <div className="flex items-center gap-2">
-                <Activity size={13} style={{ color: 'var(--accent)' }} />
-                <span className="text-[13px] font-semibold" style={{ color: 'var(--label)' }}>Conversas recentes</span>
+          {/* Mensagens */}
+          <div style={{ marginTop:14 }}>
+            <div style={{ fontSize:13, fontWeight:600, color:V.label, marginBottom:10 }}>Mensagens</div>
+            {[
+              ['Total',     msgs.total_msgs || 0],
+              ['Recebidas', msgs.recebidas  || 0],
+              ['Enviadas',  msgs.enviadas   || 0],
+            ].map(([label, val]) => (
+              <div key={label} style={{
+                display:'flex', justifyContent:'space-between',
+                padding:'6px 0', borderBottom:`1px solid ${V.sep}`,
+              }}>
+                <span style={{ fontSize:12, color:V.label3 }}>{label}</span>
+                <span style={{ fontSize:12, fontWeight:600, color:V.label }}>{val}</span>
               </div>
-              <span className="text-[10px]" style={{ color: 'var(--label-4)' }}>atualiza 30s</span>
-            </div>
-            <div className="overflow-y-auto scroll-hidden" style={{ maxHeight: 280 }}>
-              {ultimas.length === 0 ? (
-                <div className="px-4 py-8 text-center text-[12px]" style={{ color: 'var(--label-3)' }}>Nenhuma conversa ainda</div>
-              ) : ultimas.slice(0, 12).map((c, i) => <ConvRow key={c.id || i} conv={c} />)}
-            </div>
-          </div>
-
-          {/* Volume + Tipos */}
-          <div className="flex flex-col gap-3">
-            <div className="card p-4" style={{ background: 'var(--bg-2)' }}>
-              <div className="flex items-center gap-2 mb-3">
-                <BarChart2 size={13} style={{ color: 'var(--blue)' }} />
-                <span className="text-[13px] font-semibold" style={{ color: 'var(--label)' }}>Volume por hora</span>
-              </div>
-              {volumeHoras.map((h, i) => (
-                <BarRow key={i} label={h.l} value={h.v} max={maxVol}
-                  color={`hsl(${200 + i*15}, 80%, 60%)`} />
-              ))}
-            </div>
-
-            <div className="card p-4 flex-1" style={{ background: 'var(--bg-2)' }}>
-              <div className="flex items-center gap-2 mb-3">
-                <Activity size={13} style={{ color: 'var(--purple)' }} />
-                <span className="text-[13px] font-semibold" style={{ color: 'var(--label)' }}>Por tipo</span>
-              </div>
-              {[
-                { l: 'Dúvidas', pct: 62, c: 'var(--accent)' },
-                { l: 'Rastreio', pct: 24, c: 'var(--blue)'   },
-                { l: 'Devoluções', pct: 9, c: 'var(--orange)' },
-                { l: 'Vendas', pct: 5, c: 'var(--purple)'  },
-              ].map((t, i) => (
-                <div key={i} className="flex items-center gap-2 mb-2">
-                  <span className="text-[10px] w-16 flex-shrink-0" style={{ color: 'var(--label-3)' }}>{t.l}</span>
-                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--sep)' }}>
-                    <div className="h-full rounded-full" style={{ width: `${t.pct}%`, background: t.c }} />
-                  </div>
-                  <span className="text-[10px] font-bold w-8 text-right" style={{ color: t.c }}>{t.pct}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Painel IA Custos */}
-          <div className="flex flex-col gap-3">
-            <div className="card p-4" style={{ background: 'var(--bg-2)' }}>
-              <div className="flex items-center gap-2 mb-3">
-                <DollarSign size={13} style={{ color: 'var(--accent)' }} />
-                <span className="text-[13px] font-semibold" style={{ color: 'var(--label)' }}>Gastos · IA</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 mb-3">
-                {[
-                  { l: 'Hoje',       v: `$${custoHoje}`, c: 'var(--label)'  },
-                  { l: 'Este mês',   v: `$${custoMes}`,  c: 'var(--blue)'   },
-                  { l: 'Proj. anual',v: `$${custoAno}`,  c: 'var(--purple)' },
-                ].map((k, i) => (
-                  <div key={i} className="rounded-[9px] p-2.5 text-center" style={{ background: 'var(--bg-3)' }}>
-                    <div className="text-[13px] font-bold" style={{ color: k.c }}>{k.v}</div>
-                    <div className="text-[9px] mt-0.5" style={{ color: 'var(--label-4)' }}>{k.l}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="text-[9px] mb-1.5" style={{ color: 'var(--label-4)' }}>
-                {msgsReceb + msgsEnv} msgs · {pctLimite}% do limite estimado
-              </div>
-              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--sep)' }}>
-                <div className="h-full rounded-full transition-all duration-700"
-                  style={{ width: `${pctLimite}%`, background: pctLimite > 80 ? 'var(--orange)' : 'var(--accent)' }} />
-              </div>
-              <div className="text-[9px] mt-1.5" style={{ color: 'var(--label-4)' }}>
-                Modelo: gemini-2.5-flash · ~$0.0005/msg
-              </div>
-            </div>
-
-            <div className="card p-4" style={{ background: 'var(--bg-2)' }}>
-              <div className="flex items-center gap-2 mb-3">
-                <TrendingUp size={13} style={{ color: 'var(--accent)' }} />
-                <span className="text-[13px] font-semibold" style={{ color: 'var(--label)' }}>Totais gerais</span>
-              </div>
-              {[
-                { l: 'Contatos',       v: totais.contatos        || 0, c: 'var(--blue)'   },
-                { l: 'Pedidos',        v: totais.pedidos         || 0, c: 'var(--accent)' },
-                { l: 'Devoluções',     v: totais.devolucoes      || 0, c: 'var(--red)'    },
-                { l: 'Avisos estoque', v: totais.avisos_estoque  || 0, c: 'var(--orange)' },
-              ].map((k, i) => (
-                <div key={i} className="flex items-center justify-between py-1.5" style={{ borderBottom: i < 3 ? '1px solid var(--sep)' : 'none' }}>
-                  <span className="text-[11px]" style={{ color: 'var(--label-3)' }}>{k.l}</span>
-                  <span className="text-[13px] font-bold" style={{ color: k.c, fontVariantNumeric: 'tabular-nums' }}>{k.v}</span>
-                </div>
-              ))}
-            </div>
+            ))}
           </div>
         </div>
 
