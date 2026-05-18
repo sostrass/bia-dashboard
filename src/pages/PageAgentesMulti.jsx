@@ -1,777 +1,787 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import {
-  Plus, Save, X, Sparkles, RefreshCw, CheckCircle, ToggleLeft,
-  ToggleRight, Trash2, ChevronRight, Brain, User, Settings,
-  Wrench, Globe, MessageSquare, Upload, Youtube, HelpCircle,
-  ShoppingBag, Truck, AlertCircle, Phone, Calendar, ArrowLeft,
-  Send, Image as ImageIcon, Mic, Hash, Tag, ChevronUp, ChevronDown,
-  GripVertical, Copy, Zap, Eye, EyeOff, Star, Edit3
-} from 'lucide-react'
+/**
+ * ia-core.js — Bia v6
+ *
+ * Arquitetura: Function Calling nativo do Gemini
+ * - Sem roteador, sem estados manuais, sem regex frágil
+ * - O modelo decide qual ferramenta chamar
+ * - Contexto persistente por telefone no banco
+ * - Debounce de 2.5s para agrupar mensagens rápidas
+ */
 
-const BASE = import.meta.env.VITE_API_URL || ''
+'use strict'
 
-const MODELOS = [
-  { id:'gemini-2.5-flash',      label:'Gemini 2.5 Flash (Recomendado)' },
-  { id:'gemini-2.5-pro',        label:'Gemini 2.5 Pro (Avançado)' },
-  { id:'gemini-2.0-flash-lite', label:'Gemini 2.0 Flash Lite (Econômico)' },
-]
+const { GoogleGenAI } = require('@google/genai')
+const { query }       = require('./utils/db')
+const { getIAConfig } = require('./utils/iaConfig')
+const { buscarNoCatalogo } = require('./services/catalogoSync')
+const { getBlingClient } = require('./utils/blingClient')
 
-const TONS_VOZ = [
-  { id:'engracado_serio',  min:'\ud83d\ude04 Engra\u00e7ado',  max:'\ud83c\udfa9 S\u00e9rio',      default:50 },
-  { id:'casual_formal',   min:'\ud83d\ude0e Casual',     max:'\ud83d\udc54 Formal',     default:50 },
-  { id:'descolado_resp',  min:'\ud83d\ude0e Descolado',  max:'\ud83e\udd1d Respeitoso', default:50 },
-  { id:'explicativo_res', min:'\ud83d\udcd6 Explicativo',max:'\u2705 Resumido',    default:50 },
-]
+// ── Debounce por telefone ────────────────────────────────────────────────────
+const _timers  = new Map()
+const _buffers = new Map()
+const DEBOUNCE = parseInt(process.env.DEBOUNCE_MS) || 2500
 
-const FERRAMENTAS = [
-  { id:'marcar_resolvido', label:'Marcar como resolvido',   desc:'Agente pode fechar a conversa como resolvida',        icon:CheckCircle },
-  { id:'solicitar_humano', label:'Solicitar atendente',     desc:'Quando n\u00e3o souber, transfere para atendimento humano', icon:User },
-  { id:'registrar_ocorr', label:'Registrar ocorr\u00eancia',    desc:'Cria uma ocorr\u00eancia para o time de suporte',           icon:AlertCircle },
-  { id:'enviar_foto',     label:'Enviar foto de produto',  desc:'Envia imagem do produto quando encontrar no cat\u00e1logo', icon:ImageIcon },
-  { id:'criar_pedido',    label:'Criar pedido (Bling)',    desc:'Finaliza pedido diretamente no Bling ERP',             icon:ShoppingBag },
-  { id:'rastrear_pedido', label:'Rastrear pedido',         desc:'Consulta status e rastreio no Bling ERP',             icon:Truck },
-]
-
-const CEREBRO_FONTES = [
-  { id:'produtos',   label:'Produtos',           desc:'Cat\u00e1logo sincronizado com Bling',          icon:ShoppingBag, disponivel:true },
-  { id:'pedidos',    label:'Pedidos',             desc:'Pedidos e rastreios do Bling',             icon:Truck,       disponivel:true },
-  { id:'faq',        label:'FAQ',                 desc:'Artigos publicados no FAQ da loja',        icon:HelpCircle,  disponivel:true },
-  { id:'arquivos',   label:'Arquivos',            desc:'PDF, Word, TXT',                          icon:Upload,      disponivel:true },
-  { id:'perguntas',  label:'Perguntas e respostas',desc:'Perguntas frequentes personalizadas',    icon:MessageSquare,disponivel:true },
-  { id:'youtube',    label:'YouTube',             desc:'Transcri\u00e7\u00f5es de v\u00eddeos da loja',          icon:Youtube,     disponivel:false },
-]
-
-const AVATARES = [
-  'https://api.dicebear.com/9.x/lorelei/svg?seed=molise&backgroundColor=b6e3f4',
-  'https://api.dicebear.com/9.x/lorelei/svg?seed=bia&backgroundColor=ffdfbf',
-  'https://api.dicebear.com/9.x/lorelei/svg?seed=luna&backgroundColor=c0aede',
-  'https://api.dicebear.com/9.x/lorelei/svg?seed=zara&backgroundColor=d1d4f9',
-  'https://api.dicebear.com/9.x/adventurer/svg?seed=felix&backgroundColor=b6e3f4',
-  'https://api.dicebear.com/9.x/adventurer/svg?seed=leo&backgroundColor=ffd5dc',
-]
-
-const ABAS = [
-  { id:'cerebro',       label:'C\u00e9rebro',       icon:Brain    },
-  { id:'personalidade', label:'Personalidade', icon:User     },
-  { id:'instrucoes',    label:'Instru\u00e7\u00f5es',    icon:Settings },
-  { id:'ferramentas',   label:'Ferramentas',   icon:Wrench   },
-  { id:'avancado',      label:'Avan\u00e7ado',      icon:Zap      },
-]
-
-// \u2500\u2500 Preview de chat \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-function PreviewChat({ agente }) {
-  const [msgs, setMsgs] = useState([
-    { r:'b', t:`Ol\u00e1! Sou ${agente.nome||'Molise'}, como posso ajudar? \ud83d\ude0a` }
-  ])
-  const [input, setInput] = useState('')
-  const endRef = useRef(null)
-
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior:'smooth' }) }, [msgs])
-
-  const enviar = () => {
-    if (!input.trim()) return
-    const txt = input.trim()
-    setMsgs(m => [...m, { r:'u', t:txt }, { r:'b', t:'Estou analisando sua mensagem... Em um sistema real, a IA responderia aqui com base na persona configurada.' }])
-    setInput('')
-  }
-
-  return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0"
-        style={{ borderBottom:'1px solid var(--sep)', background:'var(--bg-3)' }}>
-        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0"
-          style={{ background:'var(--fill)' }}>
-          {agente.avatar
-            ? <img src={agente.avatar} alt="" className="w-full h-full object-cover"/>
-            : <div className="w-full h-full flex items-center justify-center text-[13px] font-bold" style={{ color:'var(--accent)' }}>
-                {(agente.nome||'M')[0]}
-              </div>
-          }
-        </div>
-        <div>
-          <p className="text-[12px] font-semibold" style={{ color:'var(--label)' }}>{agente.nome||'Agente'}</p>
-          <p className="text-[10px]" style={{ color:'var(--label-3)' }}>Preview da conversa</p>
-        </div>
-      </div>
-      {/* Mensagens */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2" style={{ background:'var(--bg)' }}>
-        {msgs.map((m,i) => (
-          <div key={i} className={`flex ${m.r==='u'?'justify-end':'justify-start'}`}>
-            <div className="max-w-[85%] px-3 py-2 rounded-[12px] text-[12px] leading-relaxed"
-              style={{
-                background: m.r==='u' ? 'var(--accent)' : 'var(--bg-3)',
-                color:      m.r==='u' ? '#000' : 'var(--label)',
-                borderRadius: m.r==='u' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-              }}>
-              {m.t}
-            </div>
-          </div>
-        ))}
-        <div ref={endRef}/>
-      </div>
-      {/* Input */}
-      <div className="flex gap-2 p-3 flex-shrink-0" style={{ borderTop:'1px solid var(--sep)' }}>
-        <input value={input} onChange={e=>setInput(e.target.value)}
-          onKeyDown={e=>e.key==='Enter'&&enviar()}
-          placeholder="Digite sua mensagem..."
-          className="flex-1 px-3 py-2 rounded-[10px] text-[12px] outline-none"
-          style={{ background:'var(--bg-3)', border:'1px solid var(--sep)', color:'var(--label)' }}/>
-        <button onClick={enviar}
-          className="w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0"
-          style={{ background:'var(--accent)' }}>
-          <Send size={13} style={{ color:'#000' }}/>
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// \u2500\u2500 Slider de tom de voz \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-function TomSlider({ tom, value, onChange }) {
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <span className="text-[11px]" style={{ color:'var(--label-3)' }}>{tom.min}</span>
-        <span className="text-[11px]" style={{ color:'var(--label-3)' }}>{tom.max}</span>
-      </div>
-      <input type="range" min={0} max={100} value={value||tom.default}
-        onChange={e=>onChange(parseInt(e.target.value))}
-        className="w-full accent-[var(--accent)]"
-        style={{ accentColor:'var(--accent)' }}/>
-    </div>
-  )
-}
-
-// \u2500\u2500 TagInput \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-function TagInput({ tags=[], onChange, placeholder }) {
-  const [inp, setInp] = useState('')
-  const add = () => {
-    const t = inp.trim().toLowerCase()
-    if (t && !tags.includes(t)) { onChange([...tags, t]); setInp('') }
-  }
-  return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-1.5">
-        {tags.map(t=>(
-          <span key={t} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]"
-            style={{ background:'var(--accent-dim)', color:'var(--accent)', border:'1px solid var(--accent-border)' }}>
-            {t}
-            <button onClick={()=>onChange(tags.filter(x=>x!==t))} style={{ color:'var(--accent)', lineHeight:1 }}>
-              <X size={9}/>
-            </button>
-          </span>
-        ))}
-      </div>
-      <div className="flex gap-2">
-        <input value={inp} onChange={e=>setInp(e.target.value)}
-          onKeyDown={e=>{if(e.key==='Enter'||e.key===','){e.preventDefault();add()}}}
-          placeholder={placeholder||'Digite e pressione Enter...'}
-          className="flex-1 px-3 py-1.5 rounded-[8px] text-[12px] outline-none"
-          style={{ background:'var(--bg)', border:'1px solid var(--sep)', color:'var(--label)' }}/>
-        <button onClick={add} className="px-2.5 py-1.5 rounded-[8px]"
-          style={{ background:'var(--fill)', color:'var(--label-2)' }}>
-          <Plus size={12}/>
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// \u2500\u2500 Editor de agente \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-function EditorAgente({ agente, onSave, onDelete, onVoltar, api }) {
-  const [form, setForm] = useState({
-    nome:          agente?.nome           || '',
-    descricao:     agente?.descricao      || '',
-    avatar:        agente?.avatar         || AVATARES[0],
-    ativo:         agente?.ativo          !== false,
-    persona:       agente?.persona        || '',
-    palavrasChave: agente?.palavrasChave  || [],
-    modelo:        agente?.modelo         || 'gemini-2.0-flash-lite',
-    temperatura:   parseFloat(agente?.temperatura ?? 0.7),
-    tons:          agente?.tons           || {},
-    ferramentas:   agente?.ferramentas    || { marcar_resolvido:true, solicitar_humano:true, enviar_foto:true, rastrear_pedido:true },
-    cerebro:       agente?.cerebro        || { produtos:true, pedidos:true },
-    instrucoes: {
-      quemEh:      agente?.instrucoes?.quemEh    || '',
-      oQueFaz:     agente?.instrucoes?.oQueFaz   || '',
-      objetivo:    agente?.instrucoes?.objetivo  || '',
-      regras:      agente?.instrucoes?.regras    || '',
-      evitarTemas: agente?.instrucoes?.evitarTemas || '',
+// ── Definição das ferramentas disponíveis para o Gemini ─────────────────────
+const TOOLS = [{
+  functionDeclarations: [
+    {
+      name: 'buscar_produto',
+      description: 'Busca produtos no catálogo pelo nome ou descrição. Use quando o cliente mencionar qualquer produto.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          query: { type: 'STRING', description: 'Termo de busca. Ex: "strass base conica ss12 cristal", "fecho lagosta 10mm"' },
+        },
+        required: ['query']
+      }
     },
-  })
-  const [aba,     setAba]     = useState('cerebro')
-  const [salvando,setSalvando]= useState(false)
-  const [salvoOk, setSalvoOk] = useState(false)
-  const [gerando, setGerando] = useState(false)
-  const [showAvatar, setShowAvatar] = useState(false)
-  const [dirty, setDirty] = useState(false)
+    {
+      name: 'adicionar_item',
+      description: 'Adiciona um produto ao carrinho do cliente. Use quando o cliente confirmar quantidade e produto.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          bling_id:   { type: 'NUMBER',  description: 'ID do produto no Bling (obter de buscar_produto)' },
+          nome:       { type: 'STRING',  description: 'Nome completo do produto' },
+          preco:      { type: 'NUMBER',  description: 'Preço unitário' },
+          quantidade: { type: 'NUMBER',  description: 'Quantidade desejada pelo cliente' },
+          unidade:    { type: 'STRING',  description: 'Unidade (UN, PCT, etc)' },
+        },
+        required: ['bling_id', 'nome', 'preco', 'quantidade']
+      }
+    },
+    {
+      name: 'ver_carrinho',
+      description: 'Mostra os itens atuais no carrinho do cliente. Use quando cliente pedir para ver o pedido ou antes de finalizar.',
+      parameters: { type: 'OBJECT', properties: {} }
+    },
+    {
+      name: 'remover_item',
+      description: 'Remove ou altera quantidade de um item do carrinho.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          bling_id:   { type: 'NUMBER', description: 'ID do produto a remover' },
+          quantidade: { type: 'NUMBER', description: 'Nova quantidade (0 = remover completamente)' },
+        },
+        required: ['bling_id']
+      }
+    },
+    {
+      name: 'consultar_pedido',
+      description: 'Consulta status, rastreio e NF-e de um pedido no Bling. Use quando cliente perguntar sobre entrega, rastreio ou nota fiscal.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          identificador: { type: 'STRING', description: 'Número do pedido, CPF ou CNPJ do cliente' },
+        },
+        required: ['identificador']
+      }
+    },
+    {
+      name: 'finalizar_pedido',
+      description: 'Cria o pedido no Bling e gera cobrança PIX. Use SOMENTE quando o cliente confirmar o carrinho e fornecer CPF/CNPJ e endereço.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          cpf_cnpj:    { type: 'STRING', description: 'CPF (11 dígitos) ou CNPJ (14 dígitos) do cliente' },
+          nome:        { type: 'STRING', description: 'Nome completo do cliente' },
+          telefone:    { type: 'STRING', description: 'Telefone do cliente' },
+          cep:         { type: 'STRING', description: 'CEP do endereço de entrega' },
+          endereco:    { type: 'STRING', description: 'Logradouro e número' },
+          complemento: { type: 'STRING', description: 'Complemento (opcional)' },
+          bairro:      { type: 'STRING', description: 'Bairro' },
+          cidade:      { type: 'STRING', description: 'Cidade' },
+          estado:      { type: 'STRING', description: 'Estado (sigla, ex: SP)' },
+        },
+        required: ['cpf_cnpj', 'nome', 'telefone', 'cep', 'endereco', 'cidade', 'estado']
+      }
+    },
+    {
+      name: 'registrar_ocorrencia',
+      description: 'Registra uma reclamação ou problema para atendimento humano. Use quando o cliente tiver problema que a IA não consegue resolver.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          tipo:       { type: 'STRING', description: 'Tipo: entrega_atrasada, produto_errado, cancelamento, outro' },
+          descricao:  { type: 'STRING', description: 'Descrição detalhada do problema relatado pelo cliente' },
+          pedido_num: { type: 'STRING', description: 'Número do pedido relacionado (se houver)' },
+        },
+        required: ['tipo', 'descricao']
+      }
+    },
+    {
+      name: 'avisar_quando_disponivel',
+      description: 'Registra interesse do cliente em produto fora de estoque.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          produto_nome: { type: 'STRING', description: 'Nome do produto' },
+          bling_id:     { type: 'NUMBER', description: 'ID do produto no Bling' },
+        },
+        required: ['produto_nome']
+      }
+    }
+  ]
+}]
 
-  const set = (k, v) => { setForm(f=>({...f,[k]:v})); setDirty(true) }
-  const setInstr = (k,v) => { setForm(f=>({...f,instrucoes:{...f.instrucoes,[k]:v}})); setDirty(true) }
-  const setTon = (id,v) => { setForm(f=>({...f,tons:{...f.tons,[id]:v}})); setDirty(true) }
-  const setFerr = (id,v) => { setForm(f=>({...f,ferramentas:{...f.ferramentas,[id]:v}})); setDirty(true) }
-  const setCerebro = (id,v) => { setForm(f=>({...f,cerebro:{...f.cerebro,[id]:v}})); setDirty(true) }
+// ── System prompt único ──────────────────────────────────────────────────────
+function buildSystemPrompt(config) {
+  const persona = config.persona ||
+    'Você é Molise, assistente virtual da Só Strass. Simpática, direta e eficiente.'
 
-  const gerarPersona = async () => {
-    if (!form.nome) return
-    setGerando(true)
-    try {
-      const r = await fetch(`${api}/api/agentes/gerar-persona`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ nome:form.nome, descricao:form.descricao, palavrasChave:form.palavrasChave })
-      })
-      const d = await r.json()
-      if (d.persona) { set('persona', d.persona); setDirty(true) }
-      if (d.palavrasChave?.length) set('palavrasChave', [...new Set([...form.palavrasChave,...d.palavrasChave])])
-    } catch {}
-    setGerando(false)
-  }
+  return `${persona}
 
-  const salvar = async () => {
-    if (!form.nome.trim()) return
-    setSalvando(true)
-    try {
-      const isNovo = !agente?.id
-      const url    = isNovo ? `${api}/api/agentes` : `${api}/api/agentes/${agente.id}`
-      await fetch(url, {
-        method: isNovo?'POST':'PATCH',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(form)
-      })
-      setSalvoOk(true); setDirty(false)
-      setTimeout(()=>{ setSalvoOk(false); onSave() }, 1500)
-    } catch {}
-    setSalvando(false)
-  }
+IDENTIDADE:
+- Você se chama Molise. Molise é SEU nome — não use seu nome para se dirigir a si mesma.
+- PROIBIDO: "Desculpe, Molise" / "Olá, Molise" / "Como Molise" — você nunca diz seu próprio nome em 3ª pessoa.
+- Ao pedir desculpas: use apenas "Desculpe" ou "Me desculpe". Nunca "Desculpe, [nome]".
+- Empresa: Só Strass. Especializada em strass, bijuterias e acessórios para artesanato.
 
-  const inp = { background:'var(--bg)', border:'1px solid var(--sep)', borderRadius:10, color:'var(--label)', outline:'none', padding:'10px 14px', fontSize:13, width:'100%', fontFamily:'inherit', lineHeight:1.6 }
+COMPORTAMENTO:
+- Responda sempre em português brasileiro, de forma natural e amigável.
+- Seja direta: prefira "Quer ver foto?" a "Posso te mostrar uma imagem?".
+- Máximo 1 emoji por mensagem. Prefira mensagens limpas.
+- NUNCA invente dados (preços, rastreios, endereços, prazos).
+- NUNCA crie números de pedido fictícios.
 
-  return (
-    <div className="h-full flex overflow-hidden">
+REGRA CRÍTICA — USO DE FERRAMENTAS:
+Você tem acesso a ferramentas (function calling). SEMPRE use-as ao invés de simular em texto.
+NUNCA escreva "consultar_pedido(...)" ou "buscar_produto(...)" no texto da resposta.
+NUNCA diga "vou buscar" sem chamar a ferramenta imediatamente.
+Quando o cliente pede informação, CHAME a ferramenta e responda com o resultado real.
 
-      {/* \u2500\u2500 Coluna esquerda: form \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+FLUXO DE VENDAS:
+1. Cliente menciona produto → CHAME buscar_produto() agora
+2. Cliente confirma produto e quantidade → CHAME adicionar_item() agora
+3. Antes de finalizar → CHAME ver_carrinho() para mostrar o resumo
+4. Para fechar → peça CPF/CNPJ e endereço, depois CHAME finalizar_pedido()
+5. Produto indisponível → CHAME avisar_quando_disponivel()
 
-        {/* Header do agente */}
-        <div className="flex items-center gap-4 px-6 py-4 flex-shrink-0"
-          style={{ borderBottom:'1px solid var(--sep)', background:'var(--bg-2)' }}>
-          <button onClick={onVoltar} className="p-2 rounded-[9px] flex items-center gap-1.5 text-[12px]"
-            style={{ background:'var(--fill)', color:'var(--label-2)' }}>
-            <ArrowLeft size={13}/> Voltar
-          </button>
+FLUXO DE SUPORTE:
+- Cliente informa número de pedido, CPF ou CNPJ → CHAME consultar_pedido() IMEDIATAMENTE
+- Não peça confirmação antes de chamar — se o cliente deu um número, já chame
+- Problema sem solução → CHAME registrar_ocorrencia()
 
-          {/* Avatar */}
-          <div className="relative">
-            <div className="w-12 h-12 rounded-full overflow-hidden cursor-pointer"
-              style={{ background:'var(--fill)', border:'2px solid var(--sep)' }}
-              onClick={()=>setShowAvatar(v=>!v)}>
-              {form.avatar
-                ? <img src={form.avatar} alt="" className="w-full h-full object-cover"/>
-                : <div className="w-full h-full flex items-center justify-center text-[18px] font-bold" style={{ color:'var(--accent)' }}>
-                    {(form.nome||'?')[0]}
-                  </div>
+QUANDO PEDIDO NÃO ENCONTRADO:
+- NÃO diga "fico feliz" ou mude de assunto — o cliente está frustrado
+- Diga: "Não localizei o pedido #[numero] no sistema. Pode me informar seu CPF ou CNPJ? Assim consigo buscar por cadastro."
+- Se já tentou CPF e não achou: ofereça abrir ocorrência para verificação manual
+
+IDENTIFICAÇÃO DE PEDIDO vs SELEÇÃO DE PRODUTO:
+- Se o cliente escolheu de uma lista de produtos e digitou 1, 2, 3, 4... → é SELEÇÃO de produto, não pedido
+- Número de pedido tem 5-9 dígitos (ex: 226540) E o cliente falou de pedido antes
+- 11 dígitos = CPF → CHAME consultar_pedido()
+- 14 dígitos = CNPJ → CHAME consultar_pedido()
+- Número de pedido de 5+ dígitos após contexto de suporte → CHAME consultar_pedido()
+- NUNCA chame consultar_pedido() com número 1, 2, 3, 4, 5, 6, 7, 8 ou 9 isolado — esses são seleções de lista
+
+CARRINHO:
+- Formato de exibição:
+  🛒 *SEU CARRINHO*
+  [N]. *Nome do produto*
+       Qtd: X | 💳 R$ XX,XX | 💰 PIX: R$ XX,XX
+  ─────────────────
+  💳 Total cartão: R$ XX,XX
+  💰 Total PIX (-10%): R$ XX,XX
+
+PRODUTOS — FORMATO OBRIGATÓRIO:
+Ao mostrar lista de produtos, use EXATAMENTE este formato (uma linha por produto):
+[1] *Nome do Produto* — 💳 R$ X,XX | 💰 PIX: R$ X,XX
+[2] *Nome do Produto* — 💳 R$ X,XX | 💰 PIX: R$ X,XX
+
+Após a lista, pergunte: "Qual você prefere? Digite o número 😊"
+- Para 1 produto: "Quantas unidades você precisa?"
+- NUNCA use bullet points (•) — sempre use [1] [2] [3]
+- NUNCA quebre o formato da lista
+
+DATA ATUAL: ${new Date().toLocaleDateString('pt-BR', {weekday:'long',day:'2-digit',month:'long',year:'numeric'})}`
+}
+
+// ── Execução das ferramentas ─────────────────────────────────────────────────
+async function executarFerramenta(nome, args, telefone, ctx) {
+  switch (nome) {
+
+    case 'buscar_produto': {
+      const resultados = await buscarNoCatalogo(args.query).catch(() => [])
+      if (!resultados.length) {
+        return { encontrado: false, mensagem: `Nenhum produto encontrado para "${args.query}".` }
+      }
+      const disponiveis   = resultados.filter(p => parseInt(p.estoque||0) > 0 || p.disponivel !== false)
+      const indisponiveis = resultados.filter(p => parseInt(p.estoque||0) === 0 && p.disponivel === false)
+      // Salva resultados no contexto para referência futura
+      ctx.ultimosBuscados = resultados.slice(0, 8).map(p => ({
+        bling_id: p.bling_id || p.id,
+        nome:     p.nome,
+        preco:    parseFloat(p.preco || 0),
+        unidade:  p.unidade || 'UN',
+        imagens:  p.imagens || [],
+        estoque:  parseInt(p.estoque || 0),
+      }))
+      return {
+        encontrado:     true,
+        total:          resultados.length,
+        disponiveis:    disponiveis.slice(0, 5).map((p, i) => ({
+          indice:   i + 1,
+          bling_id: p.bling_id || p.id,
+          nome:     p.nome,
+          preco:    parseFloat(p.preco || 0).toFixed(2),
+          pix:      (parseFloat(p.preco || 0) * 0.9).toFixed(2),
+          unidade:  p.unidade || 'UN',
+          imagens:  (p.imagens || []).slice(0, 1),
+        })),
+        indisponiveis:  indisponiveis.slice(0, 3).map(p => ({ nome: p.nome })),
+        tem_mais:       resultados.length > 5,
+      }
+    }
+
+    case 'adicionar_item': {
+      if (!ctx.carrinho) ctx.carrinho = []
+      const idx = ctx.carrinho.findIndex(i => i.bling_id === args.bling_id)
+      if (idx >= 0) {
+        ctx.carrinho[idx].quantidade += args.quantidade
+      } else {
+        ctx.carrinho.push({
+          bling_id:   args.bling_id,
+          nome:       args.nome,
+          preco:      args.preco,
+          quantidade: args.quantidade,
+          unidade:    args.unidade || 'UN',
+        })
+      }
+      await salvarContexto(telefone, ctx)
+      return { sucesso: true, carrinho: resumoCarrinho(ctx.carrinho) }
+    }
+
+    case 'ver_carrinho': {
+      if (!ctx.carrinho?.length) return { vazio: true }
+      return { vazio: false, carrinho: resumoCarrinho(ctx.carrinho) }
+    }
+
+    case 'remover_item': {
+      if (!ctx.carrinho) return { sucesso: false }
+      if (!args.quantidade || args.quantidade === 0) {
+        ctx.carrinho = ctx.carrinho.filter(i => i.bling_id !== args.bling_id)
+      } else {
+        const idx = ctx.carrinho.findIndex(i => i.bling_id === args.bling_id)
+        if (idx >= 0) ctx.carrinho[idx].quantidade = args.quantidade
+      }
+      await salvarContexto(telefone, ctx)
+      return { sucesso: true, carrinho: resumoCarrinho(ctx.carrinho) }
+    }
+
+    case 'consultar_pedido': {
+      const id = args.identificador.replace(/\D/g, '')
+      let pedido = null
+
+      console.log(`🔍 consultar_pedido: "${id}" (${id.length} dígitos)`)
+
+      // Estratégia 1: busca direta pelo ID interno do Bling
+      if (id.length <= 9) {
+        try {
+          const r = await (await getBlingClient()).get(`/pedidos/vendas/${id}`)
+          pedido = r.data?.data
+          if (pedido) console.log(`✅ Pedido #${id} encontrado direto`)
+        } catch(e) {
+          console.log(`⚠️ Busca direta falhou: ${e.message?.slice(0,50)}`)
+        }
+      }
+
+      // Estratégia 2: busca por número do pedido (número visível ao cliente)
+      if (!pedido) {
+        try {
+          const r = await (await getBlingClient()).get(`/pedidos/vendas?numero=${id}&limite=5`)
+          const lista = r.data?.data || []
+          console.log(`🔎 Busca por número=${id}: ${lista.length} resultado(s)`)
+          if (lista.length > 0) {
+            const detail = await (await getBlingClient()).get(`/pedidos/vendas/${lista[0].id}`)
+            pedido = detail.data?.data
+            if (pedido) console.log(`✅ Pedido encontrado via número: interno=${lista[0].id}`)
+          }
+        } catch(e) {
+          console.log(`⚠️ Busca por número falhou: ${e.message?.slice(0,50)}`)
+        }
+      }
+
+      // Estratégia 3: busca com padding (alguns sistemas têm leading zeros)
+      if (!pedido && id.length <= 9) {
+        try {
+          const numeroComZero = id.padStart(7, '0')
+          const r = await (await getBlingClient()).get(`/pedidos/vendas?numero=${numeroComZero}&limite=5`)
+          const lista = r.data?.data || []
+          if (lista.length > 0) {
+            const detail = await (await getBlingClient()).get(`/pedidos/vendas/${lista[0].id}`)
+            pedido = detail.data?.data
+            if (pedido) console.log(`✅ Pedido encontrado via número com padding`)
+          }
+        } catch {}
+      }
+
+      // Tenta por CPF/CNPJ
+      if (!pedido && id.length >= 11) {
+        try {
+          const r = await (await getBlingClient()).get(`/pedidos/vendas?cpfCnpj=${id}&limite=5`)
+          const lista = (r.data?.data || []).sort((a,b) => new Date(b.data) - new Date(a.data))
+          if (lista.length > 0) {
+            const detail = await (await getBlingClient()).get(`/pedidos/vendas/${lista[0].id}`)
+            pedido = detail.data?.data
+            if (lista.length > 1) {
+              return {
+                encontrado: true,
+                multiplos: true,
+                pedidos: lista.slice(0, 5).map(p => ({
+                  numero:   p.numero,
+                  data:     new Date(p.data).toLocaleDateString('pt-BR'),
+                  total:    `R$ ${parseFloat(p.totalVenda||0).toFixed(2)}`,
+                  situacao: p.situacao?.valor || '—',
+                }))
               }
-            </div>
-            {showAvatar && (
-              <div className="absolute top-14 left-0 z-50 p-3 rounded-[14px] grid grid-cols-3 gap-2"
-                style={{ background:'var(--bg-2)', border:'1px solid var(--sep)', boxShadow:'0 8px 24px rgba(0,0,0,0.15)', width:200 }}>
-                {AVATARES.map(av=>(
-                  <button key={av} onClick={()=>{ set('avatar',av); setShowAvatar(false) }}
-                    className="rounded-full overflow-hidden transition-all hover:scale-110"
-                    style={{ border: form.avatar===av?'2px solid var(--accent)':'2px solid transparent', width:52, height:52 }}>
-                    <img src={av} alt="" className="w-full h-full object-cover"/>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+            }
+          }
+        } catch {}
+      }
 
-          <div className="flex-1 min-w-0">
-            <input value={form.nome} onChange={e=>set('nome',e.target.value)}
-              placeholder="Nome do agente"
-              className="w-full outline-none text-[16px] font-bold bg-transparent"
-              style={{ color:'var(--label)' }}/>
-            <input value={form.descricao} onChange={e=>set('descricao',e.target.value)}
-              placeholder="Descri\u00e7\u00e3o curta..."
-              className="w-full outline-none text-[12px] bg-transparent"
-              style={{ color:'var(--label-3)' }}/>
-          </div>
+      if (!pedido) {
+        console.log(`❌ Pedido "${id}" não encontrado no Bling após 3 estratégias`)
+        return {
+          encontrado:    false,
+          identificador: args.identificador,
+          id_buscado:    id,
+          instrucao:     'O pedido não foi encontrado. Diga ao cliente que não localizou o pedido com esse número e peça para confirmar ou fornecer o CPF/CNPJ como alternativa.'
+        }
+      }
 
-          <div className="flex items-center gap-3 flex-shrink-0">
-            {/* Toggle ativo */}
-            <button onClick={()=>set('ativo',!form.ativo)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] text-[12px] font-semibold transition-all"
-              style={{
-                background: form.ativo?'rgba(34,197,94,0.1)':'var(--fill)',
-                color:      form.ativo?'#22c55e':'var(--label-3)',
-                border:     form.ativo?'1px solid rgba(34,197,94,0.3)':'1px solid var(--sep)',
-              }}>
-              {form.ativo?<ToggleRight size={15} strokeWidth={2}/>:<ToggleLeft size={15} strokeWidth={1.5}/>}
-              {form.ativo?'Ativo':'Inativo'}
-            </button>
+      // Busca NF-e
+      let nfe = null
+      if (pedido.notaFiscal?.id) {
+        try {
+          const r = await (await getBlingClient()).get(`/nfe/${pedido.notaFiscal.id}`)
+          const d = r.data?.data
+          nfe = { numero: d?.numero, link: d?.linkDanfe || d?.linkXml || '' }
+        } catch { nfe = { numero: pedido.notaFiscal.id, link: '' } }
+      }
 
-            {/* Conversar */}
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] text-[12px] font-medium"
-              style={{ background:'var(--fill)', color:'var(--label-2)', border:'1px solid var(--sep)' }}>
-              <MessageSquare size={13}/> Conversar
-            </button>
+      // Última movimentação
+      let ultimaMovimentacao = null
+      try {
+        const r = await (await getBlingClient()).get(`/vendas/${pedido.id}/ocorrencias`)
+        const movs = (r.data?.data || []).sort((a,b) => new Date(b.data) - new Date(a.data))
+        if (movs[0]) {
+          const data = new Date(movs[0].data).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
+          ultimaMovimentacao = `${data} — ${movs[0].ocorrencia || movs[0].descricao || 'Atualização'}`
+        }
+      } catch {}
 
-            {/* Salvar */}
-            <button onClick={salvar} disabled={salvando||!dirty}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] text-[13px] font-semibold transition-all"
-              style={{ background:salvoOk?'#22c55e':dirty?'var(--accent)':'var(--fill)', color:dirty?'#000':'var(--label-4)', opacity:dirty?1:0.5 }}>
-              {salvando?<RefreshCw size={13} className="animate-spin"/>:salvoOk?<CheckCircle size={13}/>:<Save size={13}/>}
-              {salvoOk?'Salvo!':'Salvar'}
-            </button>
-          </div>
-        </div>
+      const sit = {
+        6:'Aguardando pagamento', 9:'Pagamento confirmado', 12:'Cancelado',
+        15:'Em separação', 24:'NF emitida', 27:'Enviado', 30:'Entregue',
+        33:'Tentativa de entrega', 36:'Devolvido'
+      }
 
-        {/* Abas */}
-        <div className="flex gap-1 px-6 pt-3 pb-0 flex-shrink-0"
-          style={{ borderBottom:'1px solid var(--sep)' }}>
-          {ABAS.map(a=>{
-            const Ic = a.icon
-            return (
-              <button key={a.id} onClick={()=>setAba(a.id)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-t-[8px] text-[12px] font-medium transition-all"
-                style={{
-                  background:    aba===a.id?'var(--bg)':'transparent',
-                  color:         aba===a.id?'var(--label)':'var(--label-3)',
-                  borderTop:     aba===a.id?'1px solid var(--sep)':undefined,
-                  borderLeft:    aba===a.id?'1px solid var(--sep)':undefined,
-                  borderRight:   aba===a.id?'1px solid var(--sep)':undefined,
-                  marginBottom:  aba===a.id?'-1px':undefined,
-                }}>
-                <Ic size={12}/> {a.label}
-              </button>
-            )
-          })}
-        </div>
+      const endLines = (pedido.transporte?.enderecoEntrega?.endereco || '').split(',')
+      const end = pedido.transporte?.enderecoEntrega
 
-        {/* Conte\u00fado da aba */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-[600px] mx-auto p-6 space-y-5">
+      return {
+        encontrado:         true,
+        numero:             pedido.numero,
+        situacao:           sit[pedido.situacao?.id] || pedido.situacao?.valor || '—',
+        situacao_id:        pedido.situacao?.id,
+        foi_enviado:        [27,30,33].includes(pedido.situacao?.id),
+        foi_entregue:       pedido.situacao?.id === 30,
+        data:               pedido.data ? new Date(pedido.data).toLocaleDateString('pt-BR') : '—',
+        data_saida:         pedido.dataColeta ? new Date(pedido.dataColeta).toLocaleDateString('pt-BR') : '—',
+        data_prevista:      pedido.dataPrevista ? new Date(pedido.dataPrevista).toLocaleDateString('pt-BR') : '—',
+        total:              `R$ ${parseFloat(pedido.totalVenda||0).toFixed(2)}`,
+        forma_pagamento:    pedido.formaPagamento?.descricao || '—',
+        transportadora:     (pedido.transporte?.transportadora?.nome || '').split(' ')[0] || '—',
+        servico:            pedido.transporte?.tipoFrete || '',
+        rastreio:           pedido.transporte?.codigoRastreamento || '—',
+        link_rastreio:      gerarLinkRastreio(pedido.transporte),
+        nome_destinatario:  pedido.contato?.nome || end?.nome || '—',
+        endereco:           end ? `${end.endereco||''}, ${end.numero||''}`.trim() : '—',
+        bairro:             end?.bairro || '—',
+        cidade_uf:          end ? `${end.municipio||''}/${end.uf||''}` : '—',
+        itens:              (pedido.itens||[]).map(i => `${i.quantidade}x ${i.descricao}`).join(', '),
+        nfe,
+        ultima_movimentacao: ultimaMovimentacao,
+      }
+    }
 
-            {/* \u2500\u2500 C\u00c9REBRO \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
-            {aba === 'cerebro' && (
-              <>
-                <div>
-                  <h4 className="text-[13px] font-semibold mb-1" style={{ color:'var(--label)' }}>Dados do e-commerce</h4>
-                  <p className="text-[11px] mb-3" style={{ color:'var(--label-3)' }}>Fontes de dados que este agente pode usar para responder</p>
-                  <div className="rounded-[14px] overflow-hidden" style={{ border:'1px solid var(--sep)' }}>
-                    {CEREBRO_FONTES.map((f,i)=>{
-                      const Ic = f.icon
-                      return (
-                        <div key={f.id} className="flex items-center gap-3 px-4 py-3 transition-all"
-                          style={{ borderTop:i>0?'1px solid var(--sep)':'none', background:form.cerebro[f.id]?'var(--accent-dim)':'var(--bg-2)', opacity:f.disponivel?1:0.5 }}>
-                          <div className="w-8 h-8 rounded-[8px] flex items-center justify-center flex-shrink-0"
-                            style={{ background:'var(--fill)' }}>
-                            <Ic size={14} style={{ color:'var(--label-2)' }}/>
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-[12px] font-semibold" style={{ color:'var(--label)' }}>{f.label}</p>
-                            <p className="text-[10px]" style={{ color:'var(--label-3)' }}>{f.disponivel?f.desc:'Em breve'}</p>
-                          </div>
-                          {f.disponivel && (
-                            <button onClick={()=>setCerebro(f.id,!form.cerebro[f.id])}
-                              style={{ color:form.cerebro[f.id]?'#22c55e':'var(--label-4)' }}>
-                              {form.cerebro[f.id]?<ToggleRight size={20} strokeWidth={2}/>:<ToggleLeft size={20} strokeWidth={1.5}/>}
-                            </button>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
+    case 'finalizar_pedido': {
+      const { carrinho } = ctx
+      if (!carrinho?.length) return { sucesso: false, erro: 'Carrinho vazio' }
 
-                <div>
-                  <h4 className="text-[13px] font-semibold mb-1" style={{ color:'var(--label)' }}>Palavras-chave de ativa\u00e7\u00e3o</h4>
-                  <p className="text-[11px] mb-3" style={{ color:'var(--label-3)' }}>O roteador usa estas palavras para decidir quando este agente \u00e9 chamado</p>
-                  <TagInput tags={form.palavrasChave} onChange={v=>set('palavrasChave',v)} placeholder="Ex: pedido, rastreio, entrega..."/>
-                </div>
-              </>
-            )}
+      // Busca ou cria contato no Bling
+      let contatoId = null
+      try {
+        const cpfLimpo = args.cpf_cnpj.replace(/\D/g,'')
+        const r = await (await getBlingClient()).get(`/contatos?documento=${cpfLimpo}&limite=1`)
+        const contatos = r.data?.data || []
+        if (contatos.length > 0) {
+          contatoId = contatos[0].id
+        } else {
+          const novo = await (await getBlingClient()).post('/contatos', {
+            nome:           args.nome,
+            numeroDocumento: cpfLimpo,
+            tipo:           cpfLimpo.length === 11 ? 'F' : 'J',
+            telefone:       telefone,
+          })
+          contatoId = novo.data?.data?.id
+        }
+      } catch(e) {
+        return { sucesso: false, erro: `Erro ao criar contato: ${e.message}` }
+      }
 
-            {/* \u2500\u2500 PERSONALIDADE \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
-            {aba === 'personalidade' && (
-              <>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-[13px] font-semibold" style={{ color:'var(--label)' }}>Persona da IA</h4>
-                    <p className="text-[11px]" style={{ color:'var(--label-3)' }}>Como este agente deve se comportar e comunicar</p>
-                  </div>
-                  <button onClick={gerarPersona} disabled={gerando}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] text-[11px] font-semibold"
-                    style={{ background:'var(--accent-dim)', color:'var(--accent)', border:'1px solid var(--accent-border)' }}>
-                    {gerando?<RefreshCw size={11} className="animate-spin"/>:<Sparkles size={11}/>}
-                    {gerando?'Gerando...':'Gerar com IA'}
-                  </button>
-                </div>
-                <textarea value={form.persona} onChange={e=>set('persona',e.target.value)} rows={8}
-                  placeholder="Descreva como este agente deve se comportar, seu tom, o que sabe e o que n\u00e3o deve fazer..."
-                  style={{ ...inp, resize:'none', fontFamily:'monospace', fontSize:12 }}/>
+      // Monta itens do pedido
+      const itensBling = carrinho.map(item => ({
+        codigo:      String(item.bling_id),
+        descricao:   item.nome,
+        quantidade:  item.quantidade,
+        valor:       item.preco,
+        unidade:     item.unidade || 'UN',
+      }))
 
-                <div>
-                  <h4 className="text-[13px] font-semibold mb-1" style={{ color:'var(--label)' }}>Tom de voz</h4>
-                  <p className="text-[11px] mb-3" style={{ color:'var(--label-3)' }}>Ajuste o estilo de comunica\u00e7\u00e3o do agente</p>
-                  <div className="space-y-4">
-                    {TONS_VOZ.map(t=>(
-                      <TomSlider key={t.id} tom={t} value={form.tons?.[t.id] ?? 0.5} onChange={v=>setTon(t.id,v)}/>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
+      // Cria pedido no Bling
+      let pedidoCriado = null
+      try {
+        const r = await (await getBlingClient()).post('/pedidos/vendas', {
+          contato:        { id: contatoId },
+          data:           new Date().toISOString().split('T')[0],
+          dataSaida:      new Date().toISOString().split('T')[0],
+          itens:          itensBling,
+          transporte: {
+            enderecoEntrega: {
+              endereco:    args.endereco,
+              cep:         args.cep,
+              municipio:   args.cidade,
+              uf:          args.estado,
+              bairro:      args.bairro || '',
+              complemento: args.complemento || '',
+            }
+          },
+          observacoes:    'Pedido via WhatsApp — Bia IA v6',
+        })
+        pedidoCriado = r.data?.data
+      } catch(e) {
+        return { sucesso: false, erro: `Erro ao criar pedido: ${e.message}` }
+      }
 
-            {/* \u2500\u2500 INSTRU\u00c7\u00d5ES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
-            {aba === 'instrucoes' && (
-              <>
-                <div>
-                  <h4 className="text-[13px] font-semibold mb-3" style={{ color:'var(--label)' }}>Informa\u00e7\u00f5es essenciais</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-[11px] font-medium mb-1 block" style={{ color:'var(--label-2)' }}>Quem \u00e9 este agente?</label>
-                      <input value={form.instrucoes.quemEh} onChange={e=>setInstr('quemEh',e.target.value)}
-                        placeholder="Ex: Voc\u00ea \u00e9 a Molise, assistente virtual da loja S\u00f3 Strass..."
-                        style={inp}/>
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-medium mb-1 block" style={{ color:'var(--label-2)' }}>O que este agente faz?</label>
-                      <textarea value={form.instrucoes.oQueFaz} onChange={e=>setInstr('oQueFaz',e.target.value)}
-                        rows={3} placeholder="Descreva as principais responsabilidades..."
-                        style={{ ...inp, resize:'none' }}/>
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-medium mb-1 block" style={{ color:'var(--label-2)' }}>Qual o objetivo?</label>
-                      <textarea value={form.instrucoes.objetivo} onChange={e=>setInstr('objetivo',e.target.value)}
-                        rows={2} placeholder="O objetivo principal deste agente \u00e9..."
-                        style={{ ...inp, resize:'none' }}/>
-                    </div>
-                  </div>
-                </div>
+      // Gera cobrança PIX
+      let pix = null
+      try {
+        const totalPix = carrinho.reduce((s,i) => s + (i.preco * i.quantidade * 0.9), 0)
+        const r = await (await getBlingClient()).post('/contas-receber', {
+          vencimento:   new Date(Date.now() + 24*60*60*1000).toISOString().split('T')[0],
+          competencia:  new Date().toISOString().split('T')[0],
+          valor:        parseFloat(totalPix.toFixed(2)),
+          contato:      { id: contatoId },
+          historico:    `Pedido #${pedidoCriado?.numero} via WhatsApp`,
+          formaPagamento: { id: 1 },
+        })
+        pix = r.data?.data
+      } catch {}
 
-                <div>
-                  <h4 className="text-[13px] font-semibold mb-3" style={{ color:'var(--label)' }}>Regras gerais</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-[11px] font-medium mb-1 block" style={{ color:'var(--label-2)' }}>Instru\u00e7\u00f5es adicionais</label>
-                      <textarea value={form.instrucoes.regras} onChange={e=>setInstr('regras',e.target.value)}
-                        rows={4} placeholder="Regras espec\u00edficas, restri\u00e7\u00f5es, comportamentos obrigat\u00f3rios..."
-                        style={{ ...inp, resize:'none' }}/>
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-medium mb-1 block" style={{ color:'var(--label-2)' }}>Temas que deve evitar</label>
-                      <input value={form.instrucoes.evitarTemas} onChange={e=>setInstr('evitarTemas',e.target.value)}
-                        placeholder="Ex: pol\u00edtica, religi\u00e3o, finan\u00e7as pessoais..."
-                        style={inp}/>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
+      // Limpa carrinho após pedido criado
+      ctx.carrinho = []
+      ctx.pedidoAtual = pedidoCriado?.numero
+      await salvarContexto(telefone, ctx)
 
-            {/* \u2500\u2500 FERRAMENTAS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
-            {aba === 'ferramentas' && (
-              <div>
-                <h4 className="text-[13px] font-semibold mb-1" style={{ color:'var(--label)' }}>Ferramentas dispon\u00edveis</h4>
-                <p className="text-[11px] mb-3" style={{ color:'var(--label-3)' }}>A\u00e7\u00f5es que este agente pode executar automaticamente</p>
-                <div className="rounded-[14px] overflow-hidden" style={{ border:'1px solid var(--sep)' }}>
-                  {FERRAMENTAS.map((f,i)=>{
-                    const Ic = f.icon
-                    const ativa = form.ferramentas[f.id]
-                    return (
-                      <div key={f.id} className="flex items-center gap-3 px-4 py-3.5 transition-all"
-                        style={{ borderTop:i>0?'1px solid var(--sep)':'none', background:ativa?'var(--accent-dim)':'var(--bg-2)' }}>
-                        <div className="w-9 h-9 rounded-[10px] flex items-center justify-center flex-shrink-0"
-                          style={{ background:ativa?'var(--fill)':'var(--fill)', border:`1px solid ${ativa?'var(--accent-border)':'var(--sep)'}` }}>
-                          <Ic size={15} style={{ color:ativa?'var(--accent)':'var(--label-3)' }}/>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-[12px] font-semibold" style={{ color:'var(--label)' }}>{f.label}</p>
-                          <p className="text-[10px]" style={{ color:'var(--label-3)' }}>{f.desc}</p>
-                        </div>
-                        <button onClick={()=>setFerr(f.id,!ativa)}
-                          style={{ color:ativa?'#22c55e':'var(--label-4)' }}>
-                          {ativa?<ToggleRight size={20} strokeWidth={2}/>:<ToggleLeft size={20} strokeWidth={1.5}/>}
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
+      return {
+        sucesso:        true,
+        numero_pedido:  pedidoCriado?.numero,
+        total_cartao:   `R$ ${carrinho.reduce((s,i)=>s+(i.preco*i.quantidade),0).toFixed(2)}`,
+        total_pix:      `R$ ${carrinho.reduce((s,i)=>s+(i.preco*i.quantidade*0.9),0).toFixed(2)}`,
+        pix_codigo:     pix?.linkBoleto || null,
+        pix_vencimento: pix?.vencimento || null,
+      }
+    }
 
-            {/* \u2500\u2500 AVAN\u00c7ADO \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
-            {aba === 'avancado' && (
-              <>
-                <div>
-                  <h4 className="text-[13px] font-semibold mb-1" style={{ color:'var(--label)' }}>Modelo de IA</h4>
-                  <p className="text-[11px] mb-2" style={{ color:'var(--label-3)' }}>Modelo que este agente utilizar\u00e1 para processar mensagens</p>
-                  <select value={form.modelo} onChange={e=>set('modelo',e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-[10px] text-[13px] outline-none"
-                    style={{ background:'var(--bg)', border:'1px solid var(--sep)', color:'var(--label)' }}>
-                    {MODELOS.map(m=><option key={m.id} value={m.id}>{m.label}</option>)}
-                  </select>
-                </div>
+    case 'registrar_ocorrencia': {
+      await query(
+        `INSERT INTO ocorrencias(telefone, tipo, descricao, pedido_numero, criado_em)
+         VALUES($1,$2,$3,$4,NOW())
+         ON CONFLICT DO NOTHING`,
+        [telefone, args.tipo, args.descricao, args.pedido_num || null]
+      ).catch(() => {})
+      await query(
+        `CREATE TABLE IF NOT EXISTS ocorrencias (
+          id SERIAL PRIMARY KEY, telefone VARCHAR(20), tipo VARCHAR(50),
+          descricao TEXT, pedido_numero VARCHAR(20), status VARCHAR(20) DEFAULT 'aberta',
+          criado_em TIMESTAMPTZ DEFAULT NOW()
+        )`
+      ).catch(() => {})
+      return { sucesso: true, protocolo: Date.now().toString().slice(-6) }
+    }
 
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <h4 className="text-[13px] font-semibold" style={{ color:'var(--label)' }}>Temperatura</h4>
-                      <p className="text-[11px]" style={{ color:'var(--label-3)' }}>Aleatoriedade da resposta \u2014 0.5 para mais consist\u00eancia</p>
-                    </div>
-                    <span className="text-[13px] font-mono font-semibold" style={{ color:'var(--accent)' }}>
-                      {parseFloat(form.temperatura || 0.7).toFixed(1)}
-                    </span>
-                  </div>
-                  <input type="range" min={0} max={1} step={0.1} value={parseFloat(form.temperatura || 0.7)}
-                    onChange={e=>set('temperatura',parseFloat(e.target.value))}
-                    className="w-full" style={{ accentColor:'var(--accent)' }}/>
-                  <div className="flex justify-between text-[9px] mt-1" style={{ color:'var(--label-4)' }}>
-                    <span>0 \u2014 Consistente</span><span>0.5 \u2014 Balanceado</span><span>1 \u2014 Criativo</span>
-                  </div>
-                </div>
+    case 'avisar_quando_disponivel': {
+      await query(
+        `INSERT INTO avise_me(telefone, produto_nome, bling_id, criado_em)
+         VALUES($1,$2,$3,NOW())
+         ON CONFLICT(telefone, produto_nome) DO UPDATE SET criado_em=NOW()`,
+        [telefone, args.produto_nome, args.bling_id || null]
+      ).catch(async () => {
+        await query(`CREATE TABLE IF NOT EXISTS avise_me(
+          id SERIAL PRIMARY KEY, telefone VARCHAR(20), produto_nome TEXT,
+          bling_id INTEGER, criado_em TIMESTAMPTZ DEFAULT NOW(),
+          UNIQUE(telefone, produto_nome)
+        )`).catch(() => {})
+      })
+      return { sucesso: true }
+    }
 
-                <div className="rounded-[14px] overflow-hidden" style={{ border:'1px solid var(--sep)' }}>
-                  <div className="flex items-center justify-between px-4 py-3"
-                    style={{ borderBottom:'1px solid var(--sep)', background:'var(--bg-2)' }}>
-                    <div>
-                      <p className="text-[12px] font-semibold" style={{ color:'var(--label)' }}>Restri\u00e7\u00e3o de conhecimento</p>
-                      <p className="text-[10px]" style={{ color:'var(--label-3)' }}>Responde apenas com dados do sistema, sem inventar</p>
-                    </div>
-                    <ToggleRight size={20} style={{ color:'#22c55e' }} strokeWidth={2}/>
-                  </div>
-                  <div className="flex items-center justify-between px-4 py-3">
-                    <div>
-                      <p className="text-[12px] font-semibold" style={{ color:'var(--label)' }}>Detector de idioma</p>
-                      <p className="text-[10px]" style={{ color:'var(--label-3)' }}>Responde no idioma do cliente automaticamente</p>
-                    </div>
-                    <ToggleLeft size={20} style={{ color:'var(--label-4)' }} strokeWidth={1.5}/>
-                  </div>
-                </div>
-
-                {agente?.id && (
-                  <div className="pt-4" style={{ borderTop:'1px solid var(--sep)' }}>
-                    <button onClick={()=>onDelete(agente)}
-                      className="text-[12px] font-medium"
-                      style={{ color:'var(--red)' }}>
-                      Excluir este agente permanentemente
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-
-          </div>
-        </div>
-      </div>
-
-      {/* \u2500\u2500 Preview \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
-      <div className="w-[280px] flex-shrink-0 flex flex-col overflow-hidden"
-        style={{ borderLeft:'1px solid var(--sep)', background:'var(--bg-2)' }}>
-        <div className="px-4 py-3 flex-shrink-0" style={{ borderBottom:'1px solid var(--sep)' }}>
-          <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color:'var(--label-3)' }}>
-            \ud83d\udcac Preview da conversa
-          </p>
-        </div>
-        <div className="flex-1 overflow-hidden">
-          <PreviewChat agente={form}/>
-        </div>
-      </div>
-    </div>
-  )
+    default:
+      return { erro: `Ferramenta desconhecida: ${nome}` }
+  }
 }
 
-// \u2500\u2500 Lista de agentes \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-export default function PageAgentesMulti({ api: apiProp }) {
-  const api = apiProp || BASE
-  const [agentes,  setAgentes]  = useState([])
-  const [loading,  setLoading]  = useState(true)
-  const [editando, setEditando] = useState(null) // null = lista, 'novo' = novo, {agente} = edit
-  const [confirmar,setConfirmar]= useState(null)
-
-  const carregar = useCallback(async () => {
-    try {
-      const r = await fetch(`${api}/api/agentes`)
-      if (r.ok) { const d = await r.json(); setAgentes(d.agentes||[]) }
-    } catch {}
-    setLoading(false)
-  }, [api])
-
-  useEffect(() => { carregar() }, [carregar])
-
-  const toggleAtivo = async (ag) => {
-    setAgentes(prev=>prev.map(a=>a.id===ag.id?{...a,ativo:!a.ativo}:a))
-    await fetch(`${api}/api/agentes/${ag.id}`,{
-      method:'PATCH',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ativo:!ag.ativo})
-    }).catch(()=>{})
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function resumoCarrinho(itens) {
+  if (!itens?.length) return null
+  let totalCartao = 0, totalPix = 0
+  const linhas = itens.map((item, i) => {
+    const sub    = item.preco * item.quantidade
+    const subPix = sub * 0.9
+    totalCartao += sub
+    totalPix    += subPix
+    return {
+      indice:       i + 1,
+      nome:         item.nome,
+      quantidade:   item.quantidade,
+      subtotal:     `R$ ${sub.toFixed(2)}`,
+      subtotal_pix: `R$ ${subPix.toFixed(2)}`,
+    }
+  })
+  return {
+    itens:        linhas,
+    total_cartao: `R$ ${totalCartao.toFixed(2)}`,
+    total_pix:    `R$ ${totalPix.toFixed(2)}`,
+    quantidade_itens: itens.length,
   }
+}
 
-  const deletar = async (ag) => {
-    await fetch(`${api}/api/agentes/${ag.id}`,{method:'DELETE'}).catch(()=>{})
-    setConfirmar(null); setEditando(null); carregar()
-  }
+function gerarLinkRastreio(transporte) {
+  if (!transporte?.codigoRastreamento) return null
+  const cod  = transporte.codigoRastreamento
+  const nome = (transporte.transportadora?.nome || '').toLowerCase()
+  if (nome.includes('jadlog'))  return `https://www.jadlog.com.br/jadlog/tracking.jad?cte=${cod}`
+  if (nome.includes('correios') || /^[A-Z]{2}\d{9}BR$/.test(cod))
+    return `https://rastreamento.correios.com.br/app/index.php?objetos=${cod}`
+  if (nome.includes('melhor'))  return `https://melhorrastreio.com.br/app/melhorenvio/${cod}`
+  if (nome.includes('loggi'))   return `https://www.loggi.com/rastreador/?q=${cod}`
+  return `https://rastreamento.correios.com.br/app/index.php?objetos=${cod}`
+}
 
-  const mover = async (idx, dir) => {
-    const novos = [...agentes]
-    const troca = idx+dir
-    if (troca<0||troca>=novos.length) return
-    ;[novos[idx],novos[troca]]=[novos[troca],novos[idx]]
-    setAgentes(novos)
-    await fetch(`${api}/api/agentes/reordenar`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ids:novos.map(a=>a.id)})
-    }).catch(()=>{})
-  }
-
-  // Modo edi\u00e7\u00e3o
-  if (editando !== null) {
-    return (
-      <EditorAgente
-        agente={editando==='novo'?null:editando}
-        api={api}
-        onSave={() => { setEditando(null); carregar() }}
-        onDelete={setConfirmar}
-        onVoltar={() => setEditando(null)}/>
+// ── Contexto persistente ─────────────────────────────────────────────────────
+async function carregarContexto(telefone) {
+  try {
+    const r = await query(
+      `SELECT contexto FROM sessoes_ia WHERE telefone=$1`, [telefone]
     )
+    if (r.rows[0]) return JSON.parse(r.rows[0].contexto)
+  } catch {}
+  return { carrinho: [], historico: [], ultimosBuscados: [], modo: 'ia' }
+}
+
+async function salvarContexto(telefone, ctx) {
+  // Limita histórico a 30 mensagens para não explodir o banco
+  if (ctx.historico?.length > 30) ctx.historico = ctx.historico.slice(-30)
+  await query(
+    `INSERT INTO sessoes_ia(telefone, contexto, atualizado_em)
+     VALUES($1,$2,NOW())
+     ON CONFLICT(telefone) DO UPDATE SET contexto=$2, atualizado_em=NOW()`,
+    [telefone, JSON.stringify(ctx)]
+  ).catch(async () => {
+    // Cria tabela se não existir
+    await query(`CREATE TABLE IF NOT EXISTS sessoes_ia(
+      telefone VARCHAR(20) PRIMARY KEY, contexto JSONB,
+      atualizado_em TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(() => {})
+    await query(
+      `INSERT INTO sessoes_ia(telefone, contexto, atualizado_em)
+       VALUES($1,$2,NOW()) ON CONFLICT(telefone)
+       DO UPDATE SET contexto=$2, atualizado_em=NOW()`,
+      [telefone, JSON.stringify(ctx)]
+    ).catch(() => {})
+  })
+}
+
+// ── Modo manual ──────────────────────────────────────────────────────────────
+async function verificarModoManual(telefone) {
+  try {
+    const r = await query(
+      `SELECT valor FROM ia_config WHERE chave=$1`, [`manual_${telefone}`]
+    )
+    return r.rows[0]?.valor === 'true'
+  } catch { return false }
+}
+
+// ── Processamento principal ──────────────────────────────────────────────────
+async function _processar(telefone, mensagem) {
+  const [config, modoManual, ctx] = await Promise.all([
+    getIAConfig(),
+    verificarModoManual(telefone),
+    carregarContexto(telefone),
+  ])
+
+  if (modoManual) {
+    console.log(`🔇 ${telefone} em modo manual`)
+    return null
   }
 
-  // Lista
-  return (
-    <div className="h-full flex flex-col overflow-hidden" style={{ background:'var(--bg)' }}>
+  const apiKey = process.env.GEMINI_API_KEY || config.geminiKey
+  if (!apiKey) throw new Error('GEMINI_API_KEY não configurada')
 
-      <div className="px-6 py-4 flex-shrink-0 flex items-center justify-between"
-        style={{ borderBottom:'1px solid var(--sep)', background:'var(--bg-2)' }}>
-        <div>
-          <h2 className="text-[22px] font-bold" style={{ color:'var(--label)' }}>Meus Agentes</h2>
-          <p className="text-[13px] mt-0.5" style={{ color:'var(--label-3)' }}>
-            {agentes.filter(a=>a.ativo).length} ativos \u00b7 {agentes.length} total \u00b7 o roteador escolhe pelo contexto
-          </p>
-        </div>
-        <button onClick={()=>setEditando('novo')}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-[11px] text-[13px] font-semibold"
-          style={{ background:'var(--accent)', color:'#000' }}>
-          <Plus size={14}/> Criar agente
-        </button>
-      </div>
+  const ai     = new GoogleGenAI({ apiKey })
+  const modelo = config.modelo || process.env.GEMINI_MODEL || 'gemini-2.5-flash'
 
-      <div className="flex-1 overflow-y-auto p-6">
-        {loading && (
-          <div className="flex justify-center py-12" style={{ color:'var(--label-3)' }}>
-            <RefreshCw size={16} className="animate-spin"/>
-          </div>
-        )}
+  // Adiciona mensagem do usuário ao histórico
+  ctx.historico = ctx.historico || []
 
-        {!loading && agentes.length === 0 && (
-          <div className="flex flex-col items-center py-20">
-            <Brain size={40} className="mb-4 opacity-15" style={{ color:'var(--label)' }}/>
-            <p className="text-[16px] font-semibold mb-1" style={{ color:'var(--label-2)' }}>Nenhum agente criado</p>
-            <p className="text-[13px] mb-6" style={{ color:'var(--label-3)' }}>Crie agentes especializados para cada tipo de atendimento</p>
-            <button onClick={()=>setEditando('novo')}
-              className="flex items-center gap-2 px-4 py-2 rounded-[10px] text-[13px] font-semibold"
-              style={{ background:'var(--accent)', color:'#000' }}>
-              <Plus size={13}/> Criar primeiro agente
-            </button>
-          </div>
-        )}
+  // ── Detecta seleção de produto por número ──────────────────────────────────
+  // Se há produtos buscados recentemente e cliente manda número simples → é seleção
+  const selecaoNum = mensagem.trim().match(/^[oO]?\s*([1-8])\s*[°ºa-z]*$/i)
+  const ultimosBusc = ctx.ultimosBuscados || []
+  let mensagemProcessada = mensagem
 
-        <div className="grid grid-cols-2 gap-4 max-w-[900px]">
-          {agentes.map((ag, idx) => (
-            <div key={ag.id}
-              className="rounded-[18px] overflow-hidden transition-all cursor-pointer group"
-              style={{ border:'1px solid var(--sep)', background:'var(--bg-2)', opacity:ag.ativo?1:0.6 }}
-              onClick={()=>setEditando(ag)}>
+  if (selecaoNum && ultimosBusc.length > 0) {
+    const idx = parseInt(selecaoNum[1]) - 1
+    const prod = ultimosBusc[idx]
+    if (prod) {
+      // Substitui "2" por mensagem clara para o modelo
+      mensagemProcessada = `Quero o produto número ${selecaoNum[1]}: "${prod.nome}" (ID: ${prod.bling_id}, Preço: R$ ${prod.preco}). Qual a quantidade?`
+      console.log(`✅ Seleção por número: ${selecaoNum[1]} → ${prod.nome}`)
+    }
+  }
 
-              {/* Faixa superior colorida */}
-              <div className="h-1.5" style={{ background: ag.cor || 'var(--accent)' }}/>
+  ctx.historico.push({ role: 'user', parts: [{ text: mensagemProcessada }] })
 
-              <div className="p-4">
-                <div className="flex items-start gap-3 mb-3">
-                  {/* Avatar */}
-                  <div className="w-14 h-14 rounded-[14px] overflow-hidden flex-shrink-0"
-                    style={{ background:'var(--fill)', border:'1px solid var(--sep)' }}>
-                    {ag.avatar
-                      ? <img src={ag.avatar} alt="" className="w-full h-full object-cover"/>
-                      : <div className="w-full h-full flex items-center justify-center text-[20px] font-bold"
-                          style={{ color:ag.cor||'var(--accent)' }}>
-                          {ag.emoji||ag.nome?.[0]||'?'}
-                        </div>
-                    }
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[14px] font-bold leading-tight" style={{ color:'var(--label)' }}>{ag.nome}</p>
-                    <p className="text-[11px] mt-0.5 line-clamp-2" style={{ color:'var(--label-3)' }}>{ag.descricao}</p>
-                  </div>
-                </div>
+  // Salva mensagem no banco
+  await query(
+    `INSERT INTO mensagens(telefone, conteudo, direcao, criado_em)
+     VALUES($1,$2,'entrada',NOW())`,
+    [telefone, mensagem]
+  ).catch(() => {})
 
-                {/* Palavras-chave */}
-                {ag.palavrasChave?.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {ag.palavrasChave.slice(0,4).map(p=>(
-                      <span key={p} className="px-1.5 py-0.5 rounded-full text-[9px]"
-                        style={{ background:'var(--fill)', color:'var(--label-3)', border:'1px solid var(--sep)' }}>
-                        {p}
-                      </span>
-                    ))}
-                    {ag.palavrasChave.length>4&&<span className="text-[9px]" style={{ color:'var(--label-4)' }}>+{ag.palavrasChave.length-4}</span>}
-                  </div>
-                )}
+  // Loop de Function Calling
+  let resposta = null
+  let iteracoes = 0
+  const MAX_ITER = 5
 
-                <div className="flex items-center justify-between pt-3" style={{ borderTop:'1px solid var(--sep)' }}
-                  onClick={e=>e.stopPropagation()}>
-                  {/* Reordenar */}
-                  <div className="flex gap-0.5">
-                    <button onClick={()=>mover(idx,-1)} disabled={idx===0}
-                      className="p-1 rounded-[5px] disabled:opacity-20" style={{ color:'var(--label-3)' }}>
-                      <ChevronUp size={12}/>
-                    </button>
-                    <button onClick={()=>mover(idx,1)} disabled={idx===agentes.length-1}
-                      className="p-1 rounded-[5px] disabled:opacity-20" style={{ color:'var(--label-3)' }}>
-                      <ChevronDown size={12}/>
-                    </button>
-                  </div>
+  const contents = ctx.historico.map(h => ({
+    role: h.role,
+    parts: h.parts,
+  }))
 
-                  <div className="flex items-center gap-2">
-                    {/* Status */}
-                    <div className="flex items-center gap-1">
-                      <div className={`w-1.5 h-1.5 rounded-full ${ag.ativo?'animate-pulse':''}`}
-                        style={{ background:ag.ativo?'#22c55e':'var(--label-4)' }}/>
-                      <span className="text-[10px]" style={{ color:'var(--label-4)' }}>
-                        {ag.ativo?'Ativo':'Inativo'}
-                      </span>
-                    </div>
-                    {/* Toggle */}
-                    <button onClick={()=>toggleAtivo(ag)} style={{ color:ag.ativo?'#22c55e':'var(--label-4)' }}>
-                      {ag.ativo?<ToggleRight size={18} strokeWidth={2}/>:<ToggleLeft size={18} strokeWidth={1.5}/>}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+  while (iteracoes < MAX_ITER) {
+    iteracoes++
 
-      {/* Confirmar deletar */}
-      {confirmar && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:16 }}>
-          <div className="rounded-[16px] p-6 w-full max-w-[360px] space-y-4"
-            style={{ background:'var(--bg-2)', border:'1px solid var(--sep)' }}>
-            <p className="text-[14px] font-semibold" style={{ color:'var(--label)' }}>
-              Excluir "{confirmar.nome}"?
-            </p>
-            <p className="text-[12px]" style={{ color:'var(--label-2)' }}>Esta a\u00e7\u00e3o n\u00e3o pode ser desfeita.</p>
-            <div className="flex gap-3">
-              <button onClick={()=>setConfirmar(null)} className="flex-1 py-2.5 rounded-[10px] text-[13px]"
-                style={{ background:'var(--fill)', color:'var(--label-2)' }}>Cancelar</button>
-              <button onClick={()=>deletar(confirmar)} className="flex-1 py-2.5 rounded-[10px] text-[13px] font-semibold"
-                style={{ background:'rgba(239,68,68,0.15)', color:'var(--red)' }}>Excluir</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+    let result = null
+    for (let tentativa = 1; tentativa <= 3; tentativa++) {
+      try {
+        result = await ai.models.generateContent({
+          model:    modelo,
+          contents,
+          config: {
+            systemInstruction: buildSystemPrompt(config),
+            maxOutputTokens:   Math.max(parseInt(config.maxTokens) || 4000, 2000),
+            temperature:       parseFloat(config.temperatura) || 0.7,
+            tools:             TOOLS,
+            toolConfig: {
+              functionCallingConfig: { mode: 'AUTO' }
+            },
+          },
+        })
+        break
+      } catch(e) {
+        const status = e.message?.match(/\d{3}/)?.[0]
+        if ((status === '503' || status === '502') && tentativa < 3) {
+          await new Promise(r => setTimeout(r, tentativa * 2000))
+        } else throw e
+      }
+    }
+
+    const candidate = result.candidates?.[0]
+    if (!candidate) break
+
+    const parts = candidate.content?.parts || []
+
+    // Verifica se há chamadas de função
+    const functionCalls = parts.filter(p => p.functionCall)
+
+    if (!functionCalls.length) {
+      // Resposta de texto final
+      resposta = parts.map(p => p.text || '').filter(Boolean).join('')
+      // Adiciona resposta ao histórico
+      ctx.historico.push({ role: 'model', parts: [{ text: resposta }] })
+      break
+    }
+
+    // Executa todas as ferramentas chamadas
+    const functionResults = []
+    for (const part of functionCalls) {
+      const { name, args } = part.functionCall
+      console.log(`🔧 Ferramenta: ${name}`, JSON.stringify(args).slice(0, 100))
+
+      const resultado = await executarFerramenta(name, args, telefone, ctx)
+      console.log(`✅ ${name}:`, JSON.stringify(resultado).slice(0, 150))
+
+      functionResults.push({
+        functionResponse: {
+          name,
+          response: resultado,
+        }
+      })
+    }
+
+    // Adiciona a chamada de função ao histórico
+    contents.push({ role: 'model', parts: functionCalls.map(p => ({ functionCall: p.functionCall })) })
+    // Adiciona os resultados
+    contents.push({ role: 'user', parts: functionResults })
+  }
+
+  // Salva contexto atualizado
+  await salvarContexto(telefone, ctx)
+
+  if (!resposta) {
+    resposta = 'Desculpe, tive uma dificuldade técnica. Pode repetir?'
+  }
+
+  // Salva resposta no banco
+  await query(
+    `INSERT INTO mensagens(telefone, conteudo, direcao, motor, criado_em)
+     VALUES($1,$2,'saida',$3,NOW())`,
+    [telefone, resposta, modelo]
+  ).catch(() => {})
+
+  return resposta
 }
+
+// ── API pública com debounce ─────────────────────────────────────────────────
+function processarMensagem(telefone, mensagem) {
+  return new Promise((resolve, reject) => {
+    // Agrupa mensagens rápidas
+    const buffer = _buffers.get(telefone) || []
+    buffer.push(mensagem)
+    _buffers.set(telefone, buffer)
+
+    if (_timers.has(telefone)) clearTimeout(_timers.get(telefone))
+
+    const timer = setTimeout(async () => {
+      _timers.delete(telefone)
+      const msgs  = _buffers.get(telefone) || []
+      _buffers.delete(telefone)
+      const texto = msgs.join('\n')
+      try {
+        const r = await _processar(telefone, texto)
+        resolve(r)
+      } catch(e) {
+        console.error('Erro ia-core:', e.message)
+        reject(e)
+      }
+    }, DEBOUNCE)
+
+    _timers.set(telefone, timer)
+  })
+}
+
+module.exports = { processarMensagem, carregarContexto, salvarContexto, verificarModoManual }
