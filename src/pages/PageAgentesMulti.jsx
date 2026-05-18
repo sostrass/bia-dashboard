@@ -11,10 +11,9 @@ import {
 const BASE = import.meta.env.VITE_API_URL || ''
 
 const MODELOS = [
-  { id:'gemini-2.0-flash-lite', label:'Gemini 2.0 Flash Lite (padr\u00e3o)' },
-  { id:'gemini-2.0-flash',      label:'Gemini 2.0 Flash' },
-  { id:'gemini-2.5-flash',      label:'Gemini 2.5 Flash' },
-  { id:'gemini-2.5-pro',        label:'Gemini 2.5 Pro' },
+  { id:'gemini-2.5-flash',      label:'Gemini 2.5 Flash (Recomendado)' },
+  { id:'gemini-2.5-pro',        label:'Gemini 2.5 Pro (Avançado)' },
+  { id:'gemini-2.0-flash-lite', label:'Gemini 2.0 Flash Lite (Econômico)' },
 ]
 
 const TONS_VOZ = [
@@ -189,7 +188,7 @@ function EditorAgente({ agente, onSave, onDelete, onVoltar, api }) {
     persona:       agente?.persona        || '',
     palavrasChave: agente?.palavrasChave  || [],
     modelo:        agente?.modelo         || 'gemini-2.0-flash-lite',
-    temperatura:   agente?.temperatura    ?? 0.7,
+    temperatura:   parseFloat(agente?.temperatura ?? 0.7),
     tons:          agente?.tons           || {},
     ferramentas:   agente?.ferramentas    || { marcar_resolvido:true, solicitar_humano:true, enviar_foto:true, rastrear_pedido:true },
     cerebro:       agente?.cerebro        || { produtos:true, pedidos:true },
@@ -418,7 +417,7 @@ function EditorAgente({ agente, onSave, onDelete, onVoltar, api }) {
                   <p className="text-[11px] mb-3" style={{ color:'var(--label-3)' }}>Ajuste o estilo de comunica\u00e7\u00e3o do agente</p>
                   <div className="space-y-4">
                     {TONS_VOZ.map(t=>(
-                      <TomSlider key={t.id} tom={t} value={form.tons[t.id]} onChange={v=>setTon(t.id,v)}/>
+                      <TomSlider key={t.id} tom={t} value={form.tons?.[t.id] ?? 0.5} onChange={v=>setTon(t.id,v)}/>
                     ))}
                   </div>
                 </div>
@@ -523,10 +522,10 @@ function EditorAgente({ agente, onSave, onDelete, onVoltar, api }) {
                       <p className="text-[11px]" style={{ color:'var(--label-3)' }}>Aleatoriedade da resposta \u2014 0.5 para mais consist\u00eancia</p>
                     </div>
                     <span className="text-[13px] font-mono font-semibold" style={{ color:'var(--accent)' }}>
-                      {form.temperatura.toFixed(1)}
+                      {parseFloat(form.temperatura || 0.7).toFixed(1)}
                     </span>
                   </div>
-                  <input type="range" min={0} max={1} step={0.1} value={form.temperatura}
+                  <input type="range" min={0} max={1} step={0.1} value={parseFloat(form.temperatura || 0.7)}
                     onChange={e=>set('temperatura',parseFloat(e.target.value))}
                     className="w-full" style={{ accentColor:'var(--accent)' }}/>
                   <div className="flex justify-between text-[9px] mt-1" style={{ color:'var(--label-4)' }}>
