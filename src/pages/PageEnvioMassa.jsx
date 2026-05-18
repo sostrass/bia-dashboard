@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react'
 import { Send, Users, Clock, DollarSign, BarChart2, CheckCircle, XCircle, Pause, Play, RefreshCw, ChevronDown, AlertTriangle } from 'lucide-react'
 
@@ -63,10 +64,17 @@ export default function PageEnvioMassa({ api: apiProp }) {
 
   const montarMensagem = (contato) => {
     let msg = ''
-    if (cabecalho) msg += `*${cabecalho}*\n\n`
+    if (cabecalho) msg += `*${cabecalho}*\
+\
+`
     msg += mensagem.replace('{nome}', contato.nome?.split(' ')[0] || 'Cliente')
-    if (rodape) msg += `\n\n_${rodape}_`
-    if (botoes.length) msg += '\n\n' + botoes.map((b, i) => `${i+1}. ${b}`).join('\n')
+    if (rodape) msg += `\
+\
+_${rodape}_`
+    if (botoes.length) msg += '\
+\
+' + botoes.map((b, i) => `${i+1}. ${b}`).join('\
+')
     return msg
   }
 
@@ -109,7 +117,7 @@ export default function PageEnvioMassa({ api: apiProp }) {
         }))
       }
 
-      // Intervalo entre envios (exceto no último)
+      // Intervalo entre envios (exceto no \u00faltimo)
       if (i < lista.length - 1) {
         await new Promise(r => setTimeout(r, intervalo))
       }
@@ -135,7 +143,7 @@ export default function PageEnvioMassa({ api: apiProp }) {
         <div>
           <h2 className="text-[22px] font-bold tracking-tight" style={{ color: 'var(--label)' }}>Envio em Massa</h2>
           <p className="text-[13px] mt-0.5" style={{ color: 'var(--label-3)' }}>
-            {selecionados.size} destinatários · Custo estimado: ~${custoEstimado()}
+            {selecionados.size} destinat\u00e1rios \u00b7 Custo estimado: ~${custoEstimado()}
           </p>
         </div>
 
@@ -163,7 +171,7 @@ export default function PageEnvioMassa({ api: apiProp }) {
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 flex-shrink-0" style={{ background: 'var(--bg-2)', borderBottom: '1px solid var(--sep)' }}>
-        {[['composicao','Composição'],['destinatarios','Destinatários'],['dashboard','Dashboard']].map(([v,l]) => (
+        {[['composicao','Composi\u00e7\u00e3o'],['destinatarios','Destinat\u00e1rios'],['dashboard','Dashboard']].map(([v,l]) => (
           <button key={v} onClick={() => setTab(v)}
             className="px-4 py-2 rounded-[8px] text-[13px] font-medium transition-all"
             style={{ background: tab===v?'var(--bg)':'transparent', color: tab===v?'var(--label)':'var(--label-3)' }}>
@@ -174,21 +182,21 @@ export default function PageEnvioMassa({ api: apiProp }) {
 
       <div className="flex-1 overflow-y-auto p-6">
 
-        {/* COMPOSIÇÃO */}
+        {/* COMPOSI\u00c7\u00c3O */}
         {tab === 'composicao' && (
           <div className="max-w-2xl mx-auto space-y-5">
 
-            {/* Cabeçalho */}
+            {/* Cabe\u00e7alho */}
             <div className="card p-5 space-y-4">
               <h3 className="text-[15px] font-semibold" style={{ color: 'var(--label)' }}>
                 Estrutura da Mensagem
               </h3>
               <div>
                 <label className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--label-3)' }}>
-                  Cabeçalho (opcional)
+                  Cabe\u00e7alho (opcional)
                 </label>
                 <input value={cabecalho} onChange={e => setCabecalho(e.target.value)}
-                  placeholder="Ex: 🎉 Promoção Especial"
+                  placeholder="Ex: \ud83c\udf89 Promo\u00e7\u00e3o Especial"
                   className="w-full px-3 py-2 rounded-[10px] text-[13px] outline-none"
                   style={{ background: 'var(--bg-3)', border: '1px solid var(--sep)', color: 'var(--label)' }} />
               </div>
@@ -198,7 +206,7 @@ export default function PageEnvioMassa({ api: apiProp }) {
                   Corpo da mensagem *
                 </label>
                 <textarea value={mensagem} onChange={e => setMensagem(e.target.value)} rows={5}
-                  placeholder="Olá {nome}! Temos novidades incríveis para você..."
+                  placeholder="Ol\u00e1 {nome}! Temos novidades incr\u00edveis para voc\u00ea..."
                   className="w-full px-3 py-2 rounded-[10px] text-[13px] outline-none resize-none"
                   style={{ background: 'var(--bg-3)', border: '1px solid var(--sep)', color: 'var(--label)', lineHeight: 1.6 }} />
                 <p className="text-[10px] mt-1" style={{ color: 'var(--label-3)' }}>
@@ -208,45 +216,45 @@ export default function PageEnvioMassa({ api: apiProp }) {
 
               <div>
                 <label className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--label-3)' }}>
-                  Rodapé (opcional)
+                  Rodap\u00e9 (opcional)
                 </label>
                 <input value={rodape} onChange={e => setRodape(e.target.value)}
-                  placeholder="Ex: Para cancelar inscrições responda PARAR"
+                  placeholder="Ex: Para cancelar inscri\u00e7\u00f5es responda PARAR"
                   className="w-full px-3 py-2 rounded-[10px] text-[13px] outline-none"
                   style={{ background: 'var(--bg-3)', border: '1px solid var(--sep)', color: 'var(--label)' }} />
               </div>
 
-              {/* Botões de ação */}
+              {/* Bot\u00f5es de a\u00e7\u00e3o */}
               <div>
                 <label className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--label-3)' }}>
-                  Botões de resposta rápida (opcional)
+                  Bot\u00f5es de resposta r\u00e1pida (opcional)
                 </label>
                 <div className="space-y-2">
                   {botoes.map((b, i) => (
                     <div key={i} className="flex gap-2">
                       <input value={b} onChange={e => setBotoes(prev => prev.map((x, j) => j === i ? e.target.value : x))}
-                        placeholder={`Botão ${i+1}`}
+                        placeholder={`Bot\u00e3o ${i+1}`}
                         className="flex-1 px-3 py-2 rounded-[10px] text-[13px] outline-none"
                         style={{ background: 'var(--bg-3)', border: '1px solid var(--sep)', color: 'var(--label)' }} />
                       <button onClick={() => setBotoes(prev => prev.filter((_, j) => j !== i))}
                         className="px-3 py-2 rounded-[10px] text-[12px]"
-                        style={{ background: 'var(--fill)', color: 'var(--red)' }}>✕</button>
+                        style={{ background: 'var(--fill)', color: 'var(--red)' }}>\u2715</button>
                     </div>
                   ))}
                   {botoes.length < 3 && (
                     <button onClick={() => setBotoes(prev => [...prev, ''])}
                       className="text-[12px] px-3 py-1.5 rounded-[8px]"
                       style={{ background: 'var(--fill)', color: 'var(--label-2)', border: '1px dashed var(--sep)' }}>
-                      + Adicionar botão
+                      + Adicionar bot\u00e3o
                     </button>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Configurações de envio */}
+            {/* Configura\u00e7\u00f5es de envio */}
             <div className="card p-5 space-y-4">
-              <h3 className="text-[15px] font-semibold" style={{ color: 'var(--label)' }}>Configurações de Envio</h3>
+              <h3 className="text-[15px] font-semibold" style={{ color: 'var(--label)' }}>Configura\u00e7\u00f5es de Envio</h3>
 
               <div>
                 <label className="text-[11px] font-semibold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--label-3)' }}>
@@ -260,7 +268,7 @@ export default function PageEnvioMassa({ api: apiProp }) {
                   </span>
                 </div>
                 <p className="text-[10px] mt-1" style={{ color: 'var(--label-3)' }}>
-                  Mínimo recomendado: 2s para evitar bloqueio do WhatsApp
+                  M\u00ednimo recomendado: 2s para evitar bloqueio do WhatsApp
                 </p>
               </div>
             </div>
@@ -270,13 +278,13 @@ export default function PageEnvioMassa({ api: apiProp }) {
               <h3 className="text-[15px] font-semibold mb-3" style={{ color: 'var(--label)' }}>Preview</h3>
               <div className="p-4 rounded-[14px] text-[13px] leading-relaxed whitespace-pre-wrap"
                 style={{ background: 'var(--bg-3)', border: '1px solid var(--sep)', color: 'var(--label)' }}>
-                {montarMensagem({ nome: 'João Silva' }) || 'Compose sua mensagem acima...'}
+                {montarMensagem({ nome: 'Jo\u00e3o Silva' }) || 'Compose sua mensagem acima...'}
               </div>
             </div>
           </div>
         )}
 
-        {/* DESTINATÁRIOS */}
+        {/* DESTINAT\u00c1RIOS */}
         {tab === 'destinatarios' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -298,7 +306,7 @@ export default function PageEnvioMassa({ api: apiProp }) {
                     style={{ borderColor: 'var(--sep)', background: sel ? 'var(--accent-dim)' : 'transparent' }}>
                     <div className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0"
                       style={{ background: sel ? 'var(--accent)' : 'var(--fill)', border: `1px solid ${sel ? 'var(--accent)' : 'var(--sep)'}` }}>
-                      {sel && <span className="text-[10px] font-bold" style={{ color: '#000' }}>✓</span>}
+                      {sel && <span className="text-[10px] font-bold" style={{ color: '#000' }}>\u2713</span>}
                     </div>
                     <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
                       style={{ background: 'var(--fill)', color: 'var(--label-2)' }}>
