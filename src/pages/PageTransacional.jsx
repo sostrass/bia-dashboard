@@ -348,7 +348,7 @@ export default function PageTransacional({ api: apiProp }) {
       const cab=blocos.find(b=>b.tipo==='cabecalho')?.conteudo||''
       const rod=blocos.find(b=>b.tipo==='rodape')?.conteudo||''
       let msg='';if(cab)msg+=`*${rv(cab)}*\n\n`;msg+=rv(corpo);if(rod)msg+=`\n\n_${rv(rod)}_`
-      const r=await fetch(`${api}/api/dashboard/enviar`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone:telTeste.replace(/\D/g,''),mensagem:msg})})
+      const r=await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone:telTeste.replace(/\D/g,''),mensagem:msg})})
       setResTeste(r.ok?'ok':'erro')
     } catch{setResTeste('erro')}
     setEnviandoT(false);setTimeout(()=>setResTeste(null),4000)
