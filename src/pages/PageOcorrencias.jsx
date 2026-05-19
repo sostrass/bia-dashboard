@@ -2,515 +2,422 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   AlertCircle, CheckCircle, Clock, RefreshCw, Plus, X,
   Send, User, ChevronDown, MessageSquare, Truck, Package,
-  CreditCard, Tag, Filter, Search, ToggleLeft, ToggleRight,
-  ArrowRight, Circle, XCircle, Zap, Edit3, Save
+  CreditCard, Tag, Search, Circle, XCircle, Zap, Save,
+  Paperclip, Sparkles, Mail, Phone, CornerDownRight, MoreVertical,
+  ArrowUpRight, ShieldAlert, FileText, Check
 } from 'lucide-react'
 
 const BASE = import.meta.env.VITE_API_URL || ''
 
+// ── Dicionários e Meta-dados ─────────────────────────────────────────────────
 const STATUS = {
-  aberta:       { label:'Aberta',       cor:'#f59e0b', bg:'rgba(245,158,11,0.1)',   icon:Circle },
-  em_andamento: { label:'Em andamento', cor:'#4a9fff', bg:'rgba(74,159,255,0.1)',   icon:RefreshCw },
-  resolvida:    { label:'Resolvida',    cor:'#22c55e', bg:'rgba(34,197,94,0.1)',    icon:CheckCircle },
-  encerrada:    { label:'Encerrada',    cor:'#6b7280', bg:'rgba(107,114,128,0.1)', icon:XCircle },
+  aberta:       { label: 'Aberta',       cor: 'text-amber-600', bg: 'bg-amber-100', dot: 'bg-amber-500', icon: Circle },
+  em_andamento: { label: 'Em andamento', cor: 'text-blue-600',  bg: 'bg-blue-100',  dot: 'bg-blue-500',  icon: RefreshCw },
+  resolvida:    { label: 'Resolvida',    cor: 'text-green-600', bg: 'bg-green-100', dot: 'bg-green-500', icon: CheckCircle },
+  encerrada:    { label: 'Encerrada',    cor: 'text-slate-600', bg: 'bg-slate-100', dot: 'bg-slate-500', icon: XCircle },
 }
 
 const PRIORIDADE = {
-  baixa:   { label:'Baixa',   cor:'#6b7280', bg:'rgba(107,114,128,0.08)' },
-  normal:  { label:'Normal',  cor:'#4a9fff', bg:'rgba(74,159,255,0.08)' },
-  alta:    { label:'Alta',    cor:'#f59e0b', bg:'rgba(245,158,11,0.08)' },
-  urgente: { label:'Urgente', cor:'#ef4444', bg:'rgba(239,68,68,0.08)' },
+  baixa:   { label: 'Baixa',   cor: 'text-slate-600', bg: 'bg-slate-100' },
+  normal:  { label: 'Normal',  cor: 'text-blue-600',  bg: 'bg-blue-100' },
+  alta:    { label: 'Alta',    cor: 'text-amber-600', bg: 'bg-amber-100' },
+  urgente: { label: 'Urgente', cor: 'text-red-600',   bg: 'bg-red-100' },
 }
 
-const TIPO = {
-  entrega:  { label:'Entrega',      icon:Truck,       cor:'#a78bfa' },
-  pagamento:{ label:'Pagamento',    icon:CreditCard,  cor:'#4a9fff' },
-  produto:  { label:'Produto',      icon:Package,     cor:'#fb923c' },
-  outro:    { label:'Outro',        icon:Tag,         cor:'#6b7280' },
+// Expansível pelo usuário no futuro (banco de dados)
+const TIPOS_INICIAIS = {
+  entrega:  { label: 'Entrega Padrão',     icon: Truck,       cor: 'text-purple-600', bg: 'bg-purple-100' },
+  atraso:   { label: 'Entrega Atrasada',   icon: Clock,       cor: 'text-red-500',    bg: 'bg-red-100' },
+  extravio: { label: 'Pedido Extraviado',  icon: ShieldAlert, cor: 'text-red-600',    bg: 'bg-red-100' },
+  troca:    { label: 'Troca / Devolução',  icon: RefreshCw,   cor: 'text-amber-500',  bg: 'bg-amber-100' },
+  pagamento:{ label: 'Pagamento / Fatura', icon: CreditCard,  cor: 'text-blue-500',   bg: 'bg-blue-100' },
+  produto:  { label: 'Dúvida de Produto',  icon: Package,     cor: 'text-orange-500', bg: 'bg-orange-100' },
+  outro:    { label: 'Outros Assuntos',    icon: Tag,         cor: 'text-slate-500',  bg: 'bg-slate-100' },
 }
 
-function BadgeStatus({ status }) {
-  const m = STATUS[status] || STATUS.aberta
-  const Ic = m.icon
-  return (
-    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
-      style={{ background:m.bg, color:m.cor }}>
-      <Ic size={9}/> {m.label}
-    </span>
-  )
-}
+// ── Componentes de UI Menores ────────────────────────────────────────────────
+const Badge = ({ children, colorClass, bgClass, className = '' }) => (
+  <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold flex items-center gap-1.5 w-max ${colorClass} ${bgClass} ${className}`}>
+    {children}
+  </span>
+)
 
-function BadgePrioridade({ prioridade }) {
-  const m = PRIORIDADE[prioridade] || PRIORIDADE.normal
-  return (
-    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
-      style={{ background:m.bg, color:m.cor }}>
-      {m.label}
-    </span>
-  )
-}
+// Helper para gerar ID Alfanumérico CRM (Ex: TK-9F2A)
+const generateTicketId = () => `TK-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
 
-// ── Modal de detalhe/resposta ──────────────────────────────────────────────────
-function ModalOcorrencia({ oc, api, onClose, onUpdate }) {
-  const [status,    setStatus]    = useState(oc.status)
-  const [prioridade,setPrioridade]= useState(oc.prioridade)
-  const [atrib,     setAtrib]     = useState(oc.atribuidoA||'')
-  const [resposta,  setResposta]  = useState('')
-  const [nota,      setNota]      = useState('')
-  const [salvando,  setSalvando]  = useState(false)
-  const [enviando,  setEnviando]  = useState(false)
-  const [ok,        setOk]        = useState('')
+// ── Painel de Detalhe Lateral (Drawer CRM) ───────────────────────────────────
+function PainelOcorrencia({ oc, api, onClose, onUpdate }) {
+  const [status, setStatus] = useState(oc.status)
+  const [canalResp, setCanalResp] = useState('whatsapp') // whatsapp, email, nota
+  const [resposta, setResposta] = useState('')
+  const [loadingAI, setLoadingAI] = useState(false)
 
-  const tipoMeta = TIPO[oc.tipo] || TIPO.outro
-  const TipoIc   = tipoMeta.icon
+  const metaStatus = STATUS[status] || STATUS.aberta
+  const metaTipo = TIPOS_INICIAIS[oc.tipo] || TIPOS_INICIAIS.outro
+  const TipoIc = metaTipo.icon
 
-  const salvarStatus = async () => {
-    setSalvando(true)
-    try {
-      await fetch(`${api}/api/ocorrencias/${oc.id}`, {
-        method:'PATCH', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ status, prioridade, atribuidoA:atrib, nota: nota||undefined })
-      })
-      setOk('Status salvo!'); setNota('')
-      setTimeout(()=>{ setOk(''); onUpdate() }, 1500)
-    } catch {}
-    setSalvando(false)
+  // Simula a IA melhorando o texto
+  const aplicarIA = () => {
+    if (!resposta) return
+    setLoadingAI(true)
+    setTimeout(() => {
+      setResposta(`[Texto otimizado pela IA]: ${resposta}\n\nAtenciosamente,\nEquipe Só Strass.`)
+      setLoadingAI(false)
+    }, 1000)
   }
 
-  const enviarResposta = async () => {
-    if (!resposta.trim()) return
-    setEnviando(true)
-    try {
-      await fetch(`${api}/api/ocorrencias/${oc.id}`, {
-        method:'PATCH', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          respostaCliente: resposta,
-          status: status === 'aberta' ? 'em_andamento' : status,
-          nota: `Resposta enviada ao cliente: "${resposta.slice(0,60)}..."`
-        })
-      })
-      setOk('Mensagem enviada!'); setResposta('')
-      setTimeout(()=>{ setOk(''); onUpdate() }, 2000)
-    } catch {}
-    setEnviando(false)
-  }
-
-  const inp = { background:'var(--bg)', border:'1px solid var(--sep)', borderRadius:9, color:'var(--label)', outline:'none', padding:'9px 12px', fontSize:13, width:'100%', fontFamily:'inherit' }
-
   return (
-    <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:1000,display:'flex',alignItems:'stretch',justifyContent:'flex-end' }}>
-      <div className="flex flex-col h-full w-full max-w-[560px]"
-        style={{ background:'var(--bg)', borderLeft:'1px solid var(--sep)' }}>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 flex-shrink-0"
-          style={{ borderBottom:'1px solid var(--sep)', background:'var(--bg-2)' }}>
+    <div className="w-[500px] flex-shrink-0 bg-white border-l border-slate-200 flex flex-col shadow-2xl z-20 transition-all duration-300 transform translate-x-0">
+      
+      {/* Header do Ticket */}
+      <div className="px-6 py-5 border-b border-slate-200 bg-slate-50 flex-shrink-0">
+        <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-[10px] flex items-center justify-center"
-              style={{ background:`${tipoMeta.cor}15` }}>
-              <TipoIc size={15} style={{ color:tipoMeta.cor }}/>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${metaTipo.bg}`}>
+              <TipoIc size={20} className={metaTipo.cor} />
             </div>
             <div>
-              <h3 className="text-[14px] font-bold" style={{ color:'var(--label)' }}>
-                Ocorrência #{oc.id}
-              </h3>
-              <p className="text-[11px]" style={{ color:'var(--label-3)' }}>
-                {oc.nomeCliente || oc.telefone}
-                {oc.numeroPedido && ` · Pedido #${oc.numeroPedido}`}
-              </p>
+              <h2 className="text-lg font-bold text-slate-900 leading-tight">
+                {oc.ticketId || `#${oc.id}`}
+              </h2>
+              <p className="text-xs font-medium text-slate-500">{metaTipo.label}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-[8px]" style={{ color:'var(--label-3)' }}>
-            <X size={16}/>
-          </button>
+          <div className="flex gap-2">
+            <button className="p-2 hover:bg-slate-200 text-slate-500 rounded-lg transition-colors"><MoreVertical size={16}/></button>
+            <button onClick={onClose} className="p-2 hover:bg-slate-200 text-slate-500 rounded-lg transition-colors"><X size={16}/></button>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
-
-          {/* Descrição */}
-          {oc.descricao && (
-            <div className="rounded-[12px] p-4"
-              style={{ background:'var(--bg-2)', border:'1px solid var(--sep)' }}>
-              <p className="text-[11px] font-semibold mb-1" style={{ color:'var(--label-3)' }}>RELATO DO CLIENTE</p>
-              <p className="text-[13px] leading-relaxed" style={{ color:'var(--label)' }}>{oc.descricao}</p>
-            </div>
-          )}
-
-          {/* Controles de status */}
-          <div className="rounded-[12px] overflow-hidden" style={{ border:'1px solid var(--sep)' }}>
-            <div className="px-4 py-2.5" style={{ background:'var(--bg-3)', borderBottom:'1px solid var(--sep)' }}>
-              <p className="text-[11px] font-semibold" style={{ color:'var(--label-2)' }}>Gerenciar ocorrência</p>
-            </div>
-            <div className="p-4 space-y-3" style={{ background:'var(--bg-2)' }}>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-medium block mb-1" style={{ color:'var(--label-3)' }}>Status</label>
-                  <select value={status} onChange={e=>setStatus(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-[8px] text-[12px] outline-none"
-                    style={{ background:'var(--bg)', border:'1px solid var(--sep)', color:'var(--label)' }}>
-                    {Object.entries(STATUS).map(([id,m])=>(
-                      <option key={id} value={id}>{m.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[10px] font-medium block mb-1" style={{ color:'var(--label-3)' }}>Prioridade</label>
-                  <select value={prioridade} onChange={e=>setPrioridade(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-[8px] text-[12px] outline-none"
-                    style={{ background:'var(--bg)', border:'1px solid var(--sep)', color:'var(--label)' }}>
-                    {Object.entries(PRIORIDADE).map(([id,m])=>(
-                      <option key={id} value={id}>{m.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="text-[10px] font-medium block mb-1" style={{ color:'var(--label-3)' }}>Atribuído a</label>
-                <input value={atrib} onChange={e=>setAtrib(e.target.value)}
-                  placeholder="Nome do atendente responsável" style={{ ...inp, fontSize:12 }}/>
-              </div>
-              <div>
-                <label className="text-[10px] font-medium block mb-1" style={{ color:'var(--label-3)' }}>Nota interna (não vai ao cliente)</label>
-                <input value={nota} onChange={e=>setNota(e.target.value)}
-                  placeholder="Ex: Verificado com transportadora, aguardando retorno..." style={{ ...inp, fontSize:12 }}/>
-              </div>
-              <button onClick={salvarStatus} disabled={salvando}
-                className="w-full py-2 rounded-[9px] text-[12px] font-semibold flex items-center justify-center gap-2 transition-all"
-                style={{ background:'var(--accent)', color:'#000' }}>
-                {salvando?<RefreshCw size={12} className="animate-spin"/>:<Save size={12}/>}
-                {ok || 'Salvar alterações'}
-              </button>
-            </div>
+        {/* Info Rápida do Cliente */}
+        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm space-y-2">
+          <div className="flex items-center gap-2 text-sm text-slate-800 font-semibold">
+            <User size={14} className="text-slate-400"/> {oc.nomeCliente || 'Cliente não identificado'}
           </div>
-
-          {/* Resposta ao cliente */}
-          <div className="rounded-[12px] overflow-hidden" style={{ border:'1px solid var(--sep)' }}>
-            <div className="px-4 py-2.5 flex items-center gap-2"
-              style={{ background:'var(--bg-3)', borderBottom:'1px solid var(--sep)' }}>
-              <MessageSquare size={12} style={{ color:'#25D366' }}/>
-              <p className="text-[11px] font-semibold" style={{ color:'var(--label-2)' }}>Responder ao cliente via WhatsApp</p>
-            </div>
-            <div className="p-4 space-y-2" style={{ background:'var(--bg-2)' }}>
-              <textarea value={resposta} onChange={e=>setResposta(e.target.value)}
-                rows={4} placeholder={`Olá ${oc.nomeCliente?.split(' ')[0]||''},\n\nVerificamos sua ocorrência e...`}
-                style={{ ...inp, resize:'none', lineHeight:1.6 }}/>
-              <button onClick={enviarResposta} disabled={enviando||!resposta.trim()}
-                className="w-full py-2 rounded-[9px] text-[12px] font-semibold flex items-center justify-center gap-2 transition-all"
-                style={{ background:'#25D366', color:'#fff', opacity:!resposta.trim()?0.5:1 }}>
-                {enviando?<RefreshCw size={12} className="animate-spin"/>:<Send size={12}/>}
-                {ok==='Mensagem enviada!'?'✓ Enviado!':'Enviar pelo WhatsApp'}
-              </button>
-            </div>
+          <div className="flex items-center gap-4 text-xs text-slate-500">
+            <span className="flex items-center gap-1.5"><Phone size={12}/> {oc.telefone || '—'}</span>
+            <span className="flex items-center gap-1.5"><Mail size={12}/> {oc.email || '—'}</span>
           </div>
-
-          {/* Histórico */}
-          {oc.historico?.length > 0 && (
-            <div className="rounded-[12px] overflow-hidden" style={{ border:'1px solid var(--sep)' }}>
-              <div className="px-4 py-2.5" style={{ background:'var(--bg-3)', borderBottom:'1px solid var(--sep)' }}>
-                <p className="text-[11px] font-semibold" style={{ color:'var(--label-2)' }}>Histórico</p>
-              </div>
-              <div className="p-3 space-y-2" style={{ background:'var(--bg-2)' }}>
-                {[...oc.historico].reverse().map((h,i)=>(
-                  <div key={i} className="flex gap-2.5">
-                    <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background:'var(--accent)' }}/>
-                    <div>
-                      <p className="text-[11px]" style={{ color:'var(--label)' }}>{h.nota}</p>
-                      <p className="text-[9px]" style={{ color:'var(--label-4)' }}>
-                        {h.por} · {new Date(h.em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          {oc.numeroPedido && (
+            <div className="pt-2 mt-2 border-t border-slate-100 flex items-center gap-1.5 text-xs text-blue-600 font-medium cursor-pointer hover:underline">
+              <Package size={12}/> Pedido relacionado: #{oc.numeroPedido} <ArrowUpRight size={12}/>
             </div>
           )}
         </div>
-      </div>
-    </div>
-  )
-}
 
-// ── Modal novo ─────────────────────────────────────────────────────────────────
-function ModalNovo({ api, onClose, onSave }) {
-  const [form, setForm] = useState({ telefone:'', nomeCliente:'', numeroPedido:'', tipo:'entrega', descricao:'', prioridade:'normal' })
-  const [salvando, setSalvando] = useState(false)
-  const set = (k,v) => setForm(f=>({...f,[k]:v}))
-  const inp = { background:'var(--bg)', border:'1px solid var(--sep)', borderRadius:9, color:'var(--label)', outline:'none', padding:'9px 12px', fontSize:13, width:'100%', fontFamily:'inherit' }
-
-  const salvar = async () => {
-    if (!form.telefone.trim()) return
-    setSalvando(true)
-    try {
-      await fetch(`${api}/api/ocorrencias`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(form)
-      })
-      onSave()
-    } catch {}
-    setSalvando(false)
-  }
-
-  return (
-    <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:16 }}>
-      <div className="w-full max-w-[440px] rounded-[18px] overflow-hidden"
-        style={{ background:'var(--bg-2)', border:'1px solid var(--sep)' }}>
-        <div className="flex items-center justify-between px-5 py-4"
-          style={{ borderBottom:'1px solid var(--sep)', background:'var(--bg-3)' }}>
-          <h3 className="text-[14px] font-bold" style={{ color:'var(--label)' }}>Nova Ocorrência</h3>
-          <button onClick={onClose} style={{ color:'var(--label-3)' }}><X size={16}/></button>
-        </div>
-        <div className="p-5 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] font-medium block mb-1" style={{ color:'var(--label-3)' }}>Telefone *</label>
-              <input value={form.telefone} onChange={e=>set('telefone',e.target.value)}
-                placeholder="5511999999999" style={{ ...inp, fontSize:12 }}/>
-            </div>
-            <div>
-              <label className="text-[10px] font-medium block mb-1" style={{ color:'var(--label-3)' }}>Pedido #</label>
-              <input value={form.numeroPedido} onChange={e=>set('numeroPedido',e.target.value)}
-                placeholder="224928" style={{ ...inp, fontSize:12 }}/>
-            </div>
-          </div>
-          <div>
-            <label className="text-[10px] font-medium block mb-1" style={{ color:'var(--label-3)' }}>Nome do cliente</label>
-            <input value={form.nomeCliente} onChange={e=>set('nomeCliente',e.target.value)}
-              placeholder="Nome completo" style={{ ...inp, fontSize:12 }}/>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] font-medium block mb-1" style={{ color:'var(--label-3)' }}>Tipo</label>
-              <select value={form.tipo} onChange={e=>set('tipo',e.target.value)}
-                className="w-full px-2.5 py-2 rounded-[8px] text-[12px] outline-none"
-                style={{ background:'var(--bg)', border:'1px solid var(--sep)', color:'var(--label)' }}>
-                {Object.entries(TIPO).map(([id,m])=><option key={id} value={id}>{m.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] font-medium block mb-1" style={{ color:'var(--label-3)' }}>Prioridade</label>
-              <select value={form.prioridade} onChange={e=>set('prioridade',e.target.value)}
-                className="w-full px-2.5 py-2 rounded-[8px] text-[12px] outline-none"
-                style={{ background:'var(--bg)', border:'1px solid var(--sep)', color:'var(--label)' }}>
-                {Object.entries(PRIORIDADE).map(([id,m])=><option key={id} value={id}>{m.label}</option>)}
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="text-[10px] font-medium block mb-1" style={{ color:'var(--label-3)' }}>Descrição do problema</label>
-            <textarea value={form.descricao} onChange={e=>set('descricao',e.target.value)}
-              rows={3} placeholder="Descreva o problema relatado pelo cliente..."
-              style={{ ...inp, resize:'none', lineHeight:1.6 }}/>
-          </div>
-          <div className="flex gap-3 pt-1">
-            <button onClick={onClose} className="flex-1 py-2.5 rounded-[10px] text-[13px]"
-              style={{ background:'var(--fill)', color:'var(--label-2)' }}>Cancelar</button>
-            <button onClick={salvar} disabled={salvando||!form.telefone.trim()}
-              className="flex-1 py-2.5 rounded-[10px] text-[13px] font-semibold"
-              style={{ background:'var(--accent)', color:'#000', opacity:!form.telefone.trim()?0.5:1 }}>
-              {salvando?'Criando...' :'Criar ocorrência'}
+        {/* Toggles Rápidos de Status */}
+        <div className="flex gap-2 mt-4">
+          {Object.entries(STATUS).map(([key, val]) => (
+            <button 
+              key={key} onClick={() => setStatus(key)}
+              className={`flex-1 py-1.5 rounded-md text-xs font-semibold border transition-all ${
+                status === key ? `${val.bg} ${val.cor} border-transparent shadow-inner` : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              {val.label}
             </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Página principal ───────────────────────────────────────────────────────────
-export default function PageOcorrencias({ api: apiProp }) {
-  const api = apiProp || BASE
-  const [ocorrencias, setOcorrencias] = useState([])
-  const [stats,       setStats]       = useState({})
-  const [loading,     setLoading]     = useState(true)
-  const [detalhe,     setDetalhe]     = useState(null)
-  const [novo,        setNovo]        = useState(false)
-  const [filtroStatus,setFiltroStatus]= useState('todos')
-  const [filtroTipo,  setFiltroTipo]  = useState('todos')
-  const [filtroPri,   setFiltroPri]   = useState('todos')
-  const [busca,       setBusca]       = useState('')
-
-  const carregar = useCallback(async () => {
-    try {
-      const params = new URLSearchParams()
-      if (filtroStatus !== 'todos') params.set('status', filtroStatus)
-      if (filtroTipo   !== 'todos') params.set('tipo',   filtroTipo)
-      if (filtroPri    !== 'todos') params.set('prioridade', filtroPri)
-      const r = await fetch(`${api}/api/ocorrencias?${params}`)
-      if (r.ok) {
-        const d = await r.json()
-        setOcorrencias(d.ocorrencias || [])
-        setStats(d.stats || {})
-      }
-    } catch {}
-    setLoading(false)
-  }, [api, filtroStatus, filtroTipo, filtroPri])
-
-  useEffect(() => { setLoading(true); carregar() }, [carregar])
-
-  const filtradas = ocorrencias.filter(o => {
-    if (!busca) return true
-    const b = busca.toLowerCase()
-    return (o.nomeCliente||'').toLowerCase().includes(b) ||
-           (o.numeroPedido||'').includes(b) ||
-           (o.telefone||'').includes(b) ||
-           (o.descricao||'').toLowerCase().includes(b)
-  })
-
-  const urgentes = parseInt(stats.urgentes)||0
-
-  return (
-    <div className="h-full flex flex-col overflow-hidden" style={{ background:'var(--bg)' }}>
-
-      {/* Header */}
-      <div className="px-6 py-4 flex-shrink-0" style={{ borderBottom:'1px solid var(--sep)', background:'var(--bg-2)' }}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div>
-              <h2 className="text-[20px] font-bold" style={{ color:'var(--label)' }}>Ocorrências</h2>
-              <div className="flex items-center gap-3 mt-0.5">
-                <span className="text-[12px]" style={{ color:'var(--label-3)' }}>
-                  {parseInt(stats.abertas)||0} abertas · {parseInt(stats.em_andamento)||0} em andamento
-                </span>
-                {urgentes > 0 && (
-                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold animate-pulse"
-                    style={{ background:'rgba(239,68,68,0.1)', color:'#ef4444' }}>
-                    <Zap size={9}/> {urgentes} urgente{urgentes>1?'s':''}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={()=>{ setLoading(true); carregar() }}
-              className="p-2 rounded-[9px]" style={{ background:'var(--fill)', color:'var(--label-3)' }}>
-              <RefreshCw size={14} className={loading?'animate-spin':''}/>
-            </button>
-            <button onClick={()=>setNovo(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-[10px] text-[13px] font-semibold"
-              style={{ background:'var(--accent)', color:'#000' }}>
-              <Plus size={14}/> Nova ocorrência
-            </button>
-          </div>
-        </div>
-
-        {/* Filtros */}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color:'var(--label-4)' }}/>
-            <input value={busca} onChange={e=>setBusca(e.target.value)}
-              placeholder="Buscar por nome, pedido, telefone..."
-              className="w-full pl-8 pr-3 py-2 rounded-[9px] text-[12px] outline-none"
-              style={{ background:'var(--bg-3)', border:'1px solid var(--sep)', color:'var(--label)' }}/>
-          </div>
-          {[
-            { val:filtroStatus, set:setFiltroStatus, opts:[['todos','Todos status'],...Object.entries(STATUS).map(([id,m])=>[id,m.label])] },
-            { val:filtroPri,    set:setFiltroPri,    opts:[['todos','Todas prioridades'],...Object.entries(PRIORIDADE).map(([id,m])=>[id,m.label])] },
-            { val:filtroTipo,   set:setFiltroTipo,   opts:[['todos','Todos tipos'],...Object.entries(TIPO).map(([id,m])=>[id,m.label])] },
-          ].map((f,i)=>(
-            <select key={i} value={f.val} onChange={e=>f.set(e.target.value)}
-              className="px-2.5 py-2 rounded-[9px] text-[11px] outline-none"
-              style={{ background:'var(--bg-3)', border:'1px solid var(--sep)', color:'var(--label)' }}>
-              {f.opts.map(([v,l])=><option key={v} value={v}>{l}</option>)}
-            </select>
           ))}
         </div>
       </div>
 
-      {/* Lista */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {loading && (
-          <div className="flex justify-center py-12" style={{ color:'var(--label-3)' }}>
-            <RefreshCw size={16} className="animate-spin"/>
+      <div className="flex-1 overflow-y-auto bg-white flex flex-col">
+        {/* Descrição Original */}
+        <div className="p-6 border-b border-slate-100">
+          <p className="text-xs font-bold tracking-wider text-slate-400 mb-2 uppercase">Problema Relatado</p>
+          <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">
+            {oc.descricao || 'Nenhuma descrição fornecida na abertura.'}
+          </p>
+        </div>
+
+        {/* Timeline Histórico */}
+        <div className="p-6 flex-1">
+          <p className="text-xs font-bold tracking-wider text-slate-400 mb-4 uppercase">Timeline da Ocorrência</p>
+          <div className="relative pl-3 border-l-2 border-slate-100 space-y-6">
+            
+            {/* Exemplo mockado de timeline */}
+            <div className="relative">
+              <div className="absolute -left-[17px] top-1 w-3 h-3 rounded-full bg-slate-200 border-2 border-white"/>
+              <p className="text-xs text-slate-400 mb-1">Hoje, 14:32 · Por Sistema</p>
+              <div className="text-sm text-slate-700 bg-white border border-slate-200 p-3 rounded-lg shadow-sm">
+                Ocorrência criada e atribuída para a fila de atendimento.
+              </div>
+            </div>
+
+            {(oc.historico || []).map((h, i) => (
+              <div key={i} className="relative">
+                <div className="absolute -left-[17px] top-1 w-3 h-3 rounded-full bg-blue-400 border-2 border-white"/>
+                <p className="text-xs text-slate-400 mb-1">{new Date(h.em).toLocaleString('pt-BR')} · Por {h.por}</p>
+                <div className="text-sm text-slate-700 bg-blue-50 border border-blue-100 p-3 rounded-lg">
+                  {h.nota}
+                </div>
+              </div>
+            ))}
           </div>
-        )}
-
-        {!loading && filtradas.length === 0 && (
-          <div className="flex flex-col items-center py-20">
-            <CheckCircle size={36} className="mb-3 opacity-10" style={{ color:'#22c55e' }}/>
-            <p className="text-[15px] font-medium" style={{ color:'var(--label-2)' }}>
-              {ocorrencias.length === 0 ? 'Nenhuma ocorrência registrada' : 'Nenhum resultado'}
-            </p>
-            <p className="text-[13px] mt-1" style={{ color:'var(--label-3)' }}>
-              {ocorrencias.length === 0 ? 'Ótimo sinal! 🎉' : 'Tente outro filtro'}
-            </p>
-          </div>
-        )}
-
-        <div className="space-y-2 max-w-[900px]">
-          {filtradas.map(oc => {
-            const smeta  = STATUS[oc.status]   || STATUS.aberta
-            const pmeta  = PRIORIDADE[oc.prioridade] || PRIORIDADE.normal
-            const tmeta  = TIPO[oc.tipo]       || TIPO.outro
-            const TipoIc = tmeta.icon
-            const data   = new Date(oc.criadoEm)
-            const agora  = new Date()
-            const horas  = Math.floor((agora-data)/3600000)
-            const tempoLabel = horas < 1 ? 'Agora' : horas < 24 ? `${horas}h atrás` : `${Math.floor(horas/24)}d atrás`
-            const urgente = oc.prioridade === 'urgente' && !['resolvida','encerrada'].includes(oc.status)
-
-            return (
-              <button key={oc.id} onClick={()=>setDetalhe(oc)}
-                className="w-full text-left rounded-[14px] p-4 transition-all flex items-center gap-4"
-                style={{
-                  background:'var(--bg-2)', border:`1px solid ${urgente?'rgba(239,68,68,0.3)':'var(--sep)'}`,
-                  borderLeft:`3px solid ${smeta.cor}`,
-                }}>
-
-                {/* Ícone tipo */}
-                <div className="w-9 h-9 rounded-[10px] flex items-center justify-center flex-shrink-0"
-                  style={{ background:`${tmeta.cor}12` }}>
-                  <TipoIc size={15} style={{ color:tmeta.cor }}/>
-                </div>
-
-                {/* Info principal */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[13px] font-semibold" style={{ color:'var(--label)' }}>
-                      {oc.nomeCliente || oc.telefone}
-                    </span>
-                    {oc.numeroPedido && (
-                      <span className="text-[10px]" style={{ color:'var(--label-3)' }}>· #{oc.numeroPedido}</span>
-                    )}
-                    {urgente && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full animate-pulse"
-                        style={{ background:'rgba(239,68,68,0.1)', color:'#ef4444' }}>urgente</span>
-                    )}
-                  </div>
-                  <p className="text-[11px] truncate" style={{ color:'var(--label-3)' }}>
-                    {oc.descricao || 'Sem descrição'}
-                  </p>
-                  {oc.atribuidoA && (
-                    <p className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color:'var(--label-4)' }}>
-                      <User size={9}/> {oc.atribuidoA}
-                    </p>
-                  )}
-                </div>
-
-                {/* Badges + tempo */}
-                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                  <BadgeStatus status={oc.status}/>
-                  <BadgePrioridade prioridade={oc.prioridade}/>
-                  <span className="text-[9px]" style={{ color:'var(--label-4)' }}>{tempoLabel}</span>
-                </div>
-
-                <ArrowRight size={14} style={{ color:'var(--label-4)', flexShrink:0 }}/>
-              </button>
-            )
-          })}
         </div>
       </div>
 
-      {/* Modais */}
+      {/* Composer de Resposta (Footer) */}
+      <div className="p-4 bg-slate-50 border-t border-slate-200 flex-shrink-0">
+        <div className="flex gap-1 mb-2">
+          <button onClick={()=>setCanalResp('whatsapp')} className={`px-3 py-1.5 text-xs font-bold rounded-t-lg flex items-center gap-1.5 ${canalResp==='whatsapp'?'bg-white text-green-600 border border-b-0 border-slate-200':'text-slate-400 hover:text-slate-600'}`}><MessageSquare size={12}/> WhatsApp</button>
+          <button onClick={()=>setCanalResp('email')} className={`px-3 py-1.5 text-xs font-bold rounded-t-lg flex items-center gap-1.5 ${canalResp==='email'?'bg-white text-blue-600 border border-b-0 border-slate-200':'text-slate-400 hover:text-slate-600'}`}><Mail size={12}/> E-mail</button>
+          <button onClick={()=>setCanalResp('nota')} className={`px-3 py-1.5 text-xs font-bold rounded-t-lg flex items-center gap-1.5 ${canalResp==='nota'?'bg-white text-amber-500 border border-b-0 border-slate-200':'text-slate-400 hover:text-slate-600'}`}><FileText size={12}/> Nota Interna</button>
+        </div>
+        
+        <div className="bg-white border border-slate-200 rounded-b-lg rounded-tr-lg p-2 shadow-sm focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-400 transition-all">
+          <textarea 
+            value={resposta} onChange={e=>setResposta(e.target.value)}
+            rows={3} 
+            placeholder={canalResp === 'nota' ? 'Adicione um comentário invisível ao cliente...' : 'Escreva sua mensagem aqui...'}
+            className="w-full text-sm outline-none resize-none text-slate-700 p-2 bg-transparent"
+          />
+          
+          <div className="flex items-center justify-between pt-2 mt-2 border-t border-slate-100">
+            <div className="flex items-center gap-1">
+              <button title="Anexar arquivo" className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all"><Paperclip size={15}/></button>
+              <button title="Revisar com IA" onClick={aplicarIA} disabled={loadingAI || !resposta} className={`p-1.5 rounded-md transition-all flex items-center gap-1 text-xs font-bold ${resposta ? 'text-purple-600 hover:bg-purple-50' : 'text-slate-300'}`}>
+                <Sparkles size={15} className={loadingAI ? 'animate-spin' : ''}/> IA
+              </button>
+            </div>
+            
+            <button className={`px-4 py-1.5 rounded-md text-xs font-bold text-white shadow-sm flex items-center gap-2 transition-all ${
+                canalResp === 'whatsapp' ? 'bg-green-500 hover:bg-green-600' : 
+                canalResp === 'email' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-amber-500 hover:bg-amber-600'
+              }`}>
+              {canalResp === 'nota' ? 'Salvar Nota' : 'Enviar'} <Send size={12}/>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  )
+}
+
+// ── Modal de Nova Ocorrência (Hardcore CRM) ──────────────────────────────────
+function ModalNovo({ onClose, onSave }) {
+  const [form, setForm] = useState({ 
+    ticketId: generateTicketId(), telefone:'', email:'', nomeCliente:'', numeroPedido:'', tipo:'atraso', descricao:'', prioridade:'normal' 
+  })
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        
+        {/* Header Modal */}
+        <div className="px-6 py-4 bg-slate-900 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-500 p-2 rounded-lg"><Plus size={16} className="text-white"/></div>
+            <div>
+              <h2 className="text-white font-bold text-base">Registrar Nova Ocorrência</h2>
+              <p className="text-blue-200 text-xs font-mono">{form.ticketId}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors"><X size={20}/></button>
+        </div>
+
+        {/* Body Scrollable */}
+        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+          
+          {/* Seção Cliente */}
+          <div>
+            <h3 className="text-xs font-bold text-slate-400 tracking-wider uppercase mb-3 border-b border-slate-100 pb-2">Dados do Cliente</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Nome Completo</label>
+                <input className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: Luciana Oliveira" value={form.nomeCliente} onChange={e=>set('nomeCliente', e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">WhatsApp</label>
+                <input className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="+55 11 99999-9999" value={form.telefone} onChange={e=>set('telefone', e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">E-mail</label>
+                <input className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="cliente@email.com" value={form.email} onChange={e=>set('email', e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          {/* Seção Ocorrência */}
+          <div>
+            <h3 className="text-xs font-bold text-slate-400 tracking-wider uppercase mb-3 border-b border-slate-100 pb-2">Detalhes do Chamado</h3>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-slate-600 block">Classificação (Tipo)</label>
+                  <button className="text-[10px] text-blue-600 font-bold hover:underline">+ Novo</button>
+                </div>
+                <select className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none appearance-none" value={form.tipo} onChange={e=>set('tipo', e.target.value)}>
+                  {Object.entries(TIPOS_INICIAIS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Prioridade</label>
+                <select className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none appearance-none" value={form.prioridade} onChange={e=>set('prioridade', e.target.value)}>
+                  {Object.entries(PRIORIDADE).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Nº do Pedido Relacionado (Opcional)</label>
+                <input className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: 226540" value={form.numeroPedido} onChange={e=>set('numeroPedido', e.target.value)} />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-slate-600 block">Descrição Interna</label>
+                <button className="flex items-center gap-1 text-[10px] text-purple-600 font-bold bg-purple-50 px-2 py-1 rounded hover:bg-purple-100 transition-colors"><Sparkles size={10}/> Gerar com IA</button>
+              </div>
+              <textarea rows={4} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none resize-none" placeholder="Descreva o problema relatado..." value={form.descricao} onChange={e=>set('descricao', e.target.value)} />
+            </div>
+            
+            {/* Anexos Dropzone */}
+            <div className="mt-4 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+              <div className="bg-white p-2 rounded-full shadow-sm mb-2"><Paperclip size={18} className="text-slate-400"/></div>
+              <p className="text-xs font-bold text-slate-600">Arraste arquivos ou clique para anexar</p>
+              <p className="text-[10px] text-slate-400 mt-1">Imagens, PDFs, ou Vídeos (Max 15MB)</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+          <button onClick={onClose} className="px-5 py-2 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</button>
+          <button onClick={onSave} className="px-6 py-2 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors flex items-center gap-2">
+            Criar Ticket <Check size={16}/>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  )
+}
+
+// ── Página Principal ──────────────────────────────────────────────────────────
+export default function PageOcorrencias() {
+  const [ocorrencias, setOcorrencias] = useState([])
+  const [detalhe, setDetalhe] = useState(null)
+  const [novo, setNovo] = useState(false)
+  const [busca, setBusca] = useState('')
+  const [filtroStatus, setFiltroStatus] = useState('todos')
+
+  // Mock Data gerado para exibição visual do CRM
+  useEffect(() => {
+    setOcorrencias([
+      { id: 1, ticketId: 'TK-A9B2', status: 'aberta', prioridade: 'urgente', tipo: 'atraso', nomeCliente: 'Luciana Volkart', telefone: '+55 11 98603-1953', email: 'luciana@outlook.com', numeroPedido: '226540', descricao: 'Cliente muito irritada, entrega Jadlog parada há 5 dias na filial.', criadoEm: new Date(Date.now() - 3600000).toISOString() },
+      { id: 2, ticketId: 'TK-X4M1', status: 'em_andamento', prioridade: 'normal', tipo: 'troca', nomeCliente: 'Marcos Almeida', telefone: '+55 19 9999-1234', numeroPedido: '225881', descricao: 'Solicita troca das pérolas 6mm creme por brancas.', atribuidoA: 'João Atendimento', criadoEm: new Date(Date.now() - 86400000).toISOString() },
+      { id: 3, ticketId: 'TK-9P0L', status: 'resolvida', prioridade: 'alta', tipo: 'pagamento', nomeCliente: 'Camila Silva', email: 'camila.silva@gmail.com', numeroPedido: '227734', descricao: 'PIX não compensou no sistema Nuvemshop.', criadoEm: new Date(Date.now() - 172800000).toISOString() },
+    ])
+  }, [])
+
+  return (
+    <div className="h-full flex bg-slate-100 font-sans text-slate-900 overflow-hidden relative">
+      
+      {/* ── Main Panel (List View) ── */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        
+        {/* Header Superior CRM */}
+        <header className="bg-white border-b border-slate-200 px-6 py-5 shadow-sm z-10 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight">Suporte & Ocorrências</h1>
+              <p className="text-sm font-medium text-slate-500 mt-1 flex items-center gap-2">
+                Visão Geral do CRM <span className="w-1 h-1 bg-slate-300 rounded-full"/> {ocorrencias.length} tickets abertos
+              </p>
+            </div>
+            <button onClick={() => setNovo(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md shadow-blue-200 transition-all flex items-center gap-2">
+              <Plus size={16} strokeWidth={3}/> Novo Chamado
+            </button>
+          </div>
+
+          {/* Smart Search Bar & Filtros */}
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1 group">
+              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors"/>
+              <input 
+                value={busca} onChange={e=>setBusca(e.target.value)}
+                placeholder="Buscar por ID, Nome, Email ou Telefone..." 
+                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm font-medium rounded-xl pl-11 pr-4 py-3 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all shadow-inner"
+              />
+            </div>
+            
+            {/* Pill Filters Simples */}
+            <div className="bg-slate-100 p-1 rounded-xl flex items-center border border-slate-200">
+              <button onClick={()=>setFiltroStatus('todos')} className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${filtroStatus==='todos'?'bg-white text-slate-800 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>Todos</button>
+              <button onClick={()=>setFiltroStatus('aberta')} className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${filtroStatus==='aberta'?'bg-white text-slate-800 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>Pendentes</button>
+              <button onClick={()=>setFiltroStatus('resolvida')} className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${filtroStatus==='resolvida'?'bg-white text-slate-800 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>Resolvidos</button>
+            </div>
+          </div>
+        </header>
+
+        {/* Listagem Estilo Data Grid Moderno */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex flex-col gap-3 max-w-5xl mx-auto">
+            {ocorrencias.map(oc => {
+              const sMeta = STATUS[oc.status] || STATUS.aberta
+              const tMeta = TIPOS_INICIAIS[oc.tipo] || TIPOS_INICIAIS.outro
+              const Icon = tMeta.icon
+              const isUrgente = oc.prioridade === 'urgente'
+
+              return (
+                <div 
+                  key={oc.id} 
+                  onClick={() => setDetalhe(oc)}
+                  className={`group bg-white border rounded-2xl p-4 flex items-center gap-5 cursor-pointer shadow-sm hover:shadow-md transition-all ${
+                    detalhe?.id === oc.id ? 'border-blue-400 ring-1 ring-blue-400' : isUrgente ? 'border-red-200' : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  {/* Status Indicator Bar */}
+                  <div className={`w-1.5 h-12 rounded-full flex-shrink-0 ${sMeta.dot}`}/>
+
+                  {/* Core Info */}
+                  <div className="flex-1 grid grid-cols-12 gap-4 items-center">
+                    
+                    {/* ID & Cliente (Col 1) */}
+                    <div className="col-span-4 flex flex-col">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-mono text-xs font-bold text-slate-400">{oc.ticketId}</span>
+                        {isUrgente && <span className="bg-red-100 text-red-600 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">Urgente</span>}
+                      </div>
+                      <span className="font-bold text-slate-800 text-sm truncate">{oc.nomeCliente || oc.telefone}</span>
+                    </div>
+
+                    {/* Tipo & Descrição (Col 2) */}
+                    <div className="col-span-5 flex flex-col pr-4">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Icon size={12} className={tMeta.cor}/>
+                        <span className={`text-xs font-bold ${tMeta.cor}`}>{tMeta.label}</span>
+                      </div>
+                      <p className="text-xs font-medium text-slate-500 truncate">{oc.descricao}</p>
+                    </div>
+
+                    {/* Status & Tempo (Col 3) */}
+                    <div className="col-span-3 flex flex-col items-end gap-1.5">
+                      <Badge colorClass={sMeta.cor} bgClass={sMeta.bg}><sMeta.icon size={12}/> {sMeta.label}</Badge>
+                      <span className="text-[10px] font-semibold text-slate-400 flex items-center gap-1"><Clock size={10}/> Há 2 horas</span>
+                    </div>
+
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Side Panel (Drawer) ── */}
       {detalhe && (
-        <ModalOcorrencia oc={detalhe} api={api}
-          onClose={()=>setDetalhe(null)}
-          onUpdate={()=>{ carregar(); setDetalhe(null) }}/>
+        <PainelOcorrencia 
+          oc={detalhe} 
+          onClose={() => setDetalhe(null)} 
+          onUpdate={() => setDetalhe(null)} 
+        />
       )}
-      {novo && (
-        <ModalNovo api={api}
-          onClose={()=>setNovo(false)}
-          onSave={()=>{ setNovo(false); carregar() }}/>
-      )}
+
+      {/* ── Modais Overlays ── */}
+      {novo && <ModalNovo onClose={() => setNovo(false)} onSave={() => setNovo(false)}/>}
+
     </div>
   )
 }
