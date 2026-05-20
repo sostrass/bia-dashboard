@@ -1,3 +1,6 @@
-// PageAgentes — apelido para PageAgentesMulti (versão legada)
-// Shell importa ambos; este re-exporta o Multi para não quebrar o build
-export { default } from './PageAgentesMulti'
+import PageAgentesMulti from './PageAgentesMulti'
+ 
+// PageAgentes é o alias legado de PageAgentesMulti
+export default function PageAgentes(props) {
+  return <PageAgentesMulti {...props} />
+}
