@@ -11,8 +11,7 @@ import PageConversas    from '../pages/PageConversas'
 import PageTransacional from '../pages/PageTransacional'
 import PageContatos     from '../pages/PageContatos'
 import PageEstoque      from '../pages/PageEstoque'
-import PageAgentesMulti from '../pages/PageAgentesMulti'
-const PageAgentes = PageAgentesMulti
+import PageAgentes      from '../pages/PageAgentes'
 import PageHandoff      from '../pages/PageHandoff'
 import PageTags         from '../pages/PageTags'
 import PageFila         from '../pages/PageFila'
@@ -114,7 +113,7 @@ export default function Shell() {
     estoque:      <PageEstoque      api={API} />,
     enviomassa:   <PageEnvioMassa   api={API} />,
     agentes:      <PageAgentes      api={API} />,
-    multiagentes: <PageAgentesMulti api={API} />,
+    multiagentes: <PageAgentes      api={API} />,
     config:       <PageConfig       api={API} onToggleTheme={toggle} currentTheme={theme} />,
   }
 
