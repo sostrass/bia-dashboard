@@ -122,6 +122,100 @@ export default function PageDashboard() {
         <KPI label="Convers\u00e3o" value={fmtPct(taxaConversao)} sub="conversas \u2192 pedidos" color={taxaConversao > 5 ? '#1D9E75' : '#888'} />
       </div>
 
+      {/* Card IA — Saúde e Custos */}
+      {iaStats && (
+        <div style={{ display:'flex', gap:16, marginBottom:24, flexWrap:'wrap' }}>
+
+          {/* Status da IA */}
+          <div style={{
+            background:'var(--color-background-secondary)',
+            border:'0.5px solid var(--color-border-tertiary)',
+            borderRadius:12, padding:'16px 20px', minWidth:200, flex:1
+          }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+              <div style={{
+                width:10, height:10, borderRadius:'50%', flexShrink:0,
+                background: iaStats.saude?.status === 'operacional' ? '#1D9E75'
+                          : iaStats.saude?.status === 'degradado'   ? '#F59E0B'
+                          : '#EF4444'
+              }} />
+              <span style={{ fontSize:12, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--color-text-secondary)' }}>
+                Status da IA
+              </span>
+            </div>
+            <div style={{ fontSize:18, fontWeight:600, marginBottom:4, color:
+              iaStats.saude?.status === 'operacional' ? '#1D9E75'
+            : iaStats.saude?.status === 'degradado'   ? '#F59E0B'
+            : '#EF4444'
+            }}>
+              {iaStats.saude?.status === 'operacional' ? '● Operacional'
+             : iaStats.saude?.status === 'degradado'   ? '◑ Degradado'
+             : '○ Instável'}
+            </div>
+            <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>
+              {iaStats.saude?.taxa_sucesso}% sucesso · {iaStats.uso?.chamadas_ultima_hora} chamadas/h
+            </div>
+          </div>
+
+          {/* Custo hoje */}
+          <div style={{
+            background:'var(--color-background-secondary)',
+            border:'0.5px solid var(--color-border-tertiary)',
+            borderRadius:12, padding:'16px 20px', minWidth:160, flex:1
+          }}>
+            <div style={{ fontSize:12, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--color-text-secondary)', marginBottom:8 }}>
+              Custo hoje
+            </div>
+            <div style={{ fontSize:22, fontWeight:600, marginBottom:4 }}>
+              US$ {iaStats.uso?.custo_hoje_usd}
+            </div>
+            <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>
+              {iaStats.uso?.chamadas_hoje} chamadas
+            </div>
+          </div>
+
+          {/* Custo mês */}
+          <div style={{
+            background:'var(--color-background-secondary)',
+            border:'0.5px solid var(--color-border-tertiary)',
+            borderRadius:12, padding:'16px 20px', minWidth:160, flex:1
+          }}>
+            <div style={{ fontSize:12, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--color-text-secondary)', marginBottom:8 }}>
+              Custo do mês
+            </div>
+            <div style={{ fontSize:22, fontWeight:600, marginBottom:4 }}>
+              US$ {iaStats.uso?.custo_mes_usd}
+            </div>
+            <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>
+              {iaStats.uso?.total_tokens?.toLocaleString('pt-BR')} tokens total
+            </div>
+          </div>
+
+          {/* Modelos em uso */}
+          {iaStats.modelos?.length > 0 && (
+            <div style={{
+              background:'var(--color-background-secondary)',
+              border:'0.5px solid var(--color-border-tertiary)',
+              borderRadius:12, padding:'16px 20px', minWidth:200, flex:2
+            }}>
+              <div style={{ fontSize:12, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--color-text-secondary)', marginBottom:12 }}>
+                Modelos (7 dias)
+              </div>
+              {iaStats.modelos.map((m, i) => (
+                <div key={i} style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
+                  <span style={{ color:'var(--color-text-primary)' }}>{m.modelo}</span>
+                  <span style={{ color:'var(--color-text-secondary)' }}>
+                    {m.chamadas} chamadas · US$ {parseFloat(m.custo).toFixed(4)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+        </div>
+      )}
+
+
       {/* Linha 2 \u2014 Agentes e Ocorr\u00eancias */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:16, marginBottom:24 }}>
 
