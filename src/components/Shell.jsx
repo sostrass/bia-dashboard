@@ -15,6 +15,7 @@ import PageAgentes      from '../pages/PageAgentes'
 import PageHandoff      from '../pages/PageHandoff'
 import PageTags         from '../pages/PageTags'
 import PageFila         from '../pages/PageFila'
+import PageIAConfig from './PageIAConfig'
 import PageConfig       from '../pages/PageConfig'
 import PageEnvioMassa   from '../pages/PageEnvioMassa'
 import PageDisparos     from '../pages/PageDisparos'
@@ -35,7 +36,7 @@ const NAV = [
   { id:'tags',         icon:Tag,             label:'Tags & Segmentos',    group:'main'   },
   { id:'estoque',      icon:Package,         label:'Avise-me',            group:'main'   },
   { id:'enviomassa',   icon:Send,            label:'Envio em Massa',      group:'main'   },
-  { id:'agentes',      icon:Bot,             label:'Config IA',           group:'config' },
+  { id:'iaconfig',     icon:Bot,             label:'Config IA',           group:'config' },
   { id:'multiagentes', icon:Bot,             label:'Múltiplos Agentes',   group:'config' },
   { id:'config',       icon:Settings,        label:'Configurações',       group:'config' },
 ]
@@ -113,6 +114,7 @@ export default function Shell() {
     estoque:      <PageEstoque      api={API} />,
     enviomassa:   <PageEnvioMassa   api={API} />,
     agentes:      <PageAgentes      api={API} />,
+    iaconfig: <PageIAConfig api={API} />,
     multiagentes: <PageAgentes      api={API} />,
     config:       <PageConfig       api={API} onToggleTheme={toggle} currentTheme={theme} />,
   }
