@@ -7,6 +7,9 @@ export const useTheme = () => useContext(ThemeCtx)
 
 const API = import.meta.env.VITE_API_URL || ''
 
+const mpWebhook = require('./routes/mp-webhook')
+app.use('/mp-webhook', mpWebhook)
+
 export default function App() {
   const [theme, setTheme] = useState('dark')
   const toggle = () => setTheme(t => t === 'dark' ? 'light' : 'dark')
