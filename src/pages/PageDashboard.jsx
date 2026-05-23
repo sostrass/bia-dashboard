@@ -277,7 +277,4 @@ function StatusPill({ status }) {
   )
 }
 
-// Ícone faltando no lucide-react nessa versão
-function CreditCard({ size, style }) {
-  return <CreditCard size={size} style={style} />
-}
+
