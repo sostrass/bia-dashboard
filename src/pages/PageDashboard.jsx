@@ -144,7 +144,7 @@ export default function PageDashboard({ api }) {
       {/* Stats */}
       <div style={{ display:'flex', gap:12, marginBottom:20, flexWrap:'wrap' }}>
         <StatCard icon={ShoppingCart}  label="Entradas do mês"   value={fmtR(totalEntradas)} sub="Bling" color="#1D9E75" trend="+18%" trendUp />
-        <StatCard icon={CreditCard2}   label="A receber"         value={fmtR(totalAReceber)} sub="pendente" color="#EF9F27" />
+        <StatCard icon={CreditCard}   label="A receber"         value={fmtR(totalAReceber)} sub="pendente" color="#EF9F27" />
         <StatCard icon={Zap}           label="Mercado Pago"      value={fmtR(totalMP)} sub={`${transacoesMP} transações`} color="#e65100" trend="+12%" trendUp />
         <StatCard icon={MessageSquare} label="Mensagens"         value={fmt(totalMensagens)} sub="total" color="#378ADD" />
         <StatCard icon={Users}         label="Conversas"         value={fmt(totalConversas)} sub="atendidas" color="#534AB7" />
@@ -271,6 +271,6 @@ function StatusPill({ status }) {
 }
 
 // Ícone faltando no lucide-react nessa versão
-function CreditCard2({ size, style }) {
+function CreditCard({ size, style }) {
   return <CreditCard size={size} style={style} />
 }
