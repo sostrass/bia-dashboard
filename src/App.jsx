@@ -1,27 +1,36 @@
-import { useState, createContext, useContext } from 'react'
+import { useState, createContext, useContext, useEffect } from 'react'
 import Shell from './components/Shell'
-import { NotifProvider, ToastContainer, SystemHealthMonitor } from './components/NotificationSystem'
 
 export const ThemeCtx = createContext({ theme: 'dark', toggle: () => {} })
 export const useTheme = () => useContext(ThemeCtx)
 
-const API = import.meta.env.VITE_API_URL || ''
-
-const mpWebhook = require('./routes/mp-webhook')
-app.use('/mp-webhook', mpWebhook)
-
 export default function App() {
-  const [theme, setTheme] = useState('dark')
-  const toggle = () => setTheme(t => t === 'dark' ? 'light' : 'dark')
+  const [theme, setTheme] = useState(() => localStorage.getItem('bia_theme') || 'dark')
+
+  const toggle = () => setTheme(t => {
+    const next = t === 'dark' ? 'light' : 'dark'
+    localStorage.setItem('bia_theme', next)
+    return next
+  })
+
+  // Aplica classe no root para dark mode funcionar com Tailwind
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+  }, [theme])
+
   return (
     <ThemeCtx.Provider value={{ theme, toggle }}>
-      <NotifProvider>
-        <div className={theme} style={{ height:'100dvh', overflow:'hidden', background:'var(--bg)', color:'var(--label)' }}>
-          <Shell />
-          <ToastContainer />
-          <SystemHealthMonitor api={API} />
-        </div>
-      </NotifProvider>
+      <div
+        className={theme}
+        style={{
+          height: '100dvh',
+          overflow: 'hidden',
+          background: 'var(--bg)',
+          color: 'var(--label)',
+        }}
+      >
+        <Shell />
+      </div>
     </ThemeCtx.Provider>
   )
 }
