@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react'
 import { useTheme } from '../App'
 import {
   LayoutDashboard, MessageSquare, Users, Package,
-  Bot, Settings, Sun, Moon, PhoneCall, Tag, ListOrdered,
-  Send, Zap, AlertCircle, ShoppingCart, BarChart2,
-  CreditCard, Inbox, Bell
+  Bot, Settings, Sun, Moon,
+  Send, Zap, AlertCircle, ShoppingCart, CreditCard
 } from 'lucide-react'
 
 import PageDashboard  from '../pages/PageDashboard'
