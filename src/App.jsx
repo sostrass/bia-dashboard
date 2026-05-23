@@ -1,36 +1,53 @@
-import { useState, createContext, useContext, useEffect } from 'react'
+import { useState, createContext, useContext, useEffect, Component } from 'react'
 import Shell from './components/Shell'
 
 export const ThemeCtx = createContext({ theme: 'dark', toggle: () => {} })
 export const useTheme = () => useContext(ThemeCtx)
 
+// ErrorBoundary para mostrar o erro real em vez de tela branca
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null } }
+  static getDerivedStateFromError(e) { return { error: e } }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding:40, fontFamily:'monospace', color:'#ff4444', background:'#1a1a1a', minHeight:'100vh' }}>
+          <h2 style={{ color:'#ff6666', marginBottom:16 }}>Erro de renderização</h2>
+          <pre style={{ whiteSpace:'pre-wrap', fontSize:13, color:'#ffaaaa' }}>
+            {this.state.error?.message}\n\n{this.state.error?.stack}
+          </pre>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 export default function App() {
-  const [theme, setTheme] = useState(() => localStorage.getItem('bia_theme') || 'dark')
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('bia_theme') || 'dark' } catch { return 'dark' }
+  })
 
   const toggle = () => setTheme(t => {
     const next = t === 'dark' ? 'light' : 'dark'
-    localStorage.setItem('bia_theme', next)
+    try { localStorage.setItem('bia_theme', next) } catch {}
     return next
   })
 
-  // Aplica classe no root para dark mode funcionar com Tailwind
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
   }, [theme])
 
   return (
     <ThemeCtx.Provider value={{ theme, toggle }}>
-      <div
-        className={theme}
-        style={{
-          height: '100dvh',
-          overflow: 'hidden',
-          background: 'var(--bg)',
-          color: 'var(--label)',
-        }}
-      >
-        <Shell />
-      </div>
+      <ErrorBoundary>
+        <div
+          className={theme}
+          style={{ height:'100dvh', overflow:'hidden', background:'var(--bg)', color:'var(--label)' }}
+        >
+          <Shell />
+        </div>
+      </ErrorBoundary>
     </ThemeCtx.Provider>
   )
 }
