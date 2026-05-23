@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { TrendingUp, TrendingDown, ShoppingCart, MessageSquare, Users, Zap, RefreshCw } from 'lucide-react'
+import { TrendingUp, TrendingDown, ShoppingCart, MessageSquare, Users, Zap, RefreshCw, CreditCard } from 'lucide-react'
 
 const fmtR  = n => `R$ ${Number(n||0).toFixed(2).replace('.',',')}`
 const fmt   = n => Number(n||0).toLocaleString('pt-BR')
@@ -48,6 +48,13 @@ function PedidoRow({ numero, cliente, valor, status, forma, data }) {
       <td style={{ padding:'10px 0', fontSize:12, color:'var(--label-3)', textAlign:'right' }}>{data}</td>
     </tr>
   )
+}
+
+function mapSituacao(s) {
+  if (!s) return 'Aberto'
+  const id = typeof s === 'object' ? s.id || s.valor : s
+  const m  = { 6:'Aberto', 9:'Atendido', 12:'Cancelado', 14:'Faturado', 15:'Verificado' }
+  return m[id] || String(id)
 }
 
 export default function PageDashboard({ api }) {
