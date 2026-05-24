@@ -72,6 +72,200 @@ function mapSit(s) {
   return { 6:'Aberto', 9:'Atendido', 12:'Cancelado', 14:'Faturado', 15:'Verificado' }[id] || String(id)
 }
 
+
+// ── Insights IA ───────────────────────────────────────────────────────────────
+function InsightsPanel({ api }) {
+  const [data,      setData]      = useState(null)
+  const [loading,   setLoading]   = useState(true)
+  const [config,    setConfig]    = useState(null)
+  const [editando,  setEditando]  = useState(false)
+  const [form,      setForm]      = useState({})
+  const [salvando,  setSalvando]  = useState(false)
+
+  const MODELOS = [
+    { id:'gemini-2.5-flash', label:'Gemini 2.5 Flash (recomendado)' },
+    { id:'gemini-2.0-flash', label:'Gemini 2.0 Flash (mais rápido)'  },
+    { id:'gemini-2.5-pro',   label:'Gemini 2.5 Pro (mais preciso)'   },
+  ]
+
+  const carregar = (force = false) => {
+    setLoading(true)
+    const url = `${api}/api/dashboard/insights${force ? '?refresh=1' : ''}`
+    fetch(url)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setData(d); setLoading(false) })
+      .catch(() => setLoading(false))
+  }
+
+  const carregarConfig = () => {
+    fetch(`${api}/api/dashboard/insights/config`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) { setConfig(d); setForm(d) } })
+      .catch(() => {})
+  }
+
+  useEffect(() => { carregar(); carregarConfig() }, [api])
+
+  const salvarConfig = async () => {
+    setSalvando(true)
+    try {
+      await fetch(`${api}/api/dashboard/insights/config`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cache_minutos: parseInt(form.cache_minutos),
+          modelo:        form.modelo,
+          ativo:         form.ativo === 'true' || form.ativo === true,
+        }),
+      })
+      setConfig({ ...form })
+      setEditando(false)
+      carregar(true) // força nova geração com o novo modelo
+    } catch {}
+    setSalvando(false)
+  }
+
+  const TIPO_COR = {
+    oportunidade: { txt:'#22c55e', bg:'rgba(34,197,94,0.08)',   bdr:'rgba(34,197,94,0.2)',   emoji:'📈' },
+    alerta:       { txt:'#f59e0b', bg:'rgba(245,158,11,0.08)',  bdr:'rgba(245,158,11,0.2)',  emoji:'⚠️'  },
+    tendencia:    { txt:'#4a9fff', bg:'rgba(74,159,255,0.08)',  bdr:'rgba(74,159,255,0.2)',  emoji:'📊' },
+    conquista:    { txt:'#a78bfa', bg:'rgba(167,139,250,0.08)', bdr:'rgba(167,139,250,0.2)', emoji:'🏆' },
+  }
+
+  return (
+    <div style={{ background:'var(--bg-2)', border:'0.5px solid var(--sep)', borderRadius:14, padding:'18px 20px', marginBottom:20 }}>
+
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom: editando ? 16 : 14 }}>
+        <span style={{ fontSize:15 }}>✨</span>
+        <span style={{ fontSize:13, fontWeight:600, color:'var(--label)' }}>Insights IA</span>
+
+        {/* Info de cache */}
+        {data?._cache && !editando && (
+          <span style={{ fontSize:10, color:'var(--label-4)', padding:'2px 8px', borderRadius:99, background:'var(--fill)', border:'0.5px solid var(--sep)' }}>
+            {data._cache.hit ? `cache · expira em ${data._cache.expira_em}` : `gerado agora · ${data._cache.ttl_min}min cache`}
+            {data._cache.modelo && ` · ${data._cache.modelo}`}
+          </span>
+        )}
+
+        <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>
+          <button onClick={() => carregar(true)} disabled={loading}
+            style={{ padding:'4px 10px', borderRadius:8, border:'0.5px solid var(--sep)', background:'transparent', cursor:'pointer', fontSize:11, color:'var(--label-3)', display:'flex', alignItems:'center', gap:4 }}>
+            <svg style={{ width:11, height:11 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/>
+            </svg>
+            {loading ? 'Gerando...' : 'Atualizar'}
+          </button>
+          <button onClick={() => setEditando(v => !v)}
+            style={{ padding:'4px 10px', borderRadius:8, border:`0.5px solid ${editando ? 'var(--accent)' : 'var(--sep)'}`, background: editando ? 'var(--accent-dim)' : 'transparent', cursor:'pointer', fontSize:11, color: editando ? 'var(--accent)' : 'var(--label-3)', display:'flex', alignItems:'center', gap:4 }}>
+            <svg style={{ width:11, height:11 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+            Configurar
+          </button>
+        </div>
+      </div>
+
+      {/* Painel de configuração */}
+      {editando && (
+        <div style={{ background:'var(--bg)', border:'0.5px solid var(--sep)', borderRadius:10, padding:'14px 16px', marginBottom:14 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:12 }}>
+
+            {/* Cache em minutos */}
+            <div>
+              <label style={{ fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', color:'var(--label-4)', display:'block', marginBottom:5 }}>
+                Cache (minutos)
+              </label>
+              <input type="number" min="1" max="1440"
+                value={form.cache_minutos || 30}
+                onChange={e => setForm(f => ({ ...f, cache_minutos: e.target.value }))}
+                style={{ width:'100%', padding:'6px 10px', borderRadius:7, border:'0.5px solid var(--sep)', background:'var(--bg-2)', color:'var(--label)', fontSize:12, outline:'none' }}
+              />
+              <p style={{ fontSize:10, color:'var(--label-4)', marginTop:3 }}>
+                1 = tempo real · 60 = 1h · 1440 = 1 dia
+              </p>
+            </div>
+
+            {/* Modelo */}
+            <div>
+              <label style={{ fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', color:'var(--label-4)', display:'block', marginBottom:5 }}>
+                Modelo Gemini
+              </label>
+              <select value={form.modelo || 'gemini-2.5-flash'}
+                onChange={e => setForm(f => ({ ...f, modelo: e.target.value }))}
+                style={{ width:'100%', padding:'6px 10px', borderRadius:7, border:'0.5px solid var(--sep)', background:'var(--bg-2)', color:'var(--label)', fontSize:12, outline:'none' }}>
+                {MODELOS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+              </select>
+            </div>
+
+            {/* Ativo */}
+            <div>
+              <label style={{ fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', color:'var(--label-4)', display:'block', marginBottom:5 }}>
+                Status
+              </label>
+              <select value={String(form.ativo)}
+                onChange={e => setForm(f => ({ ...f, ativo: e.target.value }))}
+                style={{ width:'100%', padding:'6px 10px', borderRadius:7, border:'0.5px solid var(--sep)', background:'var(--bg-2)', color:'var(--label)', fontSize:12, outline:'none' }}>
+                <option value="true">✅ Ativado</option>
+                <option value="false">⏸ Desativado</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={salvarConfig} disabled={salvando}
+              style={{ padding:'6px 16px', borderRadius:8, background:'var(--accent)', color:'#000', border:'none', cursor:'pointer', fontSize:12, fontWeight:600, opacity: salvando ? .5 : 1 }}>
+              {salvando ? 'Salvando...' : 'Salvar e aplicar'}
+            </button>
+            <button onClick={() => { setEditando(false); setForm(config || {}) }}
+              style={{ padding:'6px 12px', borderRadius:8, background:'transparent', color:'var(--label-3)', border:'0.5px solid var(--sep)', cursor:'pointer', fontSize:12 }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Loading */}
+      {loading && !data && (
+        <div style={{ padding:'16px 0', display:'flex', alignItems:'center', gap:8, color:'var(--label-4)', fontSize:12 }}>
+          <svg style={{ width:14, height:14, animation:'spin 1s linear infinite' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+          </svg>
+          Analisando dados com Gemini...
+        </div>
+      )}
+
+      {/* Insights */}
+      {data?.insights?.map((ins, i) => {
+        const t = TIPO_COR[ins.tipo] || TIPO_COR.tendencia
+        return (
+          <div key={i} style={{ padding:'12px 14px', borderRadius:10, marginBottom:8, background: t.bg, border:`1px solid ${t.bdr}` }}>
+            <div style={{ display:'flex', alignItems:'flex-start', gap:8, marginBottom:4 }}>
+              <span style={{ fontSize:14, flexShrink:0 }}>{t.emoji}</span>
+              <div style={{ flex:1 }}>
+                <span style={{ fontWeight:600, fontSize:13, color: t.txt }}>{ins.titulo}</span>
+                {ins.metrica && ins.metrica !== '—' && (
+                  <span style={{ marginLeft:8, fontSize:11, fontFamily:'monospace', color: t.txt, opacity:.8 }}>{ins.metrica}</span>
+                )}
+              </div>
+            </div>
+            <p style={{ fontSize:12, color:'var(--label-2)', lineHeight:1.5, margin:'0 0 4px 22px' }}>{ins.descricao}</p>
+            {ins.acao && (
+              <p style={{ fontSize:11, color: t.txt, opacity:.7, margin:'0 0 0 22px', fontStyle:'italic' }}>→ {ins.acao}</p>
+            )}
+          </div>
+        )
+      })}
+
+      {/* Resumo */}
+      {data?.resumo && !loading && (
+        <p style={{ fontSize:11, color:'var(--label-4)', marginTop:10, paddingTop:10, borderTop:'0.5px solid var(--sep)' }}>
+          {data.resumo}
+        </p>
+      )}
+    </div>
+  )
+}
+
 export default function PageDashboard({ api }) {
   const [dados,   setDados]   = useState(null)
   const [pedidos, setPedidos] = useState([])
