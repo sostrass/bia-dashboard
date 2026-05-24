@@ -1,469 +1,760 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import {
-  RefreshCw, MessageSquare, Send, X, Zap, AlertCircle,
-  MoreVertical, Wifi, WifiOff, Package, ShoppingCart,
-  CheckCircle2, Clock, Pause, Image, Video, Search,
-  ChevronDown, ExternalLink, User, Sparkles, Star
-} from 'lucide-react'
+import { useState, useEffect, useCallback, useRef, memo } from 'react'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-const fmtR    = n => `R$ ${Number(n||0).toFixed(2).replace('.',',')}`
-const fmtMin  = ts => { if(!ts) return '—'; const d=Date.now()-new Date(ts).getTime(),m=Math.floor(d/60000); return m<60?`${m}m`:`${Math.floor(m/60)}h` }
-const fmtHora = ts => ts ? new Date(ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : ''
-const fmtTel  = tel => { const t=(tel||'').replace(/\D/g,'').replace(/^55/,''); return t.length===11?`(${t.slice(0,2)}) ${t.slice(2,7)}-${t.slice(7)}`:tel }
-const iniciais = n => (n||'?').split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase()
-const CORES   = ['#1D9E75','#378ADD','#534AB7','#e65100','#EF9F27','#993556','#25D366']
-const cor     = s => CORES[(s||'').charCodeAt(0)%CORES.length]
-const ehAtiva = s => Date.now()-new Date(s.atualizado_em).getTime() < 30*60*1000
+const fmtR   = n => `R$ ${Number(n||0).toFixed(2).replace('.',',')}`
+const fmtHora= ts => ts ? new Date(ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : ''
+const fmtRel = ts => {
+  if (!ts) return '—'
+  const s = Math.floor((Date.now()-new Date(ts).getTime())/1000)
+  if (s < 60)   return `${s}s`
+  if (s < 3600) return `${Math.floor(s/60)}m`
+  if (s < 86400)return `${Math.floor(s/3600)}h`
+  return `${Math.floor(s/86400)}d`
+}
+const fmtTel = tel => {
+  const t = (tel||'').replace(/\D/g,'').replace(/^55/,'')
+  return t.length === 11 ? `(${t.slice(0,2)}) ${t.slice(2,7)}-${t.slice(7)}` : tel
+}
+const iniciais = n => (n||'?').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'?'
+const CORES    = ['#10b981','#3b82f6','#8b5cf6','#f59e0b','#ec4899','#06b6d4','#ef4444']
+const cor      = s => CORES[(s||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0) % CORES.length]
+const ativo    = s => Date.now()-new Date(s?.atualizado_em||0).getTime() < 30*60*1000
 
-const STATUS_ATEND = {
-  aberto:     { label:'Aberto',        color:'#EF9F27', bg:'#EF9F2718', icon:'○' },
-  andamento:  { label:'Em andamento',  color:'#378ADD', bg:'#378ADD18', icon:'◑' },
-  resolvido:  { label:'Resolvido',     color:'#1D9E75', bg:'#1D9E7518', icon:'●' },
-  aguardando: { label:'Aguardando',    color:'#534AB7', bg:'#534AB718', icon:'◷' },
+const STATUS_CORES = {
+  aberto:     { bg:'bg-amber-500/10',    text:'text-amber-400',  dot:'bg-amber-400',  label:'Aberto'       },
+  andamento:  { bg:'bg-blue-500/10',     text:'text-blue-400',   dot:'bg-blue-400',   label:'Em andamento' },
+  resolvido:  { bg:'bg-emerald-500/10',  text:'text-emerald-400',dot:'bg-emerald-400',label:'Resolvido'    },
+  aguardando: { bg:'bg-purple-500/10',   text:'text-purple-400', dot:'bg-purple-400', label:'Aguardando'   },
+}
+
+// ── Avatar com foto real do WhatsApp ──────────────────────────────────────────
+function Avatar({ sessao, size = 38 }) {
+  const [err, setErr] = useState(false)
+  const nome = sessao?.nome || sessao?.telefone || '?'
+  const foto = sessao?.foto_url || sessao?.fotoUrl || null
+  const bg   = cor(nome)
+  const s    = { width: size, height: size }
+
+  return (
+    <div className="relative flex-shrink-0 rounded-full overflow-hidden" style={s}>
+      {foto && !err
+        ? <img src={foto} alt={nome} className="w-full h-full object-cover"
+            onError={() => setErr(true)} />
+        : <div className="w-full h-full flex items-center justify-center text-white font-bold"
+            style={{ background: bg, fontSize: Math.round(size * 0.35) }}>
+            {iniciais(nome)}
+          </div>
+      }
+      {/* bolinha status online */}
+      <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[var(--bg-2)] ${ativo(sessao) ? 'bg-emerald-400' : 'bg-gray-500'}`} />
+    </div>
+  )
 }
 
 // ── Bolha de mensagem ──────────────────────────────────────────────────────────
-function Bolha({ msg }) {
+const Bolha = memo(function Bolha({ msg }) {
   const entrada = msg.direcao === 'entrada'
-  const bg = entrada ? 'var(--bg-2)' : '#1D9E7518'
-  const bdr = entrada ? 'var(--sep)' : '#1D9E7530'
+  const texto   = (msg.conteudo || '').replace(/\[ENVIAR_IMAGEM:[^\]]*\]/g, '').trim()
+  const label   = !entrada ? (msg.modo==='transacional'?'⚡ Gatilho': msg.modo==='manual'?'👤 Atendente':'🤖 Bia') : null
+  const bubbleBg = entrada
+    ? 'bg-[var(--bg-3)] border border-[var(--sep)]'
+    : msg.modo==='transacional' ? 'bg-violet-500/10 border border-violet-500/20'
+    : msg.modo==='manual'       ? 'bg-blue-500/10 border border-blue-500/20'
+    : 'bg-emerald-500/10 border border-emerald-500/20'
+
   return (
-    <div style={{ display:'flex', flexDirection:entrada?'row':'row-reverse', alignItems:'flex-end', gap:5, marginBottom:5 }}>
-      {entrada && (
-        <div style={{ width:20,height:20,borderRadius:'50%',flexShrink:0,background:'#25D36618',color:'#25D366',display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,fontWeight:700 }}>C</div>
+    <div className={`flex flex-col mb-2 ${entrada ? 'items-start' : 'items-end'}`}>
+      {label && (
+        <span className={`text-[9px] font-semibold mb-1 px-1.5 ${
+          msg.modo==='transacional' ? 'text-violet-400' :
+          msg.modo==='manual'       ? 'text-blue-400'   : 'text-emerald-400'
+        }`}>{label}</span>
       )}
-      <div style={{ maxWidth:'73%',padding:'7px 10px',borderRadius:entrada?'2px 11px 11px 11px':'11px 2px 11px 11px',background:bg,border:`0.5px solid ${bdr}` }}>
-        {msg.midia_tipo==='image'&&msg.midia_url&&<img src={msg.midia_url} alt="" style={{width:'100%',borderRadius:5,marginBottom:3,maxHeight:130,objectFit:'cover'}} onError={e=>e.target.style.display='none'}/>}
-        <div style={{fontSize:12,color:'var(--label)',lineHeight:1.5,whiteSpace:'pre-wrap',wordBreak:'break-word'}}>
-          {msg.conteudo||(msg.midia_tipo?`[${msg.midia_tipo}]`:'—')}
-        </div>
-        <div style={{fontSize:10,color:'var(--label-3)',marginTop:2,textAlign:entrada?'left':'right'}}>
-          {fmtHora(msg.criado_em)}{!entrada&&<span style={{marginLeft:3}}>✓✓</span>}
+      <div className={`flex items-end gap-1.5 ${entrada ? 'flex-row' : 'flex-row-reverse'}`}>
+        {entrada && (
+          <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-[8px] text-emerald-400 font-bold flex-shrink-0">C</div>
+        )}
+        <div className={`max-w-[72%] rounded-2xl px-3 py-2 ${bubbleBg} ${entrada ? 'rounded-tl-sm' : 'rounded-tr-sm'}`}>
+          {msg.midia_tipo === 'image' && msg.midia_url && (
+            <img src={msg.midia_url} alt="" className="w-full rounded-lg mb-1.5 max-h-36 object-cover"
+              onError={e => e.target.style.display='none'} />
+          )}
+          {texto && (
+            <p className="text-[12.5px] leading-relaxed text-[var(--label)] whitespace-pre-wrap break-words">{texto}</p>
+          )}
+          <p className={`text-[9px] mt-1 text-[var(--label-3)] ${entrada ? 'text-left' : 'text-right'}`}>
+            {fmtHora(msg.criado_em)}
+            {!entrada && <span className="ml-1">✓✓</span>}
+          </p>
         </div>
       </div>
     </div>
   )
-}
+})
 
-// ── Mini-card pedido do cliente ────────────────────────────────────────────────
-function PedidoCard({ pedido }) {
-  const mapSit = s => { const id=typeof s==='object'?s.id||s.valor:s; return {6:'Aberto',9:'Atendido',12:'Cancelado',14:'Faturado',15:'Verificado'}[id]||String(id) }
-  const sit  = mapSit(pedido.situacao)
-  const cor2 = {Atendido:'#1D9E75',Verificado:'#1D9E75',Aberto:'#EF9F27',Cancelado:'#EF4444',Faturado:'#378ADD'}[sit]||'#888'
+// ── Separador de data ──────────────────────────────────────────────────────────
+function DateSep({ data }) {
   return (
-    <div style={{padding:'8px 10px',borderRadius:8,border:'0.5px solid var(--sep)',background:'var(--bg)',marginBottom:5}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <span style={{fontSize:12,fontWeight:600,color:'var(--accent)'}}>#{pedido.numero}</span>
-        <span style={{fontSize:10,padding:'1px 6px',borderRadius:99,background:`${cor2}18`,color:cor2,fontWeight:500}}>{sit}</span>
-      </div>
-      <div style={{fontSize:11,color:'var(--label-3)',marginTop:2}}>{pedido.data?new Date(pedido.data).toLocaleDateString('pt-BR'):'—'}</div>
-      <div style={{fontSize:12,fontWeight:500,color:'var(--label)',marginTop:2}}>{fmtR(pedido.total)}</div>
+    <div className="flex items-center gap-3 my-4">
+      <div className="flex-1 h-px bg-[var(--sep)]" />
+      <span className="text-[10px] text-[var(--label-4)] font-medium px-2 py-0.5 rounded-full border border-[var(--sep)] bg-[var(--bg-2)]">
+        {new Date(data).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'})}
+      </span>
+      <div className="flex-1 h-px bg-[var(--sep)]" />
     </div>
   )
 }
 
-// ── Painel de catálogo ─────────────────────────────────────────────────────────
-function CatalogoPainel({ api, onEnviar, onClose }) {
+// ── Painel Direito: Info do cliente ───────────────────────────────────────────
+function PainelInfo({ sessao, api, pedidosCliente, statusAtend, setStatusAtend }) {
+  const [aba, setAba] = useState('perfil')
+  const [perfil, setPerfil] = useState(null)
+  const [busca, setBusca] = useState('')
   const [produtos, setProdutos] = useState([])
-  const [busca,    setBusca]    = useState('')
-  const [loading,  setLoading]  = useState(true)
+  const [buscando, setBuscando] = useState(false)
+  const [enviando, setEnviando] = useState(null)
+  const nome = sessao?.nome || fmtTel(sessao?.telefone)
+  const c    = cor(nome)
 
+  // Carrega perfil do cliente
   useEffect(() => {
-    fetch(`${api}/api/dashboard/catalogo`).then(r=>r.ok?r.json():null).then(d=>{
-      setProdutos(d?.produtos||d||[])
-    }).catch(()=>{}).finally(()=>setLoading(false))
-  }, [api])
+    if (!sessao?.telefone) return
+    let mounted = true
+    fetch(`${api}/api/contatos/${sessao.telefone}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (mounted && d) setPerfil(d) })
+      .catch(() => {})
+    return () => { mounted = false }
+  }, [api, sessao?.telefone])
 
-  const filtrados = produtos.filter(p => {
-    if (!busca) return true
-    return (p.nome||p.descricao||'').toLowerCase().includes(busca.toLowerCase())
-  })
-
-  return (
-    <div style={{position:'absolute',bottom:'100%',left:0,right:0,background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:'10px 10px 0 0',maxHeight:300,display:'flex',flexDirection:'column',zIndex:10,boxShadow:'0 -4px 16px rgba(0,0,0,.15)'}}>
-      <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',borderBottom:'0.5px solid var(--sep)'}}>
-        <Package size={13} style={{color:'var(--label-3)'}}/>
-        <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar produto..." autoFocus
-          style={{flex:1,border:'none',background:'transparent',outline:'none',fontSize:12,color:'var(--label)'}}/>
-        <button onClick={onClose} style={{background:'transparent',border:'none',cursor:'pointer',color:'var(--label-3)'}}><X size={13}/></button>
-      </div>
-      <div style={{flex:1,overflowY:'auto',padding:8}}>
-        {loading ? <div style={{padding:12,textAlign:'center',color:'var(--label-3)',fontSize:12}}>Carregando...</div>
-        : filtrados.length===0 ? <div style={{padding:12,textAlign:'center',color:'var(--label-3)',fontSize:12}}>Nenhum produto</div>
-        : filtrados.slice(0,20).map((p,i)=>(
-          <div key={i} onClick={()=>onEnviar(p)}
-            style={{display:'flex',alignItems:'center',gap:8,padding:'7px 8px',borderRadius:7,cursor:'pointer'}}
-            onMouseEnter={e=>e.currentTarget.style.background='var(--bg-3)'}
-            onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-            {p.imagemURL||p.imagens?.[0]?.link
-              ? <img src={p.imagemURL||p.imagens?.[0]?.link} alt="" style={{width:32,height:32,borderRadius:5,objectFit:'cover',flexShrink:0}} onError={e=>e.target.style.display='none'}/>
-              : <div style={{width:32,height:32,borderRadius:5,background:'var(--fill)',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}><Package size={13} style={{color:'var(--label-3)'}}/></div>
-            }
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:12,fontWeight:500,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.nome||p.descricao||'Produto'}</div>
-              <div style={{fontSize:11,color:'var(--label-3)'}}>{p.codigo||''} · {fmtR(p.preco||p.precoVenda||0)}</div>
-            </div>
-            <span style={{fontSize:10,padding:'2px 6px',borderRadius:99,background:'var(--accent-dim)',color:'var(--accent)'}}>Enviar</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ── Painel direito: conversa completa ─────────────────────────────────────────
-function PainelConversa({ sessao, api, onClose }) {
-  const [msgs,        setMsgs]        = useState([])
-  const [loadingH,    setLoadingH]    = useState(true)
-  const [texto,       setTexto]       = useState('')
-  const [enviando,    setEnviando]    = useState(false)
-  const [modo,        setModo]        = useState(sessao.modo||'ia')
-  const [menuOpen,    setMenuOpen]    = useState(false)
-  const [ctx,         setCtx]         = useState(null)
-  const [pedidosCliente, setPedidos]  = useState([])
-  const [statusAtend, setStatusAtend] = useState('aberto')
-  const [sugestaoIA,  setSugestaoIA]  = useState(null)
-  const [loadingSug,  setLoadingSug]  = useState(false)
-  const [mostrarCatalogo, setMostrarCatalogo] = useState(false)
-  const [abaDir,      setAbaDir]      = useState('info') // 'info' | 'pedidos'
-  const bottomRef = useRef(null)
-  const inputRef  = useRef(null)
-
-  const nomeExib = (sessao.nome && sessao.nome !== sessao.telefone) ? sessao.nome : fmtTel(sessao.telefone)
-  const c = cor(nomeExib)
-
-  const carregarHistorico = useCallback(async () => {
+  const buscarProdutos = async () => {
+    if (!busca.trim()) return
+    setBuscando(true); setProdutos([])
     try {
-      const r = await fetch(`${api}/api/dashboard/historico/${sessao.telefone}?limit=60`)
-      if (!r.ok) return
-      const d = await r.json()
-      setMsgs(d.mensagens||[])
-      setCtx({ carrinho: d.carrinho||[], modo: d.modo||'ia' })
-      setModo(d.modo||sessao.modo||'ia')
+      const r = await fetch(`${api}/api/dashboard/catalogo?q=${encodeURIComponent(busca)}`)
+      if (r.ok) { const d = await r.json(); setProdutos(d.produtos || []) }
     } catch {}
-    setLoadingH(false)
-  }, [api, sessao.telefone])
+    setBuscando(false)
+  }
 
-  const carregarPedidosCliente = useCallback(async () => {
-    // Busca pedidos recentes e filtra pelo telefone/nome do cliente
-    try {
-      const r = await fetch(`${api}/api/dashboard/financeiro`)
-      if (!r.ok) return
-      const d = await r.json()
-      const nome = (sessao.nome||'').toLowerCase()
-      const tel  = (sessao.telefone||'').replace(/\D/g,'').slice(-8)
-      const pedidos = (d.pedidos_recentes||[]).filter(p => {
-        const cn = (p.contato||'').toLowerCase()
-        return cn.includes(nome.split(' ')[0]) || cn.includes(tel)
-      })
-      setPedidos(pedidos.slice(0,8))
-    } catch {}
-  }, [api, sessao])
-
-  useEffect(() => {
-    setLoadingH(true); setMsgs([]); setPedidos([])
-    carregarHistorico()
-    carregarPedidosCliente()
-    const i = setInterval(carregarHistorico, 8000)
-    return () => clearInterval(i)
-  }, [carregarHistorico, carregarPedidosCliente])
-
-  useEffect(() => { bottomRef.current?.scrollIntoView({behavior:'smooth'}) }, [msgs])
-
-  const enviarTexto = async (msg) => {
-    const txt = (msg||texto).trim()
-    if (!txt||enviando) return
-    setTexto(''); setSugestaoIA(null); setEnviando(true)
+  const enviarProduto = async prod => {
+    setEnviando(prod.id || prod.nome)
+    const pix = (parseFloat(prod.preco || prod.precoVenda || 0) * 0.9).toFixed(2)
+    const msg = `*${prod.nome || prod.descricao}*\n💳 Cartão: ${fmtR(prod.preco || prod.precoVenda || 0)} | 💰 PIX: R$ ${pix}\n${prod.disponivel !== false ? '✅ Disponível' : '⚠️ Indisponível'}`
     try {
       await fetch(`${api}/api/dashboard/mensagem`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ telefone: sessao.telefone, mensagem: txt, tipo:'texto' }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telefone: sessao.telefone, mensagem: msg })
       })
-      await carregarHistorico()
+    } catch {}
+    setEnviando(null)
+  }
+
+  const mapSit = s => {
+    const id = typeof s==='object' ? s?.id||s?.valor : s
+    return {6:'Aberto',9:'Atendido',12:'Cancelado',14:'Faturado',15:'Verificado'}[id] || String(id||'—')
+  }
+
+  const ABAS = [
+    { id:'perfil',   label:'Perfil'    },
+    { id:'pedidos',  label:'Pedidos'   },
+    { id:'catalogo', label:'Catálogo'  },
+  ]
+
+  return (
+    <div className="w-56 flex-shrink-0 flex flex-col overflow-hidden border-l border-[var(--sep)] bg-[var(--bg-2)]">
+
+      {/* Mini header do cliente */}
+      <div className="px-3 py-3 border-b border-[var(--sep)] flex items-center gap-2.5 flex-shrink-0">
+        <Avatar sessao={sessao} size={32} />
+        <div className="flex-1 min-w-0">
+          <p className="text-[12px] font-semibold text-[var(--label)] truncate">{nome}</p>
+          <p className="text-[10px] text-[var(--label-4)]">{fmtTel(sessao?.telefone)}</p>
+        </div>
+      </div>
+
+      {/* Status atendimento */}
+      <div className="px-3 py-2.5 border-b border-[var(--sep)] flex-shrink-0">
+        <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--label-4)] mb-1.5">Status</p>
+        <div className="grid grid-cols-2 gap-1">
+          {Object.entries(STATUS_CORES).map(([key, st]) => (
+            <button key={key} onClick={() => setStatusAtend(key)}
+              className={`flex items-center gap-1 px-1.5 py-1 rounded-lg text-[9px] font-semibold border transition-all ${
+                statusAtend === key
+                  ? `${st.bg} ${st.text} border-current`
+                  : 'border-transparent text-[var(--label-4)] hover:bg-[var(--bg-3)]'
+              }`}>
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusAtend===key ? st.dot : 'bg-[var(--label-4)]'}`} />
+              {st.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-[var(--sep)] flex-shrink-0">
+        {ABAS.map(a => (
+          <button key={a.id} onClick={() => setAba(a.id)}
+            className={`flex-1 py-2 text-[10px] font-semibold transition-colors border-b-2 ${
+              aba === a.id
+                ? 'text-[var(--accent)] border-[var(--accent)]'
+                : 'text-[var(--label-4)] border-transparent hover:text-[var(--label-3)]'
+            }`}>
+            {a.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Conteúdo das abas */}
+      <div className="flex-1 overflow-y-auto p-3">
+
+        {/* ABA: Perfil */}
+        {aba === 'perfil' && (
+          <div className="space-y-2">
+            {perfil ? [
+              { label: 'Nome',        value: perfil.nome },
+              { label: 'Telefone',    value: fmtTel(perfil.telefone || sessao?.telefone) },
+              { label: 'E-mail',      value: perfil.email },
+              { label: 'Cidade',      value: perfil.cidade },
+              { label: 'Documento',   value: perfil.cpf || perfil.cnpj },
+              { label: 'Total gasto', value: perfil.total_gasto ? fmtR(perfil.total_gasto) : null },
+            ].filter(i => i.value).map((item, i) => (
+              <div key={i}>
+                <p className="text-[9px] text-[var(--label-4)] uppercase tracking-wider mb-0.5">{item.label}</p>
+                <p className="text-[11px] font-medium text-[var(--label)]">{item.value}</p>
+              </div>
+            )) : (
+              <div className="py-6 text-center">
+                <p className="text-[11px] text-[var(--label-4)]">Sem cadastro vinculado</p>
+              </div>
+            )}
+
+            {/* Carrinho */}
+            {(sessao?.carrinho?.length > 0) && (
+              <div className="mt-3 pt-3 border-t border-[var(--sep)]">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--label-4)] mb-2">🛒 Carrinho</p>
+                {sessao.carrinho.map((item, i) => (
+                  <div key={i} className="flex justify-between items-center py-1 border-b border-[var(--sep)] last:border-0">
+                    <span className="text-[10px] text-[var(--label-2)] truncate flex-1 mr-2">{item.quantidade}× {(item.nome||'').slice(0,20)}</span>
+                    <span className="text-[10px] font-semibold text-amber-400">{fmtR(item.preco * item.quantidade)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between mt-1.5">
+                  <span className="text-[10px] text-[var(--label-3)]">Total</span>
+                  <span className="text-[11px] font-bold text-amber-400">{fmtR(sessao.carrinho.reduce((s,i)=>s+(i.preco*i.quantidade),0))}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ABA: Pedidos */}
+        {aba === 'pedidos' && (
+          <div className="space-y-2">
+            {pedidosCliente.length === 0
+              ? <p className="text-[11px] text-[var(--label-4)] text-center py-6">Nenhum pedido</p>
+              : pedidosCliente.map((p, i) => {
+                  const sit = mapSit(p.situacao)
+                  const sitCor = {Atendido:'text-emerald-400',Verificado:'text-emerald-400',Aberto:'text-amber-400',Cancelado:'text-red-400',Faturado:'text-blue-400'}[sit] || 'text-[var(--label-3)]'
+                  return (
+                    <div key={i} className="rounded-xl p-2.5 bg-[var(--bg)] border border-[var(--sep)]">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[11px] font-bold text-[var(--accent)]">#{p.numero}</span>
+                        <span className={`text-[9px] font-semibold ${sitCor}`}>{sit}</span>
+                      </div>
+                      <p className="text-[9px] text-[var(--label-4)] mb-1">{p.data ? new Date(p.data).toLocaleDateString('pt-BR') : '—'}</p>
+                      <p className="text-[12px] font-semibold text-[var(--label)]">{fmtR(p.total)}</p>
+                    </div>
+                  )
+                })
+            }
+          </div>
+        )}
+
+        {/* ABA: Catálogo */}
+        {aba === 'catalogo' && (
+          <div className="space-y-2">
+            <div className="flex gap-1.5">
+              <input value={busca} onChange={e=>setBusca(e.target.value)}
+                onKeyDown={e=>e.key==='Enter'&&buscarProdutos()}
+                placeholder="Buscar produto..."
+                className="flex-1 text-[11px] px-2.5 py-1.5 rounded-lg bg-[var(--bg)] border border-[var(--sep)] text-[var(--label)] outline-none focus:border-[var(--accent)] transition-colors"
+              />
+              <button onClick={buscarProdutos} disabled={buscando}
+                className="px-2.5 py-1.5 rounded-lg bg-[var(--accent)] text-black text-[10px] font-bold disabled:opacity-50">
+                {buscando ? '…' : '↵'}
+              </button>
+            </div>
+            {produtos.length === 0
+              ? <p className="text-[10px] text-[var(--label-4)] text-center py-4">Digite e pressione Enter</p>
+              : produtos.map((p, i) => (
+                <div key={i} className="rounded-xl p-2.5 bg-[var(--bg)] border border-[var(--sep)]">
+                  <p className="text-[11px] font-semibold text-[var(--label)] mb-1 leading-tight">{p.nome || p.descricao}</p>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="text-[12px] font-bold text-[var(--accent)]">{fmtR(p.preco || p.precoVenda || 0)}</span>
+                    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${p.disponivel !== false ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                      {p.disponivel !== false ? '✓ Disponível' : '✗ Indisponível'}
+                    </span>
+                  </div>
+                  <button onClick={() => enviarProduto(p)} disabled={enviando === (p.id||p.nome)}
+                    className="w-full py-1 rounded-lg border border-[var(--accent)] text-[var(--accent)] text-[10px] font-semibold hover:bg-[var(--accent)] hover:text-black transition-all disabled:opacity-50 flex items-center justify-center gap-1">
+                    {enviando === (p.id||p.nome) ? 'Enviando…' : '↗ Enviar ao cliente'}
+                  </button>
+                </div>
+              ))
+            }
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Barra de envio Enterprise ─────────────────────────────────────────────────
+function BarraEnvio({ telefone, api, modoManual, onEnviou, onAssumirIA }) {
+  const [texto,     setTexto]     = useState('')
+  const [enviando,  setEnviando]  = useState(false)
+  const [anotacao,  setAnotacao]  = useState(false)
+  const [sugestoes, setSugestoes] = useState([])
+  const [loadSug,   setLoadSug]   = useState(false)
+  const [emojiOpen, setEmojiOpen] = useState(false)
+  const inputRef = useRef(null)
+  const imgRef   = useRef(null)
+  const vidRef   = useRef(null)
+
+  const EMOJIS = ['😊','👍','🙏','❤️','✅','📦','💰','🚀','😅','🎉','💬','⏳']
+
+  const buscarSugestoes = useCallback(async () => {
+    setLoadSug(true)
+    try {
+      const r = await fetch(`${api}/api/sugestoes/${telefone}`)
+      if (r.ok) { const d = await r.json(); setSugestoes(d.sugestoes || []) }
+    } catch {}
+    setLoadSug(false)
+  }, [api, telefone])
+
+  useEffect(() => {
+    if (modoManual && telefone) buscarSugestoes()
+    else setSugestoes([])
+  }, [modoManual, telefone])
+
+  const enviar = async (msg) => {
+    const txt = (msg || texto).trim()
+    if (!txt || enviando) return
+    setTexto(''); setSugestoes([])
+    setEnviando(true)
+    try {
+      await fetch(`${api}/api/dashboard/mensagem`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telefone, mensagem: txt })
+      })
+      onEnviou?.()
     } catch {}
     setEnviando(false)
     inputRef.current?.focus()
   }
 
-  const enviarProduto = async (produto) => {
-    setMostrarCatalogo(false)
-    const link = produto.urlLoja || produto.url || `https://sostrass.com.br/produto/${produto.codigo}`
-    const msg = `📦 *${produto.nome||produto.descricao}*\n💰 ${fmtR(produto.precoVenda||produto.preco||0)}\n🔗 ${link}`
-    await enviarTexto(msg)
+  const enviarArquivo = async (file, tipo) => {
+    if (!file) return
+    // Converte para base64 e envia via API
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const base64 = reader.result.split(',')[1]
+      try {
+        await fetch(`${api}/api/dashboard/mensagem`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            telefone,
+            tipo: tipo,
+            midia_base64: base64,
+            midia_nome: file.name,
+          })
+        })
+        onEnviou?.()
+      } catch(e) { console.error('Upload:', e) }
+    }
+    reader.readAsDataURL(file)
   }
 
-  const buscarSugestaoIA = async () => {
-    if (msgs.length===0) return
-    setLoadingSug(true)
+  if (!modoManual) return (
+    <div className="px-4 py-3 border-t border-[var(--sep)] bg-[var(--bg-2)] flex items-center justify-between gap-3 flex-shrink-0">
+      <p className="text-[11px] text-[var(--label-4)]">IA respondendo automaticamente</p>
+      <button onClick={onAssumirIA}
+        className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[11px] font-semibold hover:bg-blue-500/20 transition-colors flex items-center gap-1.5">
+        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        Assumir conversa
+      </button>
+    </div>
+  )
+
+  return (
+    <div className="border-t border-[var(--sep)] bg-[var(--bg-2)] flex-shrink-0">
+      {/* Abas resposta / anotação */}
+      <div className="flex border-b border-[var(--sep)]">
+        {[{id:false,label:'Resposta pública'},{id:true,label:'Anotação interna'}].map(a => (
+          <button key={String(a.id)} onClick={() => setAnotacao(a.id)}
+            className={`px-3 py-2 text-[11px] font-semibold border-b-2 transition-all ${
+              anotacao === a.id
+                ? 'text-[var(--accent)] border-[var(--accent)]'
+                : 'text-[var(--label-4)] border-transparent hover:text-[var(--label-3)]'
+            }`}>
+            {a.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Sugestões da IA */}
+      {sugestoes.length > 0 && (
+        <div className="px-3 py-2 flex gap-1.5 flex-wrap border-b border-[var(--sep)] items-center">
+          <svg className="w-3 h-3 text-amber-400 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 1 7 7c0 2.4-1.2 4.5-3 5.7V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.3A7 7 0 0 1 5 9a7 7 0 0 1 7-7zm-2 18h4v1a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-1z"/></svg>
+          {sugestoes.slice(0, 3).map((s, i) => (
+            <button key={i} onClick={() => enviar(s)}
+              className="text-[10px] px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[var(--label-2)] hover:bg-amber-500/20 max-w-[220px] truncate transition-colors">
+              {s}
+            </button>
+          ))}
+          <button onClick={buscarSugestoes} className="ml-auto text-[10px] text-[var(--label-4)] hover:text-[var(--label-3)]">
+            {loadSug ? '…' : '↻'}
+          </button>
+        </div>
+      )}
+
+      {/* Picker emoji */}
+      {emojiOpen && (
+        <div className="px-3 py-2 flex flex-wrap gap-1.5 border-b border-[var(--sep)]">
+          {EMOJIS.map(e => (
+            <button key={e} onClick={() => { setTexto(t => t + e); setEmojiOpen(false); inputRef.current?.focus() }}
+              className="text-lg hover:scale-125 transition-transform">
+              {e}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Input principal */}
+      <div className="px-3 pt-2 pb-1">
+        {anotacao && (
+          <div className="text-[9px] font-bold text-violet-400 mb-1.5 flex items-center gap-1">
+            <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Anotação interna — não enviada ao cliente
+          </div>
+        )}
+        <textarea ref={inputRef} value={texto} onChange={e => setTexto(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar() } }}
+          placeholder={anotacao ? 'Escreva uma anotação interna...' : 'Escreva uma mensagem...'}
+          rows={2}
+          className="w-full bg-transparent text-[13px] text-[var(--label)] resize-none outline-none leading-relaxed placeholder:text-[var(--label-4)]"
+        />
+      </div>
+
+      {/* Toolbar de ações */}
+      <div className="px-3 pb-2.5 flex items-center gap-1">
+        {/* Emoji */}
+        <button onClick={() => setEmojiOpen(v => !v)} title="Emoji"
+          className={`w-7 h-7 rounded-lg border transition-all flex items-center justify-center ${emojiOpen ? 'border-[var(--accent)] bg-[var(--accent-dim)]' : 'border-[var(--sep)] hover:bg-[var(--bg-3)]'}`}>
+          <svg className={`w-3.5 h-3.5 ${emojiOpen ? 'text-[var(--accent)]' : 'text-[var(--label-3)]'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+        </button>
+
+        {/* Imagem */}
+        <label title="Enviar imagem" className="w-7 h-7 rounded-lg border border-[var(--sep)] hover:bg-[var(--bg-3)] transition-all flex items-center justify-center cursor-pointer">
+          <svg className="w-3.5 h-3.5 text-[var(--label-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <input ref={imgRef} type="file" accept="image/*" className="hidden"
+            onChange={e => { if (e.target.files[0]) enviarArquivo(e.target.files[0], 'image'); e.target.value = '' }} />
+        </label>
+
+        {/* Vídeo */}
+        <label title="Enviar vídeo" className="w-7 h-7 rounded-lg border border-[var(--sep)] hover:bg-[var(--bg-3)] transition-all flex items-center justify-center cursor-pointer">
+          <svg className="w-3.5 h-3.5 text-[var(--label-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          <input ref={vidRef} type="file" accept="video/*" className="hidden"
+            onChange={e => { if (e.target.files[0]) enviarArquivo(e.target.files[0], 'video'); e.target.value = '' }} />
+        </label>
+
+        {/* Áudio */}
+        <button title="Gravar áudio"
+          className="w-7 h-7 rounded-lg border border-[var(--sep)] hover:bg-[var(--bg-3)] transition-all flex items-center justify-center">
+          <svg className="w-3.5 h-3.5 text-[var(--label-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+
+        {/* Sugerir IA */}
+        <button onClick={buscarSugestoes} title="Sugestões da IA" disabled={loadSug}
+          className="w-7 h-7 rounded-lg border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/15 transition-all flex items-center justify-center">
+          <svg className="w-3.5 h-3.5 text-amber-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 1 7 7c0 2.4-1.2 4.5-3 5.7V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.3A7 7 0 0 1 5 9a7 7 0 0 1 7-7z"/></svg>
+        </button>
+
+        <div className="flex-1" />
+
+        {/* Botão enviar */}
+        <button onClick={() => enviar()} disabled={!texto.trim() || enviando}
+          className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${
+            texto.trim() && !enviando
+              ? 'bg-[var(--accent)] text-black hover:opacity-90'
+              : 'bg-[var(--fill)] text-[var(--label-4)] cursor-default'
+          }`}>
+          {enviando ? (
+            <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+          ) : (
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          )}
+          Enviar
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Chat central ──────────────────────────────────────────────────────────────
+function Chat({ sessao, api, onClose }) {
+  const [msgs,       setMsgs]       = useState([])
+  const [loading,    setLoading]    = useState(true)
+  const [hasMore,    setHasMore]    = useState(false)
+  const [offset,     setOffset]     = useState(0)
+  const [modo,       setModo]       = useState(sessao?.modo || 'ia')
+  const [ctxData,    setCtxData]    = useState(null)
+  const [statusAtend,setStatusAtend]= useState('aberto')
+  const [pedidos,    setPedidos]    = useState([])
+  const bottomRef   = useRef(null)
+  const prevLenRef  = useRef(0)
+  const pollingRef  = useRef(null)
+
+  const nome = sessao?.nome || fmtTel(sessao?.telefone)
+  const c    = cor(nome)
+
+  // Carrega histórico — sem loop: só roda quando telefone ou offset mudam
+  const carregarHistorico = useCallback(async (off = 0, silencioso = false) => {
+    if (!sessao?.telefone) return
+    if (!silencioso) setLoading(true)
     try {
-      // Usa o último histórico para sugerir resposta
-      const ultimas = msgs.slice(-6).map(m => `${m.direcao==='entrada'?'Cliente':'Bia'}: ${m.conteudo||''}`).join('\n')
-      const r = await fetch(`${api}/api/dashboard/ia-stats`)
-      // Fallback — gera sugestão local baseada no contexto
-      const ultimaEntrada = msgs.filter(m=>m.direcao==='entrada').at(-1)?.conteudo||''
-      if (ultimaEntrada.includes('prazo')||ultimaEntrada.includes('entrega')) {
-        setSugestaoIA('O prazo de entrega depende da sua localização. Para retirada na loja, fica disponível no mesmo dia!')
-      } else if (ultimaEntrada.includes('preço')||ultimaEntrada.includes('valor')) {
-        setSugestaoIA('Os preços já estão com desconto PIX aplicado. Posso enviar mais detalhes do produto que te interessa?')
-      } else {
-        setSugestaoIA('Olá! Em que posso te ajudar hoje? 😊')
-      }
+      const r = await fetch(`${api}/api/dashboard/historico/${sessao.telefone}?limit=60&offset=${off}`)
+      if (!r.ok) return
+      const d = await r.json()
+      const novas = d.mensagens || []
+      if (off === 0) setMsgs(novas)
+      else setMsgs(prev => [...novas, ...prev])
+      setHasMore(d.hasMore || false)
+      setOffset(off === 0 ? novas.length : off + novas.length)
+      setCtxData({ carrinho: d.carrinho || [], modo: d.modo || 'ia' })
+      setModo(d.modo || sessao?.modo || 'ia')
     } catch {}
-    setLoadingSug(false)
-  }
+    if (!silencioso) setLoading(false)
+  }, [api, sessao?.telefone])
 
-  const alternarModo = async (novoModo) => {
+  // Carrega pedidos do cliente — uma vez
+  useEffect(() => {
+    if (!sessao?.telefone) return
+    let mounted = true
+    fetch(`${api}/api/contatos/${sessao.telefone}/pedidos`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (mounted && d?.pedidos) setPedidos(d.pedidos) })
+      .catch(() => {})
+    return () => { mounted = false }
+  }, [api, sessao?.telefone])
+
+  // Carga inicial + polling controlado
+  useEffect(() => {
+    if (!sessao?.telefone) return
+    prevLenRef.current = 0
+    setMsgs([]); setOffset(0); setLoading(true)
+    carregarHistorico(0, false)
+
+    // Polling apenas quando visível — intervalo lento (12s)
+    pollingRef.current = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        carregarHistorico(0, true)
+      }
+    }, 12000)
+
+    return () => {
+      clearInterval(pollingRef.current)
+    }
+  }, [sessao?.telefone]) // Só re-executa quando muda o telefone
+
+  // Scroll automático apenas quando chega mensagem nova
+  useEffect(() => {
+    if (msgs.length > prevLenRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: prevLenRef.current === 0 ? 'instant' : 'smooth' })
+    }
+    prevLenRef.current = msgs.length
+  }, [msgs.length])
+
+  // Agrupamento por data — memoized
+  const grupos = (() => {
+    const g = []; let dAtual = null
+    for (const m of msgs) {
+      const d = new Date(m.criado_em).toDateString()
+      if (d !== dAtual) { g.push({ tipo: 'sep', data: m.criado_em }); dAtual = d }
+      g.push({ tipo: 'msg', msg: m })
+    }
+    return g
+  })()
+
+  const alternarModo = async novoModo => {
     try {
       await fetch(`${api}/api/dashboard/manual/${sessao.telefone}`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ modo: novoModo }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modo: novoModo })
       })
-      setModo(novoModo); setMenuOpen(false)
+      setModo(novoModo)
     } catch {}
   }
 
   const resetarSessao = async () => {
-    if (!confirm(`Resetar sessão de ${nomeExib}? O carrinho será limpo.`)) return
+    if (!confirm(`Resetar sessão de ${nome}? O carrinho será limpo.`)) return
     try {
       await fetch(`${api}/api/dashboard/resetar-sessao?telefone=${sessao.telefone}&confirmar=sim`)
-      await carregarHistorico(); setMenuOpen(false)
+      carregarHistorico(0, false)
     } catch {}
   }
 
-  const carrinho = ctx?.carrinho||[]
-  const totalCarrinho = carrinho.reduce((s,i)=>s+(parseFloat(i.preco||0)*parseInt(i.quantidade||1)),0)
-  const stAt = STATUS_ATEND[statusAtend]||STATUS_ATEND.aberto
+  const sessaoComCtx = { ...sessao, carrinho: ctxData?.carrinho || sessao?.carrinho || [] }
 
   return (
-    <div style={{display:'flex',height:'100%',overflow:'hidden'}}>
+    <div className="flex flex-1 overflow-hidden min-w-0">
 
-      {/* ── Coluna central: conversa ── */}
-      <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      {/* ── Área da conversa ── */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
         {/* Header */}
-        <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',borderBottom:'0.5px solid var(--sep)',background:'var(--bg-2)',flexShrink:0}}>
-          <button onClick={onClose} style={{background:'transparent',border:'none',cursor:'pointer',color:'var(--label-3)',display:'flex',padding:3,borderRadius:5}}>
-            <X size={13}/>
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--sep)] bg-[var(--bg-2)] flex-shrink-0">
+          {/* Voltar */}
+          <button onClick={onClose}
+            className="w-7 h-7 rounded-lg border border-[var(--sep)] flex items-center justify-center hover:bg-[var(--bg-3)] transition-colors">
+            <svg className="w-3.5 h-3.5 text-[var(--label-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
-          <div style={{width:30,height:30,borderRadius:'50%',background:`${c}20`,color:c,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,flexShrink:0}}>
-            {iniciais(nomeExib)}
-          </div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:13,fontWeight:600,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{nomeExib}</div>
-            <div style={{fontSize:10,color:'var(--label-3)'}}>{sessao.telefone}</div>
+
+          <Avatar sessao={sessao} size={34} />
+
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold text-[var(--label)] truncate">{nome}</p>
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] ${ativo(sessao) ? 'text-emerald-400' : 'text-[var(--label-4)]'}`}>
+                {ativo(sessao) ? '● online' : '○ inativo'} · {fmtRel(sessao?.atualizado_em)}
+              </span>
+            </div>
           </div>
 
-          {/* Status de atendimento */}
-          <div style={{position:'relative'}}>
-            <button onClick={()=>setMenuOpen(m=>!m)} style={{display:'flex',alignItems:'center',gap:4,padding:'3px 8px',borderRadius:99,border:`0.5px solid ${stAt.color}`,background:stAt.bg,cursor:'pointer'}}>
-              <span style={{fontSize:11,fontWeight:600,color:stAt.color}}>{stAt.icon} {stAt.label}</span>
-              <ChevronDown size={10} style={{color:stAt.color}}/>
-            </button>
-            {menuOpen && (
-              <div style={{position:'absolute',right:0,top:'100%',marginTop:4,background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:10,padding:4,minWidth:160,zIndex:30,boxShadow:'0 4px 16px rgba(0,0,0,.2)'}}>
-                {Object.entries(STATUS_ATEND).map(([key,st])=>(
-                  <button key={key} onClick={()=>{setStatusAtend(key);setMenuOpen(false)}} style={{width:'100%',padding:'7px 10px',borderRadius:7,border:'none',background:'transparent',color:st.color,fontSize:12,cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:6,fontWeight:500}}
-                    onMouseEnter={e=>e.currentTarget.style.background='var(--bg-3)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                    {st.icon} {st.label}
-                  </button>
-                ))}
-                <div style={{height:'0.5px',background:'var(--sep)',margin:'4px 0'}}/>
-                {modo!=='manual'
-                  ? <button onClick={()=>alternarModo('manual')} style={{width:'100%',padding:'7px 10px',borderRadius:7,border:'none',background:'transparent',color:'#534AB7',fontSize:12,cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:6}}
-                      onMouseEnter={e=>e.currentTarget.style.background='var(--bg-3)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                      <User size={12}/> Assumir conversa
-                    </button>
-                  : <button onClick={()=>alternarModo('ia')} style={{width:'100%',padding:'7px 10px',borderRadius:7,border:'none',background:'transparent',color:'#1D9E75',fontSize:12,cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:6}}
-                      onMouseEnter={e=>e.currentTarget.style.background='var(--bg-3)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                      <Zap size={12}/> Devolver para IA
-                    </button>
-                }
-                <div style={{height:'0.5px',background:'var(--sep)',margin:'4px 0'}}/>
-                <button onClick={resetarSessao} style={{width:'100%',padding:'7px 10px',borderRadius:7,border:'none',background:'transparent',color:'#EF4444',fontSize:12,cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:6}}
-                  onMouseEnter={e=>e.currentTarget.style.background='#EF444410'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                  <AlertCircle size={12}/> Resetar sessão
-                </button>
-              </div>
-            )}
-          </div>
+          {/* Modo IA/Manual */}
+          <button onClick={() => alternarModo(modo === 'manual' ? 'ia' : 'manual')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-semibold transition-all ${
+              modo === 'manual'
+                ? 'bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20'
+                : 'bg-[var(--fill)] border-[var(--sep)] text-[var(--label-3)] hover:bg-[var(--bg-3)]'
+            }`}>
+            {modo === 'manual'
+              ? <><svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M8 12h8"/></svg> Devolver à IA</>
+              : <><svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg> Assumir</>
+            }
+          </button>
 
-          <span style={{fontSize:10,padding:'2px 6px',borderRadius:99,fontWeight:600,background:modo==='manual'?'#534AB718':'#1D9E7518',color:modo==='manual'?'#534AB7':'#1D9E75'}}>
-            {modo==='manual'?'● Manual':'⚡ IA'}
-          </span>
+          {/* Atualizar */}
+          <button onClick={() => carregarHistorico(0, false)}
+            className="w-7 h-7 rounded-lg border border-[var(--sep)] flex items-center justify-center hover:bg-[var(--bg-3)] transition-colors">
+            <svg className="w-3.5 h-3.5 text-[var(--label-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/></svg>
+          </button>
+
+          {/* Resetar */}
+          <button onClick={resetarSessao}
+            className="w-7 h-7 rounded-lg border border-red-500/20 bg-red-500/5 flex items-center justify-center hover:bg-red-500/15 transition-colors" title="Resetar sessão">
+            <svg className="w-3.5 h-3.5 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
         </div>
 
         {/* Banner carrinho */}
-        {carrinho.length>0 && (
-          <div style={{padding:'6px 14px',background:'#EF9F2710',borderBottom:'0.5px solid #EF9F2730',flexShrink:0}}>
-            <div style={{fontSize:11,fontWeight:600,color:'#EF9F27',marginBottom:2}}>🛒 {carrinho.length} item{carrinho.length>1?'s':''} no carrinho · {fmtR(totalCarrinho)}</div>
-            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-              {carrinho.slice(0,3).map((item,i)=>(
-                <span key={i} style={{fontSize:10,color:'var(--label-2)'}}>{item.quantidade}× {(item.nome||'').slice(0,25)}</span>
-              ))}
-              {carrinho.length>3&&<span style={{fontSize:10,color:'var(--label-3)'}}>+{carrinho.length-3}...</span>}
-            </div>
+        {sessaoComCtx.carrinho.length > 0 && (
+          <div className="px-4 py-2 bg-amber-500/8 border-b border-amber-500/20 flex-shrink-0">
+            <p className="text-[10px] font-semibold text-amber-400 mb-0.5">🛒 {sessaoComCtx.carrinho.length} item{sessaoComCtx.carrinho.length > 1 ? 's' : ''} no carrinho</p>
+            <p className="text-[10px] text-[var(--label-3)] truncate">
+              {sessaoComCtx.carrinho.slice(0, 2).map(i => `${i.quantidade}× ${i.nome}`).join(' · ')}
+              {sessaoComCtx.carrinho.length > 2 ? ` +${sessaoComCtx.carrinho.length - 2}` : ''}
+            </p>
           </div>
         )}
 
         {/* Mensagens */}
-        <div style={{flex:1,overflowY:'auto',padding:'10px 12px'}} onClick={()=>setMenuOpen(false)}>
-          {loadingH
-            ? <div style={{padding:24,textAlign:'center',color:'var(--label-3)',fontSize:12}}>Carregando...</div>
-            : msgs.length===0
-              ? <div style={{padding:24,textAlign:'center',color:'var(--label-3)',fontSize:12}}>Sem mensagens</div>
-              : <>{msgs.map((msg,i)=><Bolha key={msg.id||i} msg={msg}/>)}<div ref={bottomRef}/></>
-          }
-        </div>
-
-        {/* Sugestão da IA */}
-        {sugestaoIA && (
-          <div style={{padding:'6px 12px',background:'#534AB710',borderTop:'0.5px solid #534AB730',flexShrink:0}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
-              <div style={{flex:1}}>
-                <div style={{fontSize:10,fontWeight:600,color:'#534AB7',marginBottom:3}}>⚡ Sugestão da IA</div>
-                <div style={{fontSize:12,color:'var(--label-2)',lineHeight:1.4}}>{sugestaoIA}</div>
-              </div>
-              <div style={{display:'flex',gap:4,flexShrink:0}}>
-                <button onClick={()=>enviarTexto(sugestaoIA)} style={{padding:'3px 8px',borderRadius:6,border:'0.5px solid #534AB7',background:'#534AB718',color:'#534AB7',fontSize:11,cursor:'pointer',fontWeight:500}}>Usar</button>
-                <button onClick={()=>setSugestaoIA(null)} style={{padding:'3px 6px',borderRadius:6,border:'0.5px solid var(--sep)',background:'transparent',color:'var(--label-3)',fontSize:11,cursor:'pointer'}}><X size={10}/></button>
-              </div>
+        <div className="flex-1 overflow-y-auto px-4 py-3 bg-[var(--bg)]">
+          {hasMore && (
+            <div className="text-center pb-3">
+              <button onClick={() => carregarHistorico(offset)}
+                className="text-[10px] text-[var(--accent)] border border-[var(--sep)] rounded-full px-3 py-1 hover:bg-[var(--bg-2)] transition-colors">
+                Carregar anteriores
+              </button>
             </div>
-          </div>
-        )}
+          )}
+          {loading && msgs.length === 0
+            ? <div className="flex items-center justify-center h-full text-[var(--label-4)] text-[12px]">Carregando...</div>
+            : grupos.length === 0
+              ? <div className="flex items-center justify-center h-full text-[var(--label-4)] text-[12px]">Nenhuma mensagem</div>
+              : grupos.map((g, i) =>
+                  g.tipo === 'sep'
+                    ? <DateSep key={`s${i}`} data={g.data} />
+                    : <Bolha key={g.msg.id || i} msg={g.msg} />
+                )
+          }
+          <div ref={bottomRef} />
+        </div>
 
         {/* Input */}
-        <div style={{padding:'8px 12px',borderTop:'0.5px solid var(--sep)',background:'var(--bg-2)',flexShrink:0,position:'relative'}}>
-          {mostrarCatalogo && (
-            <CatalogoPainel api={api} onEnviar={enviarProduto} onClose={()=>setMostrarCatalogo(false)}/>
-          )}
-
-          {modo==='ia' && (
-            <div style={{fontSize:11,color:'var(--label-3)',marginBottom:5,display:'flex',alignItems:'center',gap:4}}>
-              <Zap size={10} style={{color:'#1D9E75'}}/> IA ativa — assuma para responder
-            </div>
-          )}
-
-          {/* Barra de ações */}
-          <div style={{display:'flex',gap:5,alignItems:'center',marginBottom:6}}>
-            <button onClick={()=>setMostrarCatalogo(m=>!m)} title="Catálogo de produtos" style={{padding:'4px 8px',borderRadius:6,border:`0.5px solid ${mostrarCatalogo?'var(--accent)':'var(--sep)'}`,background:mostrarCatalogo?'var(--accent-dim)':'transparent',cursor:'pointer',display:'flex',alignItems:'center',gap:4,fontSize:11,color:mostrarCatalogo?'var(--accent)':'var(--label-3)'}}>
-              <Package size={12}/> Catálogo
-            </button>
-            <button onClick={buscarSugestaoIA} disabled={loadingSug||msgs.length===0} title="Sugestão da IA" style={{padding:'4px 8px',borderRadius:6,border:'0.5px solid var(--sep)',background:'transparent',cursor:'pointer',display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--label-3)'}}>
-              {loadingSug?<RefreshCw size={11} className="animate-spin"/>:<Sparkles size={12}/>} Sugerir IA
-            </button>
-            <button title="Enviar imagem" style={{padding:'4px 8px',borderRadius:6,border:'0.5px solid var(--sep)',background:'transparent',cursor:'pointer',display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--label-3)'}}>
-              <Image size={12}/> Imagem
-            </button>
-            <button title="Enviar vídeo" style={{padding:'4px 8px',borderRadius:6,border:'0.5px solid var(--sep)',background:'transparent',cursor:'pointer',display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--label-3)'}}>
-              <Video size={12}/> Vídeo
-            </button>
-          </div>
-
-          {/* Campo de texto */}
-          <div style={{display:'flex',gap:8,alignItems:'flex-end'}}>
-            <textarea ref={inputRef} value={texto} onChange={e=>setTexto(e.target.value)}
-              onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviarTexto()}}}
-              placeholder={modo==='manual'?'Mensagem... (Enter envia, Shift+Enter quebra linha)':'Assuma o atendimento para digitar'}
-              disabled={modo==='ia'} rows={2}
-              style={{flex:1,padding:'8px 10px',borderRadius:9,border:'0.5px solid var(--sep)',background:modo==='ia'?'var(--bg-3)':'var(--bg)',color:'var(--label)',fontSize:13,resize:'none',outline:'none',lineHeight:1.5,opacity:modo==='ia'?.45:1}}
-            />
-            <button onClick={()=>enviarTexto()} disabled={!texto.trim()||enviando||modo==='ia'}
-              style={{width:34,height:34,borderRadius:9,border:'none',flexShrink:0,cursor:texto.trim()&&modo==='manual'?'pointer':'default',background:texto.trim()&&modo==='manual'?'var(--accent)':'var(--fill)',color:texto.trim()&&modo==='manual'?'#000':'var(--label-3)',display:'flex',alignItems:'center',justifyContent:'center',transition:'background .15s'}}>
-              {enviando?<RefreshCw size={12}/>:<Send size={12}/>}
-            </button>
-          </div>
-        </div>
+        <BarraEnvio
+          telefone={sessao?.telefone}
+          api={api}
+          modoManual={modo === 'manual'}
+          onEnviou={() => carregarHistorico(0, true)}
+          onAssumirIA={() => alternarModo('manual')}
+        />
       </div>
 
-      {/* ── Coluna direita: info do cliente + pedidos ── */}
-      <div style={{width:220,flexShrink:0,borderLeft:'0.5px solid var(--sep)',display:'flex',flexDirection:'column',overflow:'hidden',background:'var(--bg-2)'}}>
+      {/* ── Painel direito ── */}
+      <PainelInfo
+        sessao={sessaoComCtx}
+        api={api}
+        pedidosCliente={pedidos}
+        statusAtend={statusAtend}
+        setStatusAtend={setStatusAtend}
+      />
+    </div>
+  )
+}
 
-        {/* Tabs */}
-        <div style={{display:'flex',borderBottom:'0.5px solid var(--sep)',flexShrink:0}}>
-          {[['info','Resumo'],['pedidos','Pedidos']].map(([id,lb])=>(
-            <button key={id} onClick={()=>setAbaDir(id)} style={{flex:1,padding:'8px 0',border:'none',background:'transparent',fontSize:12,fontWeight:abaDir===id?600:400,color:abaDir===id?'var(--accent)':'var(--label-3)',cursor:'pointer',borderBottom:`2px solid ${abaDir===id?'var(--accent)':'transparent'}`,transition:'all .15s'}}>
-              {lb}
-            </button>
-          ))}
+// ── Card de sessão na lista ────────────────────────────────────────────────────
+const SessaoCard = memo(function SessaoCard({ sessao, selecionada, onClick }) {
+  const nome     = sessao.nome || fmtTel(sessao.telefone)
+  const selected = selecionada?.telefone === sessao.telefone
+  const carrinho = parseInt(sessao.itens_carrinho) || 0
+  const online   = ativo(sessao)
+
+  return (
+    <div onClick={onClick}
+      className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-l-2 transition-all ${
+        selected
+          ? 'bg-[var(--accent-dim)] border-l-[var(--accent)]'
+          : 'border-l-transparent hover:bg-[var(--bg-3)]'
+      } border-b border-b-[var(--sep)]`}>
+
+      <Avatar sessao={sessao} size={36} />
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-0.5">
+          <span className={`text-[12px] font-semibold truncate max-w-[140px] ${selected ? 'text-[var(--accent)]' : 'text-[var(--label)]'}`}>
+            {nome}
+          </span>
+          <span className="text-[9px] text-[var(--label-4)] flex-shrink-0">{fmtRel(sessao.atualizado_em)}</span>
         </div>
-
-        <div style={{flex:1,overflowY:'auto',padding:10}}>
-          {abaDir==='info' ? (
-            <>
-              {/* Info básica */}
-              <div style={{padding:'10px 10px',borderRadius:9,border:'0.5px solid var(--sep)',background:'var(--bg)',marginBottom:8}}>
-                <div style={{width:36,height:36,borderRadius:'50%',background:`${c}20`,color:c,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,margin:'0 auto 8px'}}>
-                  {iniciais(nomeExib)}
-                </div>
-                <div style={{fontSize:13,fontWeight:600,color:'var(--label)',textAlign:'center',marginBottom:3}}>{nomeExib}</div>
-                <div style={{fontSize:11,color:'var(--label-3)',textAlign:'center'}}>{fmtTel(sessao.telefone)}</div>
-              </div>
-
-              {/* Status */}
-              <div style={{marginBottom:8}}>
-                <div style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'.05em',color:'var(--label-3)',marginBottom:5}}>Status do atendimento</div>
-                <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                  {Object.entries(STATUS_ATEND).map(([key,st])=>(
-                    <button key={key} onClick={()=>setStatusAtend(key)} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 8px',borderRadius:7,border:`0.5px solid ${statusAtend===key?st.color:'var(--sep)'}`,background:statusAtend===key?st.bg:'transparent',cursor:'pointer',textAlign:'left'}}>
-                      <span style={{fontSize:12,color:st.color}}>{st.icon}</span>
-                      <span style={{fontSize:11,fontWeight:statusAtend===key?600:400,color:statusAtend===key?st.color:'var(--label-2)'}}>{st.label}</span>
-                      {statusAtend===key && <span style={{marginLeft:'auto',fontSize:9,padding:'1px 5px',borderRadius:99,background:st.color,color:'#fff',fontWeight:600}}>✓</span>}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Carrinho */}
-              {carrinho.length>0 && (
-                <div style={{marginBottom:8}}>
-                  <div style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'.05em',color:'var(--label-3)',marginBottom:5}}>Carrinho ({carrinho.length})</div>
-                  {carrinho.map((item,i)=>(
-                    <div key={i} style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--label-2)',padding:'3px 0',borderBottom:'0.5px solid var(--sep)'}}>
-                      <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginRight:6}}>{item.quantidade}× {(item.nome||'').slice(0,20)}</span>
-                      <span style={{flexShrink:0,fontWeight:500,color:'#EF9F27'}}>{fmtR(item.preco*item.quantidade)}</span>
-                    </div>
-                  ))}
-                  <div style={{display:'flex',justifyContent:'space-between',fontSize:12,fontWeight:600,color:'var(--label)',marginTop:5}}>
-                    <span>Total</span><span style={{color:'#EF9F27'}}>{fmtR(totalCarrinho)}</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Última atividade */}
-              <div style={{fontSize:11,color:'var(--label-3)',padding:'6px 0',borderTop:'0.5px solid var(--sep)'}}>
-                <div style={{display:'flex',justifyContent:'space-between'}}>
-                  <span>Última msg</span>
-                  <span style={{fontWeight:500,color:'var(--label-2)'}}>{fmtMin(sessao.atualizado_em)}</span>
-                </div>
-                <div style={{display:'flex',justifyContent:'space-between',marginTop:3}}>
-                  <span>Modo</span>
-                  <span style={{fontWeight:500,color:modo==='manual'?'#534AB7':'#1D9E75'}}>{modo==='manual'?'Manual':'IA'}</span>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'.05em',color:'var(--label-3)',marginBottom:8}}>
-                Pedidos do cliente
-              </div>
-              {pedidosCliente.length===0
-                ? <div style={{padding:12,textAlign:'center',color:'var(--label-3)',fontSize:12}}>Sem pedidos encontrados</div>
-                : pedidosCliente.map((p,i)=><PedidoCard key={i} pedido={p}/>)
-              }
-              {pedidosCliente.length>0 && (
-                <div style={{marginTop:6,padding:'6px 0',borderTop:'0.5px solid var(--sep)',fontSize:11,color:'var(--label-3)',display:'flex',justifyContent:'space-between'}}>
-                  <span>Total gasto</span>
-                  <span style={{fontWeight:600,color:'var(--accent)'}}>{fmtR(pedidosCliente.reduce((s,p)=>s+Number(p.total||0),0))}</span>
-                </div>
-              )}
-            </>
+        <div className="flex items-center gap-1.5">
+          {online && <span className="text-[9px] text-emerald-400">● ativo</span>}
+          {carrinho > 0 && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium">
+              🛒 {carrinho}
+            </span>
+          )}
+          {sessao.modo === 'manual' && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 font-medium">
+              Manual
+            </span>
           )}
         </div>
       </div>
     </div>
   )
-}
+})
 
 // ── Página principal ───────────────────────────────────────────────────────────
 export default function PageAtendimento({ api }) {
@@ -473,129 +764,160 @@ export default function PageAtendimento({ api }) {
   const [online,      setOnline]      = useState(true)
   const [ultimaSync,  setUltimaSync]  = useState(null)
   const [busca,       setBusca]       = useState('')
+  const [filtro,      setFiltro]      = useState('todas')
+  const pollingRef = useRef(null)
 
-  const carregar = useCallback(async () => {
+  const carregar = useCallback(async (silencioso = false) => {
     try {
       const r = await fetch(`${api}/api/dashboard/sessoes`)
       if (!r.ok) throw new Error()
       const d = await r.json()
-      setSessoes(d.sessoes||[])
+      setSessoes(d.sessoes || [])
       setOnline(true)
       setUltimaSync(new Date())
     } catch { setOnline(false) }
-    finally { setLoading(false) }
+    finally { if (!silencioso) setLoading(false) }
   }, [api])
 
-  useEffect(() => { carregar(); const i=setInterval(carregar,15000); return ()=>clearInterval(i) }, [carregar])
-
+  // Polling da lista — controlado, sem re-render cascata
   useEffect(() => {
-    if (selecionada) {
-      const nova = sessoes.find(s=>s.telefone===selecionada.telefone)
-      if (nova) setSelecionada(nova)
-    }
+    carregar(false)
+    pollingRef.current = setInterval(() => {
+      if (document.visibilityState === 'visible') carregar(true)
+    }, 15000)
+    return () => clearInterval(pollingRef.current)
+  }, []) // Sem dependências — roda uma vez
+
+  // Atualiza sessão selecionada quando lista muda
+  useEffect(() => {
+    if (!selecionada) return
+    const nova = sessoes.find(s => s.telefone === selecionada.telefone)
+    if (nova && nova !== selecionada) setSelecionada(nova)
   }, [sessoes])
 
-  const ativas      = sessoes.filter(ehAtiva)
-  const comCarrinho = sessoes.filter(s=>parseInt(s.itens_carrinho)>0)
-  const manuais     = sessoes.filter(s=>s.modo==='manual')
+  const ativas      = sessoes.filter(s => ativo(s))
+  const comCarrinho = sessoes.filter(s => parseInt(s.itens_carrinho) > 0)
+  const manuais     = sessoes.filter(s => s.modo === 'manual')
 
   const filtradas = sessoes.filter(s => {
-    if (!busca) return true
-    const nome = s.nome||s.telefone||''
-    return nome.toLowerCase().includes(busca.toLowerCase())||s.telefone?.includes(busca)
+    const matchBusca = !busca || (s.nome||'').toLowerCase().includes(busca.toLowerCase()) || s.telefone?.includes(busca)
+    const matchFiltro = filtro === 'todas' ? true
+      : filtro === 'ativas'   ? ativo(s)
+      : filtro === 'carrinho' ? parseInt(s.itens_carrinho) > 0
+      : filtro === 'manual'   ? s.modo === 'manual'
+      : true
+    return matchBusca && matchFiltro
   })
 
   return (
-    <div style={{height:'100%',display:'flex',overflow:'hidden'}}>
+    <div className="h-full flex overflow-hidden">
 
-      {/* ── Lista lateral ── */}
-      <div style={{width:selecionada?280:460,minWidth:230,flexShrink:0,display:'flex',flexDirection:'column',overflow:'hidden',borderRight:'0.5px solid var(--sep)',transition:'width .2s'}}>
+      {/* ── Sidebar de sessões ── */}
+      <div className={`${selecionada ? 'w-72' : 'w-full max-w-lg'} flex-shrink-0 flex flex-col overflow-hidden border-r border-[var(--sep)] transition-all duration-200`}>
 
         {/* Header */}
-        <div style={{padding:'20px 20px 12px',borderBottom:'0.5px solid var(--sep)',flexShrink:0}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+        <div className="px-4 pt-5 pb-3 border-b border-[var(--sep)] flex-shrink-0">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 style={{fontSize:18,fontWeight:500,margin:0,color:'var(--label)'}}>Atendimento</h1>
-              <p style={{fontSize:11,color:'var(--label-3)',margin:'2px 0 0',display:'flex',alignItems:'center',gap:5}}>
-                {online?<><span style={{width:5,height:5,borderRadius:'50%',background:'var(--accent)',display:'inline-block'}}/>{ativas.length} ativas · sync 15s</>
-                :<><WifiOff size={10} style={{color:'#EF4444'}}/> Sem conexão</>}
-              </p>
+              <h1 className="text-[18px] font-bold text-[var(--label)]">Atendimento</h1>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {online
+                  ? <><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" /><span className="text-[10px] text-[var(--label-4)]">{ativas.length} ativas · sync 15s</span></>
+                  : <span className="text-[10px] text-red-400">● Sem conexão</span>
+                }
+              </div>
             </div>
-            <button onClick={carregar} style={{width:28,height:28,borderRadius:7,border:'0.5px solid var(--sep)',background:'transparent',cursor:'pointer',color:'var(--label-3)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-              <RefreshCw size={11}/>
+            <button onClick={() => carregar(false)}
+              className="w-8 h-8 rounded-lg border border-[var(--sep)] flex items-center justify-center hover:bg-[var(--bg-3)] transition-colors">
+              <svg className="w-3.5 h-3.5 text-[var(--label-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/></svg>
             </button>
           </div>
 
           {/* Stats */}
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:10}}>
-            {[{label:'Ativas',value:ativas.length,cor:'#1D9E75'},{label:'Com carrinho',value:comCarrinho.length,cor:'#EF9F27'},{label:'Manual',value:manuais.length,cor:'#534AB7'},{label:'Total 24h',value:sessoes.length,cor:'var(--label-3)'}].map(({label,value,cor:c})=>(
-              <div key={label} style={{padding:'7px 10px',borderRadius:7,background:'var(--bg)',border:'0.5px solid var(--sep)'}}>
-                <div style={{fontSize:18,fontWeight:600,color:c,lineHeight:1}}>{value}</div>
-                <div style={{fontSize:10,color:'var(--label-3)',marginTop:2}}>{label}</div>
+          <div className="grid grid-cols-4 gap-2 mb-3">
+            {[
+              { label: 'Ativas',    value: ativas.length,      color: 'text-emerald-400' },
+              { label: 'Carrinho',  value: comCarrinho.length, color: 'text-amber-400'   },
+              { label: 'Manual',    value: manuais.length,     color: 'text-blue-400'    },
+              { label: 'Total 24h', value: sessoes.length,     color: 'text-[var(--label-3)]' },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="rounded-xl bg-[var(--bg)] border border-[var(--sep)] p-2.5 text-center">
+                <p className={`text-[18px] font-bold ${color}`}>{value}</p>
+                <p className="text-[9px] text-[var(--label-4)] mt-0.5">{label}</p>
               </div>
             ))}
           </div>
 
           {/* Busca */}
-          <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 10px',borderRadius:7,border:'0.5px solid var(--sep)',background:'var(--bg)'}}>
-            <Search size={11} style={{color:'var(--label-3)',flexShrink:0}}/>
-            <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar..." style={{border:'none',background:'transparent',outline:'none',fontSize:12,color:'var(--label)',width:'100%'}}/>
-            {busca&&<button onClick={()=>setBusca('')} style={{background:'transparent',border:'none',cursor:'pointer',color:'var(--label-3)'}}><X size={10}/></button>}
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--bg)] border border-[var(--sep)] focus-within:border-[var(--accent)] transition-colors">
+            <svg className="w-3.5 h-3.5 text-[var(--label-4)] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input value={busca} onChange={e => setBusca(e.target.value)}
+              placeholder="Buscar por nome ou telefone..."
+              className="flex-1 bg-transparent text-[12px] text-[var(--label)] outline-none placeholder:text-[var(--label-4)]" />
+            {busca && (
+              <button onClick={() => setBusca('')} className="text-[var(--label-4)] hover:text-[var(--label-3)]">
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Lista */}
-        <div style={{flex:1,overflowY:'auto'}}>
-          {loading?<div style={{padding:20,textAlign:'center',color:'var(--label-3)',fontSize:12}}>Carregando...</div>
-          :filtradas.length===0?<div style={{padding:20,textAlign:'center',color:'var(--label-3)',fontSize:12}}>{busca?'Sem resultados':'Nenhuma sessão nas últimas 24h'}</div>
-          :<div style={{padding:'8px 12px',display:'flex',flexDirection:'column',gap:5}}>
-            {filtradas.map((s,i)=>{
-              const ativa=ehAtiva(s)
-              const nomeExib=(s.nome&&s.nome!==s.telefone)?s.nome:fmtTel(s.telefone)
-              const c=cor(nomeExib)
-              const selected=selecionada?.telefone===s.telefone
-              const carrinho=parseInt(s.itens_carrinho)||0
-              return (
-                <div key={i} onClick={()=>setSelecionada(selected?null:s)}
-                  style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:9,border:`0.5px solid ${selected?'var(--accent)':'var(--sep)'}`,background:selected?'var(--accent-dim)':'var(--bg-2)',cursor:'pointer',transition:'background .12s'}}
-                  onMouseEnter={e=>{if(!selected)e.currentTarget.style.background='var(--bg-3)'}}
-                  onMouseLeave={e=>{if(!selected)e.currentTarget.style.background='var(--bg-2)'}}>
-                  <div style={{width:34,height:34,borderRadius:'50%',flexShrink:0,background:`${c}20`,color:c,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,position:'relative'}}>
-                    {iniciais(nomeExib)}
-                    <span style={{position:'absolute',bottom:0,right:0,width:8,height:8,borderRadius:'50%',background:ativa?'#1D9E75':'var(--label-3)',border:'1.5px solid var(--bg-2)'}}/>
-                  </div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:2}}>
-                      <span style={{fontSize:12,fontWeight:selected?600:500,color:selected?'var(--accent)':'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:150}}>{nomeExib}</span>
-                      <span style={{fontSize:10,color:'var(--label-3)',flexShrink:0}}>{fmtMin(s.atualizado_em)}</span>
-                    </div>
-                    <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
-                      {carrinho>0&&<span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:'#EF9F2718',color:'#EF9F27',fontWeight:500}}>🛒 {carrinho}</span>}
-                      {s.modo==='manual'&&<span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:'#534AB718',color:'#534AB7',fontWeight:500}}>Manual</span>}
-                      {ativa&&<span style={{fontSize:10,color:'#1D9E75'}}>● ativo</span>}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>}
+        {/* Filtros */}
+        <div className="flex gap-1 px-4 py-2 border-b border-[var(--sep)] flex-shrink-0 flex-wrap">
+          {[
+            { id:'todas',    label:`Todas (${sessoes.length})`       },
+            { id:'ativas',   label:`Ativas (${ativas.length})`       },
+            { id:'carrinho', label:`Carrinho (${comCarrinho.length})` },
+            { id:'manual',   label:`Manual (${manuais.length})`      },
+          ].map(f => (
+            <button key={f.id} onClick={() => setFiltro(f.id)}
+              className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all ${
+                filtro === f.id
+                  ? 'bg-[var(--accent-dim)] text-[var(--accent)] border border-[var(--accent)]'
+                  : 'text-[var(--label-4)] border border-transparent hover:border-[var(--sep)]'
+              }`}>
+              {f.label}
+            </button>
+          ))}
         </div>
 
-        {ultimaSync&&<div style={{padding:'6px 14px',borderTop:'0.5px solid var(--sep)',fontSize:10,color:'var(--label-3)',flexShrink:0}}>Sync: {ultimaSync.toLocaleTimeString('pt-BR')}</div>}
+        {/* Lista */}
+        <div className="flex-1 overflow-y-auto">
+          {loading
+            ? <div className="p-8 text-center text-[12px] text-[var(--label-4)]">Carregando sessões...</div>
+            : filtradas.length === 0
+              ? <div className="p-8 text-center text-[12px] text-[var(--label-4)]">{busca ? 'Nenhum resultado' : 'Nenhuma sessão nas últimas 24h'}</div>
+              : filtradas.map(s => (
+                  <SessaoCard
+                    key={s.telefone}
+                    sessao={s}
+                    selecionada={selecionada}
+                    onClick={() => setSelecionada(s.telefone === selecionada?.telefone ? null : s)}
+                  />
+                ))
+          }
+        </div>
+
+        {ultimaSync && (
+          <div className="px-4 py-2 border-t border-[var(--sep)] flex-shrink-0">
+            <p className="text-[9px] text-[var(--label-4)]">Último sync: {ultimaSync.toLocaleTimeString('pt-BR')}</p>
+          </div>
+        )}
       </div>
 
       {/* ── Painel de conversa ── */}
-      {selecionada ? (
-        <div style={{flex:1,overflow:'hidden',display:'flex',flexDirection:'column'}}>
-          <PainelConversa key={selecionada.telefone} sessao={selecionada} api={api} onClose={()=>setSelecionada(null)}/>
-        </div>
-      ) : (
-        <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:10,color:'var(--label-3)',background:'var(--bg-3)'}}>
-          <MessageSquare size={32} style={{opacity:.25}}/>
-          <div style={{fontSize:14,fontWeight:500,color:'var(--label)'}}>Selecione uma conversa</div>
-          <div style={{fontSize:12}}>{ativas.length} conversa{ativas.length!==1?'s':''} ativa{ativas.length!==1?'s':''} agora</div>
-        </div>
-      )}
+      {selecionada
+        ? <Chat key={selecionada.telefone} sessao={selecionada} api={api} onClose={() => setSelecionada(null)} />
+        : (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-[var(--bg-3)]">
+            <div className="w-12 h-12 rounded-2xl bg-[var(--bg-2)] border border-[var(--sep)] flex items-center justify-center">
+              <svg className="w-6 h-6 text-[var(--label-4)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <p className="text-[14px] font-medium text-[var(--label)]">Selecione uma conversa</p>
+            <p className="text-[12px] text-[var(--label-4)]">{ativas.length} conversa{ativas.length !== 1 ? 's' : ''} ativa{ativas.length !== 1 ? 's' : ''} agora</p>
+          </div>
+        )
+      }
     </div>
   )
 }
