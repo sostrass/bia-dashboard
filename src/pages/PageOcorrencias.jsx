@@ -12,17 +12,17 @@ const BASE = import.meta.env.VITE_API_URL || ''
 
 // ── Metadados ─────────────────────────────────────────────────────────────────
 const STATUS = {
-  aberta:       { label:'Aberta',       tailwind:'text-amber-600 bg-amber-100',  dot:'bg-amber-500',  icon:Circle       },
-  em_andamento: { label:'Em análise',   tailwind:'text-blue-600 bg-blue-100',    dot:'bg-blue-500',   icon:RefreshCw    },
-  resolvida:    { label:'Resolvida',    tailwind:'text-green-600 bg-green-100',  dot:'bg-green-500',  icon:CheckCircle  },
-  encerrada:    { label:'Encerrada',    tailwind:'text-[var(--label-3)] bg-[var(--fill)]',  dot:'bg-[var(--fill)]',  icon:XCircle      },
+  aberta:       { label:'Aberta',       cor:'#d97706', bg:'rgba(245,158,11,0.15)',  dot:'#f59e0b', icon:Circle      },
+  em_andamento: { label:'Em análise',   cor:'#3b82f6', bg:'rgba(59,130,246,0.15)',  dot:'#3b82f6', icon:RefreshCw   },
+  resolvida:    { label:'Resolvida',    cor:'#16a34a', bg:'rgba(22,163,74,0.15)',   dot:'#22c55e', icon:CheckCircle },
+  encerrada:    { label:'Encerrada',    cor:'var(--label-3)', bg:'var(--fill)',      dot:'var(--label-4)', icon:XCircle },
 }
 
 const PRIORIDADE = {
-  baixa:   { label:'Baixa',   icon:ChevronRight,  tailwind:'text-[var(--label-3)]'  },
-  normal:  { label:'Normal',  icon:Clock,         tailwind:'text-blue-500'   },
-  alta:    { label:'Alta',    icon:AlertTriangle, tailwind:'text-amber-500'  },
-  urgente: { label:'Urgente', icon:Zap,           tailwind:'text-red-500'    },
+  baixa:   { label:'Baixa',   icon:ChevronRight,  cor:'var(--label-4)'  },
+  normal:  { label:'Normal',  icon:Clock,         cor:'#3b82f6'          },
+  alta:    { label:'Alta',    icon:AlertTriangle, cor:'#d97706'          },
+  urgente: { label:'Urgente', icon:Zap,           cor:'#ef4444'          },
 }
 
 const TIPOS = {
@@ -246,10 +246,10 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="font-mono text-xs font-black text-[var(--label-4)]">{oc.ticketId}</span>
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1.5 ${S.tailwind}`}>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1.5" style={{color:S.cor, background:S.bg}}>
                   <div className={`w-1.5 h-1.5 rounded-full ${S.dot}`}/>{S.label}
                 </span>
-                <span className={`flex items-center gap-1 text-[10px] font-bold ${P.tailwind}`}>
+                <span className="flex items-center gap-1 text-[10px] font-bold" style={{color:P.cor}}>
                   <PIcon size={11}/>{P.label}
                 </span>
               </div>
@@ -265,7 +265,7 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
           <div className="grid grid-cols-4 gap-4">
             <div>
               <p className="text-[9px] font-bold text-[var(--label-4)] uppercase tracking-wider mb-1">Tipo</p>
-              <div className={`flex items-center gap-1 text-[11px] font-bold ${T.tailwind.split(' ')[0]}`}>
+              <div className="flex items-center gap-1 text-[11px] font-bold" style={{color:T.cor}}>
                 <TIcon size={12}/>{T.label}
               </div>
             </div>
@@ -291,7 +291,8 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
             <span className="text-[9px] font-bold text-[var(--label-4)] uppercase tracking-wider ml-1.5 mr-1">Marcar como:</span>
             {Object.entries(STATUS).filter(([k])=>k!=='encerrada').map(([key,s])=>(
               <button key={key} onClick={()=>patch({status:key})} disabled={salvando}
-                className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${oc.status===key ? `${s.tailwind} shadow-sm` : 'text-[var(--label-3)] hover:bg-[var(--fill)]'}`}>
+                className="px-3 py-1 rounded-md text-[11px] font-bold transition-all"
+                style={oc.status===key ? {color:s.cor, background:s.bg, boxShadow:'0 1px 2px rgba(0,0,0,.12)'} : {color:'var(--label-3)'}}>
                 {s.label}
               </button>
             ))}
@@ -415,7 +416,7 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
                     const msgCls   = isStatus ? 'bg-blue-50 border-blue-100 text-blue-800' : isWA ? 'bg-green-50 border-green-100 text-green-800' : 'bg-amber-50 border-amber-100 text-amber-800'
                     return (
                       <div key={i} className="relative">
-                        <div className={`absolute -left-[21px] top-1 w-3 h-3 rounded-full border-2 border-white ${dotCls}`}/>
+                        <div className={`absolute -left-[21px] top-1 w-3 h-3 rounded-full border-2 border-[var(--bg-2,white)] ${dotCls}`}/>
                         <p className="text-[9px] font-bold text-[var(--label-4)] uppercase tracking-wider mb-1">
                           {h.por||'sistema'} · {h.em ? fmtData(h.em)+' '+fmtHora(h.em) : ''}
                         </p>
@@ -498,7 +499,7 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
                     </button>
                   </div>
                   <button onClick={enviarWA} disabled={!resposta.trim()||salvando||!oc.telefone}
-                    className="px-4 py-1.5 rounded-lg text-[11px] font-bold text-[var(--label-inv,#fff)] bg-[#25D366] hover:bg-[#20bd5a] disabled:opacity-50 flex items-center gap-1.5 shadow-sm">
+                    className="px-4 py-1.5 rounded-lg text-[11px] font-bold text-white bg-[#25D366] hover:bg-[#1fba5c] disabled:opacity-50 flex items-center gap-1.5 shadow-sm">
                     {salvando?'Enviando...':'Enviar'}<Send size={13}/>
                   </button>
                 </div>
@@ -627,7 +628,7 @@ export default function PageOcorrencias({ api: apiProp }) {
   const urgentes = filtradas.filter(o => o.prioridade==='urgente' && !['resolvida','encerrada'].includes(o.status))
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-[#F8FAFC] text-[var(--label)] antialiased">
+    <div className="flex flex-col h-full overflow-hidden text-[var(--label)] antialiased" style={{background:'var(--bg)'}}>
 
       {/* Header */}
       <header className="px-8 py-5 bg-[var(--bg-2)] border-b border-[var(--sep)] flex-shrink-0">
@@ -783,21 +784,21 @@ export default function PageOcorrencias({ api: apiProp }) {
 
                     {/* Tipo */}
                     <div>
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold ${T.tailwind}`}>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold" style={{color:T.cor, background:T.bg}}>
                         <TIcon size={11}/>{T.label}
                       </span>
                     </div>
 
                     {/* Prioridade */}
                     <div>
-                      <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${P.tailwind}`}>
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold" style={{color:P.cor}}>
                         <PIcon size={12}/>{P.label}
                       </span>
                     </div>
 
                     {/* Status */}
                     <div>
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold ${S.tailwind}`}>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold" style={{color:S.cor, background:S.bg}}>
                         <div className={`w-1.5 h-1.5 rounded-full ${S.dot}`}/>{S.label}
                       </span>
                     </div>

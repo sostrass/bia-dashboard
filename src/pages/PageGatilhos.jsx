@@ -5,7 +5,8 @@ import {
   ShoppingBag, CreditCard, Truck, Bell, Star, Package, Clock,
   MessageSquare, AlertCircle, GripVertical, ChevronDown, ChevronUp,
   Mic, Video, Phone, Copy, Hash, HelpCircle, Timer, Tag, XCircle, Edit3,
-  Info, BookOpen, Layers, Settings2, Send as SendIcon
+  Info, BookOpen, Layers, Settings2, Send as SendIcon,
+  ArrowRight, RotateCcw, Search, ShieldAlert
 } from 'lucide-react'
 
 const BASE = import.meta.env.VITE_API_URL || ''
@@ -40,6 +41,7 @@ const GATILHOS_ESTATICOS = [
   { id:'ocorrencia_resolvida',   label:'Ocorrência Resolvida',     grupo:'Ocorrências', icon:CheckCircle,  cor:'#22c55e', corBg:'rgba(34,197,94,0.1)',     desc:'Confirma a resolução do chamado ao cliente',                     situacao:'ocorrencia', variaveis:['{{nome_cliente}}','{{ticket_id}}','{{numero_pedido}}'] },
   { id:'ocorrencia_troca',       label:'Troca / Devolução',        grupo:'Ocorrências', icon:RotateCcw,    cor:'#f59e0b', corBg:'rgba(245,158,11,0.1)',    desc:'Instrui o cliente sobre o processo de troca ou devolução',       situacao:'ocorrencia', variaveis:['{{nome_cliente}}','{{ticket_id}}','{{numero_pedido}}'] },
   { id:'ocorrencia_extravio',    label:'Pedido Extraviado',        grupo:'Ocorrências', icon:ShieldAlert,  cor:'#ef4444', corBg:'rgba(239,68,68,0.1)',     desc:'Informa sobre extravio e providências tomadas com a transportadora', situacao:'ocorrencia', variaveis:['{{nome_cliente}}','{{ticket_id}}','{{numero_pedido}}','{{transportadora}}'] },
+  { id:'ocorrencia_encerrada',   label:'Chamado Encerrado',        grupo:'Ocorrências', icon:XCircle,      cor:'#6b7280', corBg:'rgba(107,114,128,0.1)',   desc:'Encerramento do chamado — enviado ao marcar status como encerrado',  situacao:'ocorrencia', variaveis:['{{nome_cliente}}','{{ticket_id}}','{{numero_pedido}}'] },
 ]
 
 const GRUPOS = [...new Set(GATILHOS_ESTATICOS.map(g=>g.grupo))]
@@ -72,6 +74,7 @@ const PADROES = {
   ocorrencia_resolvida:   { cab:'✅ Ocorrência resolvida — {{ticket_id}}',  img:'', corpo:'Olá *{{nome_cliente}}*!\n\nFicamos felizes em informar que sua ocorrência *{{ticket_id}}* foi resolvida com sucesso.\n\n{{numero_pedido}}\n\nQualquer dúvida ou novo problema, estamos à disposição. Obrigado pela compreensão!',                                                                                                        rod:'Só Strass — Atendimento ao Cliente', bts:[{texto:'Avaliar atendimento',acao:'reply',valor:'Quero avaliar o atendimento',id:1}] },
   ocorrencia_troca:       { cab:'🔄 Troca / Devolução — {{ticket_id}}',    img:'', corpo:'Olá *{{nome_cliente}}*!\n\nSobre sua solicitação de troca/devolução *{{ticket_id}}*:\n\n📦 Pedido: *#{{numero_pedido}}*\n\nPara prosseguir, por favor nos envie:\n• Foto do produto com o problema\n• Embalagem original (se possível)\n\nAssim que recebermos, processaremos rapidamente.',                                          rod:'Só Strass — Atendimento ao Cliente', bts:[{texto:'Enviar fotos',acao:'reply',valor:'Vou enviar as fotos',id:1}] },
   ocorrencia_extravio:    { cab:'⚠️ Pedido extraviado — {{ticket_id}}',    img:'', corpo:'Olá *{{nome_cliente}}*!\n\nSobre o pedido *#{{numero_pedido}}* extraviado pela *{{transportadora}}*:\n\nJá abrimos uma acareação junto à transportadora. O prazo para retorno é de 5 dias úteis.\n\nAssim que tivermos uma resposta, você será notificado imediatamente.',                                                              rod:'Só Strass — Atendimento ao Cliente', bts:[] },
+  ocorrencia_encerrada:   { cab:'🔒 Chamado encerrado — {{ticket_id}}',    img:'', corpo:'Olá *{{nome_cliente}}*!\n\nSeu chamado *{{ticket_id}}* foi encerrado.\n{{numero_pedido}}\n\nCaso o problema persista ou tenha uma nova dúvida, pode abrir um novo chamado a qualquer momento. Estamos sempre à disposição!',                                                                                                                          rod:'Só Strass — Atendimento ao Cliente', bts:[] },
 }
 
 const TIPOS_BLOCO = [
