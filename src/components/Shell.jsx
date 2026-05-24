@@ -4,7 +4,8 @@ import { useTheme } from '../App'
 import { logout } from '../pages/PageLogin'
 import {
   LayoutDashboard, ShoppingCart, Users, CreditCard,
-  MessageSquare, Bot, Settings, Sun, Moon, Zap, Send, Package
+  MessageSquare, Bot, Settings, Sun, Moon, Zap, Send, Package,
+  AlertCircle, Activity
 } from 'lucide-react'
 
 const PageDashboard   = lazy(() => import('../pages/PageDashboard'))
@@ -15,16 +16,22 @@ const PageAtendimento = lazy(() => import('../pages/PageAtendimento'))
 const PageIAConfig    = lazy(() => import('../pages/PageIAConfig'))
 const PageLLMConfig   = lazy(() => import('../pages/PageLLMConfig'))
 const PageGatilhos    = lazy(() => import('../pages/PageGatilhos'))
+const PageConversas   = lazy(() => import('../pages/PageConversas'))
+const PageDisparos    = lazy(() => import('../pages/PageDisparos'))
+const PageOcorrencias = lazy(() => import('../pages/PageOcorrencias'))
 
 const API = import.meta.env.VITE_API_URL || ''
 
 const NAV = [
   { id:'dashboard',   icon:LayoutDashboard, label:'Dashboard',      group:'main'   },
   { id:'atendimento', icon:MessageSquare,   label:'Atendimento',    group:'main'   },
+  { id:'conversas',   icon:MessageSquare,   label:'Conversas',      group:'main'   },
   { id:'pedidos',     icon:ShoppingCart,    label:'Pedidos',        group:'main'   },
   { id:'clientes',    icon:Users,           label:'Clientes',       group:'main'   },
   { id:'caixa',       icon:CreditCard,      label:'Fluxo de Caixa', group:'main'   },
   { id:'gatilhos',    icon:Zap,             label:'Gatilhos',       group:'tools'  },
+  { id:'disparos',    icon:Activity,        label:'Disparos',       group:'tools'  },
+  { id:'ocorrencias', icon:AlertCircle,     label:'Ocorrências',    group:'tools'  },
   { id:'enviomassa',  icon:Send,            label:'Envio em Massa', group:'tools'  },
   { id:'avise',       icon:Package,         label:'Avise-me',       group:'tools'  },
   { id:'iaconfig',    icon:Bot,             label:'Config IA',      group:'config' },
@@ -104,6 +111,9 @@ export default function Shell() {
       case 'iaconfig':    return <Page nome="Config IA"   comp={PageIAConfig}    />
       case 'llmconfig':   return <Page nome="LLM & Bypasses" comp={PageLLMConfig}  />
       case 'gatilhos':    return <Page nome="Gatilhos"       comp={PageGatilhos}   />
+      case 'conversas':    return <Page nome="Conversas"      comp={PageConversas}   />
+      case 'disparos':     return <Page nome="Disparos"       comp={PageDisparos}    />
+      case 'ocorrencias':  return <Page nome="Ocorrências"    comp={PageOcorrencias} />
       default: return <EmBreve title={NAV.find(n => n.id === page)?.label || page} />
     }
   }
