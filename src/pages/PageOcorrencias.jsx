@@ -1,163 +1,204 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
-  AlertTriangle, CheckCircle, Clock, RefreshCw, Plus, X,
-  Search, ShieldAlert, Package, Truck, CreditCard, Tag,
-  MoreHorizontal, Paperclip, Sparkles, Mail, Phone, User,
-  ChevronRight, Save, Send, ArrowUpRight, Zap, History,
-  MapPin, FileText, AlertCircle, RotateCcw, MessageSquare,
-  ExternalLink, Circle, XCircle
+  Search, RefreshCw, Plus, X, ChevronDown, ChevronUp,
+  Truck, CreditCard, Package, RotateCcw, MessageSquare,
+  AlertCircle, Clock, CheckCircle, User, Send, FileText,
+  AlertTriangle, Tag, Phone, Mail, ArrowUpRight, Zap,
+  ChevronRight, ShieldAlert, Circle, XCircle, Paperclip,
+  Sparkles, History, MapPin, MoreHorizontal, Star,
+  ExternalLink, Copy, Check, RefreshCcw
 } from 'lucide-react'
 
 const BASE = import.meta.env.VITE_API_URL || ''
 
-// ── Metadados ─────────────────────────────────────────────────────────────────
+const TIPO = {
+  entrega:   { label:'Entrega',     icon:Truck,       color:'#7c3aed', bg:'#f5f3ff', border:'#c4b5fd' },
+  atraso:    { label:'Atraso',      icon:Clock,       color:'#b91c1c', bg:'#fef2f2', border:'#fecaca' },
+  extravio:  { label:'Extravio',    icon:ShieldAlert, color:'#9f1239', bg:'#fff1f2', border:'#fecdd3' },
+  troca:     { label:'Troca/Dev.',  icon:RotateCcw,   color:'#c2410c', bg:'#fff7ed', border:'#fed7aa' },
+  pagamento: { label:'Pagamento',   icon:CreditCard,  color:'#1d4ed8', bg:'#eff6ff', border:'#bfdbfe' },
+  produto:   { label:'Produto',     icon:Package,     color:'#b45309', bg:'#fffbeb', border:'#fde68a' },
+  outro:     { label:'Outro',       icon:Tag,         color:'var(--label-3)', bg:'var(--fill)', border:'var(--sep)' },
+}
+
 const STATUS = {
-  aberta:       { label:'Aberta',       cor:'#d97706', bg:'rgba(245,158,11,0.15)',  dot:'#f59e0b', icon:Circle      },
-  em_andamento: { label:'Em análise',   cor:'#3b82f6', bg:'rgba(59,130,246,0.15)',  dot:'#3b82f6', icon:RefreshCw   },
-  resolvida:    { label:'Resolvida',    cor:'#16a34a', bg:'rgba(22,163,74,0.15)',   dot:'#22c55e', icon:CheckCircle },
-  encerrada:    { label:'Encerrada',    cor:'var(--label-3)', bg:'var(--fill)',      dot:'var(--label-4)', icon:XCircle },
+  aberta:       { label:'Aberta',     color:'#b45309', bg:'#fffbeb', border:'#fde68a', ring:'active-ab', dot:'#f59e0b', icon:Circle       },
+  em_andamento: { label:'Em análise', color:'#1d4ed8', bg:'#eff6ff', border:'#bfdbfe', ring:'active-em', dot:'#3b82f6', icon:RefreshCw    },
+  resolvida:    { label:'Resolvida',  color:'#15803d', bg:'#f0fdf4', border:'#bbf7d0', ring:'active-re', dot:'#22c55e', icon:CheckCircle  },
+  encerrada:    { label:'Encerrada',  color:'var(--label-3)', bg:'var(--fill)', border:'var(--sep)', ring:'active-en', dot:'var(--label-4)', icon:XCircle },
 }
 
-const PRIORIDADE = {
-  baixa:   { label:'Baixa',   icon:ChevronRight,  cor:'var(--label-4)'  },
-  normal:  { label:'Normal',  icon:Clock,         cor:'#3b82f6'          },
-  alta:    { label:'Alta',    icon:AlertTriangle, cor:'#d97706'          },
-  urgente: { label:'Urgente', icon:Zap,           cor:'#ef4444'          },
+const PRIO = {
+  baixa:   { label:'Baixa',   icon:ChevronRight,  color:'var(--label-4)' },
+  normal:  { label:'Normal',  icon:Circle,        color:'#1d4ed8'        },
+  alta:    { label:'Alta',    icon:AlertTriangle, color:'#c2410c'        },
+  urgente: { label:'Urgente', icon:Zap,           color:'#dc2626'        },
 }
 
-const TIPOS = {
-  entrega:   { label:'Entrega',     icon:Truck,          tailwind:'text-purple-600 bg-purple-50' },
-  atraso:    { label:'Atraso',      icon:Clock,          tailwind:'text-red-600 bg-red-50'       },
-  extravio:  { label:'Extravio',    icon:ShieldAlert,    tailwind:'text-red-700 bg-red-50'       },
-  troca:     { label:'Troca/Dev.',  icon:RotateCcw,      tailwind:'text-amber-600 bg-amber-50'   },
-  pagamento: { label:'Pagamento',   icon:CreditCard,     tailwind:'text-blue-600 bg-blue-50'     },
-  produto:   { label:'Produto',     icon:Package,        tailwind:'text-orange-600 bg-orange-50' },
-  outro:     { label:'Outro',       icon:Tag,            tailwind:'text-[var(--label-3)] bg-[var(--bg-3)]'   },
+const SCORE_META = {
+  1:{ emoji:'😞', label:'Péssimo',  color:'#991b1b', bg:'#fee2e2' },
+  2:{ emoji:'😐', label:'Regular',  color:'#9a3412', bg:'#fff7ed' },
+  3:{ emoji:'🙂', label:'Bom',      color:'#065f46', bg:'#d1fae5' },
+  4:{ emoji:'😊', label:'Ótimo',    color:'#065f46', bg:'#d1fae5' },
+  5:{ emoji:'🤩', label:'Excelente',color:'#3b0764', bg:'#f5f3ff' },
 }
 
-const fmtData = ts => ts ? new Date(ts).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'2-digit'}) : '—'
-const fmtHora = ts => ts ? new Date(ts).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : ''
-const fmtRel  = ts => {
+const fmtD  = ts => ts ? new Date(ts).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—'
+const fmtH  = ts => ts ? new Date(ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : ''
+const fmtRel = ts => {
   if (!ts) return '—'
-  const d = Math.floor((Date.now()-new Date(ts))/60000)
-  if (d < 1) return 'agora'
-  if (d < 60) return `${d}min`
-  if (d < 1440) return `${Math.floor(d/60)}h`
-  return `${Math.floor(d/1440)}d`
+  const m = Math.floor((Date.now()-new Date(ts))/60000)
+  if (m < 1) return 'agora'
+  if (m < 60) return `${m}min`
+  if (m < 1440) return `${Math.floor(m/60)}h`
+  return `${Math.floor(m/1440)}d`
 }
-const fmtTel = t => { const n=(t||'').replace(/\D/g,'').replace(/^55/,''); return n.length===11?`(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`:t||'' }
+const fmtTel = t => {
+  const n=(t||'').replace(/\D/g,'').replace(/^55/,'')
+  return n.length===11?`(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`:t||''
+}
 
-// ── Modal criar/editar ────────────────────────────────────────────────────────
+// ── BADGE componente ──────────────────────────────────────────────────────────
+function Badge({ color, bg, border, children, size='sm' }) {
+  const fs = size === 'xs' ? '9px' : '10px'
+  return (
+    <span className="inline-flex items-center gap-1 font-semibold rounded-full px-2 py-0.5 whitespace-nowrap"
+      style={{ fontSize:fs, color, background:bg, border:`1px solid ${border}` }}>
+      {children}
+    </span>
+  )
+}
+
+// ── MODAL CRIAR / EDITAR ──────────────────────────────────────────────────────
 function ModalOcorrencia({ api, ocorrencia, onSalvo, onClose }) {
   const edit = !!ocorrencia
   const [f, setF] = useState(edit ? {
-    telefone: ocorrencia.telefone||'', email: ocorrencia.email||'',
-    nomeCliente: ocorrencia.nomeCliente||'', numeroPedido: ocorrencia.numeroPedido||'',
-    titulo: ocorrencia.titulo||'', tipo: ocorrencia.tipo||'outro',
-    prioridade: ocorrencia.prioridade||'normal', descricao: ocorrencia.descricao||'',
-    atribuidoA: ocorrencia.atribuidoA||'',
-  } : { telefone:'', email:'', nomeCliente:'', numeroPedido:'', titulo:'',
-        tipo:'outro', prioridade:'normal', descricao:'', atribuidoA:'' })
+    tipo:ocorrencia.tipo||'outro', prioridade:ocorrencia.prioridade||'normal',
+    titulo:ocorrencia.titulo||'', nomeCliente:ocorrencia.nomeCliente||'',
+    telefone:ocorrencia.telefone||'', email:ocorrencia.email||'',
+    numeroPedido:ocorrencia.numeroPedido||'', atribuidoA:ocorrencia.atribuidoA||'',
+    descricao:ocorrencia.descricao||'',
+  } : { tipo:'outro', prioridade:'normal', titulo:'', nomeCliente:'',
+        telefone:'', email:'', numeroPedido:'', atribuidoA:'', descricao:'' })
   const [saving, setSaving] = useState(false)
-  const [erro, setErro] = useState('')
+  const [erro,   setErro]   = useState('')
   const set = (k,v) => setF(p=>({...p,[k]:v}))
 
   const salvar = async () => {
     if (!f.descricao.trim()) { setErro('Descrição obrigatória'); return }
     setSaving(true); setErro('')
     try {
-      const r = await fetch(edit ? `${api}/api/ocorrencias/${ocorrencia.id}` : `${api}/api/ocorrencias`, {
-        method: edit ? 'PATCH' : 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify(f)
-      })
+      const url = edit ? `${api}/api/ocorrencias/${ocorrencia.id}` : `${api}/api/ocorrencias`
+      const r = await fetch(url, { method:edit?'PATCH':'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(f) })
       if (r.ok) { onSalvo?.(); onClose() }
-      else { const d = await r.json(); setErro(d.erro || 'Erro ao salvar') }
+      else { const d=await r.json(); setErro(d.erro||'Erro ao salvar') }
     } catch { setErro('Erro de conexão') }
     setSaving(false)
   }
 
+  const inp = 'w-full px-3 py-2 rounded-lg text-xs outline-none transition-all focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400'
+  const inpS = { background:'var(--bg)', border:'1px solid var(--sep)', color:'var(--label)' }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-[var(--bg)]/60"/>
-      <div className="relative w-full max-w-lg rounded-2xl bg-[var(--bg-2)] shadow-2xl flex flex-col overflow-hidden z-10"
-        onClick={e=>e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}
+      style={{background:'rgba(0,0,0,0.55)'}}>
+      <div className="relative w-full max-w-[480px] rounded-2xl flex flex-col overflow-hidden z-10 shadow-2xl"
+        style={{background:'var(--bg-2)', border:'1px solid var(--sep)'}} onClick={e=>e.stopPropagation()}>
 
-        <div className="flex items-center justify-between px-6 py-4 bg-[var(--bg)]">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-500 p-1.5 rounded-lg"><Plus size={14} className="text-[var(--label-inv,#fff)]"/></div>
-            <h2 className="text-[var(--label-inv,#fff)] font-bold text-sm">{edit ? 'Editar ocorrência' : 'Nova ocorrência'}</h2>
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3.5 flex-shrink-0"
+          style={{borderBottom:'1px solid var(--sep)', background:'var(--bg-3)'}}>
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-md flex items-center justify-center"
+              style={{background:'#4f6ef7'}}>
+              <Plus size={13} color="#fff"/>
+            </div>
+            <span className="text-sm font-semibold" style={{color:'var(--label)'}}>
+              {edit ? 'Editar ocorrência' : 'Novo chamado'}
+            </span>
           </div>
-          <button onClick={onClose} className="text-[var(--label-4)] hover:text-[var(--label-inv,#fff)]"><X size={18}/></button>
+          <button onClick={onClose} className="w-6 h-6 rounded-md flex items-center justify-center transition-colors hover:opacity-70"
+            style={{color:'var(--label-4)'}}>
+            <X size={14}/>
+          </button>
         </div>
 
-        <div className="p-5 space-y-3 max-h-[70vh] overflow-y-auto">
+        <div className="p-5 space-y-3 overflow-y-auto max-h-[70vh]">
+
+          {/* Tipo + Prioridade */}
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              ['tipo','Tipo', Object.entries(TIPO).map(([k,v])=>({k,l:v.label}))],
+              ['prioridade','Prioridade', Object.entries(PRIO).map(([k,v])=>({k,l:v.label}))],
+            ].map(([key,label,opts])=>(
+              <div key={key}>
+                <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{color:'var(--label-4)'}}>{label} *</label>
+                <select value={f[key]} onChange={e=>set(key,e.target.value)} className={`${inp} pr-8`} style={inpS}>
+                  {opts.map(({k,l})=><option key={k} value={k}>{l}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+
+          {/* Título */}
+          <div>
+            <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{color:'var(--label-4)'}}>Título do chamado</label>
+            <input value={f.titulo} onChange={e=>set('titulo',e.target.value)}
+              placeholder="Ex: Pacote parado na transportadora há 5 dias"
+              className={inp} style={inpS}/>
+          </div>
+
+          {/* Nome + Telefone */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--label-3)] mb-1 block">Tipo *</label>
-              <select value={f.tipo} onChange={e=>set('tipo',e.target.value)} className="w-full px-3 py-2 rounded-xl text-[12px] bg-[var(--bg-3)] border border-[var(--sep)] outline-none focus:ring-2 focus:ring-blue-400">
-                {Object.entries(TIPOS).map(([id,t])=><option key={id} value={id}>{t.label}</option>)}
-              </select>
+              <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{color:'var(--label-4)'}}>Nome do cliente</label>
+              <input value={f.nomeCliente} onChange={e=>set('nomeCliente',e.target.value)} placeholder="Maria Silva" className={inp} style={inpS}/>
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--label-3)] mb-1 block">Prioridade *</label>
-              <select value={f.prioridade} onChange={e=>set('prioridade',e.target.value)} className="w-full px-3 py-2 rounded-xl text-[12px] bg-[var(--bg-3)] border border-[var(--sep)] outline-none focus:ring-2 focus:ring-blue-400">
-                {Object.entries(PRIORIDADE).map(([id,p])=><option key={id} value={id}>{p.label}</option>)}
-              </select>
+              <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{color:'var(--label-4)'}}>WhatsApp</label>
+              <input value={f.telefone} onChange={e=>set('telefone',e.target.value)} placeholder="5519999999999" className={inp} style={inpS}/>
             </div>
           </div>
 
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--label-3)] mb-1 block">Título do chamado</label>
-            <input value={f.titulo} onChange={e=>set('titulo',e.target.value)} placeholder="Ex: Pacote parado na transportadora há 5 dias"
-              className="w-full px-3 py-2 rounded-xl text-[12px] bg-[var(--bg-3)] border border-[var(--sep)] outline-none focus:ring-2 focus:ring-blue-400"/>
-          </div>
-
+          {/* Email + Pedido */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--label-3)] mb-1 block">Nome do cliente</label>
-              <input value={f.nomeCliente} onChange={e=>set('nomeCliente',e.target.value)} placeholder="Maria Silva"
-                className="w-full px-3 py-2 rounded-xl text-[12px] bg-[var(--bg-3)] border border-[var(--sep)] outline-none focus:ring-2 focus:ring-blue-400"/>
+              <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{color:'var(--label-4)'}}>E-mail</label>
+              <input value={f.email} onChange={e=>set('email',e.target.value)} placeholder="cliente@email.com" className={inp} style={inpS}/>
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--label-3)] mb-1 block">WhatsApp</label>
-              <input value={f.telefone} onChange={e=>set('telefone',e.target.value)} placeholder="5519999999999"
-                className="w-full px-3 py-2 rounded-xl text-[12px] bg-[var(--bg-3)] border border-[var(--sep)] outline-none focus:ring-2 focus:ring-blue-400"/>
+              <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{color:'var(--label-4)'}}>Nº pedido Bling</label>
+              <input value={f.numeroPedido} onChange={e=>set('numeroPedido',e.target.value)} placeholder="226540" className={inp} style={inpS}/>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--label-3)] mb-1 block">E-mail</label>
-              <input value={f.email} onChange={e=>set('email',e.target.value)} placeholder="cliente@email.com"
-                className="w-full px-3 py-2 rounded-xl text-[12px] bg-[var(--bg-3)] border border-[var(--sep)] outline-none focus:ring-2 focus:ring-blue-400"/>
-            </div>
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--label-3)] mb-1 block">Nº pedido Bling</label>
-              <input value={f.numeroPedido} onChange={e=>set('numeroPedido',e.target.value)} placeholder="226540"
-                className="w-full px-3 py-2 rounded-xl text-[12px] bg-[var(--bg-3)] border border-[var(--sep)] outline-none focus:ring-2 focus:ring-blue-400"/>
-            </div>
-          </div>
-
+          {/* Atribuído */}
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--label-3)] mb-1 block">Atribuído a</label>
-            <input value={f.atribuidoA} onChange={e=>set('atribuidoA',e.target.value)} placeholder="Nome do responsável"
-              className="w-full px-3 py-2 rounded-xl text-[12px] bg-[var(--bg-3)] border border-[var(--sep)] outline-none focus:ring-2 focus:ring-blue-400"/>
+            <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{color:'var(--label-4)'}}>Atribuído a</label>
+            <input value={f.atribuidoA} onChange={e=>set('atribuidoA',e.target.value)} placeholder="Responsável pelo chamado" className={inp} style={inpS}/>
           </div>
 
+          {/* Descrição */}
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--label-3)] mb-1 block">Descrição *</label>
-            <textarea value={f.descricao} onChange={e=>set('descricao',e.target.value)} rows={4} placeholder="Descreva o problema detalhadamente..."
-              className="w-full px-3 py-2 rounded-xl text-[12px] bg-[var(--bg-3)] border border-[var(--sep)] outline-none resize-none focus:ring-2 focus:ring-blue-400"/>
+            <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{color:'var(--label-4)'}}>Descrição *</label>
+            <textarea value={f.descricao} onChange={e=>set('descricao',e.target.value)} rows={4}
+              placeholder="Descreva o problema com detalhes..."
+              className={`${inp} resize-none`} style={inpS}/>
           </div>
-          {erro && <p className="text-[11px] font-semibold text-red-600">{erro}</p>}
+
+          {erro && <p className="text-xs font-semibold" style={{color:'#dc2626'}}>{erro}</p>}
         </div>
 
-        <div className="flex gap-3 px-5 pb-5 pt-2 bg-[var(--bg-3)] border-t border-[var(--sep)]">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-[12px] font-bold text-[var(--label-3)] hover:bg-[var(--fill)]">Cancelar</button>
+        {/* Footer */}
+        <div className="flex gap-2.5 px-5 pb-5 pt-3 flex-shrink-0" style={{borderTop:'1px solid var(--sep)'}}>
+          <button onClick={onClose} className="flex-1 py-2 rounded-lg text-xs font-semibold transition-colors"
+            style={{background:'var(--fill)', color:'var(--label-3)', border:'1px solid var(--sep)'}}>
+            Cancelar
+          </button>
           <button onClick={salvar} disabled={!f.descricao.trim()||saving}
-            className="flex-1 py-2.5 rounded-xl text-[12px] font-bold text-[var(--label-inv,#fff)] bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
-            {saving ? 'Salvando...' : edit ? 'Salvar' : 'Criar chamado'}
+            className="flex-1 py-2 rounded-lg text-xs font-bold transition-opacity disabled:opacity-40"
+            style={{background:'#4f6ef7', color:'#fff', border:'none'}}>
+            {saving ? 'Salvando...' : edit ? 'Salvar alterações' : 'Criar chamado'}
           </button>
         </div>
       </div>
@@ -165,278 +206,390 @@ function ModalOcorrencia({ api, ocorrencia, onSalvo, onClose }) {
   )
 }
 
-// ── Drawer lateral de detalhes ────────────────────────────────────────────────
+// ── DRAWER ENTERPRISE ─────────────────────────────────────────────────────────
 function TicketDrawer({ oc, api, onAtualizado, onClose }) {
-  const [tab,       setTab]       = useState('timeline')
-  const [resposta,  setResposta]  = useState('')
+  const [tab,       setTab]       = useState('wa')
+  const [texto,     setTexto]     = useState('')
   const [nota,      setNota]      = useState('')
   const [salvando,  setSalvando]  = useState(false)
   const [refining,  setRefining]  = useState(false)
   const [blingData, setBlingData] = useState(null)
   const [blingLoad, setBlingLoad] = useState(false)
+  const [pedAberto, setPedAberto] = useState({})
   const [editModal, setEditModal] = useState(false)
+  const [csatData,  setCsatData]  = useState(null)
+  const [csatSent,  setCsatSent]  = useState(false)
+  const [copied,    setCopied]    = useState(null)
 
-  const T = TIPOS[oc.tipo]   || TIPOS.outro
-  const S = STATUS[oc.status]|| STATUS.aberta
-  const P = PRIORIDADE[oc.prioridade] || PRIORIDADE.normal
+  const T = TIPO[oc.tipo]           || TIPO.outro
+  const S = STATUS[oc.status]       || STATUS.aberta
+  const P = PRIO[oc.prioridade]     || PRIO.normal
   const TIcon = T.icon
   const SIcon = S.icon
   const PIcon = P.icon
+  const primeiroNome = oc.nomeCliente?.split(' ')[0] || 'cliente'
 
-  // Busca dados Bling ao abrir o drawer
-  useEffect(() => {
+  const fetchBling = () => {
     setBlingLoad(true)
     fetch(`${api}/api/ocorrencias/${oc.id}/bling`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setBlingData(d) })
-      .catch(() => {})
-      .finally(() => setBlingLoad(false))
-  }, [oc.id, api])
+      .then(r=>r.json()).then(d=>setBlingData(d)).catch(()=>{}).finally(()=>setBlingLoad(false))
+  }
+  const fetchCsat = () => {
+    fetch(`${api}/api/ocorrencias/${oc.id}/csat`)
+      .then(r=>r.ok?r.json():null).then(d=>{ if(d) setCsatData(d) }).catch(()=>{})
+  }
+
+  useEffect(() => { fetchBling(); fetchCsat() }, [oc.id])
 
   const patch = async (body) => {
     setSalvando(true)
     try {
       const r = await fetch(`${api}/api/ocorrencias/${oc.id}`, {
-        method:'PATCH', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(body)
+        method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
       })
       if (r.ok) onAtualizado()
     } catch {}
     setSalvando(false)
   }
 
-  // Muda status E envia mensagem automática via template do gatilho
-  const mudarStatus = async (novoStatus) => {
-    if (oc.status === novoStatus) return
-    await patch({ status: novoStatus })
-  }
-
-  const enviarNota = async () => { if (!nota.trim()) return; await patch({ nota }); setNota('') }
-  const enviarWA   = async () => { if (!resposta.trim()) return; await patch({ respostaCliente: resposta }); setResposta('') }
+  const mudarStatus = key => { if (oc.status !== key) patch({ status:key }) }
+  const enviarWA    = async () => { if (!texto.trim()) return; await patch({respostaCliente:texto}); setTexto('') }
+  const enviarNota  = async () => { if (!nota.trim()) return; await patch({nota}); setNota('') }
 
   const refinarIA = async () => {
-    if (!resposta.trim()) return
+    if (!texto.trim()) return
     setRefining(true)
     try {
       const r = await fetch(`${api}/api/ia/melhorar-texto`, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ texto: resposta, contexto: `Ocorrência: ${oc.titulo||oc.descricao}. Cliente: ${oc.nomeCliente}` })
+        body:JSON.stringify({ texto, contexto:`Chamado ${oc.ticketId}: ${oc.titulo||oc.descricao}. Cliente: ${oc.nomeCliente}` })
       })
-      if (r.ok) { const d = await r.json(); if (d.texto) setResposta(d.texto) }
+      if (r.ok) { const d=await r.json(); if(d.texto) setTexto(d.texto) }
     } catch {}
     setRefining(false)
   }
 
-  const primeiroNome = oc.nomeCliente?.split(' ')[0] || 'cliente'
+  const dispararCsat = async () => {
+    try {
+      const r = await fetch(`${api}/api/ocorrencias/${oc.id}/csat`, { method:'POST' })
+      if (r.ok) { setCsatSent(true); onAtualizado() }
+    } catch {}
+  }
 
-  // Apenas o corpo da resposta — o backend adiciona cabeçalho (TK-XXXX), citação do relato e rodapé automaticamente
+  const copiar = (text, key) => {
+    navigator.clipboard?.writeText(text).catch(()=>{})
+    setCopied(key)
+    setTimeout(()=>setCopied(null), 1500)
+  }
+
   const TEMPLATES = [
-    `Verificamos sua solicitação e nossa equipe já está atuando no caso. Em breve você receberá uma atualização completa.`,
-    `Entramos em contato com a transportadora para acareação. O prazo de retorno é de 48h úteis. Assim que tivermos uma resposta, avisamos imediatamente.`,
-    `Sua ocorrência foi resolvida! ${oc.numeroPedido ? `O pedido #${oc.numeroPedido} ` : 'Seu pedido '}foi regularizado. Qualquer dúvida, estamos à disposição.`,
-    `Pedimos desculpas pelo inconveniente. Como forma de compensação, entraremos em contato para combinar a melhor solução para você.`,
+    `Em análise — acareação aberta. Retorno em 48h úteis.`,
+    `Abrimos protocolo com a transportadora. Prazo: 48h úteis.`,
+    `Pedido será reenviado sem custo adicional em até 2 dias úteis.`,
+    `Reembolso processado. Valor estornado em até 5 dias úteis.`,
   ]
 
   const cliente = blingData?.cliente
   const pedidos = blingData?.pedidos || []
 
+  const tabStyle = (id) => ({
+    borderBottom: `2px solid ${tab===id ? '#4f6ef7' : 'transparent'}`,
+    color: tab===id ? '#4f6ef7' : 'var(--label-4)',
+    background: 'transparent',
+    overrideColors: {
+      wa:   tab==='wa'  ? '#059669' : null,
+      em:   tab==='em'  ? '#7c3aed' : null,
+      nota: tab==='nota'? '#d97706' : null,
+      csat: tab==='csat'? '#7c3aed' : null,
+    }
+  })
+
+  const getTabColor = (id) => {
+    if (tab!==id) return 'var(--label-4)'
+    return {wa:'#059669', em:'#7c3aed', nota:'#d97706', csat:'#7c3aed', tl:'#4f6ef7'}[id] || '#4f6ef7'
+  }
+  const getTabBorder = (id) => {
+    if (tab!==id) return 'transparent'
+    return {wa:'#059669', em:'#7c3aed', nota:'#d97706', csat:'#7c3aed', tl:'#4f6ef7'}[id] || '#4f6ef7'
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex" onClick={onClose}>
-      <div className="flex-1 bg-[var(--bg)]/30"/>
-      <div className="w-[600px] h-full flex flex-col bg-[var(--bg-2)] border-l border-[var(--sep)] shadow-2xl overflow-hidden"
+      <div className="flex-1" style={{background:'rgba(0,0,0,0.4)'}}/>
+      <div className="w-[680px] h-full flex flex-col overflow-hidden shadow-2xl"
+        style={{background:'var(--bg-2)', borderLeft:'1px solid var(--sep)'}}
         onClick={e=>e.stopPropagation()}>
 
-        {/* Header */}
-        <div className="px-6 py-5 bg-[var(--bg-3)] border-b border-[var(--sep)] flex-shrink-0">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="font-mono text-xs font-black text-[var(--label-4)]">{oc.ticketId}</span>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1.5" style={{color:S.cor, background:S.bg}}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${S.dot}`}/>{S.label}
-                </span>
-                <span className="flex items-center gap-1 text-[10px] font-bold" style={{color:P.cor}}>
-                  <PIcon size={11}/>{P.label}
-                </span>
-              </div>
-              <h2 className="text-[15px] font-bold text-[var(--label)] leading-tight">{oc.titulo || oc.descricao?.slice(0,60)}</h2>
-            </div>
-            <div className="flex gap-1.5 ml-4 flex-shrink-0">
-              <button onClick={()=>setEditModal(true)} className="px-3 py-1.5 text-[11px] font-bold text-[var(--label-3)] bg-[var(--bg-2)] border border-[var(--sep)] rounded-lg hover:bg-[var(--bg-3)]">Editar</button>
-              <button onClick={onClose} className="p-1.5 text-[var(--label-4)] hover:text-[var(--label-2)] hover:bg-[var(--fill)] rounded-lg"><X size={18}/></button>
-            </div>
+        {/* ── TICKET HEADER ──────────────────────────────────────────────── */}
+        <div className="flex-shrink-0" style={{background:'var(--bg-3)', borderBottom:'1px solid var(--sep)'}}>
+
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-1.5 px-5 py-2" style={{borderBottom:'0.5px solid var(--sep)'}}>
+            <span className="text-[10px]" style={{color:'var(--label-4)'}}>Ocorrências</span>
+            <ChevronRight size={10} style={{color:'var(--label-4)'}}/>
+            <span className="text-[10px] font-semibold font-mono" style={{color:'var(--label-3)'}}>{oc.ticketId}</span>
           </div>
 
-          {/* Meta grid */}
-          <div className="grid grid-cols-4 gap-4">
-            <div>
-              <p className="text-[9px] font-bold text-[var(--label-4)] uppercase tracking-wider mb-1">Tipo</p>
-              <div className="flex items-center gap-1 text-[11px] font-bold" style={{color:T.cor}}>
-                <TIcon size={12}/>{T.label}
-              </div>
-            </div>
-            <div>
-              <p className="text-[9px] font-bold text-[var(--label-4)] uppercase tracking-wider mb-1">Atribuído a</p>
-              <p className="text-[11px] font-semibold text-[var(--label-2)]">{oc.atribuidoA || '—'}</p>
-            </div>
-            <div>
-              <p className="text-[9px] font-bold text-[var(--label-4)] uppercase tracking-wider mb-1">Pedido ERP</p>
-              {oc.numeroPedido
-                ? <span className="flex items-center gap-1 text-[11px] font-bold text-blue-600">#{oc.numeroPedido}<ArrowUpRight size={11}/></span>
-                : <span className="text-[11px] text-[var(--label-4)]">—</span>
-              }
-            </div>
-            <div>
-              <p className="text-[9px] font-bold text-[var(--label-4)] uppercase tracking-wider mb-1">Aberta há</p>
-              <p className="text-[11px] font-semibold text-[var(--label-2)]">{fmtRel(oc.criadoEm)}</p>
-            </div>
-          </div>
-
-          {/* Status actions */}
-          <div className="flex items-center gap-2 mt-4 bg-[var(--bg-2)] p-1.5 rounded-lg border border-[var(--sep)] w-max">
-            <span className="text-[9px] font-bold text-[var(--label-4)] uppercase tracking-wider ml-1.5 mr-1">Marcar como:</span>
-            {Object.entries(STATUS).filter(([k])=>k!=='encerrada').map(([key,s])=>(
-              <button key={key} onClick={()=>mudarStatus(key)} disabled={salvando}
-                className="px-3 py-1 rounded-md text-[11px] font-bold transition-all flex items-center gap-1"
-                style={oc.status===key
-                  ? {color:s.cor, background:s.bg, boxShadow:'0 1px 2px rgba(0,0,0,.12)'}
-                  : {color:'var(--label-3)'}}>
-                {salvando && oc.status!==key ? null : null}
-                {s.label}
-                {oc.status===key && <span className="text-[8px] opacity-60 ml-0.5">✓</span>}
-              </button>
-            ))}
-            <button onClick={()=>mudarStatus('encerrada')} disabled={salvando}
-              className="px-3 py-1 rounded-md text-[11px] font-bold transition-all flex items-center gap-1"
-              style={oc.status==='encerrada' ? {color:STATUS.encerrada.cor, background:STATUS.encerrada.bg} : {color:'var(--label-4)'}}>
-              Encerrar
-              {oc.status==='encerrada' && <span className="text-[8px] opacity-60 ml-0.5">✓</span>}
-            </button>
-          </div>
-          <p className="text-[9px] mt-1.5 ml-1" style={{color:'var(--label-4)'}}>
-            💬 Mensagem automática enviada ao cliente ao mudar o status
-          </p>
-        </div>
-
-        {/* Cliente (Bling) */}
-        {(blingLoad || cliente) && (
-          <div className="px-6 py-3 border-b border-[var(--sep)] bg-[var(--bg-3)]/50 flex-shrink-0">
-            {blingLoad ? (
-              <div className="flex items-center gap-2 text-[11px] text-[var(--label-4)]">
-                <RefreshCw size={12} className="animate-spin"/><span>Buscando dados no Bling...</span>
-              </div>
-            ) : cliente ? (
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[var(--fill)] flex items-center justify-center text-[var(--label-3)] font-bold text-sm flex-shrink-0">
-                  {(cliente.nome||oc.nomeCliente||'?').charAt(0).toUpperCase()}
+          <div className="px-5 pt-3 pb-3">
+            {/* Title row */}
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                  <span className="font-mono text-[10px] font-bold" style={{color:'var(--label-4)'}}>{oc.ticketId}</span>
+                  <Badge color={S.color} bg={S.bg} border={S.border}>
+                    <SIcon size={9}/>{S.label}
+                  </Badge>
+                  <Badge color={P.color} bg="transparent" border="transparent">
+                    <PIcon size={9}/>{P.label}
+                  </Badge>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-[13px] font-bold text-[var(--label)]">{cliente.nome || oc.nomeCliente}</h3>
-                    {cliente.origem === 'bling' && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">BLING</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4 mt-0.5 flex-wrap">
-                    {(cliente.email || oc.email) && (
-                      <span className="flex items-center gap-1 text-[10px] text-[var(--label-3)]"><Mail size={11}/>{cliente.email||oc.email}</span>
-                    )}
-                    {oc.telefone && (
-                      <span className="flex items-center gap-1 text-[10px] text-[var(--label-3)]"><Phone size={11}/>{fmtTel(oc.telefone)}</span>
-                    )}
-                    {cliente.cidade && (
-                      <span className="flex items-center gap-1 text-[10px] text-[var(--label-3)]"><MapPin size={11}/>{cliente.cidade}{cliente.estado && ` · ${cliente.estado}`}</span>
-                    )}
-                    {cliente.cpf_cnpj && (
-                      <span className="flex items-center gap-1 text-[10px] text-[var(--label-4)]"><FileText size={10}/>{cliente.cpf_cnpj}</span>
-                    )}
-                  </div>
-                </div>
+                <h2 className="text-[15px] font-bold leading-snug" style={{color:'var(--label)'}}>
+                  {oc.titulo || oc.descricao?.slice(0,65) || '—'}
+                </h2>
               </div>
-            ) : null}
-          </div>
-        )}
+              <div className="flex gap-1.5 flex-shrink-0 mt-0.5">
+                <button onClick={()=>setEditModal(true)}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors"
+                  style={{background:'var(--fill)', color:'var(--label-2)', border:'1px solid var(--sep)'}}>
+                  <span>Editar</span>
+                </button>
+                <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+                  style={{background:'var(--fill)', border:'1px solid var(--sep)', color:'var(--label-4)'}}>
+                  <X size={13}/>
+                </button>
+              </div>
+            </div>
 
-        {/* Pedidos do Bling */}
-        {pedidos.length > 0 && (
-          <div className="px-6 py-3 border-b border-[var(--sep)] bg-[var(--bg-2)] flex-shrink-0">
-            <p className="text-[9px] font-bold text-[var(--label-4)] uppercase tracking-wider mb-2">Pedidos no Bling</p>
-            <div className="space-y-1.5">
-              {pedidos.map((p,i) => (
-                <div key={i} className="flex items-center gap-3 p-2 rounded-xl bg-[var(--bg-3)] border border-[var(--sep)]">
-                  <Package size={12} className="text-[var(--label-4)] flex-shrink-0"/>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[11px] font-bold text-[var(--label-2)]">#{p.numero}</span>
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">{p.situacao}</span>
-                      <span className="text-[11px] font-bold text-emerald-600">{p.total}</span>
-                      {p.transportadora && <span className="text-[10px] text-[var(--label-4)] flex items-center gap-1"><Truck size={9}/>{p.transportadora}</span>}
-                    </div>
-                    {p.rastreio && (
-                      <p className="text-[10px] text-blue-600 mt-0.5 font-medium flex items-center gap-1"><Package size={9}/>{p.rastreio}</p>
-                    )}
-                    {p.itens?.length > 0 && (
-                      <p className="text-[10px] text-[var(--label-4)] mt-0.5 truncate">{p.itens.map(i=>`${i.nome} (${i.quantidade}x)`).join(', ')}</p>
-                    )}
-                  </div>
-                  <span className="text-[10px] text-[var(--label-4)] flex-shrink-0">{p.data}</span>
+            {/* Meta grid */}
+            <div className="grid grid-cols-4 gap-2 mb-3">
+              {[
+                { l:'Tipo',      v:<span className="flex items-center gap-1" style={{color:T.color}}><TIcon size={12}/>{T.label}</span> },
+                { l:'Prioridade',v:<span style={{color:P.color}} className="flex items-center gap-1"><PIcon size={12}/>{P.label}</span> },
+                { l:'Pedido ERP',v: oc.numeroPedido
+                    ? <span className="flex items-center gap-1" style={{color:'#1d4ed8'}}>#{oc.numeroPedido}<ArrowUpRight size={10}/></span>
+                    : <span style={{color:'var(--label-4)'}}>—</span> },
+                { l:'Atribuído', v:<span style={{color:'var(--label-2)'}}>{oc.atribuidoA||'—'}</span> },
+              ].map(({l,v})=>(
+                <div key={l} className="px-2.5 py-2 rounded-lg" style={{background:'var(--bg)', border:'1px solid var(--sep)'}}>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{color:'var(--label-4)'}}>{l}</p>
+                  <div className="text-[11px] font-semibold">{v}</div>
                 </div>
               ))}
             </div>
+
+            {/* Status pipeline */}
+            <div className="flex items-center gap-1 p-1.5 rounded-lg mb-1.5"
+              style={{background:'var(--bg)', border:'1px solid var(--sep)'}}>
+              {Object.entries(STATUS).map(([key,s])=>{
+                const Sic = s.icon
+                const ativo = oc.status===key
+                return (
+                  <button key={key} onClick={()=>mudarStatus(key)} disabled={salvando}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold transition-all"
+                    style={ativo
+                      ? {color:s.color, background:s.bg, boxShadow:`0 0 0 1.5px ${s.border} inset`}
+                      : {color:'var(--label-3)', background:'transparent'}}>
+                    <Sic size={11}/>{s.label}
+                    {ativo && <Check size={9} style={{opacity:.6}}/>}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="text-[10px] flex items-center gap-1" style={{color:'var(--label-4)'}}>
+              <Send size={10}/>
+              Mudar status dispara mensagem automática do template configurado em Gatilhos.
+            </p>
+          </div>
+        </div>
+
+        {/* ── CLIENTE (Bling) ─────────────────────────────────────────────── */}
+        <div className="flex-shrink-0 px-5 py-2.5" style={{borderBottom:'1px solid var(--sep)', background:'var(--bg-2)'}}>
+          {blingLoad ? (
+            <div className="flex items-center gap-2" style={{color:'var(--label-4)'}}>
+              <RefreshCw size={11} className="animate-spin"/>
+              <span className="text-xs">Buscando no Bling...</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              {/* Avatar */}
+              <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
+                style={{background:'#dbeafe', color:'#1e40af'}}>
+                {(cliente?.nome||oc.nomeCliente||'?').charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                  <span className="text-[13px] font-bold" style={{color:'var(--label)'}}>
+                    {cliente?.nome || oc.nomeCliente || 'Cliente não identificado'}
+                  </span>
+                  {cliente?.origem==='bling' && (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{background:'#dbeafe',color:'#1e40af'}}>
+                      BLING ✓
+                    </span>
+                  )}
+                  {blingData?.aviso && (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{background:'#fff7ed',color:'#c2410c'}}>
+                      ⚠ {blingData.aviso.slice(0,35)}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                  {(cliente?.telefone||oc.telefone) && (
+                    <span className="flex items-center gap-1 text-[11px]" style={{color:'var(--label-3)'}}><Phone size={10}/>{fmtTel(cliente?.telefone||oc.telefone)}</span>
+                  )}
+                  {(cliente?.email||oc.email) && (
+                    <span className="flex items-center gap-1 text-[11px]" style={{color:'var(--label-3)'}}><Mail size={10}/>{cliente?.email||oc.email}</span>
+                  )}
+                  {cliente?.cidade && (
+                    <span className="flex items-center gap-1 text-[11px]" style={{color:'var(--label-3)'}}><MapPin size={10}/>{cliente.cidade}{cliente.estado&&` · ${cliente.estado}`}</span>
+                  )}
+                  {cliente?.cpf_cnpj && (
+                    <span className="text-[10px]" style={{color:'var(--label-4)'}}>{cliente.cpf_cnpj}</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-1.5 flex-shrink-0">
+                <button onClick={fetchBling} className="w-7 h-7 rounded-lg flex items-center justify-center"
+                  style={{background:'var(--fill)', border:'1px solid var(--sep)', color:'var(--label-4)'}}>
+                  <RefreshCw size={10}/>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── PEDIDOS DO BLING ────────────────────────────────────────────── */}
+        {pedidos.length > 0 && (
+          <div className="flex-shrink-0 px-5 py-3" style={{borderBottom:'1px solid var(--sep)', maxHeight:220, overflowY:'auto', background:'var(--bg-2)'}}>
+            <p className="text-[9px] font-bold uppercase tracking-wider mb-2" style={{color:'var(--label-4)'}}>
+              Pedidos no Bling ({pedidos.length})
+            </p>
+            <div className="space-y-1.5">
+              {pedidos.map((p,i) => {
+                const sitColor = {Aberto:'#d97706',Atendido:'#15803d',Cancelado:'#dc2626',Faturado:'#1d4ed8','NF emitida':'#7c3aed','Em andamento':'#1d4ed8',Entregue:'#15803d','Não entregue':'#dc2626'}
+                const cor = sitColor[p.situacao]||'var(--label-3)'
+                const open = pedAberto[i]
+                return (
+                  <div key={i} className="rounded-xl overflow-hidden" style={{border:'1px solid var(--sep)'}}>
+                    <div className="flex items-center gap-2.5 px-3 py-2 cursor-pointer"
+                      style={{background:'var(--bg-3)'}}
+                      onClick={()=>setPedAberto(v=>({...v,[i]:!v[i]}))}>
+                      <Package size={12} style={{color:'var(--label-4)', flexShrink:0}}/>
+                      <span className="text-[11px] font-bold" style={{color:'var(--label)'}}>#{p.numero}</span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{background:`${cor}18`, color:cor}}>{p.situacao}</span>
+                      <span className="text-[11px] font-semibold" style={{color:'#15803d'}}>{p.total}</span>
+                      {p.transportadora && <span className="text-[10px] flex items-center gap-1 ml-auto" style={{color:'var(--label-4)'}}><Truck size={9}/>{p.transportadora}</span>}
+                      <span className="text-[10px]" style={{color:'var(--label-4)'}}>{p.data}</span>
+                      {open ? <ChevronUp size={11} style={{color:'var(--label-4)'}}/> : <ChevronDown size={11} style={{color:'var(--label-4)'}}/>}
+                    </div>
+                    {open && (
+                      <div className="px-3 pt-2 pb-3 space-y-1.5" style={{borderTop:'0.5px solid var(--sep)', background:'var(--bg)'}}>
+                        {p.rastreio && (
+                          <div className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg" style={{background:'#eff6ff'}}>
+                            <Truck size={11} style={{color:'#1d4ed8'}}/>
+                            <div className="flex-1">
+                              <p className="text-[9px] font-bold" style={{color:'#1e40af'}}>Código de rastreio</p>
+                              <p className="text-[11px] font-mono font-semibold" style={{color:'var(--label)'}}>{p.rastreio}</p>
+                            </div>
+                            <button onClick={()=>copiar(p.rastreio,'rastreio'+i)}
+                              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-colors"
+                              style={{background:'var(--bg-2)', border:'1px solid var(--sep)', color:'var(--label-3)'}}>
+                              {copied===`rastreio${i}` ? <Check size={10}/> : <Copy size={10}/>}
+                              {copied===`rastreio${i}` ? 'Copiado' : 'Copiar'}
+                            </button>
+                          </div>
+                        )}
+                        {p.itens?.length > 0 && p.itens.map((it,j)=>(
+                          <div key={j} className="flex items-center justify-between py-1" style={{borderBottom:'0.5px solid var(--sep)'}}>
+                            <span className="text-[11px] truncate flex-1" style={{color:'var(--label-2)'}}>{it.nome}</span>
+                            <span className="text-[10px] ml-3 flex-shrink-0" style={{color:'var(--label-4)'}}>{it.quantidade}x {it.valorUnit}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
 
-        {/* Tabs + conteúdo */}
-        <div className="flex border-b border-[var(--sep)] flex-shrink-0">
-          {[['timeline','Timeline','History'],['whatsapp','WhatsApp','MessageSquare'],['email','E-mail','Mail'],['nota','Nota interna','FileText']].map(([id,label])=>(
+        {/* ── TABS ────────────────────────────────────────────────────────── */}
+        <div className="flex flex-shrink-0" style={{borderBottom:'1px solid var(--sep)', background:'var(--bg-2)'}}>
+          {[
+            { id:'tl',   label:'Timeline',    ic:<History size={13}/>,     badge: (oc.historico||[]).length||null },
+            { id:'wa',   label:'WhatsApp',    ic:<MessageSquare size={13}/> },
+            { id:'em',   label:'E-mail',      ic:<Mail size={13}/> },
+            { id:'nota', label:'Nota interna',ic:<FileText size={13}/> },
+            { id:'csat', label:'CSAT',        ic:<Star size={13}/>, ml:true },
+          ].map(({id,label,ic,badge,ml})=>(
             <button key={id} onClick={()=>setTab(id)}
-              className={`flex-1 py-2.5 text-[11px] font-bold border-b-2 transition-all ${
-                tab===id
-                  ? id==='nota' ? 'text-amber-600 border-amber-500 bg-amber-50/30'
-                  : id==='email' ? 'text-blue-600 border-blue-500 bg-blue-50/30'
-                  : id==='whatsapp' ? 'text-green-700 border-green-600 bg-green-50/30'
-                  : 'text-[var(--label-2)] border-[var(--sep)]'
-                  : 'text-[var(--label-4)] border-transparent hover:text-[var(--label-3)]'
-              }`}>
-              {label}
+              className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold transition-all whitespace-nowrap"
+              style={{
+                borderBottom:`2px solid ${getTabBorder(id)}`,
+                color: getTabColor(id),
+                background:'transparent',
+                marginLeft: ml ? 'auto' : undefined,
+              }}>
+              {ic}{label}
+              {badge && (
+                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold"
+                  style={{background:'#e0e9ff', color:'#3b5bdb'}}>{badge}</span>
+              )}
             </button>
           ))}
         </div>
 
+        {/* ── TAB CONTENT ──────────────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto">
 
           {/* TIMELINE */}
-          {tab === 'timeline' && (
-            <div className="p-6">
+          {tab==='tl' && (
+            <div className="p-5">
               {/* Relato original */}
-              <div className="flex items-start gap-3 mb-6">
-                <div className="w-7 h-7 rounded-full bg-[var(--fill)] flex items-center justify-center flex-shrink-0">
-                  <User size={13} className="text-[var(--label-3)]"/>
+              <div className="flex gap-3 mb-5">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                  style={{background:'#fffbeb', border:'1px solid #fde68a'}}>
+                  <Tag size={13} style={{color:'#d97706'}}/>
                 </div>
-                <div>
-                  <p className="text-[10px] font-bold text-[var(--label-4)] uppercase tracking-wider mb-1.5">Relato original</p>
-                  <div className="bg-[var(--bg-3)] border border-[var(--sep)] p-3.5 rounded-xl">
-                    <p className="text-[12px] text-[var(--label-2)] leading-relaxed">{oc.descricao}</p>
+                <div className="flex-1">
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1.5" style={{color:'var(--label-4)'}}>Relato original</p>
+                  <div className="p-3 rounded-xl text-xs leading-relaxed"
+                    style={{background:'var(--bg)', border:'1px solid var(--sep)', color:'var(--label-2)'}}>
+                    {oc.descricao||'Sem descrição.'}
                   </div>
                 </div>
               </div>
 
-              {/* Histórico real */}
-              {(oc.historico||[]).length > 0 && (
-                <div className="relative pl-4 border-l-2 border-[var(--sep)] space-y-5 mb-6">
-                  {[...(oc.historico||[])].reverse().map((h,i) => {
+              {/* Eventos */}
+              {[...(oc.historico||[])].reverse().length > 0 && (
+                <div className="relative pl-4 space-y-4 mb-5" style={{borderLeft:'1.5px solid var(--sep)'}}>
+                  {[...(oc.historico||[])].reverse().map((h,i)=>{
+                    const isWA     = h.acao==='whatsapp'
                     const isStatus = h.acao?.startsWith('status')
-                    const isWA     = h.acao === 'whatsapp'
-                    const dotCls   = isStatus ? 'bg-blue-500' : isWA ? 'bg-green-500' : 'bg-[var(--fill)]'
-                    const msgCls   = isStatus ? 'bg-blue-50 border-blue-100 text-blue-800' : isWA ? 'bg-green-50 border-green-100 text-green-800' : 'bg-amber-50 border-amber-100 text-amber-800'
+                    const isCsat   = h.acao?.startsWith('csat')
+                    const dotBg    = isWA?'#d1fae5':isStatus?'#dbeafe':isCsat?'#f5f3ff':'var(--fill)'
+                    const dotBor   = isWA?'#6ee7b7':isStatus?'#93c5fd':isCsat?'#c4b5fd':'var(--sep)'
+                    const dotCor   = isWA?'#059669':isStatus?'#1d4ed8':isCsat?'#7c3aed':'var(--label-3)'
+                    const bubbleBg = isWA?'#f0fdf4':isStatus?'#eff6ff':isCsat?'#f5f3ff':'var(--bg)'
+                    const bubbleBor= isWA?'#bbf7d0':isStatus?'#bfdbfe':isCsat?'#c4b5fd':'var(--sep)'
+                    const bubbleCor= isWA?'#065f46':isStatus?'#1e3a8a':isCsat?'#4c1d95':'var(--label-2)'
+                    const IcNode   = isWA?MessageSquare:isStatus?RefreshCw:isCsat?Star:FileText
                     return (
-                      <div key={i} className="relative">
-                        <div className={`absolute -left-[21px] top-1 w-3 h-3 rounded-full border-2 border-[var(--bg-2,white)] ${dotCls}`}/>
-                        <p className="text-[9px] font-bold text-[var(--label-4)] uppercase tracking-wider mb-1">
-                          {h.por||'sistema'} · {h.em ? fmtData(h.em)+' '+fmtHora(h.em) : ''}
-                        </p>
-                        <div className={`border p-3 rounded-xl text-[11px] font-medium leading-relaxed ${msgCls}`}>
-                          {h.nota}
+                      <div key={i} className="relative flex gap-3">
+                        <div className="absolute -left-[21px] top-1 w-[30px] h-[30px] rounded-full flex items-center justify-center flex-shrink-0"
+                          style={{background:dotBg, border:`1px solid ${dotBor}`, color:dotCor}}>
+                          <IcNode size={12}/>
+                        </div>
+                        <div className="flex-1 min-w-0 pl-3">
+                          <p className="text-[10px] mb-1.5 flex items-center gap-1.5" style={{color:'var(--label-4)'}}>
+                            <span className="font-semibold" style={{color:'var(--label-2)'}}>{h.por||'sistema'}</span>
+                            · {h.em ? fmtD(h.em)+' '+fmtH(h.em) : ''}
+                          </p>
+                          <div className="p-2.5 rounded-xl text-xs leading-relaxed font-mono"
+                            style={{background:bubbleBg, border:`1px solid ${bubbleBor}`, color:bubbleCor}}>
+                            {h.nota}
+                          </div>
                         </div>
                       </div>
                     )
@@ -444,135 +597,221 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
                 </div>
               )}
 
-              {/* Adicionar nota */}
-              <div className="border-t border-[var(--sep)] pt-4">
-                <p className="text-[9px] font-bold text-[var(--label-4)] uppercase tracking-wider mb-2">Adicionar nota interna</p>
-                <textarea value={nota} onChange={e=>setNota(e.target.value)} rows={3}
-                  placeholder="Registrar informação interna sobre este chamado..."
-                  className="w-full text-[12px] p-3 rounded-xl bg-[var(--bg-3)] border border-[var(--sep)] outline-none resize-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400"/>
-                <button onClick={enviarNota} disabled={!nota.trim()||salvando}
-                  className="mt-2 flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-bold bg-[var(--bg)] text-[var(--label-inv,#fff)] disabled:opacity-40">
-                  <Save size={12}/>{salvando ? 'Salvando...' : 'Salvar nota'}
-                </button>
+              {/* Adicionar nota rápida */}
+              <div style={{borderTop:'1px solid var(--sep)', paddingTop:16}}>
+                <p className="text-[9px] font-semibold uppercase tracking-wider mb-2" style={{color:'var(--label-4)'}}>Nota rápida</p>
+                <div className="rounded-xl overflow-hidden" style={{border:'1px solid var(--sep)'}}>
+                  <textarea value={nota} onChange={e=>setNota(e.target.value)} rows={2}
+                    placeholder="Registrar informação interna..."
+                    className="w-full px-3 py-2 text-xs outline-none resize-none"
+                    style={{background:'var(--bg)', color:'var(--label)', borderBottom:'1px solid var(--sep)'}}/>
+                  <div className="flex justify-end px-2.5 py-2" style={{background:'var(--bg-3)'}}>
+                    <button onClick={enviarNota} disabled={!nota.trim()||salvando}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold disabled:opacity-40"
+                      style={{background:'var(--label)', color:'var(--bg)'}}>
+                      <FileText size={11}/>{salvando?'Salvando...':'Salvar'}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
           {/* WHATSAPP */}
-          {tab === 'whatsapp' && (
-            <div className="p-6">
-              {/* Preview da estrutura da mensagem */}
-              <div className="mb-4 rounded-xl overflow-hidden border border-[var(--sep)]">
-                <div className="px-3 py-2 bg-[var(--bg)] flex items-center gap-2">
-                  <MessageSquare size={12} className="text-green-400"/>
-                  <span className="text-[10px] font-bold text-[var(--label-4)] uppercase tracking-wider">Preview — estrutura enviada ao cliente</span>
+          {tab==='wa' && (
+            <div className="p-5">
+              {/* Preview */}
+              <div className="rounded-xl overflow-hidden mb-4" style={{border:'1px solid #bbf7d0'}}>
+                <div className="flex items-center gap-2 px-3 py-2" style={{background:'#064e3b'}}>
+                  <MessageSquare size={11} style={{color:'#6ee7b7'}}/>
+                  <span className="text-[9px] font-bold uppercase tracking-wider" style={{color:'rgba(255,255,255,0.5)'}}>Preview — estrutura da mensagem</span>
                 </div>
-                <div className="bg-[#e5ddd5] px-4 py-3 font-mono text-[10px] text-[var(--label-2)] space-y-1 leading-relaxed">
-                  <p className="font-bold text-[var(--label)]">📋 Atualização — Protocolo {oc.ticketId}</p>
+                <div className="px-4 py-3 font-mono text-[10px] leading-relaxed space-y-1"
+                  style={{background:'#f0fdf4', color:'#065f46'}}>
+                  <p className="font-bold" style={{color:'#064e3b'}}>📋 Atualização — Protocolo {oc.ticketId}</p>
                   <p>Olá {primeiroNome}!</p>
-                  <p className="text-[var(--label-3)] italic border-l-2 border-[var(--sep)] pl-2 my-1">
-                    &gt; Sua solicitação:<br/>
-                    &gt; {(oc.descricao||'').slice(0,80)}{oc.descricao?.length > 80 ? '...' : ''}
+                  <p className="pl-2.5 italic text-[10px]" style={{borderLeft:'2.5px solid #6ee7b7', color:'#047857'}}>
+                    &gt; {(oc.descricao||'').slice(0,80)}{oc.descricao?.length>80?'...':''}
                   </p>
-                  <p className="font-semibold">Nossa resposta:</p>
-                  <p className="text-[var(--label-3)] italic">{resposta || <span className="text-[var(--label-4)]">[ sua resposta aparece aqui ]</span>}</p>
-                  <p className="text-[var(--label-3)] border-t border-[var(--sep)] pt-1 mt-1">
-                    🏷️ Status: {STATUS[oc.status]?.label || 'Aberta'}<br/>
-                    📋 Protocolo: {oc.ticketId}<br/>
-                    <span className="italic">Só Strass — Atendimento ao Cliente</span>
+                  <p className="font-semibold" style={{color:'#064e3b'}}>Nossa resposta:</p>
+                  <p style={{color:texto?'#047857':'#6ee7b7'}}>{texto||'[ selecione template ou escreva ]'}</p>
+                  <p className="text-[9px] pt-1" style={{borderTop:'1px solid #bbf7d0',color:'#047857'}}>
+                    🏷️ Status: {S.label} · 📋 {oc.ticketId} · Só Strass
                   </p>
                 </div>
               </div>
 
-              {oc.respostaCliente && (
-                <div className="mb-4 p-3 rounded-xl bg-[var(--bg-3)] border border-[var(--sep)]">
-                  <p className="text-[9px] font-bold text-[var(--label-4)] uppercase tracking-wider mb-1.5">Última resposta enviada</p>
-                  <p className="text-[12px] text-[var(--label-2)]">{oc.respostaCliente}</p>
-                </div>
-              )}
-
-              <p className="text-[9px] font-bold text-[var(--label-4)] uppercase tracking-wider mb-2">Respostas rápidas</p>
-              <div className="flex gap-2 mb-3">
+              {/* Templates */}
+              <p className="text-[9px] font-semibold uppercase tracking-wider mb-2" style={{color:'var(--label-4)'}}>Respostas rápidas</p>
+              <div className="flex flex-wrap gap-1.5 mb-3">
                 {TEMPLATES.map((t,i)=>(
-                  <button key={i} onClick={()=>setResposta(t)}
-                    className="flex-1 px-2 py-2 rounded-lg text-[9px] text-left leading-tight bg-[var(--bg-3)] border border-[var(--sep)] text-[var(--label-3)] hover:bg-green-50 hover:border-green-200 hover:text-green-700 transition-colors">
-                    Resposta {i+1}
+                  <button key={i} onClick={()=>setTexto(t)}
+                    className="px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors"
+                    style={{
+                      background: texto===t ? '#f0fdf4' : 'var(--fill)',
+                      border: texto===t ? '1px solid #86efac' : '1px solid var(--sep)',
+                      color: texto===t ? '#15803d' : 'var(--label-2)',
+                    }}>
+                    {t.slice(0,32)}...
                   </button>
                 ))}
               </div>
 
-              <div className={`border rounded-xl focus-within:ring-2 transition-all border-green-200 bg-green-50/30 focus-within:ring-green-500 focus-within:border-green-500`}>
-                <textarea value={resposta} onChange={e=>setResposta(e.target.value)} rows={5}
-                  placeholder={`Escrever para ${oc.nomeCliente?.split(' ')[0]||'o cliente'}...`}
-                  className="w-full text-[12px] font-medium p-3 bg-transparent outline-none resize-none text-[var(--label)]"/>
-                <div className="flex items-center justify-between px-3 py-2 border-t border-[var(--sep)]/60">
-                  <div className="flex items-center gap-1">
-                    <button className="p-1.5 text-[var(--label-4)] hover:text-[var(--label-2)] hover:bg-[var(--fill)] rounded-md"><Paperclip size={15}/></button>
-                    <button onClick={refinarIA} disabled={!resposta.trim()||refining}
-                      className="p-1.5 text-purple-600 hover:bg-purple-100 rounded-md flex items-center gap-1 text-[11px] font-bold disabled:opacity-40">
-                      <Sparkles size={13} className={refining?'animate-spin':''}/> {refining?'Refinando...':'IA'}
+              {/* Composer */}
+              <div className="rounded-xl overflow-hidden" style={{border:'1px solid #86efac'}}>
+                <textarea value={texto} onChange={e=>setTexto(e.target.value)} rows={4}
+                  placeholder={`Escrever para ${primeiroNome}...`}
+                  className="w-full px-3 py-2.5 text-xs font-medium outline-none resize-none"
+                  style={{background:'var(--bg)', color:'var(--label)', borderBottom:'1px solid #86efac'}}/>
+                <div className="flex items-center justify-between px-3 py-2" style={{background:'var(--bg-3)'}}>
+                  <div className="flex gap-1.5">
+                    <button className="w-7 h-7 rounded-lg flex items-center justify-center" style={{background:'var(--fill)', border:'1px solid var(--sep)', color:'var(--label-4)'}}>
+                      <Paperclip size={13}/>
+                    </button>
+                    <button onClick={refinarIA} disabled={!texto.trim()||refining}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold disabled:opacity-40 transition-colors"
+                      style={{background:'#f5f3ff', border:'1px solid #c4b5fd', color:'#7c3aed'}}>
+                      <Sparkles size={11} className={refining?'animate-spin':''}/>{refining?'Refinando...':'IA'}
                     </button>
                   </div>
-                  <button onClick={enviarWA} disabled={!resposta.trim()||salvando||!oc.telefone}
-                    className="px-4 py-1.5 rounded-lg text-[11px] font-bold text-white bg-[#25D366] hover:bg-[#1fba5c] disabled:opacity-50 flex items-center gap-1.5 shadow-sm">
-                    {salvando?'Enviando...':'Enviar'}<Send size={13}/>
+                  <button onClick={enviarWA} disabled={!texto.trim()||salvando||!oc.telefone}
+                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40"
+                    style={{background:'#059669', color:'#fff', border:'none'}}>
+                    <MessageSquare size={12}/>{salvando?'Enviando...':'Enviar WhatsApp'}
                   </button>
                 </div>
               </div>
-              {!oc.telefone && <p className="text-[10px] text-red-500 font-semibold mt-2">Telefone não cadastrado</p>}
+              {!oc.telefone && <p className="text-[10px] mt-2 font-semibold" style={{color:'#dc2626'}}>Telefone não cadastrado — adicione para enviar mensagens</p>}
             </div>
           )}
 
-          {/* E-MAIL */}
-          {tab === 'email' && (
-            <div className="p-6">
-              <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
-                <Mail size={13} className="text-blue-700 mt-0.5 flex-shrink-0"/>
-                <p className="text-[11px] text-blue-800">
-                  E-mail enviado para {cliente?.email||oc.email||'—'}. Registrado no histórico após envio.
-                </p>
+          {/* EMAIL */}
+          {tab==='em' && (
+            <div className="p-5">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg mb-4 text-xs"
+                style={{background:'#ede9fe', border:'1px solid #c4b5fd', color:'#5b21b6'}}>
+                <Mail size={13}/>Para: {cliente?.email||oc.email||'E-mail não cadastrado'}
               </div>
-              <div className="border border-blue-200 bg-blue-50/30 rounded-xl focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all">
-                <textarea value={resposta} onChange={e=>setResposta(e.target.value)} rows={7}
-                  placeholder={`Escreva o e-mail para ${oc.nomeCliente||'o cliente'}...`}
-                  className="w-full text-[12px] font-medium p-3 bg-transparent outline-none resize-none text-[var(--label)]"/>
-                <div className="flex items-center justify-between px-3 py-2 border-t border-[var(--sep)]/60">
-                  <div className="flex items-center gap-1">
-                    <button className="p-1.5 text-[var(--label-4)] hover:text-[var(--label-2)] hover:bg-[var(--fill)] rounded-md"><Paperclip size={15}/></button>
-                    <button onClick={refinarIA} disabled={!resposta.trim()||refining}
-                      className="p-1.5 text-purple-600 hover:bg-purple-100 rounded-md flex items-center gap-1 text-[11px] font-bold disabled:opacity-40">
-                      <Sparkles size={13} className={refining?'animate-spin':''}/> {refining?'Refinando...':'IA'}
-                    </button>
-                  </div>
-                  <button onClick={()=>patch({nota:`E-mail redigido (não enviado automaticamente): "${resposta.slice(0,80)}"`})}
-                    disabled={!resposta.trim()||salvando||!oc.email&&!cliente?.email}
-                    className="px-4 py-1.5 rounded-lg text-[11px] font-bold text-[var(--label-inv,#fff)] bg-blue-600 hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5 shadow-sm">
-                    {salvando?'Enviando...':'Enviar'}<Send size={13}/>
+              <div className="rounded-xl overflow-hidden" style={{border:'1px solid #c4b5fd'}}>
+                <textarea value={texto} onChange={e=>setTexto(e.target.value)} rows={8}
+                  placeholder={`E-mail para ${oc.nomeCliente||'o cliente'}...`}
+                  className="w-full px-3 py-2.5 text-xs outline-none resize-none"
+                  style={{background:'var(--bg)', color:'var(--label)', borderBottom:'1px solid #c4b5fd'}}/>
+                <div className="flex items-center justify-between px-3 py-2" style={{background:'var(--bg-3)'}}>
+                  <button onClick={refinarIA} disabled={!texto.trim()||refining}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold disabled:opacity-40"
+                    style={{background:'#f5f3ff', border:'1px solid #c4b5fd', color:'#7c3aed'}}>
+                    <Sparkles size={11} className={refining?'animate-spin':''}/>{refining?'Refinando...':'IA'}
+                  </button>
+                  <button onClick={()=>patch({nota:`E-mail redigido: "${texto.slice(0,60)}..."`})} disabled={!texto.trim()||salvando}
+                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40"
+                    style={{background:'#7c3aed', color:'#fff', border:'none'}}>
+                    <Send size={12}/>{salvando?'Enviando...':'Enviar e-mail'}
                   </button>
                 </div>
               </div>
-              {!oc.email && !cliente?.email && <p className="text-[10px] text-red-500 font-semibold mt-2">E-mail não cadastrado</p>}
             </div>
           )}
 
-          {/* NOTA */}
-          {tab === 'nota' && (
-            <div className="p-6">
-              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
-                <FileText size={13} className="text-amber-700 mt-0.5 flex-shrink-0"/>
-                <p className="text-[11px] text-amber-800">Nota interna — visível apenas para a equipe, não enviada ao cliente.</p>
+          {/* NOTA INTERNA */}
+          {tab==='nota' && (
+            <div className="p-5">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg mb-4 text-xs"
+                style={{background:'#fffbeb', border:'1px solid #fde68a', color:'#92400e'}}>
+                <FileText size={13}/> Nota interna — visível apenas para a equipe, não enviada ao cliente
               </div>
-              <div className="border border-amber-200 bg-amber-50/30 rounded-xl focus-within:ring-2 focus-within:ring-amber-500 focus-within:border-amber-500 transition-all">
-                <textarea value={nota} onChange={e=>setNota(e.target.value)} rows={7}
-                  placeholder="Registrar informação, contato com transportadora, acareação..." 
-                  className="w-full text-[12px] font-medium p-3 bg-transparent outline-none resize-none text-[var(--label)]"/>
-                <div className="flex items-center justify-end px-3 py-2 border-t border-[var(--sep)]/60">
+              <div className="rounded-xl overflow-hidden" style={{border:'1px solid #fde68a'}}>
+                <textarea value={nota} onChange={e=>setNota(e.target.value)} rows={8}
+                  placeholder="Registrar contato com transportadora, acareação, próximos passos..."
+                  className="w-full px-3 py-2.5 text-xs outline-none resize-none"
+                  style={{background:'var(--bg)', color:'var(--label)', borderBottom:'1px solid #fde68a'}}/>
+                <div className="flex justify-end px-3 py-2" style={{background:'var(--bg-3)'}}>
                   <button onClick={enviarNota} disabled={!nota.trim()||salvando}
-                    className="px-4 py-1.5 rounded-lg text-[11px] font-bold text-[var(--label-inv,#fff)] bg-amber-500 hover:bg-amber-600 disabled:opacity-50 flex items-center gap-1.5 shadow-sm">
-                    {salvando?'Salvando...':'Salvar nota'}<Save size={13}/>
+                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40"
+                    style={{background:'#d97706', color:'#fff', border:'none'}}>
+                    <FileText size={12}/>{salvando?'Salvando...':'Salvar nota'}
                   </button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* CSAT */}
+          {tab==='csat' && (
+            <div className="p-5 space-y-4">
+              {/* Disparo */}
+              <div className="rounded-xl overflow-hidden" style={{border:'1px solid #c4b5fd'}}>
+                <div className="flex items-center gap-2.5 px-4 py-3" style={{background:'#ede9fe'}}>
+                  <Star size={15} style={{color:'#7c3aed'}}/>
+                  <div>
+                    <p className="text-xs font-bold" style={{color:'#4c1d95'}}>Pesquisa de satisfação</p>
+                    <p className="text-[10px]" style={{color:'#7c3aed'}}>Gamificação · NPS · CSAT</p>
+                  </div>
+                </div>
+                <div className="p-4" style={{background:'var(--bg)'}}>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-2" style={{color:'var(--label-4)'}}>Preview da mensagem</p>
+                  <div className="p-3 rounded-xl font-mono text-[11px] leading-relaxed mb-3"
+                    style={{background:'#f0fdf4', border:'1px solid #bbf7d0', color:'#065f46'}}>
+                    <p className="font-bold mb-1" style={{color:'#064e3b'}}>⭐ Como avalia o nosso atendimento?</p>
+                    <p className="mb-2 text-[10px]" style={{color:'#047857'}}>Protocolo {oc.ticketId} · Só Strass</p>
+                    <div className="flex gap-3 flex-wrap">
+                      {Object.entries(SCORE_META).map(([s,m])=>(
+                        <span key={s} className="text-[11px]">{m.emoji} {m.label}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {csatSent ? (
+                    <div className="flex items-center gap-2 px-4 py-3 rounded-xl"
+                      style={{background:'#f0fdf4', border:'1px solid #bbf7d0'}}>
+                      <Check size={14} style={{color:'#059669'}}/>
+                      <span className="text-xs font-semibold" style={{color:'#065f46'}}>Pesquisa enviada para {primeiroNome}!</span>
+                    </div>
+                  ) : (
+                    <button onClick={dispararCsat} disabled={!oc.telefone}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold disabled:opacity-40 transition-colors"
+                      style={{background:'#7c3aed', color:'#fff', border:'none'}}>
+                      <Send size={13}/>Enviar pesquisa de satisfação para {primeiroNome}
+                    </button>
+                  )}
+
+                  {!oc.telefone && (
+                    <p className="text-[10px] mt-2 text-center font-semibold" style={{color:'#dc2626'}}>Telefone não cadastrado</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Histórico do cliente */}
+              {csatData?.clientHistory?.length > 0 && (
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-3" style={{color:'var(--label-4)'}}>
+                    Histórico de avaliações — {oc.nomeCliente||'cliente'}
+                  </p>
+                  <div className="space-y-2">
+                    {csatData.clientHistory.map((h,i)=>{
+                      const m = SCORE_META[h.score]||SCORE_META[3]
+                      return (
+                        <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl"
+                          style={{background:'var(--bg-3)', border:'1px solid var(--sep)'}}>
+                          <span className="text-xl">{m.emoji}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-semibold" style={{color:'var(--label)'}}>
+                              {h.ticket_id} · {h.score}/5 — {m.label}
+                            </p>
+                            {h.comentario && (
+                              <p className="text-[10px] truncate" style={{color:'var(--label-3)'}}>"{h.comentario}"</p>
+                            )}
+                          </div>
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full"
+                            style={{background:m.bg, color:m.color}}>
+                            {h.score}/5
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -580,17 +819,92 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
 
       {editModal && (
         <ModalOcorrencia api={api} ocorrencia={oc}
-          onSalvo={() => { onAtualizado(); setEditModal(false) }}
-          onClose={() => setEditModal(false)}/>
+          onSalvo={()=>{onAtualizado();setEditModal(false)}}
+          onClose={()=>setEditModal(false)}/>
       )}
     </div>
   )
 }
 
-// ── Página principal ──────────────────────────────────────────────────────────
+// ── TICKET ROW na lista ───────────────────────────────────────────────────────
+function TicketRow({ oc, ativo, onClick }) {
+  const S  = STATUS[oc.status]    || STATUS.aberta
+  const T  = TIPO[oc.tipo]        || TIPO.outro
+  const P  = PRIO[oc.prioridade]  || PRIO.normal
+  const ur = oc.prioridade==='urgente' && !['resolvida','encerrada'].includes(oc.status)
+  const SIcon = S.icon
+  const TIcon = T.icon
+  const PIcon = P.icon
+
+  return (
+    <div onClick={onClick} className="grid items-center px-5 py-3.5 cursor-pointer transition-colors"
+      style={{
+        gridTemplateColumns:'2fr 1.6fr 0.8fr 0.9fr 0.8fr 0.5fr',
+        borderBottom:'0.5px solid var(--sep)',
+        borderLeft: ativo ? '3px solid #4f6ef7' : ur ? '3px solid #dc2626' : '3px solid transparent',
+        background: ativo ? 'rgba(79,110,247,0.05)' : 'transparent',
+      }}
+      onMouseEnter={e=>!ativo && (e.currentTarget.style.background='var(--bg-3)')}
+      onMouseLeave={e=>!ativo && (e.currentTarget.style.background='transparent')}>
+
+      {/* Ticket */}
+      <div className="min-w-0 pr-3">
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <span className="font-mono text-[9px] font-bold" style={{color: ativo?'#4f6ef7':'var(--label-4)'}}>{oc.ticketId}</span>
+          {ur && <Zap size={9} className="animate-pulse" style={{color:'#dc2626'}}/>}
+        </div>
+        <p className="text-[12.5px] font-semibold leading-snug" style={{
+          color:'var(--label)',
+          overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'100%'
+        }}>
+          {oc.titulo || oc.descricao?.slice(0,48) || '—'}
+        </p>
+      </div>
+
+      {/* Cliente */}
+      <div className="min-w-0 pr-3">
+        <p className="text-[12px] font-medium truncate" style={{color:'var(--label)'}}>{oc.nomeCliente||oc.telefone||'—'}</p>
+        {oc.numeroPedido
+          ? <p className="text-[10px] flex items-center gap-1 mt-0.5" style={{color:'var(--label-4)'}}><Package size={9}/>#{oc.numeroPedido}</p>
+          : <p className="text-[10px] mt-0.5" style={{color:'var(--label-4)'}}>Sem pedido</p>}
+      </div>
+
+      {/* Tipo */}
+      <div>
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold"
+          style={{color:T.color, background:T.bg, border:`1px solid ${T.border}`}}>
+          <TIcon size={9}/>{T.label}
+        </span>
+      </div>
+
+      {/* Prioridade */}
+      <div>
+        <span className="inline-flex items-center gap-1 text-[11px] font-semibold" style={{color:P.color}}>
+          <PIcon size={11}/>{P.label}
+        </span>
+      </div>
+
+      {/* Status */}
+      <div>
+        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-semibold"
+          style={{color:S.color, background:S.bg, border:`1px solid ${S.border}`}}>
+          <div className="w-1.5 h-1.5 rounded-full" style={{background:S.dot}}/>
+          {S.label}
+        </span>
+      </div>
+
+      {/* Tempo */}
+      <div className="flex items-center justify-end gap-1.5">
+        <span className="text-[10px]" style={{color:'var(--label-4)'}}>{fmtRel(oc.criadoEm)}</span>
+        <ChevronRight size={13} style={{color:'var(--label-4)'}}/>
+      </div>
+    </div>
+  )
+}
+
+// ── PÁGINA PRINCIPAL ──────────────────────────────────────────────────────────
 export default function PageOcorrencias({ api: apiProp }) {
   const api = apiProp || BASE
-
   const [ocorrencias, setOcorrencias] = useState([])
   const [stats,       setStats]       = useState({})
   const [loading,     setLoading]     = useState(true)
@@ -600,17 +914,17 @@ export default function PageOcorrencias({ api: apiProp }) {
   const [filtroTipo,  setFiltroTipo]  = useState('todos')
   const [filtroPrio,  setFiltroPrio]  = useState('todos')
   const [busca,       setBusca]       = useState('')
-  const [ver,         setVer]         = useState(0)   // força re-render do drawer
+  const [ver,         setVer]         = useState(0)
 
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
       const p = new URLSearchParams()
-      if (filtroSt   !== 'todos') p.set('status', filtroSt)
-      if (filtroTipo !== 'todos') p.set('tipo',   filtroTipo)
+      if (filtroSt   !== 'todos') p.set('status',    filtroSt)
+      if (filtroTipo !== 'todos') p.set('tipo',      filtroTipo)
       if (filtroPrio !== 'todos') p.set('prioridade', filtroPrio)
       const r = await fetch(`${api}/api/ocorrencias?${p}`)
-      if (r.ok) { const d = await r.json(); setOcorrencias(d.ocorrencias||[]); setStats(d.stats||{}) }
+      if (r.ok) { const d=await r.json(); setOcorrencias(d.ocorrencias||[]); setStats(d.stats||{}) }
     } catch {}
     setLoading(false)
   }, [api, filtroSt, filtroTipo, filtroPrio])
@@ -622,7 +936,7 @@ export default function PageOcorrencias({ api: apiProp }) {
     if (drawer) {
       try {
         const r = await fetch(`${api}/api/ocorrencias/${drawer.id}`)
-        if (r.ok) { const d = await r.json(); setDrawer(d.ocorrencia) }
+        if (r.ok) { const d=await r.json(); setDrawer(d.ocorrencia) }
       } catch {}
     }
     setVer(v=>v+1)
@@ -640,199 +954,147 @@ export default function PageOcorrencias({ api: apiProp }) {
       || (oc.email||'').toLowerCase().includes(b)
   })
 
-  const urgentes = filtradas.filter(o => o.prioridade==='urgente' && !['resolvida','encerrada'].includes(o.status))
+  const urgentes = filtradas.filter(o=>o.prioridade==='urgente'&&!['resolvida','encerrada'].includes(o.status))
+
+  // KPIs
+  const kpis = [
+    { l:'Total',      v:parseInt(stats.total||0),        color:'var(--label)',  bg:'var(--bg-2)',             fn:()=>{setFiltroSt('todos');setFiltroPrio('todos')} },
+    { l:'Abertas',    v:parseInt(stats.abertas||0),      color:'#b45309', bg:'#fffbeb',              fn:()=>setFiltroSt('aberta')       },
+    { l:'Em análise', v:parseInt(stats.em_andamento||0), color:'#1d4ed8', bg:'#eff6ff',              fn:()=>setFiltroSt('em_andamento') },
+    { l:'Resolvidas', v:parseInt(stats.resolvidas||0),   color:'#15803d', bg:'#f0fdf4',              fn:()=>setFiltroSt('resolvida')    },
+    { l:'Encerradas', v:parseInt(stats.encerradas||0),   color:'var(--label-3)', bg:'var(--fill)',   fn:()=>setFiltroSt('encerrada')    },
+    { l:'Urgentes',   v:parseInt(stats.urgentes||0),     color:'#dc2626', bg:'#fef2f2',              fn:()=>setFiltroPrio('urgente')    },
+  ]
 
   return (
-    <div className="flex flex-col h-full overflow-hidden text-[var(--label)] antialiased" style={{background:'var(--bg)'}}>
+    <div className="flex flex-col h-full overflow-hidden" style={{background:'var(--bg)'}}>
 
-      {/* Header */}
-      <header className="px-8 py-5 bg-[var(--bg-2)] border-b border-[var(--sep)] flex-shrink-0">
+      {/* ── HEADER ─────────────────────────────────────────────────────────── */}
+      <div className="flex-shrink-0 px-6 pt-5 pb-4"
+        style={{background:'var(--bg-2)', borderBottom:'1px solid var(--sep)'}}>
+
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h1 className="text-[22px] font-black text-[var(--label)] tracking-tight">Ocorrências & Chamados</h1>
-            <p className="text-[12px] font-medium text-[var(--label-3)] mt-0.5">CRM de tickets com integração Bling</p>
+            <h1 className="text-[20px] font-bold" style={{color:'var(--label)'}}>Ocorrências & Chamados</h1>
+            <p className="text-xs mt-0.5" style={{color:'var(--label-3)'}}>CRM de tickets · Integração Bling · CSAT automático</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={carregar}
-              className="p-2.5 bg-[var(--bg-2)] border border-[var(--sep)] rounded-xl text-[var(--label-3)] hover:bg-[var(--bg-3)] shadow-sm">
+              className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
+              style={{background:'var(--fill)', border:'1px solid var(--sep)', color:'var(--label-3)'}}>
               <RefreshCw size={14} className={loading?'animate-spin':''}/>
             </button>
             <button onClick={()=>setModalNova(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[var(--label)] hover:opacity-90 text-[var(--bg)] rounded-xl font-bold text-[13px] shadow-md">
-              <Plus size={15} strokeWidth={3}/> Novo chamado
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs"
+              style={{background:'#4f6ef7', color:'#fff', border:'none'}}>
+              <Plus size={14}/> Novo chamado
             </button>
           </div>
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-6 gap-3 mb-5">
-          {[
-            { label:'Total',       value: parseInt(stats.total||0),        cor:'text-[var(--label-2)]',  bg:'bg-[var(--bg-2)]',       filtro:()=>{ setFiltroSt('todos');       setFiltroPrio('todos') } },
-            { label:'Abertas',     value: parseInt(stats.abertas||0),      cor:'text-amber-600',  bg:'bg-amber-50',    filtro:()=>setFiltroSt('aberta')       },
-            { label:'Em análise',  value: parseInt(stats.em_andamento||0), cor:'text-blue-600',   bg:'bg-blue-50',     filtro:()=>setFiltroSt('em_andamento') },
-            { label:'Resolvidas',  value: parseInt(stats.resolvidas||0),   cor:'text-green-600',  bg:'bg-green-50',    filtro:()=>setFiltroSt('resolvida')    },
-            { label:'Encerradas',  value: parseInt(stats.encerradas||0),   cor:'text-[var(--label-3)]',  bg:'bg-[var(--bg-3)]',    filtro:()=>setFiltroSt('encerrada')    },
-            { label:'Urgentes',    value: parseInt(stats.urgentes||0),     cor:'text-red-600',    bg:'bg-red-50',      filtro:()=>setFiltroPrio('urgente')    },
-          ].map(k=>(
-            <div key={k.label} onClick={k.filtro}
-              className={`rounded-xl p-3.5 text-center cursor-pointer transition-all hover:shadow-md border border-[var(--sep)] ${k.bg}`}>
-              <p className={`text-[26px] font-black leading-none mb-1 ${k.cor}`}>{k.value}</p>
-              <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--label-3)]">{k.label}</p>
+        <div className="grid grid-cols-6 gap-2.5 mb-4">
+          {kpis.map(k=>(
+            <div key={k.l} onClick={k.fn}
+              className="rounded-xl p-3 text-center cursor-pointer transition-all"
+              style={{
+                background: k.bg,
+                border: `1px solid var(--sep)`,
+              }}
+              onMouseEnter={e=>e.currentTarget.style.opacity='.8'}
+              onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
+              <p className="text-2xl font-black leading-none mb-1" style={{color:k.color}}>{k.v}</p>
+              <p className="text-[9px] font-semibold uppercase tracking-wider" style={{color:'var(--label-4)'}}>{k.l}</p>
             </div>
           ))}
         </div>
 
         {/* Alerta urgentes */}
         {urgentes.length > 0 && (
-          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 mb-4">
-            <Zap size={13} className="text-red-500 fill-red-500 animate-pulse flex-shrink-0"/>
-            <p className="text-[11px] font-bold text-red-700 flex-1">
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl mb-4"
+            style={{background:'#fef2f2', border:'1px solid #fecaca'}}>
+            <Zap size={12} className="animate-pulse flex-shrink-0" style={{color:'#dc2626'}}/>
+            <p className="text-[11px] font-semibold flex-1" style={{color:'#991b1b'}}>
               {urgentes.length} chamado{urgentes.length>1?'s':''} urgente{urgentes.length>1?'s':''} aguardando atenção imediata
             </p>
             <button onClick={()=>setFiltroPrio('urgente')}
-              className="text-[10px] font-bold px-3 py-1 rounded-lg bg-red-100 text-red-700 hover:bg-red-200">
-              Filtrar urgentes
+              className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
+              style={{background:'#fee2e2', color:'#991b1b', border:'none'}}>
+              Filtrar
             </button>
           </div>
         )}
 
-        {/* Filtros + busca */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1 max-w-sm group">
-            <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--label-4)] group-focus-within:text-blue-600"/>
+        {/* Filtros */}
+        <div className="flex items-center gap-2.5">
+          <div className="relative flex-1 max-w-xs">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{color:'var(--label-4)'}}/>
             <input value={busca} onChange={e=>setBusca(e.target.value)}
-              placeholder="Buscar por TK-ID, cliente, pedido..."
-              className="w-full bg-[var(--bg-2)] border border-[var(--sep)] text-[12.5px] font-semibold rounded-xl pl-11 pr-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none shadow-sm"/>
+              placeholder="TK-ID, cliente, pedido, telefone..."
+              className="w-full pl-9 pr-3 py-2 text-xs rounded-xl outline-none transition-all"
+              style={{background:'var(--bg)', border:'1px solid var(--sep)', color:'var(--label)'}}/>
           </div>
-
-          <div className="flex items-center gap-1.5 border-l border-[var(--sep)] pl-3">
-            <select value={filtroSt} onChange={e=>setFiltroSt(e.target.value)}
-              className="px-3 py-2.5 bg-[var(--bg-2)] border border-[var(--sep)] text-[11px] font-semibold rounded-xl outline-none hover:bg-[var(--bg-3)] shadow-sm">
-              <option value="todos">Status: Todos</option>
-              {Object.entries(STATUS).map(([k,s])=><option key={k} value={k}>{s.label}</option>)}
+          {[
+            ['Status', filtroSt, setFiltroSt, [['todos','Todos status'],...Object.entries(STATUS).map(([k,s])=>[k,s.label])]],
+            ['Tipo',   filtroTipo, setFiltroTipo, [['todos','Todos tipos'],...Object.entries(TIPO).map(([k,t])=>[k,t.label])]],
+            ['Prioridade', filtroPrio, setFiltroPrio, [['todos','Todas prioridades'],...Object.entries(PRIO).map(([k,p])=>[k,p.label])]],
+          ].map(([label,val,setVal,opts])=>(
+            <select key={label} value={val} onChange={e=>setVal(e.target.value)}
+              className="px-3 py-2 rounded-xl text-xs outline-none"
+              style={{background:'var(--bg)', border:'1px solid var(--sep)', color:'var(--label-2)'}}>
+              {opts.map(([id,l])=><option key={id} value={id}>{l}</option>)}
             </select>
-            <select value={filtroTipo} onChange={e=>setFiltroTipo(e.target.value)}
-              className="px-3 py-2.5 bg-[var(--bg-2)] border border-[var(--sep)] text-[11px] font-semibold rounded-xl outline-none hover:bg-[var(--bg-3)] shadow-sm">
-              <option value="todos">Tipo: Todos</option>
-              {Object.entries(TIPOS).map(([k,t])=><option key={k} value={k}>{t.label}</option>)}
-            </select>
-            <select value={filtroPrio} onChange={e=>setFiltroPrio(e.target.value)}
-              className="px-3 py-2.5 bg-[var(--bg-2)] border border-[var(--sep)] text-[11px] font-semibold rounded-xl outline-none hover:bg-[var(--bg-3)] shadow-sm">
-              <option value="todos">Prioridade: Todos</option>
-              {Object.entries(PRIORIDADE).map(([k,p])=><option key={k} value={k}>{p.label}</option>)}
-            </select>
-          </div>
+          ))}
         </div>
-      </header>
+      </div>
 
-      {/* Data Grid */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="bg-[var(--bg-2)] border border-[var(--sep)] rounded-2xl shadow-sm overflow-hidden">
+      {/* ── DATA GRID ──────────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="rounded-2xl overflow-hidden" style={{border:'1px solid var(--sep)', background:'var(--bg-2)'}}>
 
-          {/* Cabeçalho da tabela */}
-          <div className="grid px-6 py-3.5 bg-[var(--bg-3)] border-b border-[var(--sep)] text-[10px] font-bold text-[var(--label-3)] uppercase tracking-wider"
-            style={{ gridTemplateColumns:'2fr 1.8fr 1fr 1fr 1fr 0.7fr' }}>
-            <span>Ticket / Assunto</span>
-            <span>Cliente</span>
-            <span>Tipo</span>
-            <span>Prioridade</span>
-            <span>Status</span>
-            <span className="text-right">Aberto</span>
+          {/* Header */}
+          <div className="grid px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider"
+            style={{
+              gridTemplateColumns:'2fr 1.6fr 0.8fr 0.9fr 0.8fr 0.5fr',
+              borderBottom:'1px solid var(--sep)',
+              background:'var(--bg-3)',
+              color:'var(--label-4)',
+            }}>
+            {['Ticket / Assunto','Cliente','Tipo','Prioridade','Status','Aberto'].map(h=><span key={h}>{h}</span>)}
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center h-40">
-              <RefreshCw size={16} className="animate-spin text-[var(--label-4)]"/>
+            <div className="flex items-center justify-center h-48">
+              <RefreshCw size={16} className="animate-spin" style={{color:'var(--label-4)'}}/>
             </div>
           ) : filtradas.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <AlertCircle size={32} className="text-[var(--label-4)]"/>
-              <p className="text-[13px] font-semibold text-[var(--label-3)]">
-                {busca||filtroSt!=='todos'||filtroTipo!=='todos'||filtroPrio!=='todos' ? 'Nenhum chamado encontrado' : 'Nenhuma ocorrência registrada'}
+            <div className="flex flex-col items-center justify-center py-24 gap-3">
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{background:'var(--fill)'}}>
+                <AlertCircle size={22} style={{color:'var(--label-4)'}}/>
+              </div>
+              <p className="text-sm font-semibold" style={{color:'var(--label-3)'}}>
+                {busca||filtroSt!=='todos'||filtroTipo!=='todos'||filtroPrio!=='todos'
+                  ? 'Nenhum chamado com esses filtros' : 'Nenhuma ocorrência registrada'}
               </p>
               {!busca && filtroSt==='todos' && filtroTipo==='todos' && filtroPrio==='todos' && (
                 <button onClick={()=>setModalNova(true)}
-                  className="text-[12px] font-bold px-4 py-2 rounded-xl bg-[var(--bg)] text-[var(--label-inv,#fff)] hover:bg-[var(--bg-inv-hover,#2d3240)]">
+                  className="text-xs font-bold px-4 py-2 rounded-xl"
+                  style={{background:'#4f6ef7', color:'#fff', border:'none'}}>
                   Criar primeiro chamado
                 </button>
               )}
             </div>
           ) : (
-            <div className="divide-y divide-[var(--sep)]">
-              {filtradas.map(oc => {
-                const S = STATUS[oc.status]   || STATUS.aberta
-                const T = TIPOS[oc.tipo]      || TIPOS.outro
-                const P = PRIORIDADE[oc.prioridade] || PRIORIDADE.normal
-                const urgente = oc.prioridade === 'urgente'
-                const SIcon = S.icon
-                const TIcon = T.icon
-                const PIcon = P.icon
-
-                return (
-                  <div key={oc.id} onClick={()=>setDrawer(oc)}
-                    className={`grid px-6 py-4 items-center hover:bg-blue-50/40 cursor-pointer transition-colors group ${urgente&&!['resolvida','encerrada'].includes(oc.status)?'border-l-4 border-l-red-500':''}`}
-                    style={{ gridTemplateColumns:'2fr 1.8fr 1fr 1fr 1fr 0.7fr' }}>
-
-                    {/* Ticket + título */}
-                    <div className="min-w-0 pr-4">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="font-mono text-[10px] font-black text-[var(--label-4)] group-hover:text-blue-600 transition-colors">
-                          {oc.ticketId}
-                        </span>
-                        {urgente && !['resolvida','encerrada'].includes(oc.status) && (
-                          <Zap size={11} className="text-red-500 fill-red-200 animate-pulse"/>
-                        )}
-                      </div>
-                      <p className="text-[13px] font-bold text-[var(--label)] truncate">
-                        {oc.titulo || oc.descricao?.slice(0,55) || '—'}
-                      </p>
-                    </div>
-
-                    {/* Cliente + pedido */}
-                    <div className="min-w-0 pr-4">
-                      <p className="text-[12.5px] font-bold text-[var(--label)] truncate">{oc.nomeCliente||oc.telefone||'—'}</p>
-                      {oc.numeroPedido
-                        ? <p className="text-[10px] text-[var(--label-3)] flex items-center gap-1 mt-0.5"><Package size={10}/> Pedido #{oc.numeroPedido}</p>
-                        : <p className="text-[10px] text-[var(--label-4)] mt-0.5">Sem pedido vinculado</p>
-                      }
-                    </div>
-
-                    {/* Tipo */}
-                    <div>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold" style={{color:T.cor, background:T.bg}}>
-                        <TIcon size={11}/>{T.label}
-                      </span>
-                    </div>
-
-                    {/* Prioridade */}
-                    <div>
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold" style={{color:P.cor}}>
-                        <PIcon size={12}/>{P.label}
-                      </span>
-                    </div>
-
-                    {/* Status */}
-                    <div>
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold" style={{color:S.cor, background:S.bg}}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${S.dot}`}/>{S.label}
-                      </span>
-                    </div>
-
-                    {/* Tempo + seta */}
-                    <div className="flex items-center justify-end gap-3 text-[11px] font-medium text-[var(--label-4)]">
-                      {fmtRel(oc.criadoEm)}
-                      <ChevronRight size={15} className="text-[var(--label-4)] group-hover:text-blue-500 transition-colors"/>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {filtradas.length > 0 && (
-            <div className="px-6 py-3 bg-[var(--bg-3)] border-t border-[var(--sep)] text-[11px] font-medium text-[var(--label-3)]">
-              {filtradas.length} chamado{filtradas.length!==1?'s':''} {busca||filtroSt!=='todos'||filtroTipo!=='todos'||filtroPrio!=='todos'?'filtrado':'no total'}
-            </div>
+            <>
+              {filtradas.map(oc=>(
+                <TicketRow key={oc.id} oc={oc} ativo={drawer?.id===oc.id}
+                  onClick={()=>setDrawer(oc)}/>
+              ))}
+              <div className="px-5 py-2.5 text-[10px]" style={{color:'var(--label-4)', borderTop:'0.5px solid var(--sep)'}}>
+                {filtradas.length} chamado{filtradas.length!==1?'s':''}{' '}
+                {busca||filtroSt!=='todos'?'filtrado':'no total'}
+              </div>
+            </>
           )}
         </div>
       </div>
