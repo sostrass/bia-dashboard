@@ -33,7 +33,7 @@ function Drawer({ pedido, onClose, api }) {
   useEffect(() => {
     if (!pedido?.id) return
     setLoading(true)
-    fetch(`${api}/bling/debug-pedido-completo?numero=${pedido.numero}`)
+    fetch(`${api}/api/dashboard/pedidos/${pedido.numero}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { setDetalhe(d); setLoading(false) })
       .catch(() => setLoading(false))

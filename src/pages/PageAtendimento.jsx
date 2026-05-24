@@ -101,7 +101,9 @@ export default function PageAtendimento({ api }) {
                   onMouseLeave={e => e.currentTarget.style.background='var(--bg-2)'}>
                   {/* Avatar */}
                   <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0, background:`${cor(s.nome)}20`, color:cor(s.nome), display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, position:'relative' }}>
-                    {iniciais(s.nome || s.telefone)}
+                  <div style={{ fontSize:13, fontWeight:500, color:'var(--label)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                    {s.nome && s.nome !== s.telefone ? s.nome : s.telefone}
+                  </div>
                     {ativa && <span style={{ position:'absolute', bottom:0, right:0, width:9, height:9, borderRadius:'50%', background:'#1D9E75', border:'2px solid var(--bg-2)' }} />}
                   </div>
                   {/* Info */}

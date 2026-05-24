@@ -108,12 +108,12 @@ export default function PageClientes({ api }) {
     setLoading(true)
     try {
       const [rC, rP] = await Promise.all([
-        fetch(`${api}/api/contatos?limite=200`).catch(() => null),
+        fetch(`${api}/api/dashboard/contatos`).catch(() => null),
         fetch(`${api}/api/dashboard/financeiro`).catch(() => null),
       ])
       if (rC?.ok) {
         const d = await rC.json()
-        setClientes(d.contatos || d.data || [])
+        setClientes(d.contatos || [])
       }
       if (rP?.ok) {
         const d = await rP.json()
