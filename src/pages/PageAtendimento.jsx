@@ -3,7 +3,7 @@ import {
   Send, Smile, Image, Video, Mic, Lightbulb, Package,
   Search, RefreshCw, ChevronLeft, ChevronRight, User, Bot,
   Zap, Trash2, X, Lock, ArrowLeft, CheckCheck, Clock,
-  ShoppingCart, MapPin, Phone, Star, RotateCcw
+  ShoppingCart, MapPin, Phone, Star, RotateCcw, MessageSquare
 } from 'lucide-react'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
