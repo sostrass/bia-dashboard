@@ -14,6 +14,7 @@ const PageCaixa       = lazy(() => import('../pages/PageCaixa'))
 const PageAtendimento = lazy(() => import('../pages/PageAtendimento'))
 const PageIAConfig    = lazy(() => import('../pages/PageIAConfig'))
 const PageLLMConfig   = lazy(() => import('../pages/PageLLMConfig'))
+const PageGatilhos    = lazy(() => import('../pages/PageGatilhos'))
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -23,7 +24,7 @@ const NAV = [
   { id:'pedidos',     icon:ShoppingCart,    label:'Pedidos',        group:'main'   },
   { id:'clientes',    icon:Users,           label:'Clientes',       group:'main'   },
   { id:'caixa',       icon:CreditCard,      label:'Fluxo de Caixa', group:'main'   },
-  { id:'disparos',    icon:Zap,             label:'Disparos',       group:'tools'  },
+  { id:'gatilhos',    icon:Zap,             label:'Gatilhos',       group:'tools'  },
   { id:'enviomassa',  icon:Send,            label:'Envio em Massa', group:'tools'  },
   { id:'avise',       icon:Package,         label:'Avise-me',       group:'tools'  },
   { id:'iaconfig',    icon:Bot,             label:'Config IA',      group:'config' },
@@ -102,6 +103,7 @@ export default function Shell() {
       case 'caixa':       return <Page nome="Caixa"       comp={PageCaixa}       />
       case 'iaconfig':    return <Page nome="Config IA"   comp={PageIAConfig}    />
       case 'llmconfig':   return <Page nome="LLM & Bypasses" comp={PageLLMConfig}  />
+      case 'gatilhos':    return <Page nome="Gatilhos"       comp={PageGatilhos}   />
       default: return <EmBreve title={NAV.find(n => n.id === page)?.label || page} />
     }
   }
