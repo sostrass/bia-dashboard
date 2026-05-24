@@ -34,31 +34,28 @@ const iniciais = n => (n||'?').split(' ').slice(0,2).map(p=>p[0]||'').join('').t
 const CORES   = ['#059669','#3b82f6','#8b5cf6','#f59e0b','#06b6d4','#ec4899','#10b981']
 const corAvatar = tel => { let h=0; for(const c of (tel||'')) h=(h*31+c.charCodeAt(0))%CORES.length; return CORES[h] }
 
-// ── Ícones SVG inline (Tabler style) ─────────────────────────────────────────
-const Ico = {
-  send:      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
-  smile:     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>,
-  image:     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>,
-  video:     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>,
-  mic:       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>,
-  bulb:      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.4-1.2 4.5-3 5.7V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.3A7 7 0 0 1 5 9a7 7 0 0 1 7-7z"/><line x1="9" y1="21" x2="15" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>,
-  pkg:       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>,
-  search:    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
-  refresh:   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/></svg>,
-  chevL:     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>,
-  chevR:     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>,
-  user:      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-  bot:       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 11V3"/><circle cx="12" cy="3" r="1"/><path d="M8 15h.01"/><path d="M16 15h.01"/><path d="M9 19h6"/></svg>,
-  zap:       <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
-  tag:       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
-  truck:     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
-  cart:      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>,
-  x:         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
-  lock:      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
-  externalL: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>,
-  paperclip: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>,
-}
-
+// ── Ícones SVG (funções componente — funciona em qualquer contexto React) ───────
+const IcoSend     = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+const IcoSmile    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+const IcoImage    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+const IcoVideo    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+const IcoMic      = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+const IcoBulb     = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.4-1.2 4.5-3 5.7V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.3A7 7 0 0 1 5 9a7 7 0 0 1 7-7z"/><line x1="9" y1="21" x2="15" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+const IcoPkg      = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+const IcoSearch   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+const IcoRefresh  = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/></svg>
+const IcoChevL    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+const IcoChevR    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+const IcoUser     = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+const IcoBot      = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 11V3"/><circle cx="12" cy="3" r="1"/><path d="M8 15h.01"/><path d="M16 15h.01"/><path d="M9 19h6"/></svg>
+const IcoZap      = () => <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+const IcoTag      = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+const IcoTruck    = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+const IcoX        = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+const IcoLock     = () => <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+const IcoClip     = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+const IcoExtL     = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+const IcoCart     = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
 // ── Avatar ────────────────────────────────────────────────────────────────────
 function Avatar({ nome, telefone, size = 36 }) {
   const cor = corAvatar(telefone || nome || '')
@@ -96,7 +93,7 @@ function Bolha({ msg, mostrarGatilhos }) {
     >
       {labelRem && (
         <span style={{ fontSize:9, fontWeight:700, color:corLabel, marginBottom:2, marginRight:4, display:'flex', alignItems:'center', gap:3 }}>
-          {isGatilho && <span style={{ color:corLabel }}>{Ico.zap}</span>}
+          {isGatilho && <span style={{ color:corLabel }}><IcoZap /></span>}
           {labelRem}
         </span>
       )}
@@ -104,7 +101,7 @@ function Bolha({ msg, mostrarGatilhos }) {
         {entrada
           ? <Avatar nome={null} telefone={msg.telefone || ''} size={22} />
           : <div style={{ width:22, height:22, borderRadius:'50%', background:`${corLabel}18`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-              {isGatilho ? <span style={{ color:corLabel }}>{Ico.zap}</span> : isManual ? <span style={{ color:corLabel }}>{Ico.user}</span> : <span style={{ color:corLabel }}>{Ico.bot}</span>}
+              {isGatilho ? <span style={{ color:corLabel }}><IcoZap /></span> : isManual ? <span style={{ color:corLabel }}><IcoUser /></span> : <span style={{ color:corLabel }}><IcoBot /></span>}
             </div>
         }
 
@@ -165,7 +162,7 @@ function Sidebar({ statusSel, setStatusSel, contadores, expandida, setExpandida 
   return (
     <div style={{ width:expandida?196:52, flexShrink:0, transition:'width 0.2s', borderRight:`1px solid ${V.sep}`, background:V.bg2, display:'flex', flexDirection:'column', overflow:'hidden' }}>
       <button onClick={() => setExpandida(v => !v)} style={{ padding:'11px 0', display:'flex', alignItems:'center', justifyContent:expandida?'flex-end':'center', paddingRight:expandida?12:0, border:'none', background:'transparent', cursor:'pointer', borderBottom:`1px solid ${V.sep}`, flexShrink:0, color:V.label4 }}>
-        {expandida ? Ico.chevL : Ico.chevR}
+        {expandida ? <IcoChevL /> : <IcoChevR />}
       </button>
       <div style={{ flex:1, padding:'6px 0', overflowY:'auto' }}>
         {STATUS.map((s, i) => {
@@ -357,12 +354,12 @@ function PainelInfo({ conv, api }) {
                     </div>
                     {p.rastreio && p.rastreio !== '—' && (
                       <div style={{ fontSize:10, color:'#4a9fff', marginBottom:6, display:'flex', alignItems:'center', gap:3 }}>
-                        {Ico.truck} {p.rastreio}
+                        <IcoTruck /> {p.rastreio}
                       </div>
                     )}
                     {/* Botão enviar pedido ao cliente */}
                     <button onClick={() => enviarPedido(p)} disabled={enviando === pedId} style={{ width:'100%', padding:'5px 0', borderRadius:7, border:`1px solid ${V.accent}`, background: enviando === pedId ? V.fill : 'transparent', color:V.accent, cursor:'pointer', fontSize:11, fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center', gap:5, transition:'all 0.15s' }}>
-                      {Ico.send} {enviando === pedId ? 'Enviando...' : 'Enviar ao cliente'}
+                      <IcoSend /> {enviando === pedId ? 'Enviando...' : 'Enviar ao cliente'}
                     </button>
                   </div>
                 )
@@ -390,7 +387,7 @@ function PainelInfo({ conv, api }) {
                     </span>
                   </div>
                   <button onClick={() => enviarProduto(p)} disabled={enviando === (p.id || p.nome)} style={{ width:'100%', padding:'5px 0', borderRadius:6, border:`1px solid ${V.accent}`, background: enviando === (p.id || p.nome) ? V.fill : 'transparent', color:V.accent, cursor:'pointer', fontSize:11, fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
-                    {Ico.send} {enviando === (p.id || p.nome) ? 'Enviando…' : 'Enviar ao cliente'}
+                    <IcoSend /> {enviando === (p.id || p.nome) ? 'Enviando…' : 'Enviar ao cliente'}
                   </button>
                 </div>
               ))
@@ -421,13 +418,32 @@ function BarraEnvio({ modoManual, telefone, api, onEnviou }) {
     setLoadSug(true)
     try {
       const r = await fetch(`${api}/api/sugestoes/${telefone}`)
-      if (r.ok) { const d = await r.json(); setSugestoes(d.sugestoes || []) }
-    } catch {}
+      if (r.ok) {
+        const d = await r.json()
+        const lista = d.sugestoes || d.suggestions || []
+        if (lista.length > 0) {
+          setSugestoes(lista)
+        } else {
+          // Fallback local quando endpoint não retorna sugestões
+          setSugestoes([
+            'Olá! Em que posso te ajudar hoje? 😊',
+            'Pode me contar mais detalhes sobre o que precisa?',
+            'Vou verificar isso para você agora mesmo! ⚡',
+          ])
+        }
+      }
+    } catch {
+      // Fallback em caso de erro de rede
+      setSugestoes([
+        'Olá! Em que posso te ajudar hoje? 😊',
+        'Pode me contar mais sobre o que precisa?',
+      ])
+    }
     setLoadSug(false)
   }, [telefone, api])
 
   useEffect(() => {
-    if (modoManual) buscarSugestoes()
+    if (modoManual && telefone) buscarSugestoes()
     else setSugestoes([])
   }, [modoManual, telefone])
 
@@ -481,7 +497,7 @@ function BarraEnvio({ modoManual, telefone, api, onEnviou }) {
       <div style={{ display:'flex', gap:0, borderBottom:`1px solid ${V.sep}` }}>
         {[{ id:false, label:'Resposta Pública' }, { id:true, label:'Anotação Interna' }].map(a => (
           <button key={String(a.id)} onClick={() => setAnotacao(a.id)} style={{ padding:'7px 12px', border:'none', cursor:'pointer', background:'transparent', fontSize:11.5, fontWeight:anotacao === a.id ? 700 : 400, color:anotacao === a.id ? V.label : V.label4, borderBottom:anotacao === a.id ? `2px solid ${V.accent}` : '2px solid transparent', display:'flex', alignItems:'center', gap:4 }}>
-            {a.id && <span style={{ color:'#7c3aed' }}>{Ico.lock}</span>}
+            {a.id && <span style={{ color:'#7c3aed' }}><IcoLock /></span>}
             {a.label}
           </button>
         ))}
@@ -490,14 +506,14 @@ function BarraEnvio({ modoManual, telefone, api, onEnviou }) {
       {/* Sugestões da IA */}
       {sugestoes.length > 0 && (
         <div style={{ padding:'6px 12px', display:'flex', gap:5, flexWrap:'wrap', alignItems:'center', borderBottom:`1px solid ${V.sep}` }}>
-          <span style={{ color:'#f59e0b' }}>{Ico.bulb}</span>
+          <span style={{ color:'#f59e0b' }}><IcoBulb /></span>
           {sugestoes.slice(0, 3).map((s, i) => (
             <button key={i} onClick={() => enviar(s)} style={{ fontSize:10.5, padding:'3px 9px', borderRadius:12, border:`1px solid rgba(245,158,11,0.35)`, background:'rgba(245,158,11,0.08)', color:V.label2, cursor:'pointer', maxWidth:240, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
               {s}
             </button>
           ))}
           <button onClick={buscarSugestoes} style={{ marginLeft:'auto', fontSize:10, color:V.label4, background:'transparent', border:'none', cursor:'pointer', display:'flex', alignItems:'center' }}>
-            {loadSug ? '…' : Ico.refresh}
+            {loadSug ? '…' : <IcoRefresh />}
           </button>
         </div>
       )}
@@ -516,7 +532,7 @@ function BarraEnvio({ modoManual, telefone, api, onEnviou }) {
       {/* Nota interna */}
       {anotacao && (
         <div style={{ fontSize:10, color:'#7c3aed', fontWeight:600, margin:'6px 12px 0', padding:'3px 8px', background:'#f5f0ff', borderRadius:5, display:'inline-flex', alignItems:'center', gap:4 }}>
-          {Ico.lock} Anotação interna — não enviada ao cliente
+          <IcoLock /> Anotação interna — não enviada ao cliente
         </div>
       )}
 
@@ -527,22 +543,22 @@ function BarraEnvio({ modoManual, telefone, api, onEnviou }) {
 
       {/* Toolbar */}
       <div style={{ display:'flex', alignItems:'center', gap:5, padding:'4px 10px 8px' }}>
-        {toolBtn(Ico.smile, 'Emoji', () => setEmoji(v => !v), emoji)}
+        {toolBtn(<IcoSmile />, 'Emoji', () => setEmoji(v => !v), emoji)}
         <label title="Enviar imagem" style={{ width:28, height:28, borderRadius:7, border:`1px solid ${V.sep}`, background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:V.label4 }}>
-          {Ico.image}
+          <IcoImage />
           <input ref={imgRef} type="file" accept="image/*" style={{ display:'none' }} onChange={e => { if (e.target.files[0]) enviarArquivo(e.target.files[0], 'image'); e.target.value = '' }} />
         </label>
         <label title="Enviar vídeo" style={{ width:28, height:28, borderRadius:7, border:`1px solid ${V.sep}`, background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:V.label4 }}>
-          {Ico.video}
+          <IcoVideo />
           <input ref={vidRef} type="file" accept="video/*" style={{ display:'none' }} onChange={e => { if (e.target.files[0]) enviarArquivo(e.target.files[0], 'video'); e.target.value = '' }} />
         </label>
-        {toolBtn(Ico.mic, 'Áudio', () => {})}
-        {toolBtn(Ico.bulb, 'Sugestão IA', buscarSugestoes, false, '#f59e0b')}
+        {toolBtn(<IcoMic />, 'Áudio', () => {})}
+        {toolBtn(<IcoBulb />, 'Sugestão IA', buscarSugestoes, false, '#f59e0b')}
 
         <div style={{ flex:1 }} />
 
         <button onClick={() => enviar()} disabled={sending || !texto.trim()} style={{ padding:'6px 16px', borderRadius:8, border:'none', background: texto.trim() && !sending ? V.accent : V.fill, color: texto.trim() && !sending ? '#fff' : V.label4, cursor: texto.trim() ? 'pointer' : 'default', display:'flex', alignItems:'center', gap:6, fontSize:12, fontWeight:600, transition:'all 0.15s' }}>
-          {sending ? '…' : <>{Ico.send} Enviar</>}
+          {sending ? '…' : <><IcoSend /> Enviar</>}
         </button>
       </div>
     </div>
@@ -623,7 +639,7 @@ function Chat({ telefone, nome, totalMsgs, hora, api, status, onStatusChange, mo
 
         {/* Toggle IA/Manual */}
         <button onClick={onToggleModo} style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 11px', borderRadius:8, border:`1px solid ${modoManual ? '#93c5fd' : V.sep}`, background:modoManual ? '#eff6ff' : V.fill, color:modoManual ? '#2563eb' : V.label3, cursor:'pointer', fontSize:11, fontWeight:600, flexShrink:0 }}>
-          {modoManual ? <>{Ico.bot} Devolver à IA</> : <>{Ico.user} Assumir</>}
+          {modoManual ? <><IcoBot /> Devolver à IA</> : <><IcoUser /> Assumir</>}
         </button>
 
         {/* Botões de status */}
@@ -637,13 +653,13 @@ function Chat({ telefone, nome, totalMsgs, hora, api, status, onStatusChange, mo
         </div>
 
         <button onClick={() => carregar(0)} style={{ padding:5, border:`1px solid ${V.sep}`, borderRadius:6, background:'transparent', cursor:'pointer', color:V.label4 }}>
-          {Ico.refresh}
+          <IcoRefresh />
         </button>
       </div>
 
       {/* Barra do catálogo — ACIMA das mensagens (Versão A) */}
       <div style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 12px', background:'#534AB708', borderBottom:`1px solid #534AB720`, flexShrink:0 }}>
-        <span style={{ color:'#534AB7', flexShrink:0 }}>{Ico.pkg}</span>
+        <span style={{ color:'#534AB7', flexShrink:0 }}><IcoPkg /></span>
         <span style={{ fontSize:10, fontWeight:600, color:'#534AB7', flexShrink:0 }}>Catálogo</span>
         <CatalogoBarra telefone={telefone} api={api} />
       </div>
@@ -651,7 +667,7 @@ function Chat({ telefone, nome, totalMsgs, hora, api, status, onStatusChange, mo
       {/* Filtro gatilhos */}
       {nGatilhos > 0 && (
         <div style={{ display:'flex', alignItems:'center', gap:8, padding:'4px 12px', background:'#a78bfa08', borderBottom:`1px solid #a78bfa20`, flexShrink:0 }}>
-          <span style={{ fontSize:10, color:'#7c3aed', display:'flex', alignItems:'center', gap:3 }}>{Ico.zap} {nGatilhos} gatilho{nGatilhos > 1 ? 's' : ''} nesta conversa</span>
+          <span style={{ fontSize:10, color:'#7c3aed', display:'flex', alignItems:'center', gap:3 }}><IcoZap /> {nGatilhos} gatilho{nGatilhos > 1 ? 's' : ''} nesta conversa</span>
           <button onClick={() => setMostrarGatilhos(v => !v)} style={{ fontSize:10, padding:'1px 8px', borderRadius:99, border:`1px solid #a78bfa50`, background:mostrarGatilhos ? '#a78bfa18' : 'transparent', color:'#7c3aed', cursor:'pointer', fontWeight:500 }}>
             {mostrarGatilhos ? 'Ocultar' : 'Mostrar'}
           </button>
@@ -721,9 +737,9 @@ function CatalogoBarra({ telefone, api }) {
     <div style={{ flex:1, position:'relative' }}>
       <div style={{ display:'flex', gap:5 }}>
         <div style={{ flex:1, display:'flex', alignItems:'center', gap:5, padding:'3px 8px', borderRadius:7, background:V.bg, border:`1px solid #534AB730` }}>
-          <span style={{ color:'#534AB780' }}>{Ico.search}</span>
+          <span style={{ color:'#534AB780' }}><IcoSearch /></span>
           <input value={busca} onChange={e => setBusca(e.target.value)} onKeyDown={e => e.key === 'Enter' && buscar()} placeholder="Buscar produto para enviar ao cliente..." style={{ flex:1, border:'none', background:'transparent', outline:'none', fontSize:11, color:V.label }} />
-          {busca && <button onClick={() => { setBusca(''); setAberto(false); setProdutos([]) }} style={{ background:'transparent', border:'none', cursor:'pointer', color:V.label4, display:'flex', alignItems:'center' }}>{Ico.x}</button>}
+          {busca && <button onClick={() => { setBusca(''); setAberto(false); setProdutos([]) }} style={{ background:'transparent', border:'none', cursor:'pointer', color:V.label4, display:'flex', alignItems:'center' }}><IcoX /></button>}
         </div>
         <button onClick={buscar} style={{ padding:'3px 10px', borderRadius:7, border:'none', background:'#534AB7', color:'#fff', cursor:'pointer', fontSize:11, fontWeight:600 }}>
           Buscar
@@ -869,11 +885,11 @@ export default function PageConversas({ api: apiProp }) {
               <span style={{ fontSize:10, color:V.label4, background:V.fill, padding:'1px 6px', borderRadius:8 }}>{filtradas.length}</span>
             </div>
             <button onClick={() => carregar()} style={{ padding:4, border:'none', background:'transparent', cursor:'pointer', color:V.label4 }}>
-              {Ico.refresh}
+              <IcoRefresh />
             </button>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:6, background:V.fill, borderRadius:8, padding:'6px 9px', border:`1px solid ${V.sep}` }}>
-            <span style={{ color:V.label4 }}>{Ico.search}</span>
+            <span style={{ color:V.label4 }}><IcoSearch /></span>
             <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..." style={{ flex:1, border:'none', background:'transparent', outline:'none', fontSize:11.5, color:V.label }} />
           </div>
         </div>
