@@ -205,6 +205,12 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
     setSalvando(false)
   }
 
+  // Muda status E envia mensagem automática via template do gatilho
+  const mudarStatus = async (novoStatus) => {
+    if (oc.status === novoStatus) return
+    await patch({ status: novoStatus })
+  }
+
   const enviarNota = async () => { if (!nota.trim()) return; await patch({ nota }); setNota('') }
   const enviarWA   = async () => { if (!resposta.trim()) return; await patch({ respostaCliente: resposta }); setResposta('') }
 
@@ -290,17 +296,26 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
           <div className="flex items-center gap-2 mt-4 bg-[var(--bg-2)] p-1.5 rounded-lg border border-[var(--sep)] w-max">
             <span className="text-[9px] font-bold text-[var(--label-4)] uppercase tracking-wider ml-1.5 mr-1">Marcar como:</span>
             {Object.entries(STATUS).filter(([k])=>k!=='encerrada').map(([key,s])=>(
-              <button key={key} onClick={()=>patch({status:key})} disabled={salvando}
-                className="px-3 py-1 rounded-md text-[11px] font-bold transition-all"
-                style={oc.status===key ? {color:s.cor, background:s.bg, boxShadow:'0 1px 2px rgba(0,0,0,.12)'} : {color:'var(--label-3)'}}>
+              <button key={key} onClick={()=>mudarStatus(key)} disabled={salvando}
+                className="px-3 py-1 rounded-md text-[11px] font-bold transition-all flex items-center gap-1"
+                style={oc.status===key
+                  ? {color:s.cor, background:s.bg, boxShadow:'0 1px 2px rgba(0,0,0,.12)'}
+                  : {color:'var(--label-3)'}}>
+                {salvando && oc.status!==key ? null : null}
                 {s.label}
+                {oc.status===key && <span className="text-[8px] opacity-60 ml-0.5">✓</span>}
               </button>
             ))}
-            <button onClick={()=>patch({status:'encerrada'})} disabled={salvando}
-              className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${oc.status==='encerrada' ? 'text-[var(--label-3)] bg-[var(--fill)] shadow-sm' : 'text-[var(--label-4)] hover:bg-[var(--fill)]'}`}>
+            <button onClick={()=>mudarStatus('encerrada')} disabled={salvando}
+              className="px-3 py-1 rounded-md text-[11px] font-bold transition-all flex items-center gap-1"
+              style={oc.status==='encerrada' ? {color:STATUS.encerrada.cor, background:STATUS.encerrada.bg} : {color:'var(--label-4)'}}>
               Encerrar
+              {oc.status==='encerrada' && <span className="text-[8px] opacity-60 ml-0.5">✓</span>}
             </button>
           </div>
+          <p className="text-[9px] mt-1.5 ml-1" style={{color:'var(--label-4)'}}>
+            💬 Mensagem automática enviada ao cliente ao mudar o status
+          </p>
         </div>
 
         {/* Cliente (Bling) */}
