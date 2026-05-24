@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, createContext, useContext, useRef } f
 import {
   AlertTriangle, CheckCircle, Info, X, Bell, RefreshCw,
   Zap, Database, Wifi, WifiOff, ExternalLink, ChevronRight,
-  Clock, Shield, AlertCircle
+  Clock, Shield, AlertCircle, MessageSquare, Monitor
 } from 'lucide-react'
 
 const BASE = import.meta.env.VITE_API_URL || ''

@@ -5,7 +5,7 @@ import { logout } from '../pages/PageLogin'
 import {
   LayoutDashboard, ShoppingCart, Users, CreditCard,
   MessageSquare, Bot, Settings, Sun, Moon, Zap, Send, Package,
-  AlertCircle, Activity
+  AlertCircle, Activity, Construction
 } from 'lucide-react'
 
 const PageDashboard   = lazy(() => import('../pages/PageDashboard'))
