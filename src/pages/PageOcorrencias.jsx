@@ -221,10 +221,14 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
     setRefining(false)
   }
 
+  const primeiroNome = oc.nomeCliente?.split(' ')[0] || 'cliente'
+
+  // Apenas o corpo da resposta — o backend adiciona cabeçalho (TK-XXXX), citação do relato e rodapé automaticamente
   const TEMPLATES = [
-    `Olá ${oc.nomeCliente?.split(' ')[0]||'cliente'}, analisamos sua ocorrência e em breve entraremos em contato com a solução.`,
-    `Olá ${oc.nomeCliente?.split(' ')[0]||'cliente'}, confirmamos o recebimento do seu chamado #${oc.ticketId}. Nossa equipe já está tratando o caso.`,
-    `Olá ${oc.nomeCliente?.split(' ')[0]||'cliente'}, ficamos felizes em informar que sua ocorrência foi resolvida. Qualquer dúvida estamos à disposição!`,
+    `Verificamos sua solicitação e nossa equipe já está atuando no caso. Em breve você receberá uma atualização completa.`,
+    `Entramos em contato com a transportadora para acareação. O prazo de retorno é de 48h úteis. Assim que tivermos uma resposta, avisamos imediatamente.`,
+    `Sua ocorrência foi resolvida! ${oc.numeroPedido ? `O pedido #${oc.numeroPedido} ` : 'Seu pedido '}foi regularizado. Qualquer dúvida, estamos à disposição.`,
+    `Pedimos desculpas pelo inconveniente. Como forma de compensação, entraremos em contato para combinar a melhor solução para você.`,
   ]
 
   const cliente = blingData?.cliente
@@ -441,11 +445,27 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
           {/* WHATSAPP */}
           {tab === 'whatsapp' && (
             <div className="p-6">
-              <div className="flex items-start gap-2 bg-green-50 border border-green-200 rounded-xl p-3 mb-4">
-                <MessageSquare size={13} className="text-green-700 mt-0.5 flex-shrink-0"/>
-                <p className="text-[11px] text-green-800">
-                  Mensagem enviada para {fmtTel(oc.telefone)||'o cliente'} via WhatsApp e registrada no histórico.
-                </p>
+              {/* Preview da estrutura da mensagem */}
+              <div className="mb-4 rounded-xl overflow-hidden border border-slate-200">
+                <div className="px-3 py-2 bg-slate-800 flex items-center gap-2">
+                  <MessageSquare size={12} className="text-green-400"/>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Preview — estrutura enviada ao cliente</span>
+                </div>
+                <div className="bg-[#e5ddd5] px-4 py-3 font-mono text-[10px] text-slate-700 space-y-1 leading-relaxed">
+                  <p className="font-bold text-slate-900">📋 Atualização — Protocolo {oc.ticketId}</p>
+                  <p>Olá {primeiroNome}!</p>
+                  <p className="text-slate-500 italic border-l-2 border-slate-400 pl-2 my-1">
+                    &gt; Sua solicitação:<br/>
+                    &gt; {(oc.descricao||'').slice(0,80)}{oc.descricao?.length > 80 ? '...' : ''}
+                  </p>
+                  <p className="font-semibold">Nossa resposta:</p>
+                  <p className="text-slate-500 italic">{resposta || <span className="text-slate-400">[ sua resposta aparece aqui ]</span>}</p>
+                  <p className="text-slate-500 border-t border-slate-300 pt-1 mt-1">
+                    🏷️ Status: {STATUS[oc.status]?.label || 'Aberta'}<br/>
+                    📋 Protocolo: {oc.ticketId}<br/>
+                    <span className="italic">Só Strass — Atendimento ao Cliente</span>
+                  </p>
+                </div>
               </div>
 
               {oc.respostaCliente && (
