@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
+import { Send, Smile, Image, Video, Mic, Lightbulb, Package, Search, RefreshCw, ChevronLeft, ChevronRight, User, Bot, Zap, X, Lock, MessageSquare, ShoppingCart, Tag, Check, Truck, AlertTriangle } from 'lucide-react'
 
 const BASE = import.meta.env.VITE_API_URL || ''
 
@@ -76,7 +77,7 @@ const Bolha = memo(function Bolha({ msg, mostrarGatilhos }) {
       {label && (
         <span className={`text-[9px] font-bold mb-1 flex items-center gap-1 ${labelCls}`}>
           {isGatilho && (
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <Zap size={9}/>
           )}
           {label}
         </span>
@@ -143,8 +144,8 @@ function Sidebar({ statusSel, setStatusSel, contadores, expandida, setExpandida 
         className="flex items-center border-b border-[var(--color-border-tertiary)] py-3 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors flex-shrink-0"
         style={{justifyContent: expandida?'flex-end':'center', paddingRight: expandida?10:0}}>
         {expandida
-          ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-          : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          ? <ChevronLeft size={13}/>
+          : <ChevronRight size={13}/>
         }
       </button>
       <div className="flex-1 py-1.5 overflow-y-auto">
@@ -223,7 +224,7 @@ function CatalogoBarra({ telefone, api }) {
   return (
     <div ref={wrapRef} className="relative flex-1">
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[var(--color-background-primary)] border border-purple-500/20 focus-within:border-purple-500/50 transition-colors">
-        <svg className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <Search size={14} className="text-purple-400 flex-shrink-0"/>
         <input
           value={busca} onChange={e=>setBusca(e.target.value)}
           onKeyDown={e=>e.key==='Enter'&&buscar()}
@@ -233,7 +234,7 @@ function CatalogoBarra({ telefone, api }) {
         {busca && (
           <button onClick={()=>{setBusca('');setAberto(false);setProdutos([])}}
             className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <X size={11}/>
           </button>
         )}
       </div>
@@ -418,13 +419,13 @@ function PainelInfo({ conv, api, statusAtend, setStatusAtend }) {
                         </div>
                         {p.rastreio&&p.rastreio!=='—'&&(
                           <p className="text-[9px] text-blue-400 mb-2 flex items-center gap-1">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                            <Truck size={10}/>
                             {p.rastreio}
                           </p>
                         )}
                         <button onClick={()=>enviarPedido(p)} disabled={enviando===pedId}
                           className="w-full py-1.5 rounded-lg border border-emerald-500/40 text-emerald-500 text-[10px] font-semibold hover:bg-emerald-500/10 disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                          <Send size={10}/>
                           {enviando===pedId?'Enviando…':'Enviar ao cliente'}
                         </button>
                       </div>
@@ -459,7 +460,7 @@ function PainelInfo({ conv, api, statusAtend, setStatusAtend }) {
                   </div>
                   <button onClick={()=>enviarProd(p)} disabled={enviando===(p.id||p.nome)}
                     className="w-full py-1.5 rounded-lg border border-emerald-500/40 text-emerald-500 text-[10px] font-semibold hover:bg-emerald-500/10 disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    <Send size={10}/>
                     {enviando===(p.id||p.nome)?'Enviando…':'Enviar ao cliente'}
                   </button>
                 </div>
@@ -539,7 +540,7 @@ function BarraEnvio({ modoManual, telefone, api, onEnviou, onAssumirIA }) {
       <p className="text-[11px] text-[var(--color-text-tertiary)]">IA respondendo automaticamente</p>
       <button onClick={onAssumirIA}
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-blue-400 bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 transition-colors">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <User size={12}/>
         Assumir conversa
       </button>
     </div>
@@ -556,7 +557,7 @@ function BarraEnvio({ modoManual, telefone, api, onEnviou, onAssumirIA }) {
                 ? 'text-emerald-500 border-emerald-500'
                 : 'text-[var(--color-text-tertiary)] border-transparent hover:text-[var(--color-text-secondary)]'
             }`}>
-            {a.id && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
+            {a.id && <Lock size={9}/>}
             {a.label}
           </button>
         ))}
@@ -565,7 +566,7 @@ function BarraEnvio({ modoManual, telefone, api, onEnviou, onAssumirIA }) {
       {/* sugestões IA */}
       {sugestoes.length>0 && (
         <div className="px-3 py-2 flex gap-1.5 flex-wrap items-center border-b border-[var(--color-border-tertiary)]">
-          <svg className="w-3 h-3 text-amber-400 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 1 7 7c0 2.4-1.2 4.5-3 5.7V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.3A7 7 0 0 1 5 9a7 7 0 0 1 7-7z"/></svg>
+          <Lightbulb size={12} className="text-amber-400 flex-shrink-0"/>
           {sugestoes.slice(0,3).map((s,i)=>(
             <button key={i} onClick={()=>enviar(s)}
               className="text-[10.5px] px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[var(--color-text-secondary)] hover:bg-amber-500/20 max-w-[220px] truncate transition-colors">
@@ -574,8 +575,8 @@ function BarraEnvio({ modoManual, telefone, api, onEnviou, onAssumirIA }) {
           ))}
           <button onClick={buscarSugestoes} className="ml-auto text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]">
             {loadSug
-              ? <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-              : <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/></svg>
+              ? <RefreshCw size={12} className="animate-spin"/>
+              : <RefreshCw size={12}/>
             }
           </button>
         </div>
@@ -593,7 +594,7 @@ function BarraEnvio({ modoManual, telefone, api, onEnviou, onAssumirIA }) {
 
       {anotacao && (
         <div className="mx-3 mt-2 px-2.5 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-[10px] font-semibold text-purple-400 flex items-center gap-1.5">
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <Lock size={9}/>
           Anotação interna — não enviada ao cliente
         </div>
       )}
@@ -610,26 +611,26 @@ function BarraEnvio({ modoManual, telefone, api, onEnviou, onAssumirIA }) {
         {/* emoji */}
         <button onClick={()=>setEmojiOpen(v=>!v)}
           className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-all ${emojiOpen?'border-emerald-500/40 bg-emerald-500/10 text-emerald-500':'border-[var(--color-border-tertiary)] text-[var(--color-text-tertiary)] hover:bg-[var(--color-background-tertiary)]'}`}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+          <Smile size={14}/>
         </button>
         {/* imagem */}
         <label className="w-7 h-7 rounded-lg border border-[var(--color-border-tertiary)] flex items-center justify-center cursor-pointer text-[var(--color-text-tertiary)] hover:bg-[var(--color-background-tertiary)] transition-colors">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <Image size={14}/>
           <input ref={imgRef} type="file" accept="image/*" className="hidden" onChange={e=>{if(e.target.files[0])enviarArq(e.target.files[0],'image');e.target.value=''}}/>
         </label>
         {/* vídeo */}
         <label className="w-7 h-7 rounded-lg border border-[var(--color-border-tertiary)] flex items-center justify-center cursor-pointer text-[var(--color-text-tertiary)] hover:bg-[var(--color-background-tertiary)] transition-colors">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          <Video size={14}/>
           <input ref={vidRef} type="file" accept="video/*" className="hidden" onChange={e=>{if(e.target.files[0])enviarArq(e.target.files[0],'video');e.target.value=''}}/>
         </label>
         {/* áudio */}
         <button className="w-7 h-7 rounded-lg border border-[var(--color-border-tertiary)] flex items-center justify-center text-[var(--color-text-tertiary)] hover:bg-[var(--color-background-tertiary)] transition-colors">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          <Mic size={14}/>
         </button>
         {/* sugestão IA */}
         <button onClick={buscarSugestoes} disabled={loadSug}
           className="w-7 h-7 rounded-lg border border-amber-500/30 bg-amber-500/8 flex items-center justify-center text-amber-400 hover:bg-amber-500/15 transition-colors">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 1 7 7c0 2.4-1.2 4.5-3 5.7V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.3A7 7 0 0 1 5 9a7 7 0 0 1 7-7z"/></svg>
+          <Lightbulb size={13}/>
         </button>
 
         <div className="flex-1"/>
@@ -641,8 +642,8 @@ function BarraEnvio({ modoManual, telefone, api, onEnviou, onAssumirIA }) {
               : 'bg-[var(--color-background-tertiary)] text-[var(--color-text-tertiary)] cursor-default'
           }`}>
           {sending
-            ? <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-            : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            ? <RefreshCw size={14} className="animate-spin"/>
+            : <Send size={13}/>
           }
           Enviar
         </button>
@@ -744,20 +745,20 @@ function Chat({ conv, api, statusAtend, setStatusAtend, modoManual, onToggleModo
               : 'text-[var(--color-text-tertiary)] bg-[var(--color-background-tertiary)] border-[var(--color-border-tertiary)] hover:bg-[var(--color-background-secondary)]'
           }`}>
           {modoManual
-            ? <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 11V3"/><circle cx="12" cy="3" r="1"/></svg> Devolver à IA</>
-            : <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Assumir</>
+            ? <><Bot size={12}/> Devolver à IA</>
+            : <><User size={12}/> Assumir</>
           }
         </button>
 
         <button onClick={()=>carregar(0)}
           className="w-7 h-7 rounded-lg border border-[var(--color-border-tertiary)] flex items-center justify-center text-[var(--color-text-tertiary)] hover:bg-[var(--color-background-tertiary)] transition-colors">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/></svg>
+          <RefreshCw size={13}/>
         </button>
       </div>
 
       {/* barra catálogo — acima das mensagens */}
       <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/5 border-b border-purple-500/15 flex-shrink-0">
-        <svg width="13" height="13" className="text-purple-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        <Package size={13} className="text-purple-400 flex-shrink-0"/>
         <span className="text-[10px] font-semibold text-purple-400 flex-shrink-0">Catálogo</span>
         <CatalogoBarra telefone={telefone} api={api}/>
       </div>
@@ -765,7 +766,7 @@ function Chat({ conv, api, statusAtend, setStatusAtend, modoManual, onToggleModo
       {/* filtro de gatilhos */}
       {nGatilhos>0 && (
         <div className="flex items-center gap-2 px-3 py-1 bg-purple-500/5 border-b border-purple-500/10 flex-shrink-0">
-          <svg width="10" height="10" className="text-purple-400" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <Zap size={10} className="text-purple-400"/>
           <span className="text-[10px] text-purple-400">{nGatilhos} gatilho{nGatilhos>1?'s':''} nesta conversa</span>
           <button onClick={()=>setMostrarGatilhos(v=>!v)}
             className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
@@ -945,11 +946,11 @@ export default function PageConversas({ api: apiProp }) {
             </div>
             <button onClick={()=>carregar()}
               className="w-7 h-7 rounded-lg border border-[var(--color-border-tertiary)] flex items-center justify-center text-[var(--color-text-tertiary)] hover:bg-[var(--color-background-secondary)] transition-colors">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/></svg>
+              <RefreshCw size={12}/>
             </button>
           </div>
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--color-background-secondary)] border border-[var(--color-border-tertiary)] focus-within:border-emerald-500/40 transition-colors">
-            <svg width="12" height="12" className="text-[var(--color-text-tertiary)] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <Search size={12} className="text-[var(--color-text-tertiary)] flex-shrink-0"/>
             <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar..."
               className="flex-1 bg-transparent text-[12px] text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"/>
           </div>
@@ -1001,7 +1002,7 @@ export default function PageConversas({ api: apiProp }) {
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-[var(--color-background-secondary)]">
           <div className="w-12 h-12 rounded-2xl bg-[var(--color-background-primary)] border border-[var(--color-border-tertiary)] flex items-center justify-center">
-            <svg width="22" height="22" className="text-[var(--color-text-tertiary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <MessageSquare size={22} className="text-[var(--color-text-tertiary)]"/>
           </div>
           <p className="text-[14px] font-medium text-[var(--color-text-primary)]">Selecione uma conversa</p>
           <p className="text-[12px] text-[var(--color-text-tertiary)]">{filtradas.length} em {stSel.label.toLowerCase()}</p>

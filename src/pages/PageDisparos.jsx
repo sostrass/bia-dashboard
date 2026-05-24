@@ -1,165 +1,149 @@
 import { useState, useEffect, useCallback } from 'react'
+import {
+  Zap, Send, AlertCircle, Clock, CheckCircle, RefreshCw,
+  TrendingUp, Users, XCircle, BarChart3, Activity,
+  Filter, ChevronDown, ShoppingBag, Truck, CreditCard,
+  Bell, Star, FileText, Package, ToggleLeft, ToggleRight,
+  ArrowUpRight, ArrowDownRight, Minus
+} from 'lucide-react'
 
 const BASE = import.meta.env.VITE_API_URL || ''
 
-const GATILHO_ICON = {
-  pagamento_aprovado: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>,
-  pedido_enviado:     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
-  pedido_entregue:    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
-  pedido_criado:      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>,
-  nfe_emitida:        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
-  avise_me:           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
-  em_separacao:       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>,
-  produto_embalado:   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>,
-  boas_vindas:        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>,
-  avaliar_pedido:     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
-  nao_entregue:       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>,
-}
 const GATILHO_META = {
-  pagamento_aprovado: { label:'Pagamento Aprovado', cor:'#4a9fff' },
-  pedido_enviado:     { label:'Pedido Enviado',     cor:'#a78bfa' },
-  pedido_entregue:    { label:'Pedido Entregue',    cor:'#22c55e' },
-  pedido_criado:      { label:'Pedido Criado',      cor:'#00d4aa' },
-  nfe_emitida:        { label:'NF-e Emitida',       cor:'#f59e0b' },
-  avise_me:           { label:'Avise-me',           cor:'#fb923c' },
-  em_separacao:       { label:'Em Separação',       cor:'#8b5cf6' },
-  produto_embalado:   { label:'Produto Embalado',   cor:'#06b6d4' },
-  boas_vindas:        { label:'Boas-vindas',        cor:'#e879f9' },
-  avaliar_pedido:     { label:'Avaliação',          cor:'#f87171' },
-  nao_entregue:       { label:'Não Entregue',       cor:'#ef4444' },
+  pagamento_aprovado: { label:'Pagamento Aprovado', icon:CreditCard,  cor:'#4a9fff', emoji:'✅' },
+  pedido_enviado:     { label:'Pedido Enviado',     icon:Truck,        cor:'#a78bfa', emoji:'🚚' },
+  pedido_entregue:    { label:'Pedido Entregue',    icon:Package,      cor:'#22c55e', emoji:'📦' },
+  pedido_criado:      { label:'Pedido Criado',      icon:ShoppingBag,  cor:'#00d4aa', emoji:'🛒' },
+  nfe_emitida:        { label:'NF-e Emitida',       icon:FileText,     cor:'#f59e0b', emoji:'📄' },
+  avise_me:           { label:'Avise-me',           icon:Bell,         cor:'#fb923c', emoji:'🔔' },
+  em_separacao:       { label:'Em Separação',       icon:Activity,     cor:'#8b5cf6', emoji:'📋' },
+  produto_embalado:   { label:'Produto Embalado',   icon:Package,      cor:'#06b6d4', emoji:'📦' },
+  boas_vindas:        { label:'Boas-vindas',         icon:Star,         cor:'#e879f9', emoji:'👋' },
+  avaliar_pedido:     { label:'Avaliação',           icon:Star,         cor:'#f87171', emoji:'⭐' },
+  nao_entregue:       { label:'Não Entregue',        icon:XCircle,      cor:'#ef4444', emoji:'❌' },
 }
 
 const STATUS_META = {
-  enviado:    { label:'Enviado',    cor:'#22c55e', bg:'rgba(34,197,94,0.1)'   },
-  erro:       { label:'Erro',       cor:'#ef4444', bg:'rgba(239,68,68,0.1)'   },
-  ignorado:   { label:'Ignorado',   cor:'#6b7280', bg:'rgba(107,114,128,0.1)' },
-  aguardando: { label:'Aguardando', cor:'#f59e0b', bg:'rgba(245,158,11,0.1)'  },
+  enviado:    { label:'Enviado',    cor:'#22c55e', bg:'rgba(34,197,94,0.1)',    icon:CheckCircle },
+  erro:       { label:'Erro',       cor:'#ef4444', bg:'rgba(239,68,68,0.1)',    icon:XCircle },
+  ignorado:   { label:'Ignorado',   cor:'#6b7280', bg:'rgba(107,114,128,0.1)', icon:Minus },
+  aguardando: { label:'Aguardando', cor:'#f59e0b', bg:'rgba(245,158,11,0.1)',  icon:Clock },
 }
 
 const PERIODOS = [
-  { id:'1d',  label:'Hoje'    },
-  { id:'7d',  label:'7 dias'  },
-  { id:'30d', label:'30 dias' },
-  { id:'90d', label:'90 dias' },
+  { id:'1d', label:'Hoje' },
+  { id:'7d', label:'7 dias' },
+  { id:'30d',label:'30 dias' },
+  { id:'90d',label:'90 dias' },
 ]
 
-// ── Sparkline SVG simples ──────────────────────────────────────────────────────
-function Sparkline({ dados = [], cor = '#00d4aa' }) {
+// Mini sparkline SVG
+function Sparkline({ dados=[], cor='#00d4aa' }) {
   if (!dados.length) return null
-  const vals = dados.map(d => parseInt(d.enviados) || 0)
-  const max  = Math.max(...vals, 1)
-  const w = 80, h = 28, pad = 2
-  const pts = vals.map((v, i) => {
-    const x = pad + (i / Math.max(vals.length - 1, 1)) * (w - pad * 2)
-    const y = h - pad - ((v / max) * (h - pad * 2))
+  const vals  = dados.map(d => parseInt(d.enviados)||0)
+  const max   = Math.max(...vals, 1)
+  const w     = 80, h = 28, pad = 2
+  const pts   = vals.map((v,i) => {
+    const x = pad + (i / Math.max(vals.length-1,1)) * (w - pad*2)
+    const y = h - pad - ((v/max) * (h - pad*2))
     return `${x},${y}`
   }).join(' ')
-
   return (
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-      <polyline
-        points={pts}
-        fill="none"
-        stroke={cor}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <polyline points={pts} fill="none" stroke={cor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   )
 }
 
-// ── Card de métrica ────────────────────────────────────────────────────────────
-function MetricCard({ label, valor, sub, cor, trend, sparkData }) {
-  const trendPos = trend > 0
-  const trendNeg = trend < 0
+// Card de métrica principal
+function MetricCard({ label, valor, sub, icon: Ic, cor, trend, sparkData }) {
+  const trendPos = trend > 0, trendNeg = trend < 0
   return (
-    <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background:'var(--bg-2)', border:'1px solid var(--sep)' }}>
+    <div className="rounded-[16px] p-4 flex flex-col gap-3"
+      style={{ background:'var(--bg-2)', border:'1px solid var(--sep)' }}>
       <div className="flex items-center justify-between">
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background:`${cor}18` }}>
-          <span style={{ fontSize:16 }}>
-            {label.includes('sucesso') ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg> : label.includes('cliente') ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> : label.includes('24h') ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>}
-          </span>
+        <div className="w-8 h-8 rounded-[9px] flex items-center justify-center"
+          style={{ background:`${cor}18` }}>
+          <Ic size={15} style={{ color:cor }}/>
         </div>
         {trend !== undefined && (
-          <div className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{
-            background: trendPos ? 'rgba(34,197,94,0.1)' : trendNeg ? 'rgba(239,68,68,0.1)' : 'var(--fill)',
-            color:      trendPos ? '#22c55e'             : trendNeg ? '#ef4444'              : 'var(--label-3)',
-          }}>
-            {trendPos ? '↑' : trendNeg ? '↓' : '—'} {Math.abs(trend)}%
+          <div className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full"
+            style={{
+              background: trendPos?'rgba(34,197,94,0.1)':trendNeg?'rgba(239,68,68,0.1)':'var(--fill)',
+              color: trendPos?'#22c55e':trendNeg?'#ef4444':'var(--label-3)'
+            }}>
+            {trendPos?<ArrowUpRight size={10}/>:trendNeg?<ArrowDownRight size={10}/>:<Minus size={10}/>}
+            {Math.abs(trend)}%
           </div>
         )}
       </div>
       <div>
         <div className="text-[26px] font-bold leading-none mb-1" style={{ color:'var(--label)' }}>
-          {valor?.toLocaleString('pt-BR')}
+          {valor ?? '—'}
         </div>
-        <div className="text-[11px]" style={{ color:'var(--label-3)' }}>{sub}</div>
+        <div className="text-[11px]" style={{ color:'var(--label-3)' }}>{label}</div>
+        {sub && <div className="text-[10px] mt-0.5" style={{ color:'var(--label-4)' }}>{sub}</div>}
       </div>
-      <div className="flex items-end justify-between">
-        <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color:'var(--label-4)' }}>{label}</div>
-        {sparkData && <Sparkline dados={sparkData} cor={cor} />}
-      </div>
+      {sparkData && <Sparkline dados={sparkData} cor={cor}/>}
     </div>
   )
 }
 
-// ── Barra de progresso por gatilho ────────────────────────────────────────────
+// Barra de progresso estilizada
 function BarraGatilho({ item, total }) {
-  const meta    = GATILHO_META[item.gatilho] || { label: item.gatilho, cor:'#6b7280' }
-  const pct     = total > 0 ? Math.round((parseInt(item.total) / total) * 100) : 0
-  const taxa    = parseInt(item.total) > 0 ? Math.round((parseInt(item.enviados) / parseInt(item.total)) * 100) : 0
+  const meta  = GATILHO_META[item.gatilho] || { label:item.gatilho, cor:'#6b7280', emoji:'⚡' }
+  const pct   = total > 0 ? Math.round((parseInt(item.total)||0) / total * 100) : 0
+  const taxa  = item.total > 0 ? Math.round((parseInt(item.enviados)||0) / item.total * 100) : 0
+  const Ic    = meta.icon || Zap
+
   return (
-    <div className="py-2.5 border-b border-[var(--sep)] last:border-0">
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2">
-          <span className="text-[13px]">{GATILHO_ICON[item.gatilho] || GATILHO_ICON.pedido_criado}</span>
-          <span className="text-[12px] font-medium" style={{ color:'var(--label)' }}>{meta.label}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold" style={{
-            color:      taxa >= 90 ? '#22c55e' : taxa >= 70 ? '#f59e0b' : '#ef4444',
-            background: taxa >= 90 ? 'rgba(34,197,94,0.1)' : taxa >= 70 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
-            padding:    '1px 6px', borderRadius:99,
-          }}>
-            {taxa}%
-          </span>
-          <span className="text-[11px] font-semibold" style={{ color:'var(--label-2)' }}>{item.total}</span>
-        </div>
+    <div className="flex items-center gap-3 py-2.5"
+      style={{ borderBottom:'1px solid var(--sep)' }}>
+      <div className="w-7 h-7 rounded-[7px] flex items-center justify-center flex-shrink-0"
+        style={{ background:`${meta.cor}15` }}>
+        <Ic size={13} style={{ color:meta.cor }}/>
       </div>
-      <div className="h-1.5 rounded-full overflow-hidden" style={{ background:'var(--fill)' }}>
-        <div className="h-full rounded-full transition-all duration-700"
-          style={{ width:`${pct}%`, background: meta.cor }} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[12px] font-medium truncate" style={{ color:'var(--label)' }}>
+            {meta.emoji} {meta.label}
+          </span>
+          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+            <span className="text-[11px] font-semibold" style={{ color:'var(--label)' }}>{item.total}</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full"
+              style={{ background: taxa>=90?'rgba(34,197,94,0.1)':taxa>=70?'rgba(245,158,11,0.1)':'rgba(239,68,68,0.1)',
+                       color: taxa>=90?'#22c55e':taxa>=70?'#f59e0b':'#ef4444' }}>
+              {taxa}%
+            </span>
+          </div>
+        </div>
+        <div className="h-1.5 rounded-full overflow-hidden" style={{ background:'var(--fill)' }}>
+          <div className="h-full rounded-full transition-all duration-700"
+            style={{ width:`${pct}%`, background:meta.cor }}/>
+        </div>
       </div>
     </div>
   )
 }
 
-// ── Página principal ───────────────────────────────────────────────────────────
 export default function PageDisparos({ api: apiProp }) {
   const api = apiProp || BASE
-  const [stats,     setStats]     = useState(null)
-  const [loading,   setLoading]   = useState(true)
-  const [periodo,   setPeriodo]   = useState('7d')
-  const [filtroSt,  setFiltroSt]  = useState('todos')
-  const [filtroGat, setFiltroGat] = useState('todos')
-  const [autoRef,   setAutoRef]   = useState(true)
+  const [stats,    setStats]    = useState(null)
+  const [loading,  setLoading]  = useState(true)
+  const [periodo,  setPeriodo]  = useState('7d')
+  const [filtroSt, setFiltroSt] = useState('todos')
+  const [filtroGat,setFiltroGat]= useState('todos')
+  const [autoRef,  setAutoRef]  = useState(true)
 
   const carregar = useCallback(async () => {
     try {
       const r = await fetch(`${api}/bling-webhook/stats?periodo=${periodo}`)
       if (r.ok) { const d = await r.json(); setStats(d) }
-      else {
-        // Fallback: usa o endpoint do dashboard
-        const r2 = await fetch(`${api}/api/dashboard/disparos-stats?periodo=${periodo}`)
-        if (r2.ok) { const d = await r2.json(); setStats(d) }
-      }
     } catch {}
     setLoading(false)
   }, [api, periodo])
 
   useEffect(() => { setLoading(true); carregar() }, [carregar])
-
   useEffect(() => {
     if (!autoRef) return
     const t = setInterval(carregar, 30000)
@@ -167,8 +151,8 @@ export default function PageDisparos({ api: apiProp }) {
   }, [carregar, autoRef])
 
   const t = stats?.totais || {}
-  const total = parseInt(t.total) || 0
-  const taxaSucesso = total > 0 ? Math.round(((parseInt(t.enviados) || 0) / total) * 100) : 0
+  const total = parseInt(t.total)||0
+  const taxaSucesso = total > 0 ? Math.round(((parseInt(t.enviados)||0)/total)*100) : 0
 
   const recentes = (stats?.recentes || []).filter(r => {
     if (filtroSt !== 'todos' && r.status !== filtroSt) return false
@@ -176,7 +160,7 @@ export default function PageDisparos({ api: apiProp }) {
     return true
   })
 
-  const gatilhosUsados = [...new Set((stats?.porGatilho || []).map(g => g.gatilho))]
+  const gatilhosUsados = [...new Set((stats?.porGatilho||[]).map(g=>g.gatilho))]
 
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ background:'var(--bg)' }}>
@@ -191,287 +175,238 @@ export default function PageDisparos({ api: apiProp }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Auto-refresh toggle */}
-          <button onClick={() => setAutoRef(v => !v)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all"
-            style={{
-              background: autoRef ? 'rgba(34,197,94,0.1)' : 'var(--fill)',
-              color:      autoRef ? '#22c55e'             : 'var(--label-3)',
-              border:     autoRef ? '1px solid rgba(34,197,94,0.3)' : '1px solid var(--sep)',
-            }}>
-            <span style={{ fontSize:14 }}>{autoRef ? '◉' : '○'}</span>
+          {/* Auto-refresh */}
+          <button onClick={()=>setAutoRef(v=>!v)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] text-[11px] font-medium transition-all"
+            style={{ background:autoRef?'rgba(34,197,94,0.1)':'var(--fill)', color:autoRef?'#22c55e':'var(--label-3)', border:autoRef?'1px solid rgba(34,197,94,0.3)':'1px solid var(--sep)' }}>
+            {autoRef?<ToggleRight size={14} strokeWidth={2}/>:<ToggleLeft size={14}/>}
             Auto-refresh
           </button>
-
           {/* Período */}
-          <div className="flex gap-1 p-1 rounded-xl" style={{ background:'var(--fill)' }}>
-            {PERIODOS.map(p => (
-              <button key={p.id} onClick={() => setPeriodo(p.id)}
-                className="px-3 py-1 rounded-[8px] text-[11px] font-medium transition-all"
-                style={{
-                  background: periodo === p.id ? 'var(--bg-2)' : 'transparent',
-                  color:      periodo === p.id ? 'var(--label)' : 'var(--label-3)',
-                  boxShadow:  periodo === p.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                }}>
+          <div className="flex gap-1 p-1 rounded-[10px]" style={{ background:'var(--fill)' }}>
+            {PERIODOS.map(p=>(
+              <button key={p.id} onClick={()=>setPeriodo(p.id)}
+                className="px-3 py-1 rounded-[7px] text-[11px] font-medium transition-all"
+                style={{ background:periodo===p.id?'var(--bg-2)':'transparent', color:periodo===p.id?'var(--label)':'var(--label-3)', boxShadow:periodo===p.id?'0 1px 3px rgba(0,0,0,0.1)':'none' }}>
                 {p.label}
               </button>
             ))}
           </div>
-
-          <button onClick={() => { setLoading(true); carregar() }}
-            className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--bg-3)]"
-            style={{ background:'var(--fill)', color:'var(--label-3)', border:'1px solid var(--sep)' }}>
-            <svg className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/>
-            </svg>
+          <button onClick={()=>{ setLoading(true); carregar() }}
+            className="p-2 rounded-[9px]" style={{ background:'var(--fill)', color:'var(--label-3)' }}>
+            <RefreshCw size={14} className={loading?'animate-spin':''}/>
           </button>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-5">
-
         {loading && !stats && (
           <div className="flex justify-center py-16">
-            <svg className="w-5 h-5 animate-spin" style={{ color:'var(--label-3)' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-            </svg>
+            <RefreshCw size={16} className="animate-spin" style={{ color:'var(--label-3)' }}/>
           </div>
         )}
 
-        {!stats && !loading && (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <span style={{ fontSize:32 }}>⚡</span>
-            <p className="text-[13px]" style={{ color:'var(--label-3)' }}>Nenhum dado de disparos ainda</p>
-            <p className="text-[11px]" style={{ color:'var(--label-4)' }}>Os dados aparecerão após o primeiro webhook do Bling</p>
-          </div>
-        )}
+        {stats && <>
 
-        {stats && (
-          <>
-            {/* KPIs */}
-            <div className="grid grid-cols-4 gap-3">
-              <MetricCard
-                label="Total de disparos"
-                valor={total}
-                sub={`últimos ${stats.dias || 7} dias`}
-                cor="#00d4aa"
-                sparkData={stats.porDia}
-              />
-              <MetricCard
-                label="Enviados com sucesso"
-                valor={parseInt(t.enviados) || 0}
-                sub={`taxa de ${taxaSucesso}%`}
-                cor="#22c55e"
-                trend={taxaSucesso >= 90 ? 5 : taxaSucesso >= 70 ? 0 : -5}
-              />
-              <MetricCard
-                label="Clientes alcançados"
-                valor={parseInt(t.clientes_unicos) || 0}
-                sub="números únicos"
-                cor="#4a9fff"
-              />
-              <MetricCard
-                label="Últimas 24h"
-                valor={parseInt(t.ultimas_24h) || 0}
-                sub={`${parseInt(t.erros) || 0} erros`}
-                cor="#a78bfa"
-                trend={parseInt(t.erros) > 0 ? -1 : 1}
-              />
+          {/* KPIs */}
+          <div className="grid grid-cols-4 gap-3">
+            <MetricCard label="Total de disparos" valor={total}
+              sub={`últimos ${stats.dias} dias`}
+              icon={Send} cor="#00d4aa" sparkData={stats.porDia}/>
+            <MetricCard label="Enviados com sucesso" valor={parseInt(t.enviados)||0}
+              sub={`taxa de ${taxaSucesso}%`}
+              icon={CheckCircle} cor="#22c55e"
+              trend={taxaSucesso >= 90 ? 5 : taxaSucesso >= 70 ? 0 : -5}/>
+            <MetricCard label="Clientes alcançados" valor={parseInt(t.clientes_unicos)||0}
+              sub="números únicos" icon={Users} cor="#4a9fff"/>
+            <MetricCard label="Últimas 24h" valor={parseInt(t.ultimas_24h)||0}
+              sub={`${parseInt(t.erros)||0} erros`}
+              icon={Activity} cor="#a78bfa"
+              trend={parseInt(t.erros)>0?-1:1}/>
+          </div>
+
+          {/* Taxa de sucesso visual */}
+          <div className="rounded-[16px] p-4" style={{ background:'var(--bg-2)', border:'1px solid var(--sep)' }}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[13px] font-semibold" style={{ color:'var(--label)' }}>Taxa de sucesso global</span>
+              <span className="text-[22px] font-bold" style={{ color: taxaSucesso>=90?'#22c55e':taxaSucesso>=70?'#f59e0b':'#ef4444' }}>
+                {taxaSucesso}%
+              </span>
             </div>
-
-            {/* Taxa de sucesso global */}
-            <div className="rounded-2xl p-4" style={{ background:'var(--bg-2)', border:'1px solid var(--sep)' }}>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[13px] font-semibold" style={{ color:'var(--label)' }}>Taxa de sucesso global</span>
-                <span className="text-[22px] font-bold" style={{
-                  color: taxaSucesso >= 90 ? '#22c55e' : taxaSucesso >= 70 ? '#f59e0b' : '#ef4444'
-                }}>
-                  {taxaSucesso}%
-                </span>
-              </div>
-              <div className="h-2.5 rounded-full overflow-hidden" style={{ background:'var(--fill)' }}>
-                <div className="h-full rounded-full transition-all duration-1000" style={{
-                  width: `${taxaSucesso}%`,
-                  background: taxaSucesso >= 90 ? '#22c55e' : taxaSucesso >= 70 ? '#f59e0b' : '#ef4444'
-                }} />
-              </div>
-              <div className="flex items-center gap-5 mt-3">
+            <div className="h-3 rounded-full overflow-hidden" style={{ background:'var(--fill)' }}>
+              <div className="h-full rounded-full transition-all duration-1000"
+                style={{ width:`${taxaSucesso}%`, background: taxaSucesso>=90?'#22c55e':taxaSucesso>=70?'#f59e0b':'#ef4444' }}/>
+            </div>
+            <div className="flex justify-between mt-2">
+              <div className="flex items-center gap-4">
                 {[
-                  { l:'Enviados',   v: t.enviados,   c:'#22c55e' },
-                  { l:'Erros',      v: t.erros,      c:'#ef4444' },
-                  { l:'Ignorados',  v: t.ignorados,  c:'#6b7280' },
-                  { l:'Aguardando', v: t.aguardando, c:'#f59e0b' },
-                ].map(s => (
+                  { l:'Enviados',  v:t.enviados,  c:'#22c55e' },
+                  { l:'Erros',     v:t.erros,     c:'#ef4444' },
+                  { l:'Ignorados', v:t.ignorados, c:'#6b7280' },
+                  { l:'Aguardando',v:t.aguardando,c:'#f59e0b' },
+                ].map(s=>(
                   <div key={s.l} className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full" style={{ background: s.c }} />
-                    <span className="text-[10px]" style={{ color:'var(--label-3)' }}>
-                      {s.l}: <strong style={{ color:'var(--label-2)' }}>{parseInt(s.v) || 0}</strong>
-                    </span>
+                    <div className="w-2 h-2 rounded-full" style={{ background:s.c }}/>
+                    <span className="text-[10px]" style={{ color:'var(--label-3)' }}>{s.l}: <strong style={{ color:'var(--label-2)' }}>{parseInt(s.v)||0}</strong></span>
                   </div>
                 ))}
               </div>
             </div>
+          </div>
 
-            {/* Evolução diária + Por gatilho */}
-            <div className="grid grid-cols-2 gap-4">
+          {/* Gráfico de dias + Por gatilho */}
+          <div className="grid grid-cols-2 gap-4">
 
-              {/* Evolução diária */}
-              <div className="rounded-2xl p-4" style={{ background:'var(--bg-2)', border:'1px solid var(--sep)' }}>
-                <h3 className="text-[13px] font-semibold mb-4" style={{ color:'var(--label)' }}>Evolução diária</h3>
-                {!stats.porDia?.length
-                  ? <p className="text-[12px] text-center py-4" style={{ color:'var(--label-4)' }}>Sem dados no período</p>
-                  : <div className="space-y-1.5">
-                      {(() => {
-                        const maxDia = Math.max(...stats.porDia.map(d => parseInt(d.total) || 0), 1)
-                        return stats.porDia.slice(-7).map((d, i) => {
-                          const pct    = Math.round(((parseInt(d.total) || 0) / maxDia) * 100)
-                          const errPct = parseInt(d.total) > 0 ? Math.round((parseInt(d.erros) || 0) / parseInt(d.total) * 100) : 0
-                          const label  = d.dia ? new Date(d.dia).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }) : `Dia ${i+1}`
-                          return (
-                            <div key={i} className="flex items-center gap-2">
-                              <span className="text-[10px] w-12 flex-shrink-0" style={{ color:'var(--label-3)' }}>{label}</span>
-                              <div className="flex-1 h-5 rounded-full overflow-hidden" style={{ background:'var(--fill)' }}>
-                                <div className="h-full rounded-full flex transition-all duration-700" style={{ width:`${pct}%` }}>
-                                  <div className="flex-1" style={{ background:'#22c55e' }} />
-                                  {errPct > 0 && <div style={{ width:`${errPct}%`, background:'#ef4444', minWidth:4 }} />}
-                                </div>
+            {/* Evolução diária */}
+            <div className="rounded-[16px] p-4" style={{ background:'var(--bg-2)', border:'1px solid var(--sep)' }}>
+              <h3 className="text-[13px] font-semibold mb-4" style={{ color:'var(--label)' }}>Evolução diária</h3>
+              {stats.porDia.length === 0
+                ? <p className="text-[12px] text-center py-4" style={{ color:'var(--label-4)' }}>Sem dados no período</p>
+                : <div className="space-y-1.5">
+                    {(() => {
+                      const maxDia = Math.max(...stats.porDia.map(d=>parseInt(d.total)||0),1)
+                      return stats.porDia.slice(-7).map((d,i)=>{
+                        const pct = Math.round(((parseInt(d.total)||0)/maxDia)*100)
+                        const errPct = d.total > 0 ? Math.round((parseInt(d.erros)||0)/parseInt(d.total)*100) : 0
+                        const dt = new Date(d.dia)
+                        const label = dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})
+                        return (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="text-[10px] w-12 flex-shrink-0" style={{ color:'var(--label-3)' }}>{label}</span>
+                            <div className="flex-1 h-5 rounded-full overflow-hidden" style={{ background:'var(--fill)' }}>
+                              <div className="h-full rounded-full transition-all duration-700 flex"
+                                style={{ width:`${pct}%` }}>
+                                <div className="flex-1" style={{ background:'#22c55e' }}/>
+                                {errPct > 0 && <div style={{ width:`${errPct}%`, background:'#ef4444', minWidth:4 }}/>}
                               </div>
-                              <span className="text-[10px] w-8 text-right flex-shrink-0 font-medium" style={{ color:'var(--label-2)' }}>
-                                {parseInt(d.total) || 0}
-                              </span>
                             </div>
-                          )
-                        })
-                      })()}
-                    </div>
-                }
-              </div>
-
-              {/* Por gatilho */}
-              <div className="rounded-2xl p-4" style={{ background:'var(--bg-2)', border:'1px solid var(--sep)' }}>
-                <h3 className="text-[13px] font-semibold mb-1" style={{ color:'var(--label)' }}>Por gatilho</h3>
-                {!stats.porGatilho?.length
-                  ? <p className="text-[12px] text-center py-4" style={{ color:'var(--label-4)' }}>Nenhum disparo no período</p>
-                  : stats.porGatilho.map((item, i) => (
-                      <BarraGatilho key={i} item={item} total={total} />
-                    ))
-                }
-              </div>
-            </div>
-
-            {/* Log de disparos */}
-            <div className="rounded-2xl overflow-hidden" style={{ border:'1px solid var(--sep)', background:'var(--bg-2)' }}>
-
-              {/* Header do log */}
-              <div className="flex items-center justify-between px-4 py-3"
-                style={{ borderBottom:'1px solid var(--sep)', background:'var(--bg-3)' }}>
-                <h3 className="text-[13px] font-semibold" style={{ color:'var(--label)' }}>
-                  Log de disparos
-                  <span className="ml-2 text-[10px] font-normal px-2 py-0.5 rounded-full"
-                    style={{ background:'var(--fill)', color:'var(--label-3)' }}>
-                    {recentes.length}
-                  </span>
-                </h3>
-                <div className="flex items-center gap-2">
-                  <select value={filtroSt} onChange={e => setFiltroSt(e.target.value)}
-                    className="px-2 py-1.5 rounded-lg text-[11px] outline-none"
-                    style={{ background:'var(--fill)', border:'1px solid var(--sep)', color:'var(--label-2)' }}>
-                    <option value="todos">Todos status</option>
-                    {Object.entries(STATUS_META).map(([id, m]) => (
-                      <option key={id} value={id}>{m.label}</option>
-                    ))}
-                  </select>
-                  <select value={filtroGat} onChange={e => setFiltroGat(e.target.value)}
-                    className="px-2 py-1.5 rounded-lg text-[11px] outline-none"
-                    style={{ background:'var(--fill)', border:'1px solid var(--sep)', color:'var(--label-2)' }}>
-                    <option value="todos">Todos gatilhos</option>
-                    {gatilhosUsados.map(g => (
-                      <option key={g} value={g}>
-                        {GATILHO_META[g]?.emoji} {GATILHO_META[g]?.label || g}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Tabela */}
-              {recentes.length === 0
-                ? (
-                  <div className="flex flex-col items-center py-12">
-                    <span style={{ fontSize:28, opacity:.15 }}>⚡</span>
-                    <p className="text-[13px] mt-3" style={{ color:'var(--label-3)' }}>Nenhum disparo encontrado</p>
-                  </div>
-                ) : (
-                  <div>
-                    {/* Cabeçalho */}
-                    <div className="grid px-4 py-2"
-                      style={{ gridTemplateColumns:'1fr 120px 130px 90px 70px', borderBottom:'1px solid var(--sep)', background:'var(--bg-3)' }}>
-                      {['Gatilho / Cliente', 'Número', 'Template', 'Status', 'Horário'].map(h => (
-                        <span key={h} className="text-[10px] font-semibold uppercase tracking-wider"
-                          style={{ color:'var(--label-4)' }}>{h}</span>
-                      ))}
-                    </div>
-
-                    {/* Linhas */}
-                    {recentes.map((r, i) => {
-                      const meta  = GATILHO_META[r.gatilho] || { label: r.gatilho, cor:'#6b7280', emoji:'⚡' }
-                      const smeta = STATUS_META[r.status]   || STATUS_META.ignorado
-                      const hora  = new Date(r.criado_em).toLocaleTimeString('pt-BR',  { hour:'2-digit', minute:'2-digit' })
-                      const data  = new Date(r.criado_em).toLocaleDateString('pt-BR',  { day:'2-digit', month:'2-digit' })
-                      const telFmt = (r.telefone || '').replace('55', '').replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
-
-                      return (
-                        <div key={i} className="grid items-center px-4 py-2.5 transition-colors hover:bg-[var(--bg-3)]"
-                          style={{
-                            gridTemplateColumns: '1fr 120px 130px 90px 70px',
-                            borderBottom: i < recentes.length - 1 ? '1px solid var(--sep)' : 'none',
-                            background:   r.status === 'erro' ? 'rgba(239,68,68,0.03)' : 'transparent',
-                          }}>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[11px]">{GATILHO_ICON[item.gatilho] || GATILHO_ICON.pedido_criado}</span>
-                              <span className="text-[12px] font-medium truncate" style={{ color:'var(--label)' }}>
-                                {meta.label}
-                              </span>
-                              {r.delay_min > 0 && (
-                                <span className="text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0"
-                                  style={{ background:'rgba(245,158,11,0.1)', color:'#f59e0b' }}>
-                                  +{r.delay_min}min
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[10px] truncate" style={{ color:'var(--label-3)' }}>
-                              {r.nome_cliente || r.telefone}
-                              {r.numero_pedido ? ` · #${r.numero_pedido}` : ''}
-                            </div>
-                            {r.erro_msg && (
-                              <div className="text-[9px] truncate" style={{ color:'#ef4444' }}>{r.erro_msg}</div>
-                            )}
-                          </div>
-                          <span className="text-[11px] font-mono truncate" style={{ color:'var(--label-3)' }}>
-                            {telFmt}
-                          </span>
-                          <span className="text-[10px] truncate" style={{ color:'var(--label-3)' }}>
-                            {r.template_nome || r.gatilho}
-                          </span>
-                          <div>
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium"
-                              style={{ background: smeta.bg, color: smeta.cor }}>
-                              {smeta.label}
+                            <span className="text-[10px] w-8 text-right flex-shrink-0 font-medium" style={{ color:'var(--label-2)' }}>
+                              {parseInt(d.total)||0}
                             </span>
                           </div>
-                          <span className="text-[10px]" style={{ color:'var(--label-4)' }}>
-                            {data} {hora}
-                          </span>
-                        </div>
-                      )
-                    })}
+                        )
+                      })
+                    })()}
                   </div>
-                )
               }
             </div>
-          </>
-        )}
+
+            {/* Por gatilho */}
+            <div className="rounded-[16px] p-4" style={{ background:'var(--bg-2)', border:'1px solid var(--sep)' }}>
+              <h3 className="text-[13px] font-semibold mb-1" style={{ color:'var(--label)' }}>Por gatilho</h3>
+              {stats.porGatilho.length === 0
+                ? <p className="text-[12px] text-center py-4" style={{ color:'var(--label-4)' }}>Nenhum disparo no período</p>
+                : <div>
+                    {stats.porGatilho.map((item,i)=>(
+                      <BarraGatilho key={i} item={item} total={total}/>
+                    ))}
+                  </div>
+              }
+            </div>
+          </div>
+
+          {/* Log de disparos */}
+          <div className="rounded-[16px] overflow-hidden" style={{ border:'1px solid var(--sep)', background:'var(--bg-2)' }}>
+            <div className="flex items-center justify-between px-4 py-3"
+              style={{ borderBottom:'1px solid var(--sep)', background:'var(--bg-3)' }}>
+              <h3 className="text-[13px] font-semibold" style={{ color:'var(--label)' }}>
+                Log de disparos
+                <span className="ml-2 text-[10px] font-normal px-2 py-0.5 rounded-full"
+                  style={{ background:'var(--fill)', color:'var(--label-3)' }}>
+                  {recentes.length}
+                </span>
+              </h3>
+              <div className="flex items-center gap-2">
+                {/* Filtro status */}
+                <select value={filtroSt} onChange={e=>setFiltroSt(e.target.value)}
+                  className="px-2 py-1.5 rounded-[8px] text-[11px] outline-none"
+                  style={{ background:'var(--fill)', border:'1px solid var(--sep)', color:'var(--label-2)' }}>
+                  <option value="todos">Todos status</option>
+                  {Object.entries(STATUS_META).map(([id,m])=>(
+                    <option key={id} value={id}>{m.label}</option>
+                  ))}
+                </select>
+                {/* Filtro gatilho */}
+                <select value={filtroGat} onChange={e=>setFiltroGat(e.target.value)}
+                  className="px-2 py-1.5 rounded-[8px] text-[11px] outline-none"
+                  style={{ background:'var(--fill)', border:'1px solid var(--sep)', color:'var(--label-2)' }}>
+                  <option value="todos">Todos gatilhos</option>
+                  {gatilhosUsados.map(g=>(
+                    <option key={g} value={g}>{GATILHO_META[g]?.emoji} {GATILHO_META[g]?.label||g}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {recentes.length === 0 ? (
+              <div className="flex flex-col items-center py-12">
+                <Zap size={28} className="mb-3 opacity-15" style={{ color:'var(--label)' }}/>
+                <p className="text-[13px]" style={{ color:'var(--label-3)' }}>Nenhum disparo encontrado</p>
+              </div>
+            ) : (
+              <div>
+                {/* Cabeçalho */}
+                <div className="grid px-4 py-2"
+                  style={{ gridTemplateColumns:'1fr 120px 130px 90px 70px', borderBottom:'1px solid var(--sep)', background:'var(--bg-3)' }}>
+                  {['Gatilho / Cliente','Número','Template','Status','Horário'].map(h=>(
+                    <span key={h} className="text-[10px] font-semibold uppercase tracking-wider"
+                      style={{ color:'var(--label-4)' }}>{h}</span>
+                  ))}
+                </div>
+                {recentes.map((r,i)=>{
+                  const meta  = GATILHO_META[r.gatilho]  || { label:r.gatilho,  cor:'#6b7280', emoji:'⚡' }
+                  const smeta = STATUS_META[r.status] || STATUS_META.ignorado
+                  const Sic   = smeta.icon
+                  const hora  = new Date(r.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+                  const data  = new Date(r.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})
+                  return (
+                    <div key={i} className="grid items-center px-4 py-2.5 transition-all"
+                      style={{ gridTemplateColumns:'1fr 120px 130px 90px 70px', borderBottom:i<recentes.length-1?'1px solid var(--sep)':'none', background: r.status==='erro'?'rgba(239,68,68,0.03)':'transparent' }}>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px]">{meta.emoji}</span>
+                          <span className="text-[12px] font-medium truncate" style={{ color:'var(--label)' }}>
+                            {meta.label}
+                          </span>
+                          {r.delay_min > 0 && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0"
+                              style={{ background:'rgba(245,158,11,0.1)', color:'#f59e0b' }}>
+                              +{r.delay_min}min
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] truncate" style={{ color:'var(--label-3)' }}>
+                          {r.nome_cliente || r.telefone}
+                          {r.numero_pedido && ` · #${r.numero_pedido}`}
+                        </div>
+                        {r.erro_msg && (
+                          <div className="text-[9px] truncate" style={{ color:'#ef4444' }}>{r.erro_msg}</div>
+                        )}
+                      </div>
+                      <span className="text-[11px] font-mono truncate" style={{ color:'var(--label-3)' }}>
+                        {r.telefone.replace('55','').replace(/(\d{2})(\d{5})(\d{4})/,'($1) $2-$3')}
+                      </span>
+                      <span className="text-[10px] truncate" style={{ color:'var(--label-3)' }}>
+                        {r.template_nome || r.gatilho}
+                      </span>
+                      <div>
+                        <div className="flex items-center gap-1 px-2 py-1 rounded-full w-fit"
+                          style={{ background:smeta.bg }}>
+                          <Sic size={10} style={{ color:smeta.cor }}/>
+                          <span className="text-[10px] font-medium" style={{ color:smeta.cor }}>{smeta.label}</span>
+                        </div>
+                      </div>
+                      <span className="text-[10px]" style={{ color:'var(--label-4)' }}>
+                        {data} {hora}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+        </>}
       </div>
     </div>
   )

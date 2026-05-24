@@ -1,14 +1,17 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Search, RefreshCw, X, Plus, Check, Lock, ChevronDown, AlertTriangle, User, Clipboard, Settings, Truck, CreditCard, Package, RotateCcw, MessageSquare, AlertCircle } from 'lucide-react'
 
 const BASE = import.meta.env.VITE_API_URL || ''
 
-const TIPO_ICONS = {
-  entrega:     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
-  pagamento:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
-  produto:     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>,
-  troca:       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>,
-  atendimento: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
-  geral:       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
+// TIPO_ICONS usa lucide-react
+const TIPO_ICON_MAP = { entrega: Truck, pagamento: CreditCard, produto: Package, troca: RotateCcw, atendimento: MessageSquare, geral: AlertCircle }
+const TIPO_ICONS_LEGACY = {
+  entrega:     <Settings size={14}/>,
+  pagamento:   <Settings size={14}/>,
+  produto:     <Settings size={14}/>,
+  troca:       <Settings size={14}/>,
+  atendimento: <Settings size={14}/>,
+  geral:       <Settings size={14}/>,
 }
 const TIPOS = [
   { id:'entrega',    label:'Entrega'       , cor:'#4a9fff' },
@@ -70,10 +73,7 @@ function ModalNova({ api, onSalvo, onClose }) {
             <h3 className="text-[15px] font-bold" style={{ color:'var(--label)' }}>Nova ocorrência</h3>
             <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-[var(--bg-3)]"
               style={{ border:'1px solid var(--sep)' }}>
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-                style={{ color:'var(--label-3)' }}>
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
+              <X size={14}/>
             </button>
           </div>
 
@@ -181,11 +181,7 @@ function OcorrenciaCard({ oc, api, onAtualizado }) {
           <span className="text-[10px]" style={{ color:'var(--label-4)' }}>
             {fmtData(oc.criado_em)}
           </span>
-          <svg className={`w-3.5 h-3.5 transition-transform ${expandida ? 'rotate-180' : ''}`}
-            style={{ color:'var(--label-4)' }}
-            viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
+          <ChevronDown size={12}/>
         </div>
       </div>
 
@@ -286,9 +282,7 @@ export default function PageOcorrencias({ api: apiProp }) {
           <button onClick={() => setModalNova(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-[12px] transition-opacity hover:opacity-90"
             style={{ background:'var(--accent)', color:'#000' }}>
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
+            <Plus size={14}/>
             Nova ocorrência
           </button>
         </div>
@@ -311,9 +305,7 @@ export default function PageOcorrencias({ api: apiProp }) {
         {/* Filtros */}
         <div className="flex gap-3">
           <div className="flex items-center gap-2 flex-1 px-3 py-2 rounded-xl" style={{ background:'var(--bg)', border:'1px solid var(--sep)' }}>
-            <svg className="w-3.5 h-3.5 flex-shrink-0" style={{ color:'var(--label-4)' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
+            <Search size={14} className="flex-shrink-0"/>
             <input value={busca} onChange={e => setBusca(e.target.value)}
               placeholder="Buscar por descrição, telefone ou pedido..."
               className="flex-1 bg-transparent text-[12px] outline-none"
@@ -337,9 +329,7 @@ export default function PageOcorrencias({ api: apiProp }) {
           <button onClick={carregar}
             className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--bg-3)]"
             style={{ background:'var(--fill)', border:'1px solid var(--sep)', color:'var(--label-3)' }}>
-            <svg className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/>
-            </svg>
+            <RefreshCw size={14}/>
           </button>
         </div>
       </div>
@@ -352,7 +342,7 @@ export default function PageOcorrencias({ api: apiProp }) {
             </div>
           : filtradas.length === 0
             ? <div className="flex flex-col items-center justify-center py-16 gap-3">
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{opacity:.2}}><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+                <Clipboard size={14}/>
                 <p className="text-[13px]" style={{ color:'var(--label-4)' }}>
                   {busca || filtroTipo !== 'todos' || filtroSt !== 'todos' ? 'Nenhuma ocorrência encontrada' : 'Nenhuma ocorrência registrada ainda'}
                 </p>

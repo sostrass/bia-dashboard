@@ -1,4 +1,10 @@
 import { useState, useEffect, useCallback, useRef, memo } from 'react'
+import {
+  Send, Smile, Image, Video, Mic, Lightbulb, Package,
+  Search, RefreshCw, ChevronLeft, ChevronRight, User, Bot,
+  Zap, Trash2, X, Lock, ArrowLeft, CheckCheck, Clock,
+  ShoppingCart, MapPin, Phone, Star, RotateCcw
+} from 'lucide-react'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const fmtR   = n => `R$ ${Number(n||0).toFixed(2).replace('.',',')}`
@@ -381,7 +387,7 @@ function BarraEnvio({ telefone, api, modoManual, onEnviou, onAssumirIA }) {
       <p className="text-[11px] text-[var(--label-4)]">IA respondendo automaticamente</p>
       <button onClick={onAssumirIA}
         className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[11px] font-semibold hover:bg-blue-500/20 transition-colors flex items-center gap-1.5">
-        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <User size={12}/>
         Assumir conversa
       </button>
     </div>
@@ -406,7 +412,7 @@ function BarraEnvio({ telefone, api, modoManual, onEnviou, onAssumirIA }) {
       {/* Sugestões da IA */}
       {sugestoes.length > 0 && (
         <div className="px-3 py-2 flex gap-1.5 flex-wrap border-b border-[var(--sep)] items-center">
-          <svg className="w-3 h-3 text-amber-400 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 1 7 7c0 2.4-1.2 4.5-3 5.7V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.3A7 7 0 0 1 5 9a7 7 0 0 1 7-7zm-2 18h4v1a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-1z"/></svg>
+          <Lightbulb size={12} className="text-amber-400 flex-shrink-0"/>
           {sugestoes.slice(0, 3).map((s, i) => (
             <button key={i} onClick={() => enviar(s)}
               className="text-[10px] px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[var(--label-2)] hover:bg-amber-500/20 max-w-[220px] truncate transition-colors">
@@ -435,7 +441,7 @@ function BarraEnvio({ telefone, api, modoManual, onEnviou, onAssumirIA }) {
       <div className="px-3 pt-2 pb-1">
         {anotacao && (
           <div className="text-[9px] font-bold text-violet-400 mb-1.5 flex items-center gap-1">
-            <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <Lock size={10}/>
             Anotação interna — não enviada ao cliente
           </div>
         )}
@@ -452,19 +458,19 @@ function BarraEnvio({ telefone, api, modoManual, onEnviou, onAssumirIA }) {
         {/* Emoji */}
         <button onClick={() => setEmojiOpen(v => !v)} title="Emoji"
           className={`w-7 h-7 rounded-lg border transition-all flex items-center justify-center ${emojiOpen ? 'border-[var(--accent)] bg-[var(--accent-dim)]' : 'border-[var(--sep)] hover:bg-[var(--bg-3)]'}`}>
-          <svg className={`w-3.5 h-3.5 ${emojiOpen ? 'text-[var(--accent)]' : 'text-[var(--label-3)]'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+          <Smile className={`w-3.5 h-3.5 ${emojiOpen ? "text-[var(--accent)]" : "text-[var(--label-3)]"}`} size={14}/>
         </button>
 
         {/* Imagem */}
         <label title="Enviar imagem" className="w-7 h-7 rounded-lg border border-[var(--sep)] hover:bg-[var(--bg-3)] transition-all flex items-center justify-center cursor-pointer">
-          <svg className="w-3.5 h-3.5 text-[var(--label-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <Image size={14} className="text-[var(--label-3)]"/>
           <input ref={imgRef} type="file" accept="image/*" className="hidden"
             onChange={e => { if (e.target.files[0]) enviarArquivo(e.target.files[0], 'image'); e.target.value = '' }} />
         </label>
 
         {/* Vídeo */}
         <label title="Enviar vídeo" className="w-7 h-7 rounded-lg border border-[var(--sep)] hover:bg-[var(--bg-3)] transition-all flex items-center justify-center cursor-pointer">
-          <svg className="w-3.5 h-3.5 text-[var(--label-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          <Video size={14} className="text-[var(--label-3)]"/>
           <input ref={vidRef} type="file" accept="video/*" className="hidden"
             onChange={e => { if (e.target.files[0]) enviarArquivo(e.target.files[0], 'video'); e.target.value = '' }} />
         </label>
@@ -472,13 +478,13 @@ function BarraEnvio({ telefone, api, modoManual, onEnviou, onAssumirIA }) {
         {/* Áudio */}
         <button title="Gravar áudio"
           className="w-7 h-7 rounded-lg border border-[var(--sep)] hover:bg-[var(--bg-3)] transition-all flex items-center justify-center">
-          <svg className="w-3.5 h-3.5 text-[var(--label-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          <Mic size={14} className="text-[var(--label-3)]"/>
         </button>
 
         {/* Sugerir IA */}
         <button onClick={buscarSugestoes} title="Sugestões da IA" disabled={loadSug}
           className="w-7 h-7 rounded-lg border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/15 transition-all flex items-center justify-center">
-          <svg className="w-3.5 h-3.5 text-amber-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 1 7 7c0 2.4-1.2 4.5-3 5.7V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.3A7 7 0 0 1 5 9a7 7 0 0 1 7-7z"/></svg>
+          <Lightbulb size={14} className="text-amber-400"/>
         </button>
 
         <div className="flex-1" />
@@ -491,9 +497,9 @@ function BarraEnvio({ telefone, api, modoManual, onEnviou, onAssumirIA }) {
               : 'bg-[var(--fill)] text-[var(--label-4)] cursor-default'
           }`}>
           {enviando ? (
-            <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            <RefreshCw size={14} className="animate-spin"/>
           ) : (
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            <Send size={14}/>
           )}
           Enviar
         </button>
@@ -618,7 +624,7 @@ function Chat({ sessao, api, onClose }) {
           {/* Voltar */}
           <button onClick={onClose}
             className="w-7 h-7 rounded-lg border border-[var(--sep)] flex items-center justify-center hover:bg-[var(--bg-3)] transition-colors">
-            <svg className="w-3.5 h-3.5 text-[var(--label-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            <User size={14} className="text-[var(--label-3)]"/>
           </button>
 
           <Avatar sessao={sessao} size={34} />
@@ -640,21 +646,21 @@ function Chat({ sessao, api, onClose }) {
                 : 'bg-[var(--fill)] border-[var(--sep)] text-[var(--label-3)] hover:bg-[var(--bg-3)]'
             }`}>
             {modo === 'manual'
-              ? <><svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M8 12h8"/></svg> Devolver à IA</>
-              : <><svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg> Assumir</>
+              ? <><RotateCcw size={12}/> Devolver à IA</>
+              : <><User size={12}/> Assumir</>
             }
           </button>
 
           {/* Atualizar */}
           <button onClick={() => carregarHistorico(0, false)}
             className="w-7 h-7 rounded-lg border border-[var(--sep)] flex items-center justify-center hover:bg-[var(--bg-3)] transition-colors">
-            <svg className="w-3.5 h-3.5 text-[var(--label-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/></svg>
+            <RefreshCw size={14} className="text-[var(--label-3)]"/>
           </button>
 
           {/* Resetar */}
           <button onClick={resetarSessao}
             className="w-7 h-7 rounded-lg border border-red-500/20 bg-red-500/5 flex items-center justify-center hover:bg-red-500/15 transition-colors" title="Resetar sessão">
-            <svg className="w-3.5 h-3.5 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            <ChevronLeft size={14} className="text-red-400"/>
           </button>
         </div>
 
@@ -829,7 +835,7 @@ export default function PageAtendimento({ api }) {
             </div>
             <button onClick={() => carregar(false)}
               className="w-8 h-8 rounded-lg border border-[var(--sep)] flex items-center justify-center hover:bg-[var(--bg-3)] transition-colors">
-              <svg className="w-3.5 h-3.5 text-[var(--label-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/></svg>
+              <ChevronLeft size={14} className="text-[var(--label-3)]"/>
             </button>
           </div>
 
@@ -850,13 +856,13 @@ export default function PageAtendimento({ api }) {
 
           {/* Busca */}
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--bg)] border border-[var(--sep)] focus-within:border-[var(--accent)] transition-colors">
-            <svg className="w-3.5 h-3.5 text-[var(--label-4)] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <Search size={14} className="text-[var(--label-4)] flex-shrink-0"/>
             <input value={busca} onChange={e => setBusca(e.target.value)}
               placeholder="Buscar por nome ou telefone..."
               className="flex-1 bg-transparent text-[12px] text-[var(--label)] outline-none placeholder:text-[var(--label-4)]" />
             {busca && (
               <button onClick={() => setBusca('')} className="text-[var(--label-4)] hover:text-[var(--label-3)]">
-                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <X size={12}/>
               </button>
             )}
           </div>
@@ -911,7 +917,7 @@ export default function PageAtendimento({ api }) {
         : (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-[var(--bg-3)]">
             <div className="w-12 h-12 rounded-2xl bg-[var(--bg-2)] border border-[var(--sep)] flex items-center justify-center">
-              <svg className="w-6 h-6 text-[var(--label-4)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <MessageSquare size={24} className="text-[var(--label-4)]"/>
             </div>
             <p className="text-[14px] font-medium text-[var(--label)]">Selecione uma conversa</p>
             <p className="text-[12px] text-[var(--label-4)]">{ativas.length} conversa{ativas.length !== 1 ? 's' : ''} ativa{ativas.length !== 1 ? 's' : ''} agora</p>

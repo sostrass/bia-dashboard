@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { TrendingUp, TrendingDown, ShoppingCart, MessageSquare, Users, Zap, RefreshCw, CreditCard, ArrowUpRight } from 'lucide-react'
+import { TrendingUp, TrendingDown, ShoppingCart, MessageSquare, Users, Zap, RefreshCw, CreditCard, ArrowUpRight, TrendingUp as TU, BarChart2, AlertTriangle, Star, CheckCircle, MessageCircle, Monitor, Database, Wifi } from 'lucide-react'
 
 const fmtR  = n => `R$ ${Number(n||0).toFixed(2).replace('.',',')}`
 const fmt   = n => Number(n||0).toLocaleString('pt-BR')
@@ -74,6 +74,12 @@ function mapSit(s) {
 
 
 // ── Insights IA ───────────────────────────────────────────────────────────────
+function TipoIcon({ tipo, size=13, color }) {
+  const MAP = { oportunidade: TrendingUp, alerta: AlertTriangle, tendencia: BarChart2, conquista: Star }
+  const Ic = MAP[tipo] || Zap
+  return <Ic size={size} style={{ color }} />
+}
+
 function InsightsPanel({ api }) {
   const [data,      setData]      = useState(null)
   const [loading,   setLoading]   = useState(true)
@@ -124,11 +130,17 @@ function InsightsPanel({ api }) {
     setSalvando(false)
   }
 
+  const TIPO_ICON = {
+    oportunidade: TrendingUp,
+    alerta:       AlertTriangle,
+    tendencia:    BarChart2,
+    conquista:    Star,
+  }
   const TIPO_COR = {
-    oportunidade: { txt:'#22c55e', bg:'rgba(34,197,94,0.08)',   bdr:'rgba(34,197,94,0.2)',   emoji:'📈' },
-    alerta:       { txt:'#f59e0b', bg:'rgba(245,158,11,0.08)',  bdr:'rgba(245,158,11,0.2)',  emoji:'⚠️'  },
-    tendencia:    { txt:'#4a9fff', bg:'rgba(74,159,255,0.08)',  bdr:'rgba(74,159,255,0.2)',  emoji:'📊' },
-    conquista:    { txt:'#a78bfa', bg:'rgba(167,139,250,0.08)', bdr:'rgba(167,139,250,0.2)', emoji:'🏆' },
+    oportunidade: { txt:'#22c55e', bg:'rgba(34,197,94,0.08)',   bdr:'rgba(34,197,94,0.2)'   },
+    alerta:       { txt:'#f59e0b', bg:'rgba(245,158,11,0.08)',  bdr:'rgba(245,158,11,0.2)'  },
+    tendencia:    { txt:'#4a9fff', bg:'rgba(74,159,255,0.08)',  bdr:'rgba(74,159,255,0.2)'  },
+    conquista:    { txt:'#a78bfa', bg:'rgba(167,139,250,0.08)', bdr:'rgba(167,139,250,0.2)' },
   }
 
   return (
@@ -136,7 +148,7 @@ function InsightsPanel({ api }) {
 
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom: editando ? 16 : 14 }}>
-        <span style={{ fontSize:15 }}>✨</span>
+        <Zap size={15} style={{color:'var(--label-3)'}}/>
         <span style={{ fontSize:13, fontWeight:600, color:'var(--label)' }}>Insights IA</span>
 
         {/* Info de cache */}
@@ -150,16 +162,12 @@ function InsightsPanel({ api }) {
         <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>
           <button onClick={() => carregar(true)} disabled={loading}
             style={{ padding:'4px 10px', borderRadius:8, border:'0.5px solid var(--sep)', background:'transparent', cursor:'pointer', fontSize:11, color:'var(--label-3)', display:'flex', alignItems:'center', gap:4 }}>
-            <svg style={{ width:11, height:11 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/>
-            </svg>
+            <RefreshCw size={11}/>
             {loading ? 'Gerando...' : 'Atualizar'}
           </button>
           <button onClick={() => setEditando(v => !v)}
             style={{ padding:'4px 10px', borderRadius:8, border:`0.5px solid ${editando ? 'var(--accent)' : 'var(--sep)'}`, background: editando ? 'var(--accent-dim)' : 'transparent', cursor:'pointer', fontSize:11, color: editando ? 'var(--accent)' : 'var(--label-3)', display:'flex', alignItems:'center', gap:4 }}>
-            <svg style={{ width:11, height:11 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
+            <Zap size={11}/>
             Configurar
           </button>
         </div>
@@ -205,8 +213,8 @@ function InsightsPanel({ api }) {
               <select value={String(form.ativo)}
                 onChange={e => setForm(f => ({ ...f, ativo: e.target.value }))}
                 style={{ width:'100%', padding:'6px 10px', borderRadius:7, border:'0.5px solid var(--sep)', background:'var(--bg-2)', color:'var(--label)', fontSize:12, outline:'none' }}>
-                <option value="true">✅ Ativado</option>
-                <option value="false">⏸ Desativado</option>
+                <option value="true">Ativado</option>
+                <option value="false">Desativado</option>
               </select>
             </div>
           </div>
@@ -227,9 +235,7 @@ function InsightsPanel({ api }) {
       {/* Loading */}
       {loading && !data && (
         <div style={{ padding:'16px 0', display:'flex', alignItems:'center', gap:8, color:'var(--label-4)', fontSize:12 }}>
-          <svg style={{ width:14, height:14, animation:'spin 1s linear infinite' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-          </svg>
+          <RefreshCw size={14} className="animate-spin"/>
           Analisando dados com Gemini...
         </div>
       )}
@@ -240,7 +246,7 @@ function InsightsPanel({ api }) {
         return (
           <div key={i} style={{ padding:'12px 14px', borderRadius:10, marginBottom:8, background: t.bg, border:`1px solid ${t.bdr}` }}>
             <div style={{ display:'flex', alignItems:'flex-start', gap:8, marginBottom:4 }}>
-              <span style={{ fontSize:14, flexShrink:0 }}>{t.emoji}</span>
+              <span style={{ fontSize:14, flexShrink:0 }}><TipoIcon tipo={ins.tipo} size={13} color={t.txt} /></span>
               <div style={{ flex:1 }}>
                 <span style={{ fontWeight:600, fontSize:13, color: t.txt }}>{ins.titulo}</span>
                 {ins.metrica && ins.metrica !== '—' && (
@@ -303,12 +309,7 @@ function HealthPanel({ api }) {
     unconfigured:  { label: 'Não config.',   cor: '#94a3b8', bg: 'rgba(148,163,184,0.1)', dot: '#94a3b8' },
   }
 
-  const ICONS = {
-    'WhatsApp':     '📱',
-    'Bling ERP':    '🔗',
-    'Mercado Pago': '💳',
-    'Banco':        '🗄️',
-  }
+  const HEALTH_ICON = { 'WhatsApp': MessageCircle, 'Bling ERP': Monitor, 'Mercado Pago': CreditCard, 'Banco': Database }
 
   const globalCfg = data ? STATUS_CONFIG[data.status] || STATUS_CONFIG.degraded : null
 
@@ -332,9 +333,7 @@ function HealthPanel({ api }) {
           )}
           <button onClick={() => verificar()} disabled={checking}
             style={{ padding:'3px 8px', borderRadius:6, border:'0.5px solid var(--sep)', background:'transparent', cursor:'pointer', fontSize:11, color:'var(--label-3)', display:'flex', alignItems:'center', gap:4 }}>
-            <svg className={checking ? 'animate-spin' : ''} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/>
-            </svg>
+            <RefreshCw size={11} className={checking ? 'animate-spin' : ''}/>
             {checking ? 'Verificando...' : 'Verificar'}
           </button>
         </div>
@@ -347,7 +346,7 @@ function HealthPanel({ api }) {
         const cfg = STATUS_CONFIG[s.status] || STATUS_CONFIG.offline
         return (
           <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom: i < data.servicos.length - 1 ? '0.5px solid var(--sep)' : 'none' }}>
-            <span style={{ fontSize:15, width:20, textAlign:'center', flexShrink:0 }}>{ICONS[s.nome] || '⚙️'}</span>
+            { (() => { const Hic = HEALTH_ICON[s.nome] || Zap; return <Hic size={14} style={{color:'var(--label-3)'}}/>; })() }
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                 <span style={{ fontSize:12, fontWeight:500, color:'var(--label)' }}>{s.nome}</span>
