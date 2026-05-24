@@ -266,6 +266,117 @@ function InsightsPanel({ api }) {
   )
 }
 
+
+// ── Health Panel — status real de cada serviço ───────────────────────────────
+function HealthPanel({ api }) {
+  const [data,      setData]      = useState(null)
+  const [loading,   setLoading]   = useState(true)
+  const [lastCheck, setLastCheck] = useState(null)
+  const [checking,  setChecking]  = useState(false)
+
+  const verificar = async (silencioso = false) => {
+    if (!silencioso) setChecking(true)
+    try {
+      const r = await fetch(`${api}/api/dashboard/health`)
+      if (r.ok) {
+        const d = await r.json()
+        setData(d)
+        setLastCheck(new Date())
+      }
+    } catch {}
+    setLoading(false)
+    setChecking(false)
+  }
+
+  useEffect(() => {
+    verificar()
+    // Re-verifica a cada 60 segundos
+    const i = setInterval(() => verificar(true), 60000)
+    return () => clearInterval(i)
+  }, [api])
+
+  const STATUS_CONFIG = {
+    online:        { label: 'Online',        cor: '#1D9E75', bg: 'rgba(29,158,117,0.1)',  dot: '#1D9E75' },
+    degraded:      { label: 'Degradado',     cor: '#EF9F27', bg: 'rgba(239,159,39,0.1)',  dot: '#EF9F27' },
+    offline:       { label: 'Offline',       cor: '#ef4444', bg: 'rgba(239,68,68,0.1)',   dot: '#ef4444' },
+    auth_error:    { label: 'Erro de auth',  cor: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  dot: '#f59e0b' },
+    unconfigured:  { label: 'Não config.',   cor: '#94a3b8', bg: 'rgba(148,163,184,0.1)', dot: '#94a3b8' },
+  }
+
+  const ICONS = {
+    'WhatsApp':     '📱',
+    'Bling ERP':    '🔗',
+    'Mercado Pago': '💳',
+    'Banco':        '🗄️',
+  }
+
+  const globalCfg = data ? STATUS_CONFIG[data.status] || STATUS_CONFIG.degraded : null
+
+  return (
+    <div style={{ background:'var(--bg-2)', border:'0.5px solid var(--sep)', borderRadius:12, padding:'18px 20px' }}>
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <span style={{ fontSize:13, fontWeight:600, color:'var(--label)' }}>Status do sistema</span>
+          {data && (
+            <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:99, background: globalCfg.bg, color: globalCfg.cor }}>
+              ● {globalCfg.label}
+            </span>
+          )}
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          {lastCheck && (
+            <span style={{ fontSize:10, color:'var(--label-4)' }}>
+              {lastCheck.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' })}
+            </span>
+          )}
+          <button onClick={() => verificar()} disabled={checking}
+            style={{ padding:'3px 8px', borderRadius:6, border:'0.5px solid var(--sep)', background:'transparent', cursor:'pointer', fontSize:11, color:'var(--label-3)', display:'flex', alignItems:'center', gap:4 }}>
+            <svg className={checking ? 'animate-spin' : ''} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/>
+            </svg>
+            {checking ? 'Verificando...' : 'Verificar'}
+          </button>
+        </div>
+      </div>
+
+      {/* Lista de serviços */}
+      {loading && !data ? (
+        <div style={{ fontSize:12, color:'var(--label-4)', textAlign:'center', padding:'16px 0' }}>Verificando serviços...</div>
+      ) : data?.servicos?.map((s, i) => {
+        const cfg = STATUS_CONFIG[s.status] || STATUS_CONFIG.offline
+        return (
+          <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom: i < data.servicos.length - 1 ? '0.5px solid var(--sep)' : 'none' }}>
+            <span style={{ fontSize:15, width:20, textAlign:'center', flexShrink:0 }}>{ICONS[s.nome] || '⚙️'}</span>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                <span style={{ fontSize:12, fontWeight:500, color:'var(--label)' }}>{s.nome}</span>
+                <span style={{ width:6, height:6, borderRadius:'50%', background: cfg.dot, display:'inline-block', flexShrink:0 }}/>
+                <span style={{ fontSize:10, color: cfg.cor, fontWeight:600 }}>{cfg.label}</span>
+              </div>
+              <div style={{ fontSize:10, color:'var(--label-4)', marginTop:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:260 }}>
+                {s.detalhe}
+              </div>
+            </div>
+            <div style={{ flexShrink:0, textAlign:'right' }}>
+              <span style={{ fontSize:11, fontWeight:600, color: s.latencia < 500 ? '#1D9E75' : s.latencia < 1500 ? '#EF9F27' : '#ef4444' }}>
+                {s.latencia}ms
+              </span>
+            </div>
+          </div>
+        )
+      })}
+
+      {data && (
+        <div style={{ marginTop:10, paddingTop:8, borderTop:'0.5px solid var(--sep)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <span style={{ fontSize:10, color:'var(--label-4)' }}>Total: {data.total_ms}ms</span>
+          <span style={{ fontSize:10, color:'var(--label-4)' }}>Atualiza automaticamente a cada 60s</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function PageDashboard({ api }) {
   const [dados,   setDados]   = useState(null)
   const [pedidos, setPedidos] = useState([])
@@ -364,24 +475,7 @@ export default function PageDashboard({ api }) {
           )}
         </div>
 
-        <div style={{ background:'var(--bg-2)', border:'0.5px solid var(--sep)', borderRadius:12, padding:'18px 20px' }}>
-          <div style={{ fontSize:13, fontWeight:500, color:'var(--label)', marginBottom:14 }}>Status do sistema</div>
-          {[
-            { n:'Bia WhatsApp',  ok:true, desc:'Atendendo' },
-            { n:'Gemini AI',     ok:true, desc:'gemini-2.5-flash' },
-            { n:'Bling ERP',     ok:true, desc:'Sincronizado' },
-            { n:'Mercado Pago',  ok:true, desc:'PIX ativo' },
-            { n:'Melhor Envio',  ok:true, desc:'Cotando' },
-          ].map(s => (
-            <div key={s.n} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderBottom:'0.5px solid var(--sep)' }}>
-              <div>
-                <div style={{ fontSize:12, fontWeight:500, color:'var(--label)' }}>{s.n}</div>
-                <div style={{ fontSize:11, color:'var(--label-3)' }}>{s.desc}</div>
-              </div>
-              <span style={{ fontSize:11, fontWeight:600, color: s.ok?'#1D9E75':'#EF4444' }}>● {s.ok?'Online':'Offline'}</span>
-            </div>
-          ))}
-        </div>
+        <HealthPanel api={api} />
       </div>
 
       {/* Pedidos recentes */}
