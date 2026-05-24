@@ -52,7 +52,7 @@ const Spinner = () => (
 
 const EmBreve = ({ title }) => (
   <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:12, color:'var(--label-3)' }}>
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:.3}}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+    <Construction size={32} style={{opacity:.3}}/>
     <div style={{ fontSize:15, fontWeight:500, color:'var(--label)' }}>{title}</div>
     <div style={{ fontSize:13 }}>Em desenvolvimento</div>
   </div>

@@ -153,10 +153,10 @@ function Toast({ notif, onClose }) {
   const Ic   = meta.icon
 
   const ICONES = {
-    bling:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>,
+    bling:    <Monitor size={16}/>,
     catalogo: <Database size={15} style={{ color:meta.cor }}/>,
     ia:       <Zap size={15} style={{ color:meta.cor }}/>,
-    whatsapp: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+    whatsapp: <MessageSquare size={16}/>,
   }
 
   return (
