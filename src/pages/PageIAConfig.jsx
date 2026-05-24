@@ -489,7 +489,7 @@ export default function PageIAConfig({ api }) {
         </div>
 
           {/* ── Integrações ────────────────────────────────────── */}
-          {tab === "integracoes" && (
+          {section === "integracoes" && (
             <div style={{display:"flex",flexDirection:"column",gap:20}}>
               <div style={{fontSize:13,color:"#a0a0b0",lineHeight:1.6}}>
                 Configure as credenciais de integração. Os campos ficam criptografados no banco — exibidos mascarados após salvar.
@@ -547,7 +547,7 @@ export default function PageIAConfig({ api }) {
           )}
 
           {/* ── Logística ────────────────────────────────────────── */}
-          {tab === "logistica" && (
+          {section === "logistica" && (
             <div style={{display:"flex",flexDirection:"column",gap:20}}>
               <Section title="📦 Dimensões da Embalagem Padrão">
                 <div style={{fontSize:12,color:"#a0a0b0",marginBottom:8}}>
