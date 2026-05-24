@@ -880,4 +880,119 @@ router.patch('/ocorrencias/:id', async (req, res) => {
   }
 })
 
+
+// ── GET /health — status real de cada serviço em tempo real ──────────────────
+//
+// Verifica WhatsApp Cloud API, Bling API e Mercado Pago com timeout de 5s.
+// Retorna para cada serviço:
+//   status:    'online' | 'degraded' | 'offline' | 'unconfigured'
+//   latencia:  número em ms
+//   detalhe:   string descritiva
+//
+router.get('/health', async (req, res) => {
+  const inicio = Date.now()
+
+  // ── Verificador genérico com timeout e medição de latência ─────────────────
+  async function verificar(nome, fn) {
+    const t0 = Date.now()
+    try {
+      const resultado = await Promise.race([
+        fn(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000)),
+      ])
+      return { nome, status: 'online', latencia: Date.now() - t0, detalhe: resultado || 'OK' }
+    } catch (e) {
+      const latencia = Date.now() - t0
+      const msg = e.message || 'Erro desconhecido'
+      const status = msg === 'timeout' ? 'degraded'
+        : msg.includes('401') || msg.includes('403') ? 'auth_error'
+        : 'offline'
+      return { nome, status, latencia, detalhe: msg.slice(0, 120) }
+    }
+  }
+
+  // ── 1. WhatsApp Cloud API ──────────────────────────────────────────────────
+  const whatsappCheck = async () => {
+    const token   = process.env.WHATSAPP_TOKEN
+    const phoneId = process.env.WHATSAPP_PHONE_ID
+    if (!token || !phoneId) return Promise.reject(new Error('unconfigured'))
+
+    const axios = require('axios')
+    // GET no próprio WABA profile — endpoint leve, não cria mensagem
+    const r = await axios.get(
+      `https://graph.facebook.com/v18.0/${phoneId}`,
+      { headers: { Authorization: `Bearer ${token}` }, timeout: 5000 }
+    )
+    const data = r.data
+    return `ID ${data.id || phoneId} · ${data.display_phone_number || data.verified_name || 'verificado'}`
+  }
+
+  // ── 2. Bling API ───────────────────────────────────────────────────────────
+  const blingCheck = async () => {
+    const { getBlingClient } = require('../utils/blingClient')
+    const bling = await getBlingClient()
+    // GET /empresas — endpoint mais leve do Bling, retorna dados da empresa
+    const r = await bling.get('/empresas')
+    const nome = r.data?.data?.nome || r.data?.data?.razaoSocial || 'autenticado'
+    return `Empresa: ${nome}`
+  }
+
+  // ── 3. Mercado Pago ────────────────────────────────────────────────────────
+  const mpCheck = async () => {
+    const token = process.env.MP_ACCESS_TOKEN
+    if (!token) return Promise.reject(new Error('unconfigured'))
+
+    const axios = require('axios')
+    // GET /v1/payment_methods — endpoint leve, não requer permissões extras
+    const r = await axios.get(
+      'https://api.mercadopago.com/v1/payment_methods',
+      { headers: { Authorization: `Bearer ${token}` }, timeout: 5000 }
+    )
+    const qtd = Array.isArray(r.data) ? r.data.length : '?'
+    return `${qtd} métodos de pagamento disponíveis`
+  }
+
+  // ── 4. Banco de dados (PostgreSQL) ─────────────────────────────────────────
+  const dbCheck = async () => {
+    const r = await query('SELECT NOW() as ts, version() as v')
+    const v = r.rows[0]?.v?.match(/PostgreSQL (\d+\.\d+)/)?.[1] || '?'
+    return `PostgreSQL ${v}`
+  }
+
+  // ── Executa tudo em paralelo ───────────────────────────────────────────────
+  const [whatsapp, bling, mp, banco] = await Promise.all([
+    verificar('WhatsApp',     whatsappCheck),
+    verificar('Bling ERP',    blingCheck),
+    verificar('Mercado Pago', mpCheck),
+    verificar('Banco',        dbCheck),
+  ])
+
+  // Trata 'unconfigured' separadamente
+  if (whatsapp.detalhe === 'unconfigured') {
+    whatsapp.status  = 'unconfigured'
+    whatsapp.detalhe = 'WHATSAPP_TOKEN ou PHONE_ID não configurados'
+  }
+  if (mp.detalhe === 'unconfigured') {
+    mp.status  = 'unconfigured'
+    mp.detalhe = 'MP_ACCESS_TOKEN não configurado'
+  }
+
+  const servicos = [whatsapp, bling, mp, banco]
+  const totalMs  = Date.now() - inicio
+
+  // Status geral — degraded se qualquer um estiver fora
+  const statusGeral = servicos.every(s => s.status === 'online')
+    ? 'online'
+    : servicos.some(s => s.status === 'offline')
+      ? 'degraded'
+      : 'degraded'
+
+  res.json({
+    status:    statusGeral,
+    ts:        new Date().toISOString(),
+    total_ms:  totalMs,
+    servicos,
+  })
+})
+
 module.exports = router
