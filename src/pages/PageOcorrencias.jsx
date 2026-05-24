@@ -5,46 +5,65 @@ import {
   AlertCircle, Clock, CheckCircle, User, Send, FileText,
   AlertTriangle, Tag, Phone, Mail, ArrowUpRight, Zap,
   ChevronRight, ShieldAlert, Circle, XCircle, Paperclip,
-  Sparkles, History, MapPin, MoreHorizontal, Star,
-  ExternalLink, Copy, Check, RefreshCcw
+  Sparkles, History, MapPin, Star, Copy, Check, RefreshCcw
 } from 'lucide-react'
 
 const BASE = import.meta.env.VITE_API_URL || ''
 
-const TIPO = {
-  entrega:   { label:'Entrega',     icon:Truck,       color:'#7c3aed', bg:'#f5f3ff', border:'#c4b5fd' },
-  atraso:    { label:'Atraso',      icon:Clock,       color:'#b91c1c', bg:'#fef2f2', border:'#fecaca' },
-  extravio:  { label:'Extravio',    icon:ShieldAlert, color:'#9f1239', bg:'#fff1f2', border:'#fecdd3' },
-  troca:     { label:'Troca/Dev.',  icon:RotateCcw,   color:'#c2410c', bg:'#fff7ed', border:'#fed7aa' },
-  pagamento: { label:'Pagamento',   icon:CreditCard,  color:'#1d4ed8', bg:'#eff6ff', border:'#bfdbfe' },
-  produto:   { label:'Produto',     icon:Package,     color:'#b45309', bg:'#fffbeb', border:'#fde68a' },
-  outro:     { label:'Outro',       icon:Tag,         color:'var(--label-3)', bg:'var(--fill)', border:'var(--sep)' },
+// ── Design Tokens — sistema escuro adaptativo ─────────────────────────────────
+// Todas as cores são CSS custom properties definidas inline via style={{}}
+// Funciona sobre qualquer tema (dark/light) sem Tailwind hardcoded
+
+const T = {
+  bg0:'#0f1117', bg1:'#161b27', bg2:'#1c2333', bg3:'#232d3f', bg4:'#2a3549',
+  ink1:'#f1f5f9', ink2:'#cbd5e1', ink3:'#8892a4', ink4:'#4e5a6e',
+  sep:'rgba(255,255,255,0.06)', sep2:'rgba(255,255,255,0.09)',
+
+  amber:'#f59e0b',  amberDim:'rgba(245,158,11,0.10)',  amberBor:'rgba(245,158,11,0.22)',
+  blue:'#3b82f6',   blueDim:'rgba(59,130,246,0.10)',   blueBor:'rgba(59,130,246,0.22)',
+  green:'#10b981',  greenDim:'rgba(16,185,129,0.10)',  greenBor:'rgba(16,185,129,0.22)',
+  red:'#ef4444',    redDim:'rgba(239,68,68,0.10)',     redBor:'rgba(239,68,68,0.22)',
+  purple:'#8b5cf6', purpleDim:'rgba(139,92,246,0.10)',purpleBor:'rgba(139,92,246,0.22)',
+  orange:'#f97316', orangeDim:'rgba(249,115,22,0.10)',orangeBor:'rgba(249,115,22,0.22)',
+  accent:'#4f6ef7', accentDim:'rgba(79,110,247,0.10)',accentBor:'rgba(79,110,247,0.22)',
+}
+
+// ── Metadados semânticos ──────────────────────────────────────────────────────
+const TIPOS = {
+  entrega:   { label:'Entrega',     icon:Truck,       color:T.purple, dim:T.purpleDim, bor:T.purpleBor },
+  atraso:    { label:'Atraso',      icon:Clock,       color:T.red,    dim:T.redDim,    bor:T.redBor    },
+  extravio:  { label:'Extravio',    icon:ShieldAlert, color:T.red,    dim:T.redDim,    bor:T.redBor    },
+  troca:     { label:'Troca/Dev.',  icon:RotateCcw,   color:T.orange, dim:T.orangeDim, bor:T.orangeBor },
+  pagamento: { label:'Pagamento',   icon:CreditCard,  color:T.blue,   dim:T.blueDim,   bor:T.blueBor   },
+  produto:   { label:'Produto',     icon:Package,     color:T.amber,  dim:T.amberDim,  bor:T.amberBor  },
+  outro:     { label:'Outro',       icon:Tag,         color:T.ink3,   dim:T.bg3,       bor:T.sep2      },
 }
 
 const STATUS = {
-  aberta:       { label:'Aberta',     color:'#b45309', bg:'#fffbeb', border:'#fde68a', ring:'active-ab', dot:'#f59e0b', icon:Circle       },
-  em_andamento: { label:'Em análise', color:'#1d4ed8', bg:'#eff6ff', border:'#bfdbfe', ring:'active-em', dot:'#3b82f6', icon:RefreshCw    },
-  resolvida:    { label:'Resolvida',  color:'#15803d', bg:'#f0fdf4', border:'#bbf7d0', ring:'active-re', dot:'#22c55e', icon:CheckCircle  },
-  encerrada:    { label:'Encerrada',  color:'var(--label-3)', bg:'var(--fill)', border:'var(--sep)', ring:'active-en', dot:'var(--label-4)', icon:XCircle },
+  aberta:       { label:'Aberta',       color:T.amber,  dim:T.amberDim,  bor:T.amberBor,  dot:T.amber,  icon:Circle      },
+  em_andamento: { label:'Em análise',   color:T.blue,   dim:T.blueDim,   bor:T.blueBor,   dot:T.blue,   icon:RefreshCcw  },
+  resolvida:    { label:'Resolvida',    color:T.green,  dim:T.greenDim,  bor:T.greenBor,  dot:T.green,  icon:CheckCircle },
+  encerrada:    { label:'Encerrada',    color:T.ink3,   dim:T.bg3,       bor:T.sep2,      dot:T.ink4,   icon:XCircle     },
 }
 
 const PRIO = {
-  baixa:   { label:'Baixa',   icon:ChevronRight,  color:'var(--label-4)' },
-  normal:  { label:'Normal',  icon:Circle,        color:'#1d4ed8'        },
-  alta:    { label:'Alta',    icon:AlertTriangle, color:'#c2410c'        },
-  urgente: { label:'Urgente', icon:Zap,           color:'#dc2626'        },
+  baixa:   { label:'Baixa',   icon:ChevronRight,  color:T.ink4  },
+  normal:  { label:'Normal',  icon:Circle,        color:T.blue  },
+  alta:    { label:'Alta',    icon:AlertTriangle, color:T.orange},
+  urgente: { label:'Urgente', icon:Zap,           color:T.red   },
 }
 
-const SCORE_META = {
-  1:{ emoji:'😞', label:'Péssimo',  color:'#991b1b', bg:'#fee2e2' },
-  2:{ emoji:'😐', label:'Regular',  color:'#9a3412', bg:'#fff7ed' },
-  3:{ emoji:'🙂', label:'Bom',      color:'#065f46', bg:'#d1fae5' },
-  4:{ emoji:'😊', label:'Ótimo',    color:'#065f46', bg:'#d1fae5' },
-  5:{ emoji:'🤩', label:'Excelente',color:'#3b0764', bg:'#f5f3ff' },
+const SCORE = {
+  1:{ emoji:'😞', label:'Péssimo',   color:T.red,    dim:T.redDim    },
+  2:{ emoji:'😐', label:'Regular',   color:T.orange, dim:T.orangeDim },
+  3:{ emoji:'🙂', label:'Bom',       color:T.blue,   dim:T.blueDim   },
+  4:{ emoji:'😊', label:'Ótimo',     color:T.green,  dim:T.greenDim  },
+  5:{ emoji:'🤩', label:'Excelente', color:T.green,  dim:T.greenDim  },
 }
 
-const fmtD  = ts => ts ? new Date(ts).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—'
-const fmtH  = ts => ts ? new Date(ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : ''
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const fmtD   = ts => ts ? new Date(ts).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—'
+const fmtH   = ts => ts ? new Date(ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : ''
 const fmtRel = ts => {
   if (!ts) return '—'
   const m = Math.floor((Date.now()-new Date(ts))/60000)
@@ -58,16 +77,34 @@ const fmtTel = t => {
   return n.length===11?`(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`:t||''
 }
 
-// ── BADGE componente ──────────────────────────────────────────────────────────
-function Badge({ color, bg, border, children, size='sm' }) {
-  const fs = size === 'xs' ? '9px' : '10px'
+// ── Badge ─────────────────────────────────────────────────────────────────────
+function Bdg({ color, dim, bor, children, size='xs' }) {
   return (
-    <span className="inline-flex items-center gap-1 font-semibold rounded-full px-2 py-0.5 whitespace-nowrap"
-      style={{ fontSize:fs, color, background:bg, border:`1px solid ${border}` }}>
+    <span className="inline-flex items-center gap-1 font-bold rounded-md"
+      style={{ fontSize:size==='xs'?10:11, padding:'3px 8px', color, background:dim, border:`1px solid ${bor}`, whiteSpace:'nowrap' }}>
       {children}
     </span>
   )
 }
+
+// ── INPUT component ───────────────────────────────────────────────────────────
+function Inp({ label, required, hint, children }) {
+  return (
+    <div>
+      {label && (
+        <label className="block mb-1.5" style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', color:T.ink3 }}>
+          {label}{required && <span style={{ color:T.red, marginLeft:2 }}>*</span>}
+        </label>
+      )}
+      {children}
+      {hint && <p style={{ fontSize:10, color:T.ink4, marginTop:4 }}>{hint}</p>}
+    </div>
+  )
+}
+
+const inputSt = { background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:8, padding:'9px 12px', fontSize:13, color:T.ink1, outline:'none', width:'100%', fontFamily:'inherit', transition:'border-color .15s' }
+const selSt   = { ...inputSt, cursor:'pointer' }
+const taSt    = { ...inputSt, resize:'none', lineHeight:1.55 }
 
 // ── MODAL CRIAR / EDITAR ──────────────────────────────────────────────────────
 function ModalOcorrencia({ api, ocorrencia, onSalvo, onClose }) {
@@ -96,109 +133,118 @@ function ModalOcorrencia({ api, ocorrencia, onSalvo, onClose }) {
     setSaving(false)
   }
 
-  const inp = 'w-full px-3 py-2 rounded-lg text-xs outline-none transition-all focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400'
-  const inpS = { background:'var(--bg)', border:'1px solid var(--sep)', color:'var(--label)' }
+  const focusSt = { outline:'none', border:`1px solid ${T.accent}`, boxShadow:`0 0 0 3px ${T.accentDim}` }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}
-      style={{background:'rgba(0,0,0,0.55)'}}>
-      <div className="relative w-full max-w-[480px] rounded-2xl flex flex-col overflow-hidden z-10 shadow-2xl"
-        style={{background:'var(--bg-2)', border:'1px solid var(--sep)'}} onClick={e=>e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background:'rgba(0,0,0,0.72)' }} onClick={onClose}>
+      <div className="w-full flex flex-col overflow-hidden"
+        style={{ maxWidth:520, background:T.bg1, border:`1px solid ${T.sep2}`, borderRadius:16, boxShadow:'0 24px 64px rgba(0,0,0,0.6)' }}
+        onClick={e=>e.stopPropagation()}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 flex-shrink-0"
-          style={{borderBottom:'1px solid var(--sep)', background:'var(--bg-3)'}}>
-          <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 rounded-md flex items-center justify-center"
-              style={{background:'#4f6ef7'}}>
-              <Plus size={13} color="#fff"/>
-            </div>
-            <span className="text-sm font-semibold" style={{color:'var(--label)'}}>
-              {edit ? 'Editar ocorrência' : 'Novo chamado'}
-            </span>
+        <div className="flex items-center gap-3 px-6 py-5" style={{ borderBottom:`1px solid ${T.sep}` }}>
+          <div className="flex items-center justify-center rounded-lg flex-shrink-0"
+            style={{ width:32, height:32, background:T.accentDim, border:`1px solid ${T.accentBor}`, color:T.accent }}>
+            <Plus size={16}/>
           </div>
-          <button onClick={onClose} className="w-6 h-6 rounded-md flex items-center justify-center transition-colors hover:opacity-70"
-            style={{color:'var(--label-4)'}}>
-            <X size={14}/>
+          <div className="flex-1">
+            <p style={{ fontSize:15, fontWeight:700, color:T.ink1 }}>{edit ? 'Editar ocorrência' : 'Novo chamado'}</p>
+            <p style={{ fontSize:11, color:T.ink4, marginTop:1 }}>Preencha os dados da ocorrência</p>
+          </div>
+          <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:T.ink4, fontSize:18, display:'flex', padding:4 }}>
+            <X size={18}/>
           </button>
         </div>
 
-        <div className="p-5 space-y-3 overflow-y-auto max-h-[70vh]">
+        {/* Body */}
+        <div className="flex flex-col gap-4 px-6 py-5 overflow-y-auto" style={{ maxHeight:'62vh' }}>
 
           {/* Tipo + Prioridade */}
           <div className="grid grid-cols-2 gap-3">
-            {[
-              ['tipo','Tipo', Object.entries(TIPO).map(([k,v])=>({k,l:v.label}))],
-              ['prioridade','Prioridade', Object.entries(PRIO).map(([k,v])=>({k,l:v.label}))],
-            ].map(([key,label,opts])=>(
-              <div key={key}>
-                <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{color:'var(--label-4)'}}>{label} *</label>
-                <select value={f[key]} onChange={e=>set(key,e.target.value)} className={`${inp} pr-8`} style={inpS}>
-                  {opts.map(({k,l})=><option key={k} value={k}>{l}</option>)}
-                </select>
-              </div>
-            ))}
+            <Inp label="Tipo" required>
+              <select value={f.tipo} onChange={e=>set('tipo',e.target.value)} style={selSt}
+                onFocus={e=>Object.assign(e.target.style,focusSt)} onBlur={e=>Object.assign(e.target.style,selSt)}>
+                {Object.entries(TIPOS).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+              </select>
+            </Inp>
+            <Inp label="Prioridade" required>
+              <select value={f.prioridade} onChange={e=>set('prioridade',e.target.value)} style={selSt}
+                onFocus={e=>Object.assign(e.target.style,focusSt)} onBlur={e=>Object.assign(e.target.style,selSt)}>
+                {Object.entries(PRIO).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+              </select>
+            </Inp>
           </div>
 
           {/* Título */}
-          <div>
-            <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{color:'var(--label-4)'}}>Título do chamado</label>
+          <Inp label="Título do chamado">
             <input value={f.titulo} onChange={e=>set('titulo',e.target.value)}
               placeholder="Ex: Pacote parado na transportadora há 5 dias"
-              className={inp} style={inpS}/>
-          </div>
+              style={inputSt}
+              onFocus={e=>Object.assign(e.target.style,{...inputSt,...focusSt})}
+              onBlur={e=>Object.assign(e.target.style,inputSt)}/>
+          </Inp>
 
           {/* Nome + Telefone */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{color:'var(--label-4)'}}>Nome do cliente</label>
-              <input value={f.nomeCliente} onChange={e=>set('nomeCliente',e.target.value)} placeholder="Maria Silva" className={inp} style={inpS}/>
-            </div>
-            <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{color:'var(--label-4)'}}>WhatsApp</label>
-              <input value={f.telefone} onChange={e=>set('telefone',e.target.value)} placeholder="5519999999999" className={inp} style={inpS}/>
-            </div>
+            <Inp label="Nome do cliente">
+              <input value={f.nomeCliente} onChange={e=>set('nomeCliente',e.target.value)}
+                placeholder="Maria Silva" style={inputSt}
+                onFocus={e=>Object.assign(e.target.style,{...inputSt,...focusSt})}
+                onBlur={e=>Object.assign(e.target.style,inputSt)}/>
+            </Inp>
+            <Inp label="WhatsApp">
+              <input value={f.telefone} onChange={e=>set('telefone',e.target.value)}
+                placeholder="5519999999999" style={inputSt}
+                onFocus={e=>Object.assign(e.target.style,{...inputSt,...focusSt})}
+                onBlur={e=>Object.assign(e.target.style,inputSt)}/>
+            </Inp>
           </div>
 
           {/* Email + Pedido */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{color:'var(--label-4)'}}>E-mail</label>
-              <input value={f.email} onChange={e=>set('email',e.target.value)} placeholder="cliente@email.com" className={inp} style={inpS}/>
-            </div>
-            <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{color:'var(--label-4)'}}>Nº pedido Bling</label>
-              <input value={f.numeroPedido} onChange={e=>set('numeroPedido',e.target.value)} placeholder="226540" className={inp} style={inpS}/>
-            </div>
+            <Inp label="E-mail">
+              <input value={f.email} onChange={e=>set('email',e.target.value)}
+                placeholder="cliente@email.com" style={inputSt}
+                onFocus={e=>Object.assign(e.target.style,{...inputSt,...focusSt})}
+                onBlur={e=>Object.assign(e.target.style,inputSt)}/>
+            </Inp>
+            <Inp label="Nº pedido Bling">
+              <input value={f.numeroPedido} onChange={e=>set('numeroPedido',e.target.value)}
+                placeholder="226540" style={inputSt}
+                onFocus={e=>Object.assign(e.target.style,{...inputSt,...focusSt})}
+                onBlur={e=>Object.assign(e.target.style,inputSt)}/>
+            </Inp>
           </div>
 
           {/* Atribuído */}
-          <div>
-            <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{color:'var(--label-4)'}}>Atribuído a</label>
-            <input value={f.atribuidoA} onChange={e=>set('atribuidoA',e.target.value)} placeholder="Responsável pelo chamado" className={inp} style={inpS}/>
-          </div>
+          <Inp label="Atribuído a">
+            <input value={f.atribuidoA} onChange={e=>set('atribuidoA',e.target.value)}
+              placeholder="Responsável pelo chamado" style={inputSt}
+              onFocus={e=>Object.assign(e.target.style,{...inputSt,...focusSt})}
+              onBlur={e=>Object.assign(e.target.style,inputSt)}/>
+          </Inp>
 
           {/* Descrição */}
-          <div>
-            <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{color:'var(--label-4)'}}>Descrição *</label>
-            <textarea value={f.descricao} onChange={e=>set('descricao',e.target.value)} rows={4}
-              placeholder="Descreva o problema com detalhes..."
-              className={`${inp} resize-none`} style={inpS}/>
-          </div>
+          <Inp label="Descrição" required hint="Seja detalhado para agilizar o atendimento sem precisar perguntar ao cliente">
+            <textarea value={f.descricao} onChange={e=>set('descricao',e.target.value)}
+              rows={4} placeholder="Descreva o problema com detalhes..."
+              style={taSt}
+              onFocus={e=>Object.assign(e.target.style,{...taSt,...focusSt})}
+              onBlur={e=>Object.assign(e.target.style,taSt)}/>
+          </Inp>
 
-          {erro && <p className="text-xs font-semibold" style={{color:'#dc2626'}}>{erro}</p>}
+          {erro && <p style={{ fontSize:11, fontWeight:600, color:T.red }}>{erro}</p>}
         </div>
 
         {/* Footer */}
-        <div className="flex gap-2.5 px-5 pb-5 pt-3 flex-shrink-0" style={{borderTop:'1px solid var(--sep)'}}>
-          <button onClick={onClose} className="flex-1 py-2 rounded-lg text-xs font-semibold transition-colors"
-            style={{background:'var(--fill)', color:'var(--label-3)', border:'1px solid var(--sep)'}}>
+        <div className="flex gap-3 px-6 pb-6 pt-2 justify-end" style={{ borderTop:`1px solid ${T.sep}` }}>
+          <button onClick={onClose} style={{ padding:'8px 16px', borderRadius:8, fontSize:13, fontWeight:600, background:T.bg3, color:T.ink2, border:`1px solid ${T.sep2}`, cursor:'pointer' }}>
             Cancelar
           </button>
           <button onClick={salvar} disabled={!f.descricao.trim()||saving}
-            className="flex-1 py-2 rounded-lg text-xs font-bold transition-opacity disabled:opacity-40"
-            style={{background:'#4f6ef7', color:'#fff', border:'none'}}>
-            {saving ? 'Salvando...' : edit ? 'Salvar alterações' : 'Criar chamado'}
+            style={{ padding:'8px 18px', borderRadius:8, fontSize:13, fontWeight:700, background:T.accent, color:'#fff', border:'none', cursor:'pointer', opacity:(!f.descricao.trim()||saving)?.4:1, display:'flex', alignItems:'center', gap:6 }}>
+            <Plus size={14}/>{saving ? 'Salvando...' : edit ? 'Salvar alterações' : 'Criar chamado'}
           </button>
         </div>
       </div>
@@ -206,42 +252,41 @@ function ModalOcorrencia({ api, ocorrencia, onSalvo, onClose }) {
   )
 }
 
-// ── DRAWER ENTERPRISE ─────────────────────────────────────────────────────────
+// ── DRAWER ────────────────────────────────────────────────────────────────────
 function TicketDrawer({ oc, api, onAtualizado, onClose }) {
-  const [tab,       setTab]       = useState('wa')
-  const [texto,     setTexto]     = useState('')
-  const [nota,      setNota]      = useState('')
-  const [salvando,  setSalvando]  = useState(false)
-  const [refining,  setRefining]  = useState(false)
-  const [blingData, setBlingData] = useState(null)
-  const [blingLoad, setBlingLoad] = useState(false)
-  const [pedAberto, setPedAberto] = useState({})
-  const [editModal, setEditModal] = useState(false)
-  const [csatData,  setCsatData]  = useState(null)
-  const [csatSent,  setCsatSent]  = useState(false)
-  const [copied,    setCopied]    = useState(null)
+  const [tab,       setTab]      = useState('wa')
+  const [texto,     setTexto]    = useState('')
+  const [nota,      setNota]     = useState('')
+  const [salvando,  setSalvando] = useState(false)
+  const [refining,  setRefining] = useState(false)
+  const [blingData, setBling]    = useState(null)
+  const [blingLoad, setBlingLoad]= useState(false)
+  const [pedAberto, setPedAb]    = useState({})
+  const [editModal, setEditModal]= useState(false)
+  const [csatData,  setCsatData] = useState(null)
+  const [csatSent,  setCsatSent] = useState(false)
+  const [copied,    setCopied]   = useState(null)
 
-  const T = TIPO[oc.tipo]           || TIPO.outro
-  const S = STATUS[oc.status]       || STATUS.aberta
-  const P = PRIO[oc.prioridade]     || PRIO.normal
-  const TIcon = T.icon
+  const T_ = TIPOS[oc.tipo]         || TIPOS.outro
+  const S  = STATUS[oc.status]      || STATUS.aberta
+  const P  = PRIO[oc.prioridade]    || PRIO.normal
+  const TIcon = T_.icon
   const SIcon = S.icon
   const PIcon = P.icon
-  const primeiroNome = oc.nomeCliente?.split(' ')[0] || 'cliente'
+  const nome1 = oc.nomeCliente?.split(' ')[0] || 'cliente'
 
   const fetchBling = () => {
     setBlingLoad(true)
     fetch(`${api}/api/ocorrencias/${oc.id}/bling`)
-      .then(r=>r.json()).then(d=>setBlingData(d)).catch(()=>{}).finally(()=>setBlingLoad(false))
+      .then(r=>r.json()).then(d=>setBling(d)).catch(()=>{}).finally(()=>setBlingLoad(false))
   }
   const fetchCsat = () => {
     fetch(`${api}/api/ocorrencias/${oc.id}/csat`)
       .then(r=>r.ok?r.json():null).then(d=>{ if(d) setCsatData(d) }).catch(()=>{})
   }
+  useEffect(()=>{ fetchBling(); fetchCsat() }, [oc.id])
 
-  useEffect(() => { fetchBling(); fetchCsat() }, [oc.id])
-
-  const patch = async (body) => {
+  const patch = async body => {
     setSalvando(true)
     try {
       const r = await fetch(`${api}/api/ocorrencias/${oc.id}`, {
@@ -252,7 +297,7 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
     setSalvando(false)
   }
 
-  const mudarStatus = key => { if (oc.status !== key) patch({ status:key }) }
+  const mudarStatus = key => { if (oc.status!==key) patch({status:key}) }
   const enviarWA    = async () => { if (!texto.trim()) return; await patch({respostaCliente:texto}); setTexto('') }
   const enviarNota  = async () => { if (!nota.trim()) return; await patch({nota}); setNota('') }
 
@@ -262,7 +307,7 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
     try {
       const r = await fetch(`${api}/api/ia/melhorar-texto`, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ texto, contexto:`Chamado ${oc.ticketId}: ${oc.titulo||oc.descricao}. Cliente: ${oc.nomeCliente}` })
+        body:JSON.stringify({ texto, contexto:`Chamado ${oc.ticketId}: ${oc.titulo||oc.descricao}` })
       })
       if (r.ok) { const d=await r.json(); if(d.texto) setTexto(d.texto) }
     } catch {}
@@ -271,345 +316,309 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
 
   const dispararCsat = async () => {
     try {
-      const r = await fetch(`${api}/api/ocorrencias/${oc.id}/csat`, { method:'POST' })
+      const r = await fetch(`${api}/api/ocorrencias/${oc.id}/csat`, {method:'POST'})
       if (r.ok) { setCsatSent(true); onAtualizado() }
     } catch {}
   }
 
   const copiar = (text, key) => {
     navigator.clipboard?.writeText(text).catch(()=>{})
-    setCopied(key)
-    setTimeout(()=>setCopied(null), 1500)
+    setCopied(key); setTimeout(()=>setCopied(null), 1500)
   }
-
-  const TEMPLATES = [
-    `Em análise — acareação aberta. Retorno em 48h úteis.`,
-    `Abrimos protocolo com a transportadora. Prazo: 48h úteis.`,
-    `Pedido será reenviado sem custo adicional em até 2 dias úteis.`,
-    `Reembolso processado. Valor estornado em até 5 dias úteis.`,
-  ]
 
   const cliente = blingData?.cliente
   const pedidos = blingData?.pedidos || []
 
-  const tabStyle = (id) => ({
-    borderBottom: `2px solid ${tab===id ? '#4f6ef7' : 'transparent'}`,
-    color: tab===id ? '#4f6ef7' : 'var(--label-4)',
-    background: 'transparent',
-    overrideColors: {
-      wa:   tab==='wa'  ? '#059669' : null,
-      em:   tab==='em'  ? '#7c3aed' : null,
-      nota: tab==='nota'? '#d97706' : null,
-      csat: tab==='csat'? '#7c3aed' : null,
-    }
-  })
+  const TEMPLATES = [
+    'Em análise — acareação aberta. Retorno em 48h úteis.',
+    'Abrimos protocolo com a transportadora. Prazo: 48h úteis.',
+    'Pedido será reenviado sem custo adicional em até 2 dias úteis.',
+    'Reembolso processado. Valor estornado em até 5 dias úteis.',
+  ]
 
-  const getTabColor = (id) => {
-    if (tab!==id) return 'var(--label-4)'
-    return {wa:'#059669', em:'#7c3aed', nota:'#d97706', csat:'#7c3aed', tl:'#4f6ef7'}[id] || '#4f6ef7'
+  // Estilos reutilizáveis
+  const tabBtnSt = (id) => {
+    const colors = { tl:T.accent, wa:T.green, em:T.purple, nota:T.amber, csat:T.purple }
+    const on = tab===id
+    return {
+      padding:'10px 14px', fontSize:12, fontWeight:600, cursor:'pointer',
+      borderBottom:`2px solid ${on?colors[id]:'transparent'}`,
+      color: on ? colors[id] : T.ink4,
+      background:'transparent', border:'none', borderBottom:`2px solid ${on?colors[id]:'transparent'}`,
+      display:'flex', alignItems:'center', gap:6, whiteSpace:'nowrap', transition:'color .15s'
+    }
   }
-  const getTabBorder = (id) => {
-    if (tab!==id) return 'transparent'
-    return {wa:'#059669', em:'#7c3aed', nota:'#d97706', csat:'#7c3aed', tl:'#4f6ef7'}[id] || '#4f6ef7'
-  }
+
+  const compArea = (borderColor) => ({
+    border:`1px solid ${borderColor}`, borderRadius:10, overflow:'hidden'
+  })
+  const compTA = { width:'100%', resize:'none', border:'none', outline:'none', padding:'10px 12px', fontSize:12, background:T.bg2, color:T.ink1, fontFamily:'inherit', height:68 }
+  const compFoot = (bg=T.bg3) => ({ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', background:bg, borderTop:`1px solid ${T.sep}` })
 
   return (
-    <div className="fixed inset-0 z-50 flex" onClick={onClose}>
-      <div className="flex-1" style={{background:'rgba(0,0,0,0.4)'}}/>
-      <div className="w-[680px] h-full flex flex-col overflow-hidden shadow-2xl"
-        style={{background:'var(--bg-2)', borderLeft:'1px solid var(--sep)'}}
+    <div className="fixed inset-0 z-40 flex" onClick={onClose}>
+      <div className="flex-1" style={{ background:'rgba(0,0,0,0.5)' }}/>
+      <div className="h-full flex flex-col overflow-hidden"
+        style={{ width:600, background:T.bg1, borderLeft:`1px solid ${T.sep2}`, boxShadow:'-24px 0 48px rgba(0,0,0,0.4)' }}
         onClick={e=>e.stopPropagation()}>
 
-        {/* ── TICKET HEADER ──────────────────────────────────────────────── */}
-        <div className="flex-shrink-0" style={{background:'var(--bg-3)', borderBottom:'1px solid var(--sep)'}}>
-
+        {/* ── HEADER ─── */}
+        <div className="flex-shrink-0 px-6 pt-5 pb-4" style={{ background:T.bg2, borderBottom:`1px solid ${T.sep}` }}>
           {/* Breadcrumb */}
-          <div className="flex items-center gap-1.5 px-5 py-2" style={{borderBottom:'0.5px solid var(--sep)'}}>
-            <span className="text-[10px]" style={{color:'var(--label-4)'}}>Ocorrências</span>
-            <ChevronRight size={10} style={{color:'var(--label-4)'}}/>
-            <span className="text-[10px] font-semibold font-mono" style={{color:'var(--label-3)'}}>{oc.ticketId}</span>
+          <div className="flex items-center gap-1.5 mb-2" style={{ fontSize:11, color:T.ink4 }}>
+            <span>Ocorrências</span>
+            <ChevronRight size={10}/>
+            <span style={{ fontFamily:'monospace', fontWeight:700, color:T.ink3 }}>{oc.ticketId}</span>
+            <div className="flex items-center gap-1.5 ml-auto">
+              <button onClick={()=>setEditModal(true)}
+                style={{ padding:'4px 12px', borderRadius:7, fontSize:11, fontWeight:600, background:T.bg3, color:T.ink2, border:`1px solid ${T.sep2}`, cursor:'pointer' }}>
+                Editar
+              </button>
+              <button onClick={onClose}
+                style={{ width:28, height:28, borderRadius:7, display:'flex', alignItems:'center', justifyContent:'center', background:T.bg3, border:`1px solid ${T.sep2}`, color:T.ink4, cursor:'pointer' }}>
+                <X size={13}/>
+              </button>
+            </div>
           </div>
 
-          <div className="px-5 pt-3 pb-3">
-            {/* Title row */}
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                  <span className="font-mono text-[10px] font-bold" style={{color:'var(--label-4)'}}>{oc.ticketId}</span>
-                  <Badge color={S.color} bg={S.bg} border={S.border}>
-                    <SIcon size={9}/>{S.label}
-                  </Badge>
-                  <Badge color={P.color} bg="transparent" border="transparent">
-                    <PIcon size={9}/>{P.label}
-                  </Badge>
-                </div>
-                <h2 className="text-[15px] font-bold leading-snug" style={{color:'var(--label)'}}>
-                  {oc.titulo || oc.descricao?.slice(0,65) || '—'}
-                </h2>
-              </div>
-              <div className="flex gap-1.5 flex-shrink-0 mt-0.5">
-                <button onClick={()=>setEditModal(true)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors"
-                  style={{background:'var(--fill)', color:'var(--label-2)', border:'1px solid var(--sep)'}}>
-                  <span>Editar</span>
-                </button>
-                <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-                  style={{background:'var(--fill)', border:'1px solid var(--sep)', color:'var(--label-4)'}}>
-                  <X size={13}/>
-                </button>
-              </div>
-            </div>
-
-            {/* Meta grid */}
-            <div className="grid grid-cols-4 gap-2 mb-3">
-              {[
-                { l:'Tipo',      v:<span className="flex items-center gap-1" style={{color:T.color}}><TIcon size={12}/>{T.label}</span> },
-                { l:'Prioridade',v:<span style={{color:P.color}} className="flex items-center gap-1"><PIcon size={12}/>{P.label}</span> },
-                { l:'Pedido ERP',v: oc.numeroPedido
-                    ? <span className="flex items-center gap-1" style={{color:'#1d4ed8'}}>#{oc.numeroPedido}<ArrowUpRight size={10}/></span>
-                    : <span style={{color:'var(--label-4)'}}>—</span> },
-                { l:'Atribuído', v:<span style={{color:'var(--label-2)'}}>{oc.atribuidoA||'—'}</span> },
-              ].map(({l,v})=>(
-                <div key={l} className="px-2.5 py-2 rounded-lg" style={{background:'var(--bg)', border:'1px solid var(--sep)'}}>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{color:'var(--label-4)'}}>{l}</p>
-                  <div className="text-[11px] font-semibold">{v}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Status pipeline */}
-            <div className="flex items-center gap-1 p-1.5 rounded-lg mb-1.5"
-              style={{background:'var(--bg)', border:'1px solid var(--sep)'}}>
-              {Object.entries(STATUS).map(([key,s])=>{
-                const Sic = s.icon
-                const ativo = oc.status===key
-                return (
-                  <button key={key} onClick={()=>mudarStatus(key)} disabled={salvando}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold transition-all"
-                    style={ativo
-                      ? {color:s.color, background:s.bg, boxShadow:`0 0 0 1.5px ${s.border} inset`}
-                      : {color:'var(--label-3)', background:'transparent'}}>
-                    <Sic size={11}/>{s.label}
-                    {ativo && <Check size={9} style={{opacity:.6}}/>}
-                  </button>
-                )
-              })}
-            </div>
-            <p className="text-[10px] flex items-center gap-1" style={{color:'var(--label-4)'}}>
-              <Send size={10}/>
-              Mudar status dispara mensagem automática do template configurado em Gatilhos.
-            </p>
+          {/* Título + badges */}
+          <div className="flex items-start gap-2 mb-3 flex-wrap">
+            <Bdg color={S.color} dim={S.dim} bor={S.bor}><SIcon size={9}/>{S.label}</Bdg>
+            <Bdg color={P.color} dim="transparent" bor="transparent"><PIcon size={9}/>{P.label}</Bdg>
           </div>
+          <p style={{ fontSize:16, fontWeight:700, color:T.ink1, lineHeight:1.3, marginBottom:14 }}>
+            {oc.titulo || oc.descricao?.slice(0,70) || '—'}
+          </p>
+
+          {/* Meta grid */}
+          <div className="grid grid-cols-4 gap-2 mb-4">
+            {[
+              { l:'Tipo',       v:<span className="flex items-center gap-1" style={{color:T_.color}}><TIcon size={12}/>{T_.label}</span> },
+              { l:'Prioridade', v:<span style={{color:P.color}} className="flex items-center gap-1"><PIcon size={12}/>{P.label}</span> },
+              { l:'Pedido ERP', v: oc.numeroPedido ? <span style={{color:T.blue}} className="flex items-center gap-1">#{oc.numeroPedido}<ArrowUpRight size={10}/></span> : <span style={{color:T.ink4}}>—</span> },
+              { l:'Atribuído',  v:<span style={{color:T.ink2}}>{oc.atribuidoA||'—'}</span> },
+            ].map(({l,v})=>(
+              <div key={l} style={{ background:T.bg3, border:`1px solid ${T.sep}`, borderRadius:8, padding:'8px 10px' }}>
+                <p style={{ fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', color:T.ink4, marginBottom:4 }}>{l}</p>
+                <div style={{ fontSize:11, fontWeight:600 }}>{v}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Status pipeline */}
+          <div className="flex gap-1 p-1 mb-1.5" style={{ background:T.bg3, border:`1px solid ${T.sep}`, borderRadius:10 }}>
+            {Object.entries(STATUS).map(([key,s])=>{
+              const Sic = s.icon
+              const on = oc.status===key
+              return (
+                <button key={key} onClick={()=>mudarStatus(key)} disabled={salvando}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                  style={on
+                    ? { background:s.dim, color:s.color, border:`1px solid ${s.bor}`, cursor:'default' }
+                    : { background:'transparent', color:T.ink4, border:'1px solid transparent', cursor:'pointer' }}>
+                  <Sic size={10}/>{s.label}
+                  {on && <Check size={9} style={{ opacity:.6 }}/>}
+                </button>
+              )
+            })}
+          </div>
+          <p style={{ fontSize:10, color:T.ink4, display:'flex', alignItems:'center', gap:4 }}>
+            <Send size={10}/>
+            Mudar status dispara mensagem automática do template configurado em Gatilhos
+          </p>
         </div>
 
-        {/* ── CLIENTE (Bling) ─────────────────────────────────────────────── */}
-        <div className="flex-shrink-0 px-5 py-2.5" style={{borderBottom:'1px solid var(--sep)', background:'var(--bg-2)'}}>
+        {/* ── CLIENTE (Bling) ─── */}
+        <div className="flex-shrink-0 flex items-center gap-3 px-6 py-3" style={{ borderBottom:`1px solid ${T.sep}` }}>
           {blingLoad ? (
-            <div className="flex items-center gap-2" style={{color:'var(--label-4)'}}>
+            <div className="flex items-center gap-2" style={{ color:T.ink4 }}>
               <RefreshCw size={11} className="animate-spin"/>
-              <span className="text-xs">Buscando no Bling...</span>
+              <span style={{ fontSize:11 }}>Buscando no Bling...</span>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
+            <>
               {/* Avatar */}
-              <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
-                style={{background:'#dbeafe', color:'#1e40af'}}>
+              <div className="flex items-center justify-center rounded-full flex-shrink-0 font-bold text-sm"
+                style={{ width:36, height:36, background:T.blueDim, border:`1px solid ${T.blueBor}`, color:T.blue }}>
                 {(cliente?.nome||oc.nomeCliente||'?').charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                  <span className="text-[13px] font-bold" style={{color:'var(--label)'}}>
+                <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                  <span style={{ fontSize:13, fontWeight:700, color:T.ink1 }}>
                     {cliente?.nome || oc.nomeCliente || 'Cliente não identificado'}
                   </span>
                   {cliente?.origem==='bling' && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{background:'#dbeafe',color:'#1e40af'}}>
-                      BLING ✓
-                    </span>
+                    <Bdg color={T.blue} dim={T.blueDim} bor={T.blueBor}>BLING ✓</Bdg>
                   )}
                   {blingData?.aviso && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{background:'#fff7ed',color:'#c2410c'}}>
-                      ⚠ {blingData.aviso.slice(0,35)}
-                    </span>
+                    <Bdg color={T.red} dim={T.redDim} bor={T.redBor}>
+                      <AlertTriangle size={9}/>{blingData.aviso.slice(0,30)}
+                    </Bdg>
+                  )}
+                  {!cliente && !blingLoad && (
+                    <Bdg color={T.red} dim={T.redDim} bor={T.redBor}>
+                      <AlertTriangle size={9}/>Telefone não localizado no Bling
+                    </Bdg>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-0.5">
                   {(cliente?.telefone||oc.telefone) && (
-                    <span className="flex items-center gap-1 text-[11px]" style={{color:'var(--label-3)'}}><Phone size={10}/>{fmtTel(cliente?.telefone||oc.telefone)}</span>
+                    <span style={{ fontSize:11, color:T.ink3, display:'flex', alignItems:'center', gap:3 }}>
+                      <Phone size={10}/>{fmtTel(cliente?.telefone||oc.telefone)}
+                    </span>
                   )}
                   {(cliente?.email||oc.email) && (
-                    <span className="flex items-center gap-1 text-[11px]" style={{color:'var(--label-3)'}}><Mail size={10}/>{cliente?.email||oc.email}</span>
+                    <span style={{ fontSize:11, color:T.ink3, display:'flex', alignItems:'center', gap:3 }}>
+                      <Mail size={10}/>{cliente?.email||oc.email}
+                    </span>
                   )}
                   {cliente?.cidade && (
-                    <span className="flex items-center gap-1 text-[11px]" style={{color:'var(--label-3)'}}><MapPin size={10}/>{cliente.cidade}{cliente.estado&&` · ${cliente.estado}`}</span>
-                  )}
-                  {cliente?.cpf_cnpj && (
-                    <span className="text-[10px]" style={{color:'var(--label-4)'}}>{cliente.cpf_cnpj}</span>
+                    <span style={{ fontSize:11, color:T.ink3, display:'flex', alignItems:'center', gap:3 }}>
+                      <MapPin size={10}/>{cliente.cidade}{cliente.estado&&` · ${cliente.estado}`}
+                    </span>
                   )}
                 </div>
               </div>
-              <div className="flex gap-1.5 flex-shrink-0">
-                <button onClick={fetchBling} className="w-7 h-7 rounded-lg flex items-center justify-center"
-                  style={{background:'var(--fill)', border:'1px solid var(--sep)', color:'var(--label-4)'}}>
-                  <RefreshCw size={10}/>
-                </button>
-              </div>
-            </div>
+              <button onClick={fetchBling} style={{ width:28, height:28, borderRadius:7, display:'flex', alignItems:'center', justifyContent:'center', background:T.bg3, border:`1px solid ${T.sep2}`, color:T.ink4, cursor:'pointer' }}>
+                <RefreshCw size={10}/>
+              </button>
+            </>
           )}
         </div>
 
-        {/* ── PEDIDOS DO BLING ────────────────────────────────────────────── */}
+        {/* ── PEDIDOS ─── */}
         {pedidos.length > 0 && (
-          <div className="flex-shrink-0 px-5 py-3" style={{borderBottom:'1px solid var(--sep)', maxHeight:220, overflowY:'auto', background:'var(--bg-2)'}}>
-            <p className="text-[9px] font-bold uppercase tracking-wider mb-2" style={{color:'var(--label-4)'}}>
+          <div className="flex-shrink-0 px-6 py-3" style={{ borderBottom:`1px solid ${T.sep}`, maxHeight:200, overflowY:'auto' }}>
+            <p style={{ fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', color:T.ink4, marginBottom:8 }}>
               Pedidos no Bling ({pedidos.length})
             </p>
-            <div className="space-y-1.5">
-              {pedidos.map((p,i) => {
-                const sitColor = {Aberto:'#d97706',Atendido:'#15803d',Cancelado:'#dc2626',Faturado:'#1d4ed8','NF emitida':'#7c3aed','Em andamento':'#1d4ed8',Entregue:'#15803d','Não entregue':'#dc2626'}
-                const cor = sitColor[p.situacao]||'var(--label-3)'
-                const open = pedAberto[i]
-                return (
-                  <div key={i} className="rounded-xl overflow-hidden" style={{border:'1px solid var(--sep)'}}>
-                    <div className="flex items-center gap-2.5 px-3 py-2 cursor-pointer"
-                      style={{background:'var(--bg-3)'}}
-                      onClick={()=>setPedAberto(v=>({...v,[i]:!v[i]}))}>
-                      <Package size={12} style={{color:'var(--label-4)', flexShrink:0}}/>
-                      <span className="text-[11px] font-bold" style={{color:'var(--label)'}}>#{p.numero}</span>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                        style={{background:`${cor}18`, color:cor}}>{p.situacao}</span>
-                      <span className="text-[11px] font-semibold" style={{color:'#15803d'}}>{p.total}</span>
-                      {p.transportadora && <span className="text-[10px] flex items-center gap-1 ml-auto" style={{color:'var(--label-4)'}}><Truck size={9}/>{p.transportadora}</span>}
-                      <span className="text-[10px]" style={{color:'var(--label-4)'}}>{p.data}</span>
-                      {open ? <ChevronUp size={11} style={{color:'var(--label-4)'}}/> : <ChevronDown size={11} style={{color:'var(--label-4)'}}/>}
-                    </div>
-                    {open && (
-                      <div className="px-3 pt-2 pb-3 space-y-1.5" style={{borderTop:'0.5px solid var(--sep)', background:'var(--bg)'}}>
-                        {p.rastreio && (
-                          <div className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg" style={{background:'#eff6ff'}}>
-                            <Truck size={11} style={{color:'#1d4ed8'}}/>
-                            <div className="flex-1">
-                              <p className="text-[9px] font-bold" style={{color:'#1e40af'}}>Código de rastreio</p>
-                              <p className="text-[11px] font-mono font-semibold" style={{color:'var(--label)'}}>{p.rastreio}</p>
-                            </div>
-                            <button onClick={()=>copiar(p.rastreio,'rastreio'+i)}
-                              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-colors"
-                              style={{background:'var(--bg-2)', border:'1px solid var(--sep)', color:'var(--label-3)'}}>
-                              {copied===`rastreio${i}` ? <Check size={10}/> : <Copy size={10}/>}
-                              {copied===`rastreio${i}` ? 'Copiado' : 'Copiar'}
-                            </button>
-                          </div>
-                        )}
-                        {p.itens?.length > 0 && p.itens.map((it,j)=>(
-                          <div key={j} className="flex items-center justify-between py-1" style={{borderBottom:'0.5px solid var(--sep)'}}>
-                            <span className="text-[11px] truncate flex-1" style={{color:'var(--label-2)'}}>{it.nome}</span>
-                            <span className="text-[10px] ml-3 flex-shrink-0" style={{color:'var(--label-4)'}}>{it.quantidade}x {it.valorUnit}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+            {pedidos.map((p,i)=>{
+              const cor = {Aberto:T.amber,Atendido:T.green,Cancelado:T.red,Faturado:T.blue,'Em andamento':T.blue,Entregue:T.green}[p.situacao]||T.ink3
+              const dim = {Aberto:T.amberDim,Atendido:T.greenDim,Cancelado:T.redDim,Faturado:T.blueDim,'Em andamento':T.blueDim,Entregue:T.greenDim}[p.situacao]||T.bg3
+              const bor = {Aberto:T.amberBor,Atendido:T.greenBor,Cancelado:T.redBor,Faturado:T.blueBor,'Em andamento':T.blueBor,Entregue:T.greenBor}[p.situacao]||T.sep2
+              const open = pedAberto[i]
+              return (
+                <div key={i} className="rounded-xl overflow-hidden mb-2" style={{ border:`1px solid ${T.sep2}` }}>
+                  <div className="flex items-center gap-2 px-3 py-2 cursor-pointer"
+                    style={{ background:T.bg3 }} onClick={()=>setPedAb(v=>({...v,[i]:!v[i]}))}>
+                    <Package size={12} style={{ color:T.ink4, flexShrink:0 }}/>
+                    <span style={{ fontSize:11, fontWeight:700, color:T.ink1 }}>#{p.numero}</span>
+                    <Bdg color={cor} dim={dim} bor={bor}>{p.situacao}</Bdg>
+                    <span style={{ fontSize:11, fontWeight:600, color:T.green, marginLeft:'auto' }}>{p.total}</span>
+                    {p.transportadora && <span style={{ fontSize:10, color:T.ink4, display:'flex', alignItems:'center', gap:3 }}><Truck size={9}/>{p.transportadora}</span>}
+                    <span style={{ fontSize:10, color:T.ink4 }}>{p.data}</span>
+                    {open ? <ChevronUp size={11} style={{ color:T.ink4 }}/> : <ChevronDown size={11} style={{ color:T.ink4 }}/>}
                   </div>
-                )
-              })}
-            </div>
+                  {open && (
+                    <div className="px-3 pt-2 pb-3" style={{ borderTop:`0.5px solid ${T.sep}`, background:T.bg2 }}>
+                      {p.rastreio && (
+                        <div className="flex items-center gap-2 mb-2 px-2.5 py-1.5 rounded-lg" style={{ background:T.blueDim }}>
+                          <Truck size={11} style={{ color:T.blue }}/>
+                          <span style={{ fontSize:10, fontWeight:700, color:T.blue }}>Rastreio:</span>
+                          <span style={{ fontSize:11, fontFamily:'monospace', color:T.ink1 }}>{p.rastreio}</span>
+                          <button onClick={()=>copiar(p.rastreio,`r${i}`)} style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:4, fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:5, background:T.bg3, border:`1px solid ${T.sep2}`, color:T.ink3, cursor:'pointer' }}>
+                            {copied===`r${i}` ? <><Check size={10}/>Copiado</> : <><Copy size={10}/>Copiar</>}
+                          </button>
+                        </div>
+                      )}
+                      {p.itens?.map((it,j)=>(
+                        <div key={j} className="flex justify-between py-1" style={{ borderBottom:`0.5px solid ${T.sep}`, fontSize:11, color:T.ink3 }}>
+                          <span className="truncate flex-1">{it.nome}</span>
+                          <span className="ml-3 flex-shrink-0">{it.quantidade}x {it.valorUnit}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
 
-        {/* ── TABS ────────────────────────────────────────────────────────── */}
-        <div className="flex flex-shrink-0" style={{borderBottom:'1px solid var(--sep)', background:'var(--bg-2)'}}>
+        {/* ── TABS ─── */}
+        <div className="flex flex-shrink-0" style={{ borderBottom:`1px solid ${T.sep}` }}>
           {[
-            { id:'tl',   label:'Timeline',    ic:<History size={13}/>,     badge: (oc.historico||[]).length||null },
-            { id:'wa',   label:'WhatsApp',    ic:<MessageSquare size={13}/> },
-            { id:'em',   label:'E-mail',      ic:<Mail size={13}/> },
-            { id:'nota', label:'Nota interna',ic:<FileText size={13}/> },
-            { id:'csat', label:'CSAT',        ic:<Star size={13}/>, ml:true },
-          ].map(({id,label,ic,badge,ml})=>(
-            <button key={id} onClick={()=>setTab(id)}
-              className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold transition-all whitespace-nowrap"
-              style={{
-                borderBottom:`2px solid ${getTabBorder(id)}`,
-                color: getTabColor(id),
-                background:'transparent',
-                marginLeft: ml ? 'auto' : undefined,
-              }}>
+            { id:'tl',   label:'Timeline',     ic:<History size={13}/>,      cnt:(oc.historico||[]).length||null },
+            { id:'wa',   label:'WhatsApp',      ic:<MessageSquare size={13}/> },
+            { id:'em',   label:'E-mail',        ic:<Mail size={13}/> },
+            { id:'nota', label:'Nota interna',  ic:<FileText size={13}/> },
+            { id:'csat', label:'CSAT',          ic:<Star size={13}/>, ml:true },
+          ].map(({id,label,ic,cnt,ml})=>(
+            <button key={id} onClick={()=>setTab(id)} style={{ ...tabBtnSt(id), marginLeft:ml?'auto':undefined }}>
               {ic}{label}
-              {badge && (
-                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold"
-                  style={{background:'#e0e9ff', color:'#3b5bdb'}}>{badge}</span>
+              {cnt && (
+                <span style={{ padding:'1px 5px', borderRadius:99, fontSize:9, fontWeight:700, background:T.accentDim, color:T.accent }}>{cnt}</span>
               )}
             </button>
           ))}
         </div>
 
-        {/* ── TAB CONTENT ──────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto">
+        {/* ── CONTEÚDO ─── */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">
 
           {/* TIMELINE */}
           {tab==='tl' && (
-            <div className="p-5">
-              {/* Relato original */}
+            <div>
+              {/* Relato */}
               <div className="flex gap-3 mb-5">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                  style={{background:'#fffbeb', border:'1px solid #fde68a'}}>
-                  <Tag size={13} style={{color:'#d97706'}}/>
+                <div className="flex items-center justify-center rounded-full flex-shrink-0 mt-0.5"
+                  style={{ width:34, height:34, background:T.amberDim, border:`1px solid ${T.amberBor}`, color:T.amber }}>
+                  <Tag size={13}/>
                 </div>
                 <div className="flex-1">
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1.5" style={{color:'var(--label-4)'}}>Relato original</p>
-                  <div className="p-3 rounded-xl text-xs leading-relaxed"
-                    style={{background:'var(--bg)', border:'1px solid var(--sep)', color:'var(--label-2)'}}>
+                  <p style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', color:T.ink4, marginBottom:5 }}>Relato original</p>
+                  <div style={{ padding:'10px 13px', borderRadius:10, fontSize:12, lineHeight:1.55, background:T.bg2, border:`1px solid ${T.sep2}`, color:T.ink2 }}>
                     {oc.descricao||'Sem descrição.'}
                   </div>
                 </div>
               </div>
 
-              {/* Eventos */}
-              {[...(oc.historico||[])].reverse().length > 0 && (
-                <div className="relative pl-4 space-y-4 mb-5" style={{borderLeft:'1.5px solid var(--sep)'}}>
-                  {[...(oc.historico||[])].reverse().map((h,i)=>{
-                    const isWA     = h.acao==='whatsapp'
-                    const isStatus = h.acao?.startsWith('status')
-                    const isCsat   = h.acao?.startsWith('csat')
-                    const dotBg    = isWA?'#d1fae5':isStatus?'#dbeafe':isCsat?'#f5f3ff':'var(--fill)'
-                    const dotBor   = isWA?'#6ee7b7':isStatus?'#93c5fd':isCsat?'#c4b5fd':'var(--sep)'
-                    const dotCor   = isWA?'#059669':isStatus?'#1d4ed8':isCsat?'#7c3aed':'var(--label-3)'
-                    const bubbleBg = isWA?'#f0fdf4':isStatus?'#eff6ff':isCsat?'#f5f3ff':'var(--bg)'
-                    const bubbleBor= isWA?'#bbf7d0':isStatus?'#bfdbfe':isCsat?'#c4b5fd':'var(--sep)'
-                    const bubbleCor= isWA?'#065f46':isStatus?'#1e3a8a':isCsat?'#4c1d95':'var(--label-2)'
-                    const IcNode   = isWA?MessageSquare:isStatus?RefreshCw:isCsat?Star:FileText
-                    return (
-                      <div key={i} className="relative flex gap-3">
-                        <div className="absolute -left-[21px] top-1 w-[30px] h-[30px] rounded-full flex items-center justify-center flex-shrink-0"
-                          style={{background:dotBg, border:`1px solid ${dotBor}`, color:dotCor}}>
-                          <IcNode size={12}/>
-                        </div>
-                        <div className="flex-1 min-w-0 pl-3">
-                          <p className="text-[10px] mb-1.5 flex items-center gap-1.5" style={{color:'var(--label-4)'}}>
-                            <span className="font-semibold" style={{color:'var(--label-2)'}}>{h.por||'sistema'}</span>
-                            · {h.em ? fmtD(h.em)+' '+fmtH(h.em) : ''}
-                          </p>
-                          <div className="p-2.5 rounded-xl text-xs leading-relaxed font-mono"
-                            style={{background:bubbleBg, border:`1px solid ${bubbleBor}`, color:bubbleCor}}>
-                            {h.nota}
-                          </div>
-                        </div>
+              {/* Histórico */}
+              {[...(oc.historico||[])].reverse().map((h,i)=>{
+                const isWA     = h.acao==='whatsapp'
+                const isSt     = h.acao?.startsWith('status')
+                const isCsat   = h.acao?.startsWith('csat')
+                const dotColor = isWA?T.green:isSt?T.blue:isCsat?T.purple:T.ink4
+                const dotDim   = isWA?T.greenDim:isSt?T.blueDim:isCsat?T.purpleDim:T.bg3
+                const dotBor   = isWA?T.greenBor:isSt?T.blueBor:isCsat?T.purpleBor:T.sep2
+                const bubBg    = isWA?T.greenDim:isSt?T.blueDim:isCsat?T.purpleDim:T.bg2
+                const bubBor   = isWA?T.greenBor:isSt?T.blueBor:isCsat?T.purpleBor:T.sep2
+                const bubColor = isWA?'#6ee7b7':isSt?'#93c5fd':isCsat?'#c4b5fd':T.ink2
+                const IcN      = isWA?MessageSquare:isSt?RefreshCcw:isCsat?Star:FileText
+                return (
+                  <div key={i} className="flex gap-3 mb-5 relative">
+                    {i < (oc.historico||[]).length-1 && (
+                      <div style={{ position:'absolute', left:16, top:34, bottom:-12, width:1, background:T.sep2 }}/>
+                    )}
+                    <div className="flex items-center justify-center rounded-full flex-shrink-0 mt-0.5"
+                      style={{ width:34, height:34, background:dotDim, border:`1px solid ${dotBor}`, color:dotColor, fontSize:14 }}>
+                      <IcN size={13}/>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-1.5" style={{ fontSize:11, color:T.ink4 }}>
+                        <span style={{ fontWeight:600, color:T.ink2 }}>{h.por||'sistema'}</span>
+                        · {h.em ? fmtD(h.em)+' '+fmtH(h.em) : ''}
                       </div>
-                    )
-                  })}
-                </div>
-              )}
+                      <div style={{ padding:'10px 13px', borderRadius:10, fontSize:11, lineHeight:1.55, background:bubBg, border:`1px solid ${bubBor}`, color:bubColor, fontFamily: isWA?'monospace':'inherit' }}>
+                        {h.nota}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
 
-              {/* Adicionar nota rápida */}
-              <div style={{borderTop:'1px solid var(--sep)', paddingTop:16}}>
-                <p className="text-[9px] font-semibold uppercase tracking-wider mb-2" style={{color:'var(--label-4)'}}>Nota rápida</p>
-                <div className="rounded-xl overflow-hidden" style={{border:'1px solid var(--sep)'}}>
+              {/* Nota rápida */}
+              <div style={{ borderTop:`1px solid ${T.sep2}`, paddingTop:16, marginTop:4 }}>
+                <p style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', color:T.ink4, marginBottom:8 }}>Nota rápida</p>
+                <div style={compArea(T.sep2)}>
                   <textarea value={nota} onChange={e=>setNota(e.target.value)} rows={2}
                     placeholder="Registrar informação interna..."
-                    className="w-full px-3 py-2 text-xs outline-none resize-none"
-                    style={{background:'var(--bg)', color:'var(--label)', borderBottom:'1px solid var(--sep)'}}/>
-                  <div className="flex justify-end px-2.5 py-2" style={{background:'var(--bg-3)'}}>
+                    style={{ ...compTA, borderBottom:`1px solid ${T.sep}` }}/>
+                  <div style={compFoot()}>
+                    <div/>
                     <button onClick={enviarNota} disabled={!nota.trim()||salvando}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold disabled:opacity-40"
-                      style={{background:'var(--label)', color:'var(--bg)'}}>
-                      <FileText size={11}/>{salvando?'Salvando...':'Salvar'}
+                      style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 14px', borderRadius:8, fontSize:12, fontWeight:700, background:T.accent, color:'#fff', border:'none', cursor:'pointer', opacity:(!nota.trim()||salvando)?.4:1 }}>
+                      <FileText size={12}/>{salvando?'Salvando...':'Salvar'}
                     </button>
                   </div>
                 </div>
@@ -619,117 +628,106 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
 
           {/* WHATSAPP */}
           {tab==='wa' && (
-            <div className="p-5">
+            <div>
               {/* Preview */}
-              <div className="rounded-xl overflow-hidden mb-4" style={{border:'1px solid #bbf7d0'}}>
-                <div className="flex items-center gap-2 px-3 py-2" style={{background:'#064e3b'}}>
-                  <MessageSquare size={11} style={{color:'#6ee7b7'}}/>
-                  <span className="text-[9px] font-bold uppercase tracking-wider" style={{color:'rgba(255,255,255,0.5)'}}>Preview — estrutura da mensagem</span>
+              <div style={{ background:T.greenDim, border:`1px solid ${T.greenBor}`, borderRadius:10, overflow:'hidden', marginBottom:14 }}>
+                <div className="flex items-center gap-2 px-3 py-2" style={{ background:'rgba(0,0,0,0.15)' }}>
+                  <MessageSquare size={11} style={{ color:T.green }}/>
+                  <span style={{ fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', color:'rgba(255,255,255,0.4)' }}>
+                    Preview — estrutura enviada ao cliente
+                  </span>
                 </div>
-                <div className="px-4 py-3 font-mono text-[10px] leading-relaxed space-y-1"
-                  style={{background:'#f0fdf4', color:'#065f46'}}>
-                  <p className="font-bold" style={{color:'#064e3b'}}>📋 Atualização — Protocolo {oc.ticketId}</p>
-                  <p>Olá {primeiroNome}!</p>
-                  <p className="pl-2.5 italic text-[10px]" style={{borderLeft:'2.5px solid #6ee7b7', color:'#047857'}}>
+                <div style={{ padding:'10px 14px', fontFamily:'monospace', fontSize:11, color:'#6ee7b7', lineHeight:1.6 }}>
+                  <p style={{ fontWeight:'bold', color:'#34d399', marginBottom:4 }}>📋 Atualização — Protocolo {oc.ticketId}</p>
+                  <p style={{ marginBottom:4 }}>Olá {nome1}!</p>
+                  <p style={{ borderLeft:`2px solid ${T.greenBor}`, paddingLeft:8, color:T.green, fontSize:10, marginBottom:6 }}>
                     &gt; {(oc.descricao||'').slice(0,80)}{oc.descricao?.length>80?'...':''}
                   </p>
-                  <p className="font-semibold" style={{color:'#064e3b'}}>Nossa resposta:</p>
-                  <p style={{color:texto?'#047857':'#6ee7b7'}}>{texto||'[ selecione template ou escreva ]'}</p>
-                  <p className="text-[9px] pt-1" style={{borderTop:'1px solid #bbf7d0',color:'#047857'}}>
+                  <p style={{ fontWeight:600, color:'#34d399' }}>Nossa resposta:</p>
+                  <p style={{ color: texto?'#6ee7b7':'rgba(110,231,183,.4)' }}>{texto||'[ selecione template ou escreva ]'}</p>
+                  <p style={{ fontSize:10, color:T.green, borderTop:`1px solid ${T.greenBor}`, marginTop:8, paddingTop:6 }}>
                     🏷️ Status: {S.label} · 📋 {oc.ticketId} · Só Strass
                   </p>
                 </div>
               </div>
 
               {/* Templates */}
-              <p className="text-[9px] font-semibold uppercase tracking-wider mb-2" style={{color:'var(--label-4)'}}>Respostas rápidas</p>
+              <p style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', color:T.ink4, marginBottom:8 }}>Respostas rápidas</p>
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {TEMPLATES.map((t,i)=>(
                   <button key={i} onClick={()=>setTexto(t)}
-                    className="px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors"
-                    style={{
-                      background: texto===t ? '#f0fdf4' : 'var(--fill)',
-                      border: texto===t ? '1px solid #86efac' : '1px solid var(--sep)',
-                      color: texto===t ? '#15803d' : 'var(--label-2)',
-                    }}>
+                    style={{ padding:'4px 10px', borderRadius:6, fontSize:11, border:`1px solid ${texto===t?T.greenBor:T.sep2}`, background:texto===t?T.greenDim:T.bg3, color:texto===t?T.green:T.ink2, cursor:'pointer', fontWeight:500, transition:'all .1s' }}>
                     {t.slice(0,32)}...
                   </button>
                 ))}
               </div>
 
               {/* Composer */}
-              <div className="rounded-xl overflow-hidden" style={{border:'1px solid #86efac'}}>
+              <div style={compArea(T.greenBor)}>
                 <textarea value={texto} onChange={e=>setTexto(e.target.value)} rows={4}
-                  placeholder={`Escrever para ${primeiroNome}...`}
-                  className="w-full px-3 py-2.5 text-xs font-medium outline-none resize-none"
-                  style={{background:'var(--bg)', color:'var(--label)', borderBottom:'1px solid #86efac'}}/>
-                <div className="flex items-center justify-between px-3 py-2" style={{background:'var(--bg-3)'}}>
+                  placeholder={`Escrever para ${nome1}...`}
+                  style={{ ...compTA, height:72, borderBottom:`1px solid ${T.greenBor}` }}/>
+                <div style={compFoot()}>
                   <div className="flex gap-1.5">
-                    <button className="w-7 h-7 rounded-lg flex items-center justify-center" style={{background:'var(--fill)', border:'1px solid var(--sep)', color:'var(--label-4)'}}>
+                    <button style={{ width:28, height:28, borderRadius:6, display:'flex', alignItems:'center', justifyContent:'center', background:T.bg4, border:`1px solid ${T.sep2}`, color:T.ink4, cursor:'pointer', fontSize:14 }}>
                       <Paperclip size={13}/>
                     </button>
                     <button onClick={refinarIA} disabled={!texto.trim()||refining}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold disabled:opacity-40 transition-colors"
-                      style={{background:'#f5f3ff', border:'1px solid #c4b5fd', color:'#7c3aed'}}>
+                      style={{ display:'flex', alignItems:'center', gap:4, padding:'4px 10px', borderRadius:6, fontSize:11, fontWeight:600, background:T.purpleDim, border:`1px solid ${T.purpleBor}`, color:T.purple, cursor:'pointer', opacity:(!texto.trim()||refining)?.4:1 }}>
                       <Sparkles size={11} className={refining?'animate-spin':''}/>{refining?'Refinando...':'IA'}
                     </button>
                   </div>
                   <button onClick={enviarWA} disabled={!texto.trim()||salvando||!oc.telefone}
-                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40"
-                    style={{background:'#059669', color:'#fff', border:'none'}}>
-                    <MessageSquare size={12}/>{salvando?'Enviando...':'Enviar WhatsApp'}
+                    style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px', borderRadius:8, fontSize:12, fontWeight:700, background:T.green, color:'#fff', border:'none', cursor:'pointer', opacity:(!texto.trim()||salvando||!oc.telefone)?.4:1 }}>
+                    <MessageSquare size={13}/>{salvando?'Enviando...':'Enviar WhatsApp'}
                   </button>
                 </div>
               </div>
-              {!oc.telefone && <p className="text-[10px] mt-2 font-semibold" style={{color:'#dc2626'}}>Telefone não cadastrado — adicione para enviar mensagens</p>}
+              {!oc.telefone && <p style={{ fontSize:10, marginTop:6, fontWeight:600, color:T.red }}>Telefone não cadastrado</p>}
             </div>
           )}
 
           {/* EMAIL */}
           {tab==='em' && (
-            <div className="p-5">
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg mb-4 text-xs"
-                style={{background:'#ede9fe', border:'1px solid #c4b5fd', color:'#5b21b6'}}>
-                <Mail size={13}/>Para: {cliente?.email||oc.email||'E-mail não cadastrado'}
+            <div>
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg mb-4" style={{ background:T.purpleDim, border:`1px solid ${T.purpleBor}` }}>
+                <Mail size={13} style={{ color:T.purple }}/>
+                <p style={{ fontSize:11, color:'#c4b5fd' }}>Para: {cliente?.email||oc.email||'E-mail não cadastrado'}</p>
               </div>
-              <div className="rounded-xl overflow-hidden" style={{border:'1px solid #c4b5fd'}}>
+              <div style={compArea(T.purpleBor)}>
                 <textarea value={texto} onChange={e=>setTexto(e.target.value)} rows={8}
                   placeholder={`E-mail para ${oc.nomeCliente||'o cliente'}...`}
-                  className="w-full px-3 py-2.5 text-xs outline-none resize-none"
-                  style={{background:'var(--bg)', color:'var(--label)', borderBottom:'1px solid #c4b5fd'}}/>
-                <div className="flex items-center justify-between px-3 py-2" style={{background:'var(--bg-3)'}}>
+                  style={{ ...compTA, height:130, borderBottom:`1px solid ${T.purpleBor}` }}/>
+                <div style={compFoot()}>
                   <button onClick={refinarIA} disabled={!texto.trim()||refining}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold disabled:opacity-40"
-                    style={{background:'#f5f3ff', border:'1px solid #c4b5fd', color:'#7c3aed'}}>
+                    style={{ display:'flex', alignItems:'center', gap:4, padding:'4px 10px', borderRadius:6, fontSize:11, fontWeight:600, background:T.purpleDim, border:`1px solid ${T.purpleBor}`, color:T.purple, cursor:'pointer', opacity:(!texto.trim()||refining)?.4:1 }}>
                     <Sparkles size={11} className={refining?'animate-spin':''}/>{refining?'Refinando...':'IA'}
                   </button>
                   <button onClick={()=>patch({nota:`E-mail redigido: "${texto.slice(0,60)}..."`})} disabled={!texto.trim()||salvando}
-                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40"
-                    style={{background:'#7c3aed', color:'#fff', border:'none'}}>
-                    <Send size={12}/>{salvando?'Enviando...':'Enviar e-mail'}
+                    style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px', borderRadius:8, fontSize:12, fontWeight:700, background:T.purple, color:'#fff', border:'none', cursor:'pointer', opacity:(!texto.trim()||salvando)?.4:1 }}>
+                    <Send size={13}/>{salvando?'Enviando...':'Enviar e-mail'}
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* NOTA INTERNA */}
+          {/* NOTA */}
           {tab==='nota' && (
-            <div className="p-5">
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg mb-4 text-xs"
-                style={{background:'#fffbeb', border:'1px solid #fde68a', color:'#92400e'}}>
-                <FileText size={13}/> Nota interna — visível apenas para a equipe, não enviada ao cliente
+            <div>
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg mb-4" style={{ background:T.amberDim, border:`1px solid ${T.amberBor}` }}>
+                <FileText size={13} style={{ color:T.amber }}/>
+                <p style={{ fontSize:11, color:'#fcd34d' }}>Nota interna — visível apenas para a equipe</p>
               </div>
-              <div className="rounded-xl overflow-hidden" style={{border:'1px solid #fde68a'}}>
+              <div style={compArea(T.amberBor)}>
                 <textarea value={nota} onChange={e=>setNota(e.target.value)} rows={8}
                   placeholder="Registrar contato com transportadora, acareação, próximos passos..."
-                  className="w-full px-3 py-2.5 text-xs outline-none resize-none"
-                  style={{background:'var(--bg)', color:'var(--label)', borderBottom:'1px solid #fde68a'}}/>
-                <div className="flex justify-end px-3 py-2" style={{background:'var(--bg-3)'}}>
+                  style={{ ...compTA, height:130, borderBottom:`1px solid ${T.amberBor}` }}/>
+                <div style={compFoot()}>
+                  <div/>
                   <button onClick={enviarNota} disabled={!nota.trim()||salvando}
-                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40"
-                    style={{background:'#d97706', color:'#fff', border:'none'}}>
-                    <FileText size={12}/>{salvando?'Salvando...':'Salvar nota'}
+                    style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px', borderRadius:8, fontSize:12, fontWeight:700, background:T.amber, color:'#000', border:'none', cursor:'pointer', opacity:(!nota.trim()||salvando)?.4:1 }}>
+                    <FileText size={13}/>{salvando?'Salvando...':'Salvar nota'}
                   </button>
                 </div>
               </div>
@@ -738,78 +736,60 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
 
           {/* CSAT */}
           {tab==='csat' && (
-            <div className="p-5 space-y-4">
+            <div>
               {/* Disparo */}
-              <div className="rounded-xl overflow-hidden" style={{border:'1px solid #c4b5fd'}}>
-                <div className="flex items-center gap-2.5 px-4 py-3" style={{background:'#ede9fe'}}>
-                  <Star size={15} style={{color:'#7c3aed'}}/>
+              <div style={{ border:`1px solid ${T.purpleBor}`, borderRadius:12, overflow:'hidden', marginBottom:16 }}>
+                <div className="flex items-center gap-2.5 px-4 py-3" style={{ background:T.purpleDim }}>
+                  <Star size={15} style={{ color:T.purple }}/>
                   <div>
-                    <p className="text-xs font-bold" style={{color:'#4c1d95'}}>Pesquisa de satisfação</p>
-                    <p className="text-[10px]" style={{color:'#7c3aed'}}>Gamificação · NPS · CSAT</p>
+                    <p style={{ fontSize:13, fontWeight:700, color:'#c4b5fd' }}>Pesquisa de satisfação</p>
+                    <p style={{ fontSize:10, color:T.purple }}>Gamificação · NPS · CSAT</p>
                   </div>
                 </div>
-                <div className="p-4" style={{background:'var(--bg)'}}>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-2" style={{color:'var(--label-4)'}}>Preview da mensagem</p>
-                  <div className="p-3 rounded-xl font-mono text-[11px] leading-relaxed mb-3"
-                    style={{background:'#f0fdf4', border:'1px solid #bbf7d0', color:'#065f46'}}>
-                    <p className="font-bold mb-1" style={{color:'#064e3b'}}>⭐ Como avalia o nosso atendimento?</p>
-                    <p className="mb-2 text-[10px]" style={{color:'#047857'}}>Protocolo {oc.ticketId} · Só Strass</p>
+                <div style={{ padding:16, background:T.bg2 }}>
+                  <p style={{ fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', color:T.ink4, marginBottom:8 }}>Preview da mensagem</p>
+                  <div style={{ padding:'10px 12px', borderRadius:10, fontFamily:'monospace', fontSize:11, background:T.greenDim, border:`1px solid ${T.greenBor}`, color:'#6ee7b7', lineHeight:1.6, marginBottom:12 }}>
+                    <p style={{ fontWeight:'bold', color:'#34d399', marginBottom:4 }}>⭐ Como avalia o nosso atendimento?</p>
+                    <p style={{ color:T.green, fontSize:10, marginBottom:6 }}>Protocolo {oc.ticketId} · Só Strass</p>
                     <div className="flex gap-3 flex-wrap">
-                      {Object.entries(SCORE_META).map(([s,m])=>(
-                        <span key={s} className="text-[11px]">{m.emoji} {m.label}</span>
+                      {Object.entries(SCORE).map(([s,m])=>(
+                        <span key={s}>{m.emoji} {m.label}</span>
                       ))}
                     </div>
                   </div>
-
                   {csatSent ? (
-                    <div className="flex items-center gap-2 px-4 py-3 rounded-xl"
-                      style={{background:'#f0fdf4', border:'1px solid #bbf7d0'}}>
-                      <Check size={14} style={{color:'#059669'}}/>
-                      <span className="text-xs font-semibold" style={{color:'#065f46'}}>Pesquisa enviada para {primeiroNome}!</span>
+                    <div className="flex items-center gap-2 px-4 py-3 rounded-xl" style={{ background:T.greenDim, border:`1px solid ${T.greenBor}` }}>
+                      <Check size={14} style={{ color:T.green }}/>
+                      <span style={{ fontSize:12, fontWeight:600, color:'#6ee7b7' }}>Pesquisa enviada para {nome1}!</span>
                     </div>
                   ) : (
                     <button onClick={dispararCsat} disabled={!oc.telefone}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold disabled:opacity-40 transition-colors"
-                      style={{background:'#7c3aed', color:'#fff', border:'none'}}>
-                      <Send size={13}/>Enviar pesquisa de satisfação para {primeiroNome}
+                      style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'10px', borderRadius:8, fontSize:13, fontWeight:700, background:T.purple, color:'#fff', border:'none', cursor:'pointer', opacity:!oc.telefone?.4:1 }}>
+                      <Send size={13}/>Enviar pesquisa para {nome1}
                     </button>
-                  )}
-
-                  {!oc.telefone && (
-                    <p className="text-[10px] mt-2 text-center font-semibold" style={{color:'#dc2626'}}>Telefone não cadastrado</p>
                   )}
                 </div>
               </div>
 
-              {/* Histórico do cliente */}
+              {/* Histórico */}
               {csatData?.clientHistory?.length > 0 && (
                 <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-3" style={{color:'var(--label-4)'}}>
-                    Histórico de avaliações — {oc.nomeCliente||'cliente'}
+                  <p style={{ fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', color:T.ink4, marginBottom:10 }}>
+                    Histórico — {oc.nomeCliente||'cliente'}
                   </p>
-                  <div className="space-y-2">
-                    {csatData.clientHistory.map((h,i)=>{
-                      const m = SCORE_META[h.score]||SCORE_META[3]
-                      return (
-                        <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl"
-                          style={{background:'var(--bg-3)', border:'1px solid var(--sep)'}}>
-                          <span className="text-xl">{m.emoji}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-semibold" style={{color:'var(--label)'}}>
-                              {h.ticket_id} · {h.score}/5 — {m.label}
-                            </p>
-                            {h.comentario && (
-                              <p className="text-[10px] truncate" style={{color:'var(--label-3)'}}>"{h.comentario}"</p>
-                            )}
-                          </div>
-                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full"
-                            style={{background:m.bg, color:m.color}}>
-                            {h.score}/5
-                          </span>
+                  {csatData.clientHistory.map((h,i)=>{
+                    const m = SCORE[h.score]||SCORE[3]
+                    return (
+                      <div key={i} className="flex items-center gap-3 py-2.5" style={{ borderBottom:`1px solid ${T.sep}` }}>
+                        <span style={{ fontSize:20 }}>{m.emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <p style={{ fontSize:11, fontWeight:600, color:T.ink1 }}>{h.ticket_id} · {h.score}/5 — {m.label}</p>
+                          {h.comentario && <p style={{ fontSize:10, color:T.ink3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>"{h.comentario}"</p>}
                         </div>
-                      )
-                    })}
-                  </div>
+                        <Bdg color={m.color} dim={m.dim} bor="transparent">{h.score}/5</Bdg>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -819,84 +799,85 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
 
       {editModal && (
         <ModalOcorrencia api={api} ocorrencia={oc}
-          onSalvo={()=>{onAtualizado();setEditModal(false)}}
+          onSalvo={()=>{ onAtualizado(); setEditModal(false) }}
           onClose={()=>setEditModal(false)}/>
       )}
     </div>
   )
 }
 
-// ── TICKET ROW na lista ───────────────────────────────────────────────────────
+// ── TICKET ROW ────────────────────────────────────────────────────────────────
 function TicketRow({ oc, ativo, onClick }) {
-  const S  = STATUS[oc.status]    || STATUS.aberta
-  const T  = TIPO[oc.tipo]        || TIPO.outro
-  const P  = PRIO[oc.prioridade]  || PRIO.normal
+  const S  = STATUS[oc.status]   || STATUS.aberta
+  const T_ = TIPOS[oc.tipo]      || TIPOS.outro
+  const P  = PRIO[oc.prioridade] || PRIO.normal
   const ur = oc.prioridade==='urgente' && !['resolvida','encerrada'].includes(oc.status)
+  const TIcon = T_.icon
   const SIcon = S.icon
-  const TIcon = T.icon
   const PIcon = P.icon
 
   return (
-    <div onClick={onClick} className="grid items-center px-5 py-3.5 cursor-pointer transition-colors"
+    <div onClick={onClick}
+      className="grid items-center cursor-pointer transition-colors"
       style={{
-        gridTemplateColumns:'2fr 1.6fr 0.8fr 0.9fr 0.8fr 0.5fr',
-        borderBottom:'0.5px solid var(--sep)',
-        borderLeft: ativo ? '3px solid #4f6ef7' : ur ? '3px solid #dc2626' : '3px solid transparent',
-        background: ativo ? 'rgba(79,110,247,0.05)' : 'transparent',
+        gridTemplateColumns:'2fr 1.5fr 0.9fr 0.9fr 0.9fr 0.5fr',
+        padding:'13px 20px',
+        borderBottom:`1px solid ${T.sep}`,
+        borderLeft: ativo ? `3px solid ${T.accent}` : ur ? `3px solid ${T.red}` : '3px solid transparent',
+        background: ativo ? T.accentDim : 'transparent',
       }}
-      onMouseEnter={e=>!ativo && (e.currentTarget.style.background='var(--bg-3)')}
-      onMouseLeave={e=>!ativo && (e.currentTarget.style.background='transparent')}>
+      onMouseEnter={e=>{ if(!ativo) e.currentTarget.style.background=T.bg2 }}
+      onMouseLeave={e=>{ if(!ativo) e.currentTarget.style.background='transparent' }}>
 
-      {/* Ticket */}
+      {/* Ticket + título */}
       <div className="min-w-0 pr-3">
         <div className="flex items-center gap-1.5 mb-0.5">
-          <span className="font-mono text-[9px] font-bold" style={{color: ativo?'#4f6ef7':'var(--label-4)'}}>{oc.ticketId}</span>
-          {ur && <Zap size={9} className="animate-pulse" style={{color:'#dc2626'}}/>}
+          <span style={{ fontSize:10, fontFamily:'monospace', fontWeight:700, color:ativo?T.accent:T.ink4 }}>
+            {oc.ticketId}
+          </span>
+          {ur && <Zap size={9} className="animate-pulse" style={{ color:T.red }}/>}
         </div>
-        <p className="text-[12.5px] font-semibold leading-snug" style={{
-          color:'var(--label)',
-          overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'100%'
-        }}>
-          {oc.titulo || oc.descricao?.slice(0,48) || '—'}
+        <p style={{ fontSize:13, fontWeight:600, color:T.ink1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+          {oc.titulo || oc.descricao?.slice(0,52) || '—'}
         </p>
       </div>
 
       {/* Cliente */}
       <div className="min-w-0 pr-3">
-        <p className="text-[12px] font-medium truncate" style={{color:'var(--label)'}}>{oc.nomeCliente||oc.telefone||'—'}</p>
-        {oc.numeroPedido
-          ? <p className="text-[10px] flex items-center gap-1 mt-0.5" style={{color:'var(--label-4)'}}><Package size={9}/>#{oc.numeroPedido}</p>
-          : <p className="text-[10px] mt-0.5" style={{color:'var(--label-4)'}}>Sem pedido</p>}
+        <p style={{ fontSize:12, fontWeight:500, color:T.ink2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+          {oc.nomeCliente||oc.telefone||'—'}
+        </p>
+        <p style={{ fontSize:10, color:T.ink4, display:'flex', alignItems:'center', gap:3, marginTop:1 }}>
+          {oc.numeroPedido ? <><Package size={9}/>#{oc.numeroPedido}</> : 'Sem pedido'}
+        </p>
       </div>
 
       {/* Tipo */}
       <div>
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold"
-          style={{color:T.color, background:T.bg, border:`1px solid ${T.border}`}}>
-          <TIcon size={9}/>{T.label}
-        </span>
+        <Bdg color={T_.color} dim={T_.dim} bor={T_.bor}>
+          <TIcon size={9}/>{T_.label}
+        </Bdg>
       </div>
 
       {/* Prioridade */}
       <div>
-        <span className="inline-flex items-center gap-1 text-[11px] font-semibold" style={{color:P.color}}>
+        <span className="flex items-center gap-1" style={{ fontSize:11, fontWeight:600, color:P.color }}>
           <PIcon size={11}/>{P.label}
         </span>
       </div>
 
       {/* Status */}
       <div>
-        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-semibold"
-          style={{color:S.color, background:S.bg, border:`1px solid ${S.border}`}}>
-          <div className="w-1.5 h-1.5 rounded-full" style={{background:S.dot}}/>
+        <Bdg color={S.color} dim={S.dim} bor={S.bor}>
+          <div style={{ width:6, height:6, borderRadius:'50%', background:S.dot, flexShrink:0 }}/>
           {S.label}
-        </span>
+        </Bdg>
       </div>
 
-      {/* Tempo */}
+      {/* Tempo + seta */}
       <div className="flex items-center justify-end gap-1.5">
-        <span className="text-[10px]" style={{color:'var(--label-4)'}}>{fmtRel(oc.criadoEm)}</span>
-        <ChevronRight size={13} style={{color:'var(--label-4)'}}/>
+        <span style={{ fontSize:10, color:T.ink4 }}>{fmtRel(oc.criadoEm)}</span>
+        <ChevronRight size={13} style={{ color:T.ink4 }}/>
       </div>
     </div>
   )
@@ -929,7 +910,7 @@ export default function PageOcorrencias({ api: apiProp }) {
     setLoading(false)
   }, [api, filtroSt, filtroTipo, filtroPrio])
 
-  useEffect(() => { carregar() }, [carregar])
+  useEffect(()=>{ carregar() }, [carregar])
 
   const aoAtualizar = async () => {
     await carregar()
@@ -956,130 +937,118 @@ export default function PageOcorrencias({ api: apiProp }) {
 
   const urgentes = filtradas.filter(o=>o.prioridade==='urgente'&&!['resolvida','encerrada'].includes(o.status))
 
-  // KPIs
-  const kpis = [
-    { l:'Total',      v:parseInt(stats.total||0),        color:'var(--label)',  bg:'var(--bg-2)',             fn:()=>{setFiltroSt('todos');setFiltroPrio('todos')} },
-    { l:'Abertas',    v:parseInt(stats.abertas||0),      color:'#b45309', bg:'#fffbeb',              fn:()=>setFiltroSt('aberta')       },
-    { l:'Em análise', v:parseInt(stats.em_andamento||0), color:'#1d4ed8', bg:'#eff6ff',              fn:()=>setFiltroSt('em_andamento') },
-    { l:'Resolvidas', v:parseInt(stats.resolvidas||0),   color:'#15803d', bg:'#f0fdf4',              fn:()=>setFiltroSt('resolvida')    },
-    { l:'Encerradas', v:parseInt(stats.encerradas||0),   color:'var(--label-3)', bg:'var(--fill)',   fn:()=>setFiltroSt('encerrada')    },
-    { l:'Urgentes',   v:parseInt(stats.urgentes||0),     color:'#dc2626', bg:'#fef2f2',              fn:()=>setFiltroPrio('urgente')    },
+  // KPI config
+  const KPIS = [
+    { l:'Total',       v:parseInt(stats.total||0),        color:T.ink1,  accentBar:'transparent', fn:()=>{setFiltroSt('todos');setFiltroPrio('todos')} },
+    { l:'Abertas',     v:parseInt(stats.abertas||0),      color:T.amber, accentBar:T.amber,       fn:()=>setFiltroSt('aberta')        },
+    { l:'Em análise',  v:parseInt(stats.em_andamento||0), color:T.blue,  accentBar:T.blue,        fn:()=>setFiltroSt('em_andamento')  },
+    { l:'Resolvidas',  v:parseInt(stats.resolvidas||0),   color:T.green, accentBar:T.green,       fn:()=>setFiltroSt('resolvida')     },
+    { l:'Encerradas',  v:parseInt(stats.encerradas||0),   color:T.ink3,  accentBar:T.ink4,        fn:()=>setFiltroSt('encerrada')     },
+    { l:'Urgentes',    v:parseInt(stats.urgentes||0),     color:T.red,   accentBar:T.red,         fn:()=>setFiltroPrio('urgente')     },
   ]
 
+  const selSt2 = { height:36, padding:'0 12px', background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:8, fontSize:12, color:T.ink2, cursor:'pointer', outline:'none' }
+
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{background:'var(--bg)'}}>
+    <div className="flex flex-col h-full overflow-hidden" style={{ background:T.bg0 }}>
 
-      {/* ── HEADER ─────────────────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 px-6 pt-5 pb-4"
-        style={{background:'var(--bg-2)', borderBottom:'1px solid var(--sep)'}}>
-
-        <div className="flex items-center justify-between mb-5">
+      {/* ── HEADER ─── */}
+      <div className="flex-shrink-0 px-7 pt-6 pb-5" style={{ background:T.bg1, borderBottom:`1px solid ${T.sep2}` }}>
+        <div className="flex items-start justify-between mb-6">
           <div>
-            <h1 className="text-[20px] font-bold" style={{color:'var(--label)'}}>Ocorrências & Chamados</h1>
-            <p className="text-xs mt-0.5" style={{color:'var(--label-3)'}}>CRM de tickets · Integração Bling · CSAT automático</p>
+            <h1 style={{ fontSize:22, fontWeight:700, color:T.ink1, marginBottom:4 }}>Ocorrências & Chamados</h1>
+            <p style={{ fontSize:12, color:T.ink3 }}>CRM de tickets · Integração Bling · CSAT automático</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={carregar}
-              className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
-              style={{background:'var(--fill)', border:'1px solid var(--sep)', color:'var(--label-3)'}}>
+              style={{ width:34, height:34, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', background:T.bg3, border:`1px solid ${T.sep2}`, color:T.ink3, cursor:'pointer' }}>
               <RefreshCw size={14} className={loading?'animate-spin':''}/>
             </button>
             <button onClick={()=>setModalNova(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs"
-              style={{background:'#4f6ef7', color:'#fff', border:'none'}}>
-              <Plus size={14}/> Novo chamado
+              style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px', borderRadius:8, fontSize:13, fontWeight:700, background:T.accent, color:'#fff', border:'none', cursor:'pointer' }}>
+              <Plus size={15}/> Novo chamado
             </button>
           </div>
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-6 gap-2.5 mb-4">
-          {kpis.map(k=>(
+        <div className="grid grid-cols-6 gap-2.5 mb-5">
+          {KPIS.map(k=>(
             <div key={k.l} onClick={k.fn}
-              className="rounded-xl p-3 text-center cursor-pointer transition-all"
-              style={{
-                background: k.bg,
-                border: `1px solid var(--sep)`,
-              }}
-              onMouseEnter={e=>e.currentTarget.style.opacity='.8'}
-              onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
-              <p className="text-2xl font-black leading-none mb-1" style={{color:k.color}}>{k.v}</p>
-              <p className="text-[9px] font-semibold uppercase tracking-wider" style={{color:'var(--label-4)'}}>{k.l}</p>
+              className="relative overflow-hidden cursor-pointer transition-colors rounded-xl"
+              style={{ background:T.bg2, border:`1px solid ${T.sep2}`, padding:'14px 16px' }}
+              onMouseEnter={e=>e.currentTarget.style.background=T.bg3}
+              onMouseLeave={e=>e.currentTarget.style.background=T.bg2}>
+              {/* Barra colorida no topo */}
+              <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:k.accentBar }}/>
+              <p style={{ fontSize:28, fontWeight:800, lineHeight:1, marginBottom:4, color:k.color, fontVariantNumeric:'tabular-nums' }}>{k.v}</p>
+              <p style={{ fontSize:10, fontWeight:600, textTransform:'uppercase', letterSpacing:'.06em', color:T.ink4 }}>{k.l}</p>
             </div>
           ))}
         </div>
 
         {/* Alerta urgentes */}
         {urgentes.length > 0 && (
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl mb-4"
-            style={{background:'#fef2f2', border:'1px solid #fecaca'}}>
-            <Zap size={12} className="animate-pulse flex-shrink-0" style={{color:'#dc2626'}}/>
-            <p className="text-[11px] font-semibold flex-1" style={{color:'#991b1b'}}>
-              {urgentes.length} chamado{urgentes.length>1?'s':''} urgente{urgentes.length>1?'s':''} aguardando atenção imediata
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl mb-4"
+            style={{ background:T.redDim, border:`1px solid ${T.redBor}` }}>
+            <Zap size={12} className="animate-pulse flex-shrink-0" style={{ color:T.red }}/>
+            <p style={{ fontSize:11, fontWeight:600, color:T.red, flex:1 }}>
+              {urgentes.length} chamado{urgentes.length>1?'s':''} urgente{urgentes.length>1?'s':''} aguardando atenção
             </p>
             <button onClick={()=>setFiltroPrio('urgente')}
-              className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
-              style={{background:'#fee2e2', color:'#991b1b', border:'none'}}>
+              style={{ fontSize:10, fontWeight:700, padding:'3px 10px', borderRadius:6, background:T.redDim, border:`1px solid ${T.redBor}`, color:T.red, cursor:'pointer' }}>
               Filtrar
             </button>
           </div>
         )}
 
         {/* Filtros */}
-        <div className="flex items-center gap-2.5">
-          <div className="relative flex-1 max-w-xs">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{color:'var(--label-4)'}}/>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 rounded-lg px-3 flex-1 max-w-xs"
+            style={{ height:36, background:T.bg2, border:`1px solid ${T.sep2}` }}>
+            <Search size={13} style={{ color:T.ink4, flexShrink:0 }}/>
             <input value={busca} onChange={e=>setBusca(e.target.value)}
               placeholder="TK-ID, cliente, pedido, telefone..."
-              className="w-full pl-9 pr-3 py-2 text-xs rounded-xl outline-none transition-all"
-              style={{background:'var(--bg)', border:'1px solid var(--sep)', color:'var(--label)'}}/>
+              style={{ flex:1, background:'transparent', border:'none', outline:'none', fontSize:12, color:T.ink1 }}/>
+            {busca && <button onClick={()=>setBusca('')} style={{ color:T.ink4, background:'none', border:'none', cursor:'pointer', display:'flex' }}><X size={12}/></button>}
           </div>
           {[
-            ['Status', filtroSt, setFiltroSt, [['todos','Todos status'],...Object.entries(STATUS).map(([k,s])=>[k,s.label])]],
-            ['Tipo',   filtroTipo, setFiltroTipo, [['todos','Todos tipos'],...Object.entries(TIPO).map(([k,t])=>[k,t.label])]],
-            ['Prioridade', filtroPrio, setFiltroPrio, [['todos','Todas prioridades'],...Object.entries(PRIO).map(([k,p])=>[k,p.label])]],
+            ['Status',    filtroSt,   setFiltroSt,   [['todos','Todos status'],...Object.entries(STATUS).map(([k,s])=>[k,s.label])]],
+            ['Tipo',      filtroTipo, setFiltroTipo,  [['todos','Todos tipos'],...Object.entries(TIPOS).map(([k,t])=>[k,t.label])]],
+            ['Prioridade',filtroPrio, setFiltroPrio,  [['todos','Todas prioridades'],...Object.entries(PRIO).map(([k,p])=>[k,p.label])]],
           ].map(([label,val,setVal,opts])=>(
-            <select key={label} value={val} onChange={e=>setVal(e.target.value)}
-              className="px-3 py-2 rounded-xl text-xs outline-none"
-              style={{background:'var(--bg)', border:'1px solid var(--sep)', color:'var(--label-2)'}}>
+            <select key={label} value={val} onChange={e=>setVal(e.target.value)} style={selSt2}>
               {opts.map(([id,l])=><option key={id} value={id}>{l}</option>)}
             </select>
           ))}
         </div>
       </div>
 
-      {/* ── DATA GRID ──────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-5 py-4">
-        <div className="rounded-2xl overflow-hidden" style={{border:'1px solid var(--sep)', background:'var(--bg-2)'}}>
+      {/* ── DATA GRID ─── */}
+      <div className="flex-1 overflow-y-auto px-7 py-5">
+        <div style={{ background:T.bg1, border:`1px solid ${T.sep2}`, borderRadius:12, overflow:'hidden' }}>
 
-          {/* Header */}
-          <div className="grid px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider"
-            style={{
-              gridTemplateColumns:'2fr 1.6fr 0.8fr 0.9fr 0.8fr 0.5fr',
-              borderBottom:'1px solid var(--sep)',
-              background:'var(--bg-3)',
-              color:'var(--label-4)',
-            }}>
+          {/* Cabeçalho */}
+          <div className="grid px-5 py-2.5"
+            style={{ gridTemplateColumns:'2fr 1.5fr 0.9fr 0.9fr 0.9fr 0.5fr', borderBottom:`1px solid ${T.sep}`, background:T.bg2, fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em', color:T.ink4 }}>
             {['Ticket / Assunto','Cliente','Tipo','Prioridade','Status','Aberto'].map(h=><span key={h}>{h}</span>)}
           </div>
 
           {loading ? (
             <div className="flex items-center justify-center h-48">
-              <RefreshCw size={16} className="animate-spin" style={{color:'var(--label-4)'}}/>
+              <RefreshCw size={16} className="animate-spin" style={{ color:T.ink4 }}/>
             </div>
-          ) : filtradas.length === 0 ? (
+          ) : filtradas.length===0 ? (
             <div className="flex flex-col items-center justify-center py-24 gap-3">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{background:'var(--fill)'}}>
-                <AlertCircle size={22} style={{color:'var(--label-4)'}}/>
+              <div style={{ width:48, height:48, borderRadius:12, background:T.bg3, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <AlertCircle size={22} style={{ color:T.ink4 }}/>
               </div>
-              <p className="text-sm font-semibold" style={{color:'var(--label-3)'}}>
-                {busca||filtroSt!=='todos'||filtroTipo!=='todos'||filtroPrio!=='todos'
-                  ? 'Nenhum chamado com esses filtros' : 'Nenhuma ocorrência registrada'}
+              <p style={{ fontSize:13, fontWeight:600, color:T.ink3 }}>
+                {busca||filtroSt!=='todos'||filtroTipo!=='todos'||filtroPrio!=='todos' ? 'Nenhum chamado encontrado' : 'Nenhuma ocorrência registrada'}
               </p>
               {!busca && filtroSt==='todos' && filtroTipo==='todos' && filtroPrio==='todos' && (
                 <button onClick={()=>setModalNova(true)}
-                  className="text-xs font-bold px-4 py-2 rounded-xl"
-                  style={{background:'#4f6ef7', color:'#fff', border:'none'}}>
+                  style={{ fontSize:12, fontWeight:700, padding:'7px 16px', borderRadius:8, background:T.accent, color:'#fff', border:'none', cursor:'pointer' }}>
                   Criar primeiro chamado
                 </button>
               )}
@@ -1087,12 +1056,10 @@ export default function PageOcorrencias({ api: apiProp }) {
           ) : (
             <>
               {filtradas.map(oc=>(
-                <TicketRow key={oc.id} oc={oc} ativo={drawer?.id===oc.id}
-                  onClick={()=>setDrawer(oc)}/>
+                <TicketRow key={oc.id} oc={oc} ativo={drawer?.id===oc.id} onClick={()=>setDrawer(oc)}/>
               ))}
-              <div className="px-5 py-2.5 text-[10px]" style={{color:'var(--label-4)', borderTop:'0.5px solid var(--sep)'}}>
-                {filtradas.length} chamado{filtradas.length!==1?'s':''}{' '}
-                {busca||filtroSt!=='todos'?'filtrado':'no total'}
+              <div className="px-5 py-2.5" style={{ fontSize:11, color:T.ink4, borderTop:`0.5px solid ${T.sep}` }}>
+                {filtradas.length} chamado{filtradas.length!==1?'s':''} {busca||filtroSt!=='todos'?'filtrado':'no total'}
               </div>
             </>
           )}
