@@ -2,13 +2,21 @@ import { useState, useEffect, useCallback } from 'react'
 
 const BASE = import.meta.env.VITE_API_URL || ''
 
+const TIPO_ICONS = {
+  entrega:     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
+  pagamento:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
+  produto:     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>,
+  troca:       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>,
+  atendimento: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+  geral:       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
+}
 const TIPOS = [
-  { id:'entrega',    label:'Entrega',       emoji:'🚚', cor:'#4a9fff' },
-  { id:'pagamento',  label:'Pagamento',     emoji:'💳', cor:'#22c55e' },
-  { id:'produto',    label:'Produto',       emoji:'📦', cor:'#f59e0b' },
-  { id:'troca',      label:'Troca/Dev.',    emoji:'↩️',  cor:'#a78bfa' },
-  { id:'atendimento',label:'Atendimento',   emoji:'💬', cor:'#06b6d4' },
-  { id:'geral',      label:'Geral',         emoji:'📋', cor:'#6b7280' },
+  { id:'entrega',    label:'Entrega'       , cor:'#4a9fff' },
+  { id:'pagamento',  label:'Pagamento'     , cor:'#22c55e' },
+  { id:'produto',    label:'Produto'       , cor:'#f59e0b' },
+  { id:'troca',      label:'Troca/Dev.'    , cor:'#a78bfa' },
+  { id:'atendimento',label:'Atendimento'   , cor:'#06b6d4' },
+  { id:'geral',      label:'Geral'         , cor:'#6b7280' },
 ]
 
 const STATUS_CFG = {
@@ -150,7 +158,7 @@ function OcorrenciaCard({ oc, api, onAtualizado }) {
       {/* Header do card */}
       <div className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none"
         onClick={() => setExpandida(v => !v)}>
-        <span className="text-[20px] flex-shrink-0">{tipo.emoji}</span>
+        <span className="text-[20px] flex-shrink-0">{TIPO_ICONS[oc.tipo] || TIPO_ICONS.geral}</span>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
@@ -344,7 +352,7 @@ export default function PageOcorrencias({ api: apiProp }) {
             </div>
           : filtradas.length === 0
             ? <div className="flex flex-col items-center justify-center py-16 gap-3">
-                <span style={{ fontSize:36, opacity:.2 }}>📋</span>
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{opacity:.2}}><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
                 <p className="text-[13px]" style={{ color:'var(--label-4)' }}>
                   {busca || filtroTipo !== 'todos' || filtroSt !== 'todos' ? 'Nenhuma ocorrência encontrada' : 'Nenhuma ocorrência registrada ainda'}
                 </p>

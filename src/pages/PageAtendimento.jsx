@@ -55,7 +55,7 @@ function Avatar({ sessao, size = 38 }) {
 const Bolha = memo(function Bolha({ msg }) {
   const entrada = msg.direcao === 'entrada'
   const texto   = (msg.conteudo || '').replace(/\[ENVIAR_IMAGEM:[^\]]*\]/g, '').trim()
-  const label   = !entrada ? (msg.modo==='transacional'?'⚡ Gatilho': msg.modo==='manual'?'👤 Atendente':'🤖 Bia') : null
+  const label   = !entrada ? (msg.modo==='transacional'?'Gatilho': msg.modo==='manual'?'Atendente':'Bia') : null
   const bubbleBg = entrada
     ? 'bg-[var(--bg-3)] border border-[var(--sep)]'
     : msg.modo==='transacional' ? 'bg-violet-500/10 border border-violet-500/20'
@@ -661,7 +661,7 @@ function Chat({ sessao, api, onClose }) {
         {/* Banner carrinho */}
         {sessaoComCtx.carrinho.length > 0 && (
           <div className="px-4 py-2 bg-amber-500/8 border-b border-amber-500/20 flex-shrink-0">
-            <p className="text-[10px] font-semibold text-amber-400 mb-0.5">🛒 {sessaoComCtx.carrinho.length} item{sessaoComCtx.carrinho.length > 1 ? 's' : ''} no carrinho</p>
+            <p className="text-[10px] font-semibold text-amber-400 mb-0.5">{sessaoComCtx.carrinho.length} item{sessaoComCtx.carrinho.length > 1 ? 's' : ''} no carrinho</p>
             <p className="text-[10px] text-[var(--label-3)] truncate">
               {sessaoComCtx.carrinho.slice(0, 2).map(i => `${i.quantidade}× ${i.nome}`).join(' · ')}
               {sessaoComCtx.carrinho.length > 2 ? ` +${sessaoComCtx.carrinho.length - 2}` : ''}
