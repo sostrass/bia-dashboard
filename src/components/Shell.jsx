@@ -12,6 +12,7 @@ const PageClientes    = lazy(() => import('../pages/PageClientes'))
 const PageCaixa       = lazy(() => import('../pages/PageCaixa'))
 const PageAtendimento = lazy(() => import('../pages/PageAtendimento'))
 const PageIAConfig    = lazy(() => import('../pages/PageIAConfig'))
+const PageLLMConfig   = lazy(() => import('../pages/PageLLMConfig'))
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -26,6 +27,7 @@ const NAV = [
   { id:'avise',       icon:Package,         label:'Avise-me',       group:'tools'  },
   { id:'iaconfig',    icon:Bot,             label:'Config IA',      group:'config' },
   { id:'config',      icon:Settings,        label:'Configurações',  group:'config' },
+  { id:'llmconfig',   icon:Zap,             label:'LLM & Bypasses',  group:'config' },
 ]
 
 const AI_STATES = ['Processando...','Bling ERP...','Gemini AI...','Respondendo...']
@@ -98,6 +100,7 @@ export default function Shell() {
       case 'clientes':    return <Page nome="Clientes"    comp={PageClientes}    />
       case 'caixa':       return <Page nome="Caixa"       comp={PageCaixa}       />
       case 'iaconfig':    return <Page nome="Config IA"   comp={PageIAConfig}    />
+      case 'llmconfig':   return <Page nome="LLM & Bypasses" comp={PageLLMConfig}  />
       default: return <EmBreve title={NAV.find(n => n.id === page)?.label || page} />
     }
   }
