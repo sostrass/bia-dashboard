@@ -1,365 +1,518 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react'
 import {
-  AlertTriangle, CheckCircle2, Clock, RefreshCw, Plus, X,
-  Search, Filter, ShieldAlert, Package, Truck, CreditCard,
-  Tag, MoreHorizontal, FileText, Paperclip, Sparkles, Mail,
-  Phone, User, ChevronRight, Save, Send, Image as ImageIcon,
-  Video, ArrowUpRight, Zap
-} from 'lucide-react';
+  AlertCircle, CheckCircle, Clock, RefreshCw, Plus, X,
+  Send, User, ChevronDown, MessageSquare, Truck, Package,
+  CreditCard, Tag, Filter, Search, ToggleLeft, ToggleRight,
+  ArrowRight, Circle, XCircle, Zap, Edit3, Save
+} from 'lucide-react'
 
-const BASE = import.meta.env.VITE_API_URL || '';
+const BASE = import.meta.env.VITE_API_URL || ''
 
-// ── DICIONÁRIOS DO SISTEMA ───────────────────────────────────────────────────
 const STATUS = {
-  aberta:       { id: 'aberta',       label: 'Aberta',       cor: 'text-amber-600', bg: 'bg-amber-100', dot: 'bg-amber-500' },
-  em_andamento: { id: 'em_andamento', label: 'Em Análise',   cor: 'text-blue-600',  bg: 'bg-blue-100',  dot: 'bg-blue-500' },
-  resolvida:    { id: 'resolvida',    label: 'Resolvida',    cor: 'text-green-600', bg: 'bg-green-100', dot: 'bg-green-500' },
-  encerrada:    { id: 'encerrada',    label: 'Encerrada',    cor: 'text-slate-600', bg: 'bg-slate-100', dot: 'bg-slate-500' },
-};
-
-const PRIORIDADE = {
-  baixa:   { id: 'baixa',   label: 'Baixa',   icon: ChevronRight, cor: 'text-slate-500' },
-  normal:  { id: 'normal',  label: 'Normal',  icon: Clock,        cor: 'text-blue-500' },
-  alta:    { id: 'alta',    label: 'Alta',    icon: AlertTriangle,cor: 'text-amber-500' },
-  urgente: { id: 'urgente', label: 'Urgente', icon: Zap,          cor: 'text-red-500' },
-};
-
-const TIPOS = {
-  atraso:   { label: 'Entrega Atrasada',  icon: Clock,       cor: 'text-red-600',    bg: 'bg-red-50' },
-  extravio: { label: 'Pedido Extraviado', icon: ShieldAlert, cor: 'text-red-600',    bg: 'bg-red-50' },
-  troca:    { label: 'Troca / Devolução', icon: RefreshCw,   cor: 'text-amber-600',  bg: 'bg-amber-50' },
-  avaria:   { label: 'Produto Avariado',  icon: Package,     cor: 'text-orange-600', bg: 'bg-orange-50' },
-  financeiro:{label: 'Erro de Pagamento', icon: CreditCard,  cor: 'text-blue-600',   bg: 'bg-blue-50' },
-  outro:    { label: 'Outros Assuntos',   icon: Tag,         cor: 'text-slate-600',  bg: 'bg-slate-50' },
-};
-
-// ── COMPONENTE: PAINEL LATERAL DO TICKET (ISSUE RESOLVER) ────────────────────
-function TicketDrawer({ ticket, onClose }) {
-  const [status, setStatus] = useState(ticket.status);
-  const [tabAtiva, setTabAtiva] = useState('nota'); // nota, email, whatsapp
-  const [resposta, setResposta] = useState('');
-  const [isRefining, setIsRefining] = useState(false);
-
-  const TMeta = TIPOS[ticket.tipo] || TIPOS.outro;
-  const TipoIcon = TMeta.icon;
-
-  const simularIA = () => {
-    if (!resposta) return;
-    setIsRefining(true);
-    setTimeout(() => {
-      setResposta(`Olá, ${ticket.nomeCliente.split(' ')[0]}.\n\nAnalisamos cuidadosamente sua ocorrência referente ao pedido #${ticket.numeroPedido}. Gostaríamos de informar que [A IA REESCREVEU SEU TEXTO AQUI].\n\nQualquer dúvida, estamos à disposição.\nEquipe Só Strass`);
-      setIsRefining(false);
-    }, 1200);
-  };
-
-  return (
-    <div className="fixed inset-y-0 right-0 w-[600px] bg-white shadow-2xl flex flex-col z-50 border-l border-slate-200 transform transition-transform duration-300">
-      
-      {/* HEADER DO TICKET */}
-      <div className="px-6 py-5 border-b border-slate-200 bg-slate-50 flex-shrink-0">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <span className="text-xl font-black text-slate-900 font-mono tracking-tight">{ticket.id}</span>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold flex items-center gap-1.5 ${STATUS[status].bg} ${STATUS[status].cor}`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${STATUS[status].dot}`}/>
-                {STATUS[status].label}
-              </span>
-            </div>
-            <h2 className="text-lg font-bold text-slate-800">{ticket.titulo}</h2>
-          </div>
-          <div className="flex gap-2">
-            <button className="p-2 hover:bg-slate-200 rounded-md text-slate-500 transition-colors"><MoreHorizontal size={18}/></button>
-            <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-md text-slate-500 transition-colors"><X size={18}/></button>
-          </div>
-        </div>
-
-        {/* METADADOS RÁPIDOS */}
-        <div className="grid grid-cols-4 gap-4 mt-6">
-          <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Tipo</p>
-            <div className={`flex items-center gap-1.5 text-xs font-bold ${TMeta.cor}`}>
-              <TipoIcon size={14}/> {TMeta.label}
-            </div>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Prioridade</p>
-            <div className={`flex items-center gap-1 text-xs font-bold ${PRIORIDADE[ticket.prioridade].cor}`}>
-              {React.createElement(PRIORIDADE[ticket.prioridade].icon, { size: 14 })}
-              {PRIORIDADE[ticket.prioridade].label}
-            </div>
-          </div>
-          <div className="col-span-2">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Pedido ERP</p>
-            {ticket.numeroPedido ? (
-              <a href="#" className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline">
-                #{ticket.numeroPedido} <ArrowUpRight size={12}/>
-              </a>
-            ) : <span className="text-xs text-slate-400 font-medium">Não vinculado</span>}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto bg-white flex flex-col">
-        
-        {/* DADOS DO CLIENTE */}
-        <div className="p-6 border-b border-slate-100 flex items-center gap-4 bg-slate-50/50">
-          <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 font-bold text-lg">
-            {ticket.nomeCliente.charAt(0)}
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900">{ticket.nomeCliente}</h3>
-            <div className="flex items-center gap-4 mt-1 text-xs font-medium text-slate-500">
-              <span className="flex items-center gap-1.5"><Mail size={12}/> {ticket.email}</span>
-              <span className="flex items-center gap-1.5"><Phone size={12}/> {ticket.telefone}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* DESCRIÇÃO ORIGINAL */}
-        <div className="p-6 border-b border-slate-100">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Relato Original</h3>
-          <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">
-            {ticket.descricao}
-          </p>
-          
-          {/* Anexos da Abertura */}
-          {ticket.anexos && ticket.anexos.length > 0 && (
-            <div className="mt-4 flex gap-3">
-              {ticket.anexos.map((anexo, i) => (
-                <div key={i} className="flex items-center gap-2 border border-slate-200 rounded-lg p-2 bg-white cursor-pointer hover:border-blue-400 transition-colors">
-                  {anexo.tipo === 'img' ? <ImageIcon size={16} className="text-blue-500"/> : <Video size={16} className="text-purple-500"/>}
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-700">{anexo.nome}</span>
-                    <span className="text-[9px] text-slate-400">{anexo.size}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* TIMELINE RICA */}
-        <div className="p-6 flex-1">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-5">Histórico da Ocorrência</h3>
-          <div className="relative pl-3 border-l-2 border-slate-100 space-y-6">
-            
-            {/* Evento 1 */}
-            <div className="relative">
-              <div className="absolute -left-[17px] top-1 w-3 h-3 rounded-full bg-slate-200 border-2 border-white"/>
-              <p className="text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Abertura • Ontem, 14:22</p>
-              <p className="text-sm text-slate-600 font-medium">Ocorrência registrada pelo sistema via WhatsApp.</p>
-            </div>
-
-            {/* Evento 2 (Email Enviado) */}
-            <div className="relative">
-              <div className="absolute -left-[17px] top-1 w-3 h-3 rounded-full bg-blue-500 border-2 border-white"/>
-              <p className="text-[10px] font-bold text-blue-500 mb-1 uppercase tracking-wider">E-mail Enviado • Hoje, 09:15</p>
-              <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
-                <p className="text-xs text-blue-900 font-medium">
-                  Solicitação de acareação enviada para a transportadora Jadlog com cópia para o cliente. Aguardando prazo de 48h úteis.
-                </p>
-              </div>
-            </div>
-
-            {/* Mudança de Status */}
-            <div className="relative">
-              <div className="absolute -left-[17px] top-1 w-3 h-3 rounded-full bg-amber-500 border-2 border-white"/>
-              <p className="text-[10px] font-bold text-amber-500 mb-1 uppercase tracking-wider">Status Alterado • Hoje, 09:16</p>
-              <p className="text-sm text-slate-600 font-medium">João (Atendimento) mudou o status de <span className="font-bold text-slate-800">Aberta</span> para <span className="font-bold text-slate-800">Em Análise</span>.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ÁREA DE AÇÃO (REPLY BOX MULTICANAL) */}
-      <div className="bg-white border-t border-slate-200 p-4 flex-shrink-0">
-        
-        {/* Toggles de Ação Rápidas de Status */}
-        <div className="flex items-center gap-2 mb-4 bg-slate-50 p-1.5 rounded-lg border border-slate-200 w-max">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-2 mr-1">Marcar como:</span>
-          <button onClick={()=>setStatus('em_andamento')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${status==='em_andamento'?'bg-white shadow-sm text-blue-600':'text-slate-500 hover:bg-slate-200'}`}>Em Análise</button>
-          <button onClick={()=>setStatus('resolvida')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${status==='resolvida'?'bg-white shadow-sm text-green-600':'text-slate-500 hover:bg-slate-200'}`}>Resolvida</button>
-        </div>
-
-        {/* Abas de Canal */}
-        <div className="flex gap-1 mb-2">
-          <button onClick={()=>setTabAtiva('nota')} className={`px-4 py-1.5 text-xs font-bold rounded-t-lg border-b-2 transition-all ${tabAtiva==='nota'?'text-amber-600 border-amber-500 bg-amber-50/50':'text-slate-400 border-transparent hover:text-slate-600'}`}>Nota Interna</button>
-          <button onClick={()=>setTabAtiva('email')} className={`px-4 py-1.5 text-xs font-bold rounded-t-lg border-b-2 transition-all ${tabAtiva==='email'?'text-blue-600 border-blue-500 bg-blue-50/50':'text-slate-400 border-transparent hover:text-slate-600'}`}>Enviar E-mail</button>
-          <button onClick={()=>setTabAtiva('whatsapp')} className={`px-4 py-1.5 text-xs font-bold rounded-t-lg border-b-2 transition-all ${tabAtiva==='whatsapp'?'text-green-600 border-green-500 bg-green-50/50':'text-slate-400 border-transparent hover:text-slate-600'}`}>WhatsApp</button>
-        </div>
-        
-        {/* Caixa de Texto */}
-        <div className={`border rounded-xl transition-all ${tabAtiva==='nota'?'border-amber-200 bg-amber-50/30 focus-within:ring-amber-500 focus-within:border-amber-500':tabAtiva==='email'?'border-blue-200 bg-blue-50/30 focus-within:ring-blue-500 focus-within:border-blue-500':'border-green-200 bg-green-50/30 focus-within:ring-green-500 focus-within:border-green-500'} focus-within:ring-2`}>
-          
-          <textarea 
-            value={resposta} onChange={e=>setResposta(e.target.value)}
-            rows={4} 
-            placeholder={
-              tabAtiva === 'nota' ? 'Adicione uma nota visível apenas para a equipe...' : 
-              tabAtiva === 'email' ? 'Escreva o e-mail para o cliente (suporte@sostrass.com.br)...' : 
-              'Escreva a mensagem para enviar via WhatsApp...'
-            }
-            className="w-full text-sm font-medium text-slate-800 p-3 bg-transparent outline-none resize-none"
-          />
-          
-          <div className="flex items-center justify-between p-2 border-t border-slate-200/60">
-            <div className="flex items-center gap-1">
-              <button title="Anexar arquivo (PDF, JPG, MP4)" className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-md transition-colors"><Paperclip size={16}/></button>
-              <button title="Usar IA para revisar ou gerar texto" onClick={simularIA} disabled={isRefining} className="p-1.5 text-purple-600 hover:bg-purple-100 rounded-md transition-colors flex items-center gap-1.5 text-xs font-bold">
-                <Sparkles size={14} className={isRefining ? 'animate-spin' : ''}/> {isRefining ? 'Refinando...' : 'I.A.'}
-              </button>
-            </div>
-            
-            <button className={`px-5 py-2 rounded-lg text-xs font-bold text-white shadow-sm transition-all flex items-center gap-2 ${
-                tabAtiva === 'nota' ? 'bg-amber-500 hover:bg-amber-600' : 
-                tabAtiva === 'email' ? 'bg-blue-600 hover:bg-blue-700' : 
-                'bg-green-600 hover:bg-green-700'
-              }`}>
-              {tabAtiva === 'nota' ? 'Salvar Nota' : 'Enviar'} {tabAtiva === 'nota' ? <Save size={14}/> : <Send size={14}/>}
-            </button>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  );
+  aberta:       { label:'Aberta',       cor:'#f59e0b', bg:'rgba(245,158,11,0.1)',   icon:Circle },
+  em_andamento: { label:'Em andamento', cor:'#4a9fff', bg:'rgba(74,159,255,0.1)',   icon:RefreshCw },
+  resolvida:    { label:'Resolvida',    cor:'#22c55e', bg:'rgba(34,197,94,0.1)',    icon:CheckCircle },
+  encerrada:    { label:'Encerrada',    cor:'#6b7280', bg:'rgba(107,114,128,0.1)', icon:XCircle },
 }
 
-// ── COMPONENTE PRINCIPAL: A LISTA (DATA GRID) DE OCORRÊNCIAS ─────────────────
-export default function PageOcorrencias() {
-  const [tickets, setTickets] = useState([]);
-  const [ticketAtivo, setTicketAtivo] = useState(null);
-  
-  // Mock Realista
-  useEffect(() => {
-    setTickets([
-      { id: 'TK-9A4F', titulo: 'Acareação Jadlog - Pacote Parado', status: 'aberta', prioridade: 'urgente', tipo: 'atraso', nomeCliente: 'Luciana Volkart', email: 'luciana.volkart@outlook.com', telefone: '+55 11 98603-1953', numeroPedido: '226540', descricao: 'Cliente relatou que a Jadlog está com o pacote parado na filial de destino há mais de 5 dias e o prazo já estourou. Requer acareação urgente.', criadoEm: '2026-05-19T14:22:00Z', anexos: [{nome:'print_rastreio.jpg', tipo:'img', size:'245kb'}] },
-      { id: 'TK-7B2X', titulo: 'Diferença de Cor (Lote)', status: 'em_andamento', prioridade: 'normal', tipo: 'troca', nomeCliente: 'Marcos Almeida', email: 'marcos.artes@gmail.com', telefone: '+55 19 9999-1234', numeroPedido: '225881', descricao: 'Recebeu pérolas 6mm com um tom de creme mais escuro que a compra anterior. Solicita troca por um lote mais claro ou devolução.', criadoEm: '2026-05-18T10:05:00Z', anexos: [{nome:'video_perolas.mp4', tipo:'vid', size:'2.1mb'}] },
-      { id: 'TK-1C9P', titulo: 'PIX Cobrado Duas Vezes', status: 'resolvida', prioridade: 'alta', tipo: 'financeiro', nomeCliente: 'Camila Silva', email: 'camila.silv@empresa.com', telefone: '+55 41 98888-0000', numeroPedido: '227734', descricao: 'Ocorreu um erro no checkout do site e o PIX foi descontado duas vezes na conta da cliente. Estorno realizado na data de ontem.', criadoEm: '2026-05-15T09:30:00Z', anexos: [{nome:'comprovante.pdf', tipo:'doc', size:'120kb'}] },
-    ]);
-  }, []);
+const PRIORIDADE = {
+  baixa:   { label:'Baixa',   cor:'#6b7280', bg:'rgba(107,114,128,0.08)' },
+  normal:  { label:'Normal',  cor:'#4a9fff', bg:'rgba(74,159,255,0.08)' },
+  alta:    { label:'Alta',    cor:'#f59e0b', bg:'rgba(245,158,11,0.08)' },
+  urgente: { label:'Urgente', cor:'#ef4444', bg:'rgba(239,68,68,0.08)' },
+}
+
+const TIPO = {
+  entrega:  { label:'Entrega',      icon:Truck,       cor:'#a78bfa' },
+  pagamento:{ label:'Pagamento',    icon:CreditCard,  cor:'#4a9fff' },
+  produto:  { label:'Produto',      icon:Package,     cor:'#fb923c' },
+  outro:    { label:'Outro',        icon:Tag,         cor:'#6b7280' },
+}
+
+function BadgeStatus({ status }) {
+  const m = STATUS[status] || STATUS.aberta
+  const Ic = m.icon
+  return (
+    <span className=\"flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium\"
+      style={{ background:m.bg, color:m.cor }}>
+      <Ic size={9}/> {m.label}
+    </span>
+  )
+}
+
+function BadgePrioridade({ prioridade }) {
+  const m = PRIORIDADE[prioridade] || PRIORIDADE.normal
+  return (
+    <span className=\"px-2 py-0.5 rounded-full text-[10px] font-semibold\"
+      style={{ background:m.bg, color:m.cor }}>
+      {m.label}
+    </span>
+  )
+}
+
+// \\u2500\\u2500 Modal de detalhe/resposta \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500
+function ModalOcorrencia({ oc, api, onClose, onUpdate }) {
+  const [status,    setStatus]    = useState(oc.status)
+  const [prioridade,setPrioridade]= useState(oc.prioridade)
+  const [atrib,     setAtrib]     = useState(oc.atribuidoA||'')
+  const [resposta,  setResposta]  = useState('')
+  const [nota,      setNota]      = useState('')
+  const [salvando,  setSalvando]  = useState(false)
+  const [enviando,  setEnviando]  = useState(false)
+  const [ok,        setOk]        = useState('')
+
+  const tipoMeta = TIPO[oc.tipo] || TIPO.outro
+  const TipoIc   = tipoMeta.icon
+
+  const salvarStatus = async () => {
+    setSalvando(true)
+    try {
+      await fetch(`${api}/api/ocorrencias/${oc.id}`, {
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ status, prioridade, atribuidoA:atrib, nota: nota||undefined })
+      })
+      setOk('Status salvo!'); setNota('')
+      setTimeout(()=>{ setOk(''); onUpdate() }, 1500)
+    } catch {}
+    setSalvando(false)
+  }
+
+  const enviarResposta = async () => {
+    if (!resposta.trim()) return
+    setEnviando(true)
+    try {
+      await fetch(`${api}/api/ocorrencias/${oc.id}`, {
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          respostaCliente: resposta,
+          status: status === 'aberta' ? 'em_andamento' : status,
+          nota: `Resposta enviada ao cliente: \"${resposta.slice(0,60)}...\"`
+        })
+      })
+      setOk('Mensagem enviada!'); setResposta('')
+      setTimeout(()=>{ setOk(''); onUpdate() }, 2000)
+    } catch {}
+    setEnviando(false)
+  }
+
+  const inp = { background:'var(--bg)', border:'1px solid var(--sep)', borderRadius:9, color:'var(--label)', outline:'none', padding:'9px 12px', fontSize:13, width:'100%', fontFamily:'inherit' }
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[#F8FAFC] text-slate-800 font-sans antialiased overflow-hidden relative">
-      
-      {/* HEADER PRINCIPAL */}
-      <header className="px-8 py-6 bg-white border-b border-slate-200 z-10 flex-shrink-0">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Ocorrências & Chamados</h1>
-            <p className="text-sm font-medium text-slate-500 mt-1">Gestão de tickets, devoluções e anomalias de logística.</p>
+    <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:1000,display:'flex',alignItems:'stretch',justifyContent:'flex-end' }}>
+      <div className=\"flex flex-col h-full w-full max-w-[560px]\"
+        style={{ background:'var(--bg)', borderLeft:'1px solid var(--sep)' }}>
+
+        {/* Header */}
+        <div className=\"flex items-center justify-between px-5 py-4 flex-shrink-0\"
+          style={{ borderBottom:'1px solid var(--sep)', background:'var(--bg-2)' }}>
+          <div className=\"flex items-center gap-3\">
+            <div className=\"w-9 h-9 rounded-[10px] flex items-center justify-center\"
+              style={{ background:`${tipoMeta.cor}15` }}>
+              <TipoIc size={15} style={{ color:tipoMeta.cor }}/>
+            </div>
+            <div>
+              <h3 className=\"text-[14px] font-bold\" style={{ color:'var(--label)' }}>
+                Ocorr\\u00eancia #{oc.id}
+              </h3>
+              <p className=\"text-[11px]\" style={{ color:'var(--label-3)' }}>
+                {oc.nomeCliente || oc.telefone}
+                {oc.numeroPedido && ` \\u00b7 Pedido #${oc.numeroPedido}`}
+              </p>
+            </div>
           </div>
-          <button className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2">
-            <Plus size={16} strokeWidth={3}/> Nova Ocorrência
+          <button onClick={onClose} className=\"p-2 rounded-[8px]\" style={{ color:'var(--label-3)' }}>
+            <X size={16}/>
           </button>
         </div>
 
-        {/* BARRA DE FERRAMENTAS (SEARCH & FILTERS) */}
-        <div className="flex items-center gap-3">
-          <div className="relative w-96 group">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600" />
-            <input 
-              placeholder="Buscar por ID (TK-XXX), cliente, e-mail ou pedido..." 
-              className="w-full bg-white border border-slate-300 text-slate-800 text-sm font-semibold rounded-xl pl-11 pr-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all shadow-sm"
-            />
+        <div className=\"flex-1 overflow-y-auto p-5 space-y-4\">
+
+          {/* Descri\\u00e7\\u00e3o */}
+          {oc.descricao && (
+            <div className=\"rounded-[12px] p-4\"
+              style={{ background:'var(--bg-2)', border:'1px solid var(--sep)' }}>
+              <p className=\"text-[11px] font-semibold mb-1\" style={{ color:'var(--label-3)' }}>RELATO DO CLIENTE</p>
+              <p className=\"text-[13px] leading-relaxed\" style={{ color:'var(--label)' }}>{oc.descricao}</p>
+            </div>
+          )}
+
+          {/* Controles de status */}
+          <div className=\"rounded-[12px] overflow-hidden\" style={{ border:'1px solid var(--sep)' }}>
+            <div className=\"px-4 py-2.5\" style={{ background:'var(--bg-3)', borderBottom:'1px solid var(--sep)' }}>
+              <p className=\"text-[11px] font-semibold\" style={{ color:'var(--label-2)' }}>Gerenciar ocorr\\u00eancia</p>
+            </div>
+            <div className=\"p-4 space-y-3\" style={{ background:'var(--bg-2)' }}>
+              <div className=\"grid grid-cols-2 gap-3\">
+                <div>
+                  <label className=\"text-[10px] font-medium block mb-1\" style={{ color:'var(--label-3)' }}>Status</label>
+                  <select value={status} onChange={e=>setStatus(e.target.value)}
+                    className=\"w-full px-2.5 py-2 rounded-[8px] text-[12px] outline-none\"
+                    style={{ background:'var(--bg)', border:'1px solid var(--sep)', color:'var(--label)' }}>
+                    {Object.entries(STATUS).map(([id,m])=>(
+                      <option key={id} value={id}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className=\"text-[10px] font-medium block mb-1\" style={{ color:'var(--label-3)' }}>Prioridade</label>
+                  <select value={prioridade} onChange={e=>setPrioridade(e.target.value)}
+                    className=\"w-full px-2.5 py-2 rounded-[8px] text-[12px] outline-none\"
+                    style={{ background:'var(--bg)', border:'1px solid var(--sep)', color:'var(--label)' }}>
+                    {Object.entries(PRIORIDADE).map(([id,m])=>(
+                      <option key={id} value={id}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className=\"text-[10px] font-medium block mb-1\" style={{ color:'var(--label-3)' }}>Atribu\\u00eddo a</label>
+                <input value={atrib} onChange={e=>setAtrib(e.target.value)}
+                  placeholder=\"Nome do atendente respons\\u00e1vel\" style={{ ...inp, fontSize:12 }}/>
+              </div>
+              <div>
+                <label className=\"text-[10px] font-medium block mb-1\" style={{ color:'var(--label-3)' }}>Nota interna (n\\u00e3o vai ao cliente)</label>
+                <input value={nota} onChange={e=>setNota(e.target.value)}
+                  placeholder=\"Ex: Verificado com transportadora, aguardando retorno...\" style={{ ...inp, fontSize:12 }}/>
+              </div>
+              <button onClick={salvarStatus} disabled={salvando}
+                className=\"w-full py-2 rounded-[9px] text-[12px] font-semibold flex items-center justify-center gap-2 transition-all\"
+                style={{ background:'var(--accent)', color:'#000' }}>
+                {salvando?<RefreshCw size={12} className=\"animate-spin\"/>:<Save size={12}/>}
+                {ok || 'Salvar altera\\u00e7\\u00f5es'}
+              </button>
+            </div>
           </div>
-          
-          <div className="flex items-center gap-2 border-l border-slate-200 pl-3">
-            <button className="px-4 py-2.5 bg-white border border-slate-300 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-all">
-              <Filter size={14}/> Status: Todos
-            </button>
-            <button className="px-4 py-2.5 bg-white border border-slate-300 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-all">
-              Tipo: Todos
-            </button>
-            <button className="px-2.5 py-2.5 text-blue-600 font-bold text-xs hover:underline flex items-center gap-1 ml-2">
-              <Plus size={14}/> Add Tipo
+
+          {/* Resposta ao cliente */}
+          <div className=\"rounded-[12px] overflow-hidden\" style={{ border:'1px solid var(--sep)' }}>
+            <div className=\"px-4 py-2.5 flex items-center gap-2\"
+              style={{ background:'var(--bg-3)', borderBottom:'1px solid var(--sep)' }}>
+              <MessageSquare size={12} style={{ color:'#25D366' }}/>
+              <p className=\"text-[11px] font-semibold\" style={{ color:'var(--label-2)' }}>Responder ao cliente via WhatsApp</p>
+            </div>
+            <div className=\"p-4 space-y-2\" style={{ background:'var(--bg-2)' }}>
+              <textarea value={resposta} onChange={e=>setResposta(e.target.value)}
+                rows={4} placeholder={`Ol\\u00e1 ${oc.nomeCliente?.split(' ')[0]||''},\\
+\\
+Verificamos sua ocorr\\u00eancia e...`}
+                style={{ ...inp, resize:'none', lineHeight:1.6 }}/>
+              <button onClick={enviarResposta} disabled={enviando||!resposta.trim()}
+                className=\"w-full py-2 rounded-[9px] text-[12px] font-semibold flex items-center justify-center gap-2 transition-all\"
+                style={{ background:'#25D366', color:'#fff', opacity:!resposta.trim()?0.5:1 }}>
+                {enviando?<RefreshCw size={12} className=\"animate-spin\"/>:<Send size={12}/>}
+                {ok==='Mensagem enviada!'?'\\u2713 Enviado!':'Enviar pelo WhatsApp'}
+              </button>
+            </div>
+          </div>
+
+          {/* Hist\\u00f3rico */}
+          {oc.historico?.length > 0 && (
+            <div className=\"rounded-[12px] overflow-hidden\" style={{ border:'1px solid var(--sep)' }}>
+              <div className=\"px-4 py-2.5\" style={{ background:'var(--bg-3)', borderBottom:'1px solid var(--sep)' }}>
+                <p className=\"text-[11px] font-semibold\" style={{ color:'var(--label-2)' }}>Hist\\u00f3rico</p>
+              </div>
+              <div className=\"p-3 space-y-2\" style={{ background:'var(--bg-2)' }}>
+                {[...oc.historico].reverse().map((h,i)=>(
+                  <div key={i} className=\"flex gap-2.5\">
+                    <div className=\"w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0\" style={{ background:'var(--accent)' }}/>
+                    <div>
+                      <p className=\"text-[11px]\" style={{ color:'var(--label)' }}>{h.nota}</p>
+                      <p className=\"text-[9px]\" style={{ color:'var(--label-4)' }}>
+                        {h.por} \\u00b7 {new Date(h.em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// \\u2500\\u2500 Modal novo \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500
+function ModalNovo({ api, onClose, onSave }) {
+  const [form, setForm] = useState({ telefone:'', nomeCliente:'', numeroPedido:'', tipo:'entrega', descricao:'', prioridade:'normal' })
+  const [salvando, setSalvando] = useState(false)
+  const set = (k,v) => setForm(f=>({...f,[k]:v}))
+  const inp = { background:'var(--bg)', border:'1px solid var(--sep)', borderRadius:9, color:'var(--label)', outline:'none', padding:'9px 12px', fontSize:13, width:'100%', fontFamily:'inherit' }
+
+  const salvar = async () => {
+    if (!form.telefone.trim()) return
+    setSalvando(true)
+    try {
+      await fetch(`${api}/api/ocorrencias`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(form)
+      })
+      onSave()
+    } catch {}
+    setSalvando(false)
+  }
+
+  return (
+    <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:16 }}>
+      <div className=\"w-full max-w-[440px] rounded-[18px] overflow-hidden\"
+        style={{ background:'var(--bg-2)', border:'1px solid var(--sep)' }}>
+        <div className=\"flex items-center justify-between px-5 py-4\"
+          style={{ borderBottom:'1px solid var(--sep)', background:'var(--bg-3)' }}>
+          <h3 className=\"text-[14px] font-bold\" style={{ color:'var(--label)' }}>Nova Ocorr\\u00eancia</h3>
+          <button onClick={onClose} style={{ color:'var(--label-3)' }}><X size={16}/></button>
+        </div>
+        <div className=\"p-5 space-y-3\">
+          <div className=\"grid grid-cols-2 gap-3\">
+            <div>
+              <label className=\"text-[10px] font-medium block mb-1\" style={{ color:'var(--label-3)' }}>Telefone *</label>
+              <input value={form.telefone} onChange={e=>set('telefone',e.target.value)}
+                placeholder=\"5511999999999\" style={{ ...inp, fontSize:12 }}/>
+            </div>
+            <div>
+              <label className=\"text-[10px] font-medium block mb-1\" style={{ color:'var(--label-3)' }}>Pedido #</label>
+              <input value={form.numeroPedido} onChange={e=>set('numeroPedido',e.target.value)}
+                placeholder=\"224928\" style={{ ...inp, fontSize:12 }}/>
+            </div>
+          </div>
+          <div>
+            <label className=\"text-[10px] font-medium block mb-1\" style={{ color:'var(--label-3)' }}>Nome do cliente</label>
+            <input value={form.nomeCliente} onChange={e=>set('nomeCliente',e.target.value)}
+              placeholder=\"Nome completo\" style={{ ...inp, fontSize:12 }}/>
+          </div>
+          <div className=\"grid grid-cols-2 gap-3\">
+            <div>
+              <label className=\"text-[10px] font-medium block mb-1\" style={{ color:'var(--label-3)' }}>Tipo</label>
+              <select value={form.tipo} onChange={e=>set('tipo',e.target.value)}
+                className=\"w-full px-2.5 py-2 rounded-[8px] text-[12px] outline-none\"
+                style={{ background:'var(--bg)', border:'1px solid var(--sep)', color:'var(--label)' }}>
+                {Object.entries(TIPO).map(([id,m])=><option key={id} value={id}>{m.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className=\"text-[10px] font-medium block mb-1\" style={{ color:'var(--label-3)' }}>Prioridade</label>
+              <select value={form.prioridade} onChange={e=>set('prioridade',e.target.value)}
+                className=\"w-full px-2.5 py-2 rounded-[8px] text-[12px] outline-none\"
+                style={{ background:'var(--bg)', border:'1px solid var(--sep)', color:'var(--label)' }}>
+                {Object.entries(PRIORIDADE).map(([id,m])=><option key={id} value={id}>{m.label}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className=\"text-[10px] font-medium block mb-1\" style={{ color:'var(--label-3)' }}>Descri\\u00e7\\u00e3o do problema</label>
+            <textarea value={form.descricao} onChange={e=>set('descricao',e.target.value)}
+              rows={3} placeholder=\"Descreva o problema relatado pelo cliente...\"
+              style={{ ...inp, resize:'none', lineHeight:1.6 }}/>
+          </div>
+          <div className=\"flex gap-3 pt-1\">
+            <button onClick={onClose} className=\"flex-1 py-2.5 rounded-[10px] text-[13px]\"
+              style={{ background:'var(--fill)', color:'var(--label-2)' }}>Cancelar</button>
+            <button onClick={salvar} disabled={salvando||!form.telefone.trim()}
+              className=\"flex-1 py-2.5 rounded-[10px] text-[13px] font-semibold\"
+              style={{ background:'var(--accent)', color:'#000', opacity:!form.telefone.trim()?0.5:1 }}>
+              {salvando?'Criando...' :'Criar ocorr\\u00eancia'}
             </button>
           </div>
         </div>
-      </header>
+      </div>
+    </div>
+  )
+}
 
-      {/* DATA GRID (TABELA DE OCORRÊNCIAS) */}
-      <div className="flex-1 overflow-y-auto p-8">
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-          
-          {/* Header da Tabela */}
-          <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
-            <div className="col-span-3">Ticket / Assunto</div>
-            <div className="col-span-3">Cliente</div>
-            <div className="col-span-2">Tipo</div>
-            <div className="col-span-2">Status</div>
-            <div className="col-span-2 text-right">Criado em</div>
+// \\u2500\\u2500 P\\u00e1gina principal \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500
+export default function PageOcorrencias({ api: apiProp }) {
+  const api = apiProp || BASE
+  const [ocorrencias, setOcorrencias] = useState([])
+  const [stats,       setStats]       = useState({})
+  const [loading,     setLoading]     = useState(true)
+  const [detalhe,     setDetalhe]     = useState(null)
+  const [novo,        setNovo]        = useState(false)
+  const [filtroStatus,setFiltroStatus]= useState('todos')
+  const [filtroTipo,  setFiltroTipo]  = useState('todos')
+  const [filtroPri,   setFiltroPri]   = useState('todos')
+  const [busca,       setBusca]       = useState('')
+
+  const carregar = useCallback(async () => {
+    try {
+      const params = new URLSearchParams()
+      if (filtroStatus !== 'todos') params.set('status', filtroStatus)
+      if (filtroTipo   !== 'todos') params.set('tipo',   filtroTipo)
+      if (filtroPri    !== 'todos') params.set('prioridade', filtroPri)
+      const r = await fetch(`${api}/api/ocorrencias?${params}`)
+      if (r.ok) {
+        const d = await r.json()
+        setOcorrencias(d.ocorrencias || [])
+        setStats(d.stats || {})
+      }
+    } catch {}
+    setLoading(false)
+  }, [api, filtroStatus, filtroTipo, filtroPri])
+
+  useEffect(() => { setLoading(true); carregar() }, [carregar])
+
+  const filtradas = ocorrencias.filter(o => {
+    if (!busca) return true
+    const b = busca.toLowerCase()
+    return (o.nomeCliente||'').toLowerCase().includes(b) ||
+           (o.numeroPedido||'').includes(b) ||
+           (o.telefone||'').includes(b) ||
+           (o.descricao||'').toLowerCase().includes(b)
+  })
+
+  const urgentes = parseInt(stats.urgentes)||0
+
+  return (
+    <div className=\"h-full flex flex-col overflow-hidden\" style={{ background:'var(--bg)' }}>
+
+      {/* Header */}
+      <div className=\"px-6 py-4 flex-shrink-0\" style={{ borderBottom:'1px solid var(--sep)', background:'var(--bg-2)' }}>
+        <div className=\"flex items-center justify-between mb-3\">
+          <div className=\"flex items-center gap-3\">
+            <div>
+              <h2 className=\"text-[20px] font-bold\" style={{ color:'var(--label)' }}>Ocorr\\u00eancias</h2>
+              <div className=\"flex items-center gap-3 mt-0.5\">
+                <span className=\"text-[12px]\" style={{ color:'var(--label-3)' }}>
+                  {parseInt(stats.abertas)||0} abertas \\u00b7 {parseInt(stats.em_andamento)||0} em andamento
+                </span>
+                {urgentes > 0 && (
+                  <span className=\"flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold animate-pulse\"
+                    style={{ background:'rgba(239,68,68,0.1)', color:'#ef4444' }}>
+                    <Zap size={9}/> {urgentes} urgente{urgentes>1?'s':''}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-
-          {/* Linhas da Tabela */}
-          <div className="divide-y divide-slate-100">
-            {tickets.map(ticket => {
-              const S = STATUS[ticket.status];
-              const T = TIPOS[ticket.tipo] || TIPOS.outro;
-
-              return (
-                <div 
-                  key={ticket.id} 
-                  onClick={() => setTicketAtivo(ticket)}
-                  className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-blue-50/50 cursor-pointer transition-colors group"
-                >
-                  {/* ID e Titulo */}
-                  <div className="col-span-3 flex flex-col">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-mono text-xs font-bold text-slate-400 group-hover:text-blue-600 transition-colors">{ticket.id}</span>
-                      {ticket.prioridade === 'urgente' && <Zap size={12} className="text-red-500 fill-red-500 animate-pulse"/>}
-                    </div>
-                    <span className="text-sm font-bold text-slate-800 truncate">{ticket.titulo}</span>
-                  </div>
-
-                  {/* Cliente e Pedido */}
-                  <div className="col-span-3 flex flex-col">
-                    <span className="text-sm font-bold text-slate-800 truncate">{ticket.nomeCliente}</span>
-                    {ticket.numeroPedido ? (
-                      <span className="text-xs font-medium text-slate-500 flex items-center gap-1 mt-0.5">
-                        <Package size={12}/> Pedido #{ticket.numeroPedido}
-                      </span>
-                    ) : (
-                      <span className="text-xs font-medium text-slate-400 mt-0.5">Sem vínculo</span>
-                    )}
-                  </div>
-
-                  {/* Tipo */}
-                  <div className="col-span-2">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${T.bg} ${T.cor}`}>
-                      <T.icon size={12}/> {T.label}
-                    </span>
-                  </div>
-
-                  {/* Status */}
-                  <div className="col-span-2">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border border-transparent ${S.bg} ${S.cor}`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${S.dot}`}/> {S.label}
-                    </span>
-                  </div>
-
-                  {/* Data e Ação */}
-                  <div className="col-span-2 flex items-center justify-end gap-4 text-xs font-medium text-slate-500">
-                    {new Date(ticket.criadoEm).toLocaleDateString('pt-BR')}
-                    <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors"/>
-                  </div>
-                </div>
-              );
-            })}
+          <div className=\"flex items-center gap-2\">
+            <button onClick={()=>{ setLoading(true); carregar() }}
+              className=\"p-2 rounded-[9px]\" style={{ background:'var(--fill)', color:'var(--label-3)' }}>
+              <RefreshCw size={14} className={loading?'animate-spin':''}/>
+            </button>
+            <button onClick={()=>setNovo(true)}
+              className=\"flex items-center gap-2 px-4 py-2 rounded-[10px] text-[13px] font-semibold\"
+              style={{ background:'var(--accent)', color:'#000' }}>
+              <Plus size={14}/> Nova ocorr\\u00eancia
+            </button>
           </div>
+        </div>
 
+        {/* Filtros */}
+        <div className=\"flex gap-2\">
+          <div className=\"relative flex-1\">
+            <Search size={12} className=\"absolute left-3 top-1/2 -translate-y-1/2\" style={{ color:'var(--label-4)' }}/>
+            <input value={busca} onChange={e=>setBusca(e.target.value)}
+              placeholder=\"Buscar por nome, pedido, telefone...\"
+              className=\"w-full pl-8 pr-3 py-2 rounded-[9px] text-[12px] outline-none\"
+              style={{ background:'var(--bg-3)', border:'1px solid var(--sep)', color:'var(--label)' }}/>
+          </div>
+          {[
+            { val:filtroStatus, set:setFiltroStatus, opts:[['todos','Todos status'],...Object.entries(STATUS).map(([id,m])=>[id,m.label])] },
+            { val:filtroPri,    set:setFiltroPri,    opts:[['todos','Todas prioridades'],...Object.entries(PRIORIDADE).map(([id,m])=>[id,m.label])] },
+            { val:filtroTipo,   set:setFiltroTipo,   opts:[['todos','Todos tipos'],...Object.entries(TIPO).map(([id,m])=>[id,m.label])] },
+          ].map((f,i)=>(
+            <select key={i} value={f.val} onChange={e=>f.set(e.target.value)}
+              className=\"px-2.5 py-2 rounded-[9px] text-[11px] outline-none\"
+              style={{ background:'var(--bg-3)', border:'1px solid var(--sep)', color:'var(--label)' }}>
+              {f.opts.map(([v,l])=><option key={v} value={v}>{l}</option>)}
+            </select>
+          ))}
         </div>
       </div>
 
-      {/* OVERLAY E GAVETA LATERAL (DRAWER) */}
-      {ticketAtivo && (
-        <>
-          <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-[1px] z-40 transition-opacity" onClick={() => setTicketAtivo(null)}/>
-          <TicketDrawer ticket={ticketAtivo} onClose={() => setTicketAtivo(null)} />
-        </>
-      )}
+      {/* Lista */}
+      <div className=\"flex-1 overflow-y-auto p-4\">
+        {loading && (
+          <div className=\"flex justify-center py-12\" style={{ color:'var(--label-3)' }}>
+            <RefreshCw size={16} className=\"animate-spin\"/>
+          </div>
+        )}
 
+        {!loading && filtradas.length === 0 && (
+          <div className=\"flex flex-col items-center py-20\">
+            <CheckCircle size={36} className=\"mb-3 opacity-10\" style={{ color:'#22c55e' }}/>
+            <p className=\"text-[15px] font-medium\" style={{ color:'var(--label-2)' }}>
+              {ocorrencias.length === 0 ? 'Nenhuma ocorr\\u00eancia registrada' : 'Nenhum resultado'}
+            </p>
+            <p className=\"text-[13px] mt-1\" style={{ color:'var(--label-3)' }}>
+              {ocorrencias.length === 0 ? '\\u00d3timo sinal! \\ud83c\\udf89' : 'Tente outro filtro'}
+            </p>
+          </div>
+        )}
+
+        <div className=\"space-y-2 max-w-[900px]\">
+          {filtradas.map(oc => {
+            const smeta  = STATUS[oc.status]   || STATUS.aberta
+            const pmeta  = PRIORIDADE[oc.prioridade] || PRIORIDADE.normal
+            const tmeta  = TIPO[oc.tipo]       || TIPO.outro
+            const TipoIc = tmeta.icon
+            const data   = new Date(oc.criadoEm)
+            const agora  = new Date()
+            const horas  = Math.floor((agora-data)/3600000)
+            const tempoLabel = horas < 1 ? 'Agora' : horas < 24 ? `${horas}h atr\\u00e1s` : `${Math.floor(horas/24)}d atr\\u00e1s`
+            const urgente = oc.prioridade === 'urgente' && !['resolvida','encerrada'].includes(oc.status)
+
+            return (
+              <button key={oc.id} onClick={()=>setDetalhe(oc)}
+                className=\"w-full text-left rounded-[14px] p-4 transition-all flex items-center gap-4\"
+                style={{
+                  background:'var(--bg-2)', border:`1px solid ${urgente?'rgba(239,68,68,0.3)':'var(--sep)'}`,
+                  borderLeft:`3px solid ${smeta.cor}`,
+                }}>
+
+                {/* \\u00cdcone tipo */}
+                <div className=\"w-9 h-9 rounded-[10px] flex items-center justify-center flex-shrink-0\"
+                  style={{ background:`${tmeta.cor}12` }}>
+                  <TipoIc size={15} style={{ color:tmeta.cor }}/>
+                </div>
+
+                {/* Info principal */}
+                <div className=\"flex-1 min-w-0\">
+                  <div className=\"flex items-center gap-2 mb-0.5\">
+                    <span className=\"text-[13px] font-semibold\" style={{ color:'var(--label)' }}>
+                      {oc.nomeCliente || oc.telefone}
+                    </span>
+                    {oc.numeroPedido && (
+                      <span className=\"text-[10px]\" style={{ color:'var(--label-3)' }}>\\u00b7 #{oc.numeroPedido}</span>
+                    )}
+                    {urgente && (
+                      <span className=\"text-[9px] px-1.5 py-0.5 rounded-full animate-pulse\"
+                        style={{ background:'rgba(239,68,68,0.1)', color:'#ef4444' }}>urgente</span>
+                    )}
+                  </div>
+                  <p className=\"text-[11px] truncate\" style={{ color:'var(--label-3)' }}>
+                    {oc.descricao || 'Sem descri\\u00e7\\u00e3o'}
+                  </p>
+                  {oc.atribuidoA && (
+                    <p className=\"text-[10px] mt-0.5 flex items-center gap-1\" style={{ color:'var(--label-4)' }}>
+                      <User size={9}/> {oc.atribuidoA}
+                    </p>
+                  )}
+                </div>
+
+                {/* Badges + tempo */}
+                <div className=\"flex flex-col items-end gap-1.5 flex-shrink-0\">
+                  <BadgeStatus status={oc.status}/>
+                  <BadgePrioridade prioridade={oc.prioridade}/>
+                  <span className=\"text-[9px]\" style={{ color:'var(--label-4)' }}>{tempoLabel}</span>
+                </div>
+
+                <ArrowRight size={14} style={{ color:'var(--label-4)', flexShrink:0 }}/>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Modais */}
+      {detalhe && (
+        <ModalOcorrencia oc={detalhe} api={api}
+          onClose={()=>setDetalhe(null)}
+          onUpdate={()=>{ carregar(); setDetalhe(null) }}/>
+      )}
+      {novo && (
+        <ModalNovo api={api}
+          onClose={()=>setNovo(false)}
+          onSave={()=>{ setNovo(false); carregar() }}/>
+      )}
     </div>
-  );
+  )
 }
