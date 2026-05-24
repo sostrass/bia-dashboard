@@ -1,6 +1,7 @@
 import { useState, useEffect, Suspense, lazy } from 'react'
 import React from 'react'
 import { useTheme } from '../App'
+import { logout } from '../pages/PageLogin'
 import {
   LayoutDashboard, ShoppingCart, Users, CreditCard,
   MessageSquare, Bot, Settings, Sun, Moon, Zap, Send, Package
@@ -171,10 +172,15 @@ export default function Shell() {
                 </div>
               ))}
             </div>
-            <button onClick={toggle} style={{ width:'100%', display:'flex', alignItems:'center', gap:8, padding:'6px 9px', borderRadius:7, border:'none', cursor:'pointer', background:'var(--fill)', color:'var(--label-2)' }}>
+            <div style={{ display:'flex', gap:6 }}>
+            <button onClick={toggle} style={{ flex:1, display:'flex', alignItems:'center', gap:6, padding:'6px 9px', borderRadius:7, border:'none', cursor:'pointer', background:'var(--fill)', color:'var(--label-2)' }}>
               {theme === 'dark' ? <Sun size={13}/> : <Moon size={13}/>}
-              <span style={{ fontSize:12 }}>{theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}</span>
+              <span style={{ fontSize:11 }}>{theme === 'dark' ? 'Claro' : 'Escuro'}</span>
             </button>
+            <button onClick={logout} style={{ padding:'6px 9px', borderRadius:7, border:'none', cursor:'pointer', background:'var(--fill)', color:'var(--label-3)', fontSize:11 }} title="Sair">
+              Sair
+            </button>
+          </div>
           </div>
         </aside>
 
