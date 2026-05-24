@@ -1,73 +1,49 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
 
 const BASE = import.meta.env.VITE_API_URL || ''
 
-// ── Status de atendimento ─────────────────────────────────────────────────────
+// ── Constantes de status ───────────────────────────────────────────────────────
 const STATUS = [
-  { id:'pendente',     label:'Pendente',     cor:'#f59e0b', bg:'rgba(245,158,11,0.1)'  },
-  { id:'em_andamento', label:'Em andamento', cor:'#4a9fff', bg:'rgba(74,159,255,0.1)'  },
-  { id:'resolvido',    label:'Resolvido',    cor:'#00d4aa', bg:'rgba(0,212,170,0.1)'   },
-  { id:'encerrado',    label:'Encerrado',    cor:'#94a3b8', bg:'rgba(148,163,184,0.1)' },
-  { id:'gatilhos',     label:'Gatilhos',     cor:'#a78bfa', bg:'rgba(167,139,250,0.1)' },
+  { id:'pendente',     label:'Pendente',     cor:'var(--color-text-warning)',  bg:'var(--color-background-warning)',  dot:'bg-amber-400'   },
+  { id:'em_andamento', label:'Em andamento', cor:'var(--color-text-info)',     bg:'var(--color-background-info)',     dot:'bg-blue-400'    },
+  { id:'resolvido',    label:'Resolvido',    cor:'var(--color-text-success)',  bg:'var(--color-background-success)',  dot:'bg-emerald-400' },
+  { id:'encerrado',    label:'Encerrado',    cor:'var(--color-text-tertiary)', bg:'var(--color-background-tertiary)', dot:'bg-gray-400'    },
+  { id:'gatilhos',     label:'Gatilhos',     cor:'var(--color-text-info)',     bg:'var(--color-background-info)',     dot:'bg-purple-400'  },
 ]
 
 const REACOES = ['👍','❤️','😂','😮','😢','🙏']
-
-// ── Tema via CSS vars ─────────────────────────────────────────────────────────
-const V = {
-  bg:     'var(--bg, #ffffff)',
-  bg2:    'var(--bg-2, #f8f9fa)',
-  bg3:    'var(--bg-3, #f0f2f5)',
-  label:  'var(--label, #111827)',
-  label2: 'var(--label-2, #374151)',
-  label3: 'var(--label-3, #6b7280)',
-  label4: 'var(--label-4, #9ca3af)',
-  sep:    'var(--sep, #e5e7eb)',
-  fill:   'var(--fill, #f3f4f6)',
-  accent: 'var(--accent, #059669)',
-}
+const EMOJIS  = ['😊','👍','🙏','❤️','✅','📦','💰','🚀','😅','🎉','💬','⏳']
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const fmtR    = n => `R$ ${Number(n||0).toFixed(2).replace('.',',')}`
-const fmtTel  = t => { const n=(t||'').replace(/\D/g,'').replace(/^55/,''); return n.length===11?`(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`:t }
+const fmtR   = n => `R$ ${Number(n||0).toFixed(2).replace('.',',')}`
+const fmtTel = t => { const n=(t||'').replace(/\D/g,'').replace(/^55/,''); return n.length===11?`(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`:t||'' }
 const iniciais = n => (n||'?').split(' ').slice(0,2).map(p=>p[0]||'').join('').toUpperCase()||'?'
-const CORES   = ['#059669','#3b82f6','#8b5cf6','#f59e0b','#06b6d4','#ec4899','#10b981']
-const corAvatar = tel => { let h=0; for(const c of (tel||'')) h=(h*31+c.charCodeAt(0))%CORES.length; return CORES[h] }
+const CORES    = ['#10b981','#3b82f6','#8b5cf6','#f59e0b','#06b6d4','#ec4899','#ef4444']
+const corH     = s => CORES[(s||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0)%CORES.length]
 
-// ── Ícones SVG (funções componente — funciona em qualquer contexto React) ───────
-const IcoSend     = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-const IcoSmile    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
-const IcoImage    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-const IcoVideo    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-const IcoMic      = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-const IcoBulb     = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.4-1.2 4.5-3 5.7V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.3A7 7 0 0 1 5 9a7 7 0 0 1 7-7z"/><line x1="9" y1="21" x2="15" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-const IcoPkg      = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-const IcoSearch   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-const IcoRefresh  = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/></svg>
-const IcoChevL    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-const IcoChevR    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-const IcoUser     = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-const IcoBot      = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 11V3"/><circle cx="12" cy="3" r="1"/><path d="M8 15h.01"/><path d="M16 15h.01"/><path d="M9 19h6"/></svg>
-const IcoZap      = () => <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-const IcoTag      = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-const IcoTruck    = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-const IcoX        = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-const IcoLock     = () => <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-const IcoClip     = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-const IcoExtL     = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-const IcoCart     = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-// ── Avatar ────────────────────────────────────────────────────────────────────
-function Avatar({ nome, telefone, size = 36 }) {
-  const cor = corAvatar(telefone || nome || '')
+// ── Avatar com foto real ──────────────────────────────────────────────────────
+function Avatar({ nome, telefone, fotoUrl, size=36 }) {
+  const [err, setErr] = useState(false)
+  const nm  = nome || telefone || '?'
+  const cor = corH(nm)
+  const foto = fotoUrl || null
   return (
-    <div style={{ width:size, height:size, borderRadius:'50%', flexShrink:0, background:`${cor}18`, color:cor, display:'flex', alignItems:'center', justifyContent:'center', fontSize:Math.round(size*0.33), fontWeight:700, border:`1.5px solid ${cor}30` }}>
-      {iniciais(nome || telefone || '?')}
+    <div className="relative flex-shrink-0 rounded-full overflow-hidden" style={{width:size,height:size}}>
+      {foto && !err
+        ? <img src={foto} alt={nm} className="w-full h-full object-cover" onError={()=>setErr(true)}/>
+        : <div className="w-full h-full flex items-center justify-center font-bold text-white"
+            style={{background:cor, fontSize:Math.round(size*.35)}}>
+            {iniciais(nm)}
+          </div>
+      }
+      <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full border border-[var(--color-background-primary)]"
+        style={{background:cor+'60'}}/>
     </div>
   )
 }
 
 // ── Bolha de mensagem ─────────────────────────────────────────────────────────
-function Bolha({ msg, mostrarGatilhos }) {
+const Bolha = memo(function Bolha({ msg, mostrarGatilhos }) {
   const [hover,  setHover]  = useState(false)
   const [reacao, setReacao] = useState(null)
   const [picker, setPicker] = useState(false)
@@ -75,65 +51,66 @@ function Bolha({ msg, mostrarGatilhos }) {
   const entrada   = msg.direcao === 'entrada'
   const isGatilho = msg.modo === 'transacional'
   const isManual  = msg.modo === 'manual'
-  const texto     = (msg.conteudo || '').replace(/\[ENVIAR_IMAGEM:[^\]]*\]/g, '').trim()
+  const texto     = (msg.conteudo||'').replace(/\[ENVIAR_IMAGEM:[^\]]*\]/g,'').trim()
 
-  // Se gatilho e o filtro não mostra gatilhos, oculta
   if (isGatilho && !mostrarGatilhos) return null
 
-  const bgMsg   = entrada ? V.bg3 : isGatilho ? '#f5f0ff' : isManual ? '#eff6ff' : '#ecfdf5'
-  const bordMsg = entrada ? V.sep : isGatilho ? '#c4b5fd' : isManual ? '#93c5fd' : '#6ee7b7'
-  const corLabel = isGatilho ? '#7c3aed' : isManual ? '#2563eb' : '#059669'
-  const labelRem = entrada ? null : isGatilho ? 'Gatilho' : isManual ? 'Atendente' : 'Bia'
+  // Cores via CSS vars — funciona em dark/light mode
+  const bubbleCls = entrada
+    ? 'bg-[var(--color-background-primary)] border border-[var(--color-border-tertiary)]'
+    : isGatilho
+      ? 'bg-purple-500/10 border border-purple-500/20'
+      : isManual
+        ? 'bg-blue-500/10 border border-blue-500/20'
+        : 'bg-emerald-500/10 border border-emerald-500/20'
+
+  const labelCls = isGatilho ? 'text-purple-400' : isManual ? 'text-blue-400' : 'text-emerald-400'
+  const label    = entrada ? null : isGatilho ? 'Gatilho' : isManual ? 'Atendente' : 'Bia'
 
   return (
     <div
-      style={{ display:'flex', flexDirection:'column', alignItems:entrada?'flex-start':'flex-end', marginBottom:6, position:'relative' }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => { setHover(false); setPicker(false) }}
+      className={`flex flex-col mb-2 ${entrada?'items-start':'items-end'}`}
+      onMouseEnter={()=>setHover(true)}
+      onMouseLeave={()=>{setHover(false);setPicker(false)}}
     >
-      {labelRem && (
-        <span style={{ fontSize:9, fontWeight:700, color:corLabel, marginBottom:2, marginRight:4, display:'flex', alignItems:'center', gap:3 }}>
-          {isGatilho && <span style={{ color:corLabel }}><IcoZap /></span>}
-          {labelRem}
+      {label && (
+        <span className={`text-[9px] font-bold mb-1 flex items-center gap-1 ${labelCls}`}>
+          {isGatilho && (
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          )}
+          {label}
         </span>
       )}
-      <div style={{ display:'flex', alignItems:'flex-end', gap:6, flexDirection:entrada?'row':'row-reverse' }}>
-        {entrada
-          ? <Avatar nome={null} telefone={msg.telefone || ''} size={22} />
-          : <div style={{ width:22, height:22, borderRadius:'50%', background:`${corLabel}18`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-              {isGatilho ? <span style={{ color:corLabel }}><IcoZap /></span> : isManual ? <span style={{ color:corLabel }}><IcoUser /></span> : <span style={{ color:corLabel }}><IcoBot /></span>}
-            </div>
-        }
+      <div className={`flex items-end gap-1.5 ${entrada?'flex-row':'flex-row-reverse'}`}>
+        {entrada && <Avatar nome={null} telefone={msg.telefone||''} size={20}/>}
 
-        <div style={{ maxWidth:'70%', background:bgMsg, border:`1px solid ${bordMsg}`, borderRadius:entrada?'2px 12px 12px 12px':'12px 2px 12px 12px', padding:'8px 12px', position:'relative' }}>
+        <div className={`relative max-w-[72%] px-3 py-2 rounded-2xl ${bubbleCls} ${entrada?'rounded-tl-sm':'rounded-tr-sm'}`}>
           {texto && (
-            <div style={{ fontSize:13, color:V.label, lineHeight:1.55, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
-              {texto}
-            </div>
+            <p className="text-[12.5px] leading-relaxed text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{texto}</p>
           )}
-          <div style={{ display:'flex', justifyContent:'flex-end', alignItems:'center', gap:4, marginTop:3 }}>
-            <span style={{ fontSize:9, color:V.label4 }}>
-              {new Date(msg.criado_em).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' })}
-            </span>
-          </div>
+          <p className={`text-[9px] mt-1 text-[var(--color-text-tertiary)] ${entrada?'text-left':'text-right'}`}>
+            {new Date(msg.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
+            {!entrada && <span className="ml-1">✓✓</span>}
+          </p>
           {reacao && (
-            <div onClick={() => setReacao(null)} style={{ position:'absolute', bottom:-10, right:6, background:V.bg, border:`1px solid ${V.sep}`, borderRadius:10, padding:'1px 5px', fontSize:12, cursor:'pointer' }}>
+            <button onClick={()=>setReacao(null)}
+              className="absolute -bottom-2.5 right-2 bg-[var(--color-background-primary)] border border-[var(--color-border-tertiary)] rounded-xl px-1.5 text-[11px]">
               {reacao}
-            </div>
+            </button>
           )}
         </div>
 
         {hover && (
-          <div style={{ position:'relative' }}>
-            <button onClick={() => setPicker(v => !v)} style={{ width:22, height:22, borderRadius:'50%', border:`1px solid ${V.sep}`, background:V.bg, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, color:V.label4 }}>
+          <div className="relative">
+            <button onClick={()=>setPicker(v=>!v)}
+              className="w-6 h-6 rounded-full border border-[var(--color-border-tertiary)] bg-[var(--color-background-primary)] flex items-center justify-center text-[11px]">
               😊
             </button>
             {picker && (
-              <div style={{ position:'absolute', bottom:28, [entrada?'left':'right']:0, display:'flex', gap:3, background:V.bg, border:`1px solid ${V.sep}`, borderRadius:16, padding:'5px 8px', boxShadow:'0 4px 12px rgba(0,0,0,0.12)', zIndex:50, whiteSpace:'nowrap' }}>
-                {REACOES.map(r => (
-                  <button key={r} onClick={() => { setReacao(r); setPicker(false) }} style={{ fontSize:16, background:'transparent', border:'none', cursor:'pointer', padding:2 }}>
-                    {r}
-                  </button>
+              <div className={`absolute bottom-7 ${entrada?'left-0':'right-0'} flex gap-1.5 bg-[var(--color-background-primary)] border border-[var(--color-border-tertiary)] rounded-2xl px-2.5 py-1.5 z-50 shadow-lg whitespace-nowrap`}>
+                {REACOES.map(r=>(
+                  <button key={r} onClick={()=>{setReacao(r);setPicker(false)}}
+                    className="text-base hover:scale-125 transition-transform">{r}</button>
                 ))}
               </div>
             )}
@@ -142,17 +119,17 @@ function Bolha({ msg, mostrarGatilhos }) {
       </div>
     </div>
   )
-}
+})
 
 // ── Separador de data ─────────────────────────────────────────────────────────
 function DateSep({ data }) {
   return (
-    <div style={{ display:'flex', alignItems:'center', gap:8, margin:'14px 0' }}>
-      <div style={{ flex:1, height:1, background:V.sep }} />
-      <span style={{ fontSize:10, color:V.label4, fontWeight:600, background:V.bg2, padding:'2px 10px', borderRadius:10, border:`1px solid ${V.sep}` }}>
-        {new Date(data).toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'short' })}
+    <div className="flex items-center gap-3 my-4">
+      <div className="flex-1 h-px bg-[var(--color-border-tertiary)]"/>
+      <span className="text-[10px] text-[var(--color-text-tertiary)] font-medium px-2.5 py-0.5 rounded-full border border-[var(--color-border-tertiary)] bg-[var(--color-background-secondary)] whitespace-nowrap">
+        {new Date(data).toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'short'})}
       </span>
-      <div style={{ flex:1, height:1, background:V.sep }} />
+      <div className="flex-1 h-px bg-[var(--color-border-tertiary)]"/>
     </div>
   )
 }
@@ -160,23 +137,43 @@ function DateSep({ data }) {
 // ── Sidebar colapsável com filtros ────────────────────────────────────────────
 function Sidebar({ statusSel, setStatusSel, contadores, expandida, setExpandida }) {
   return (
-    <div style={{ width:expandida?196:52, flexShrink:0, transition:'width 0.2s', borderRight:`1px solid ${V.sep}`, background:V.bg2, display:'flex', flexDirection:'column', overflow:'hidden' }}>
-      <button onClick={() => setExpandida(v => !v)} style={{ padding:'11px 0', display:'flex', alignItems:'center', justifyContent:expandida?'flex-end':'center', paddingRight:expandida?12:0, border:'none', background:'transparent', cursor:'pointer', borderBottom:`1px solid ${V.sep}`, flexShrink:0, color:V.label4 }}>
-        {expandida ? <IcoChevL /> : <IcoChevR />}
+    <div className="flex-shrink-0 flex flex-col overflow-hidden border-r border-[var(--color-border-tertiary)] bg-[var(--color-background-secondary)] transition-all duration-200"
+      style={{width: expandida ? 192 : 48}}>
+      <button onClick={()=>setExpandida(v=>!v)}
+        className="flex items-center border-b border-[var(--color-border-tertiary)] py-3 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors flex-shrink-0"
+        style={{justifyContent: expandida?'flex-end':'center', paddingRight: expandida?10:0}}>
+        {expandida
+          ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        }
       </button>
-      <div style={{ flex:1, padding:'6px 0', overflowY:'auto' }}>
-        {STATUS.map((s, i) => {
+      <div className="flex-1 py-1.5 overflow-y-auto">
+        {STATUS.map((s,i) => {
           const ativo = statusSel === s.id
           const cnt   = contadores[s.id] || 0
           return (
             <div key={s.id}>
-              {i === 4 && <div style={{ height:1, background:V.sep, margin:'4px 8px' }} />}
-              <button title={s.label} onClick={() => setStatusSel(s.id)} style={{ width:'100%', padding:expandida?'9px 14px':'9px 0', border:'none', cursor:'pointer', display:'flex', alignItems:'center', gap:expandida?10:0, justifyContent:expandida?'flex-start':'center', background:ativo?s.bg:'transparent', borderLeft:ativo?`3px solid ${s.cor}`:'3px solid transparent', transition:'all 0.12s' }}>
-                <span style={{ width:10, height:10, borderRadius:'50%', background:ativo?s.cor:V.label4, flexShrink:0, display:'inline-block' }} />
+              {i===4 && <div className="h-px bg-[var(--color-border-tertiary)] mx-2 my-1"/>}
+              <button
+                title={s.label}
+                onClick={()=>setStatusSel(s.id)}
+                className={`w-full flex items-center gap-2.5 py-2.5 border-l-2 transition-all ${
+                  ativo
+                    ? 'border-l-[var(--color-border-success)] bg-[var(--color-background-success)]'
+                    : 'border-l-transparent hover:bg-[var(--color-background-tertiary)]'
+                }`}
+                style={{paddingLeft: expandida?12:0, justifyContent: expandida?'flex-start':'center'}}>
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`}/>
                 {expandida && (
                   <>
-                    <span style={{ fontSize:12.5, fontWeight:ativo?600:400, color:ativo?s.cor:V.label2, flex:1, textAlign:'left', whiteSpace:'nowrap' }}>{s.label}</span>
-                    {cnt > 0 && <span style={{ fontSize:10, fontWeight:700, minWidth:18, textAlign:'center', padding:'1px 5px', borderRadius:9, background:ativo?`${s.cor}22`:V.fill, color:ativo?s.cor:V.label4 }}>{cnt > 99 ? '99+' : cnt}</span>}
+                    <span className="text-[12px] font-medium text-[var(--color-text-primary)] flex-1 text-left whitespace-nowrap">
+                      {s.label}
+                    </span>
+                    {cnt > 0 && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[var(--color-background-tertiary)] text-[var(--color-text-secondary)] mr-2">
+                        {cnt > 99 ? '99+' : cnt}
+                      </span>
+                    )}
                   </>
                 )}
               </button>
@@ -184,17 +181,91 @@ function Sidebar({ statusSel, setStatusSel, contadores, expandida, setExpandida 
           )
         })}
       </div>
-      {!expandida && (
-        <div style={{ writingMode:'vertical-lr', transform:'rotate(180deg)', fontSize:9, color:V.label4, textAlign:'center', padding:'8px 0', letterSpacing:'0.05em' }}>
-          {STATUS.find(s => s.id === statusSel)?.label}
+    </div>
+  )
+}
+
+// ── Catálogo acima das mensagens ──────────────────────────────────────────────
+function CatalogoBarra({ telefone, api }) {
+  const [busca,    setBusca]    = useState('')
+  const [produtos, setProdutos] = useState([])
+  const [loading,  setLoading]  = useState(false)
+  const [aberto,   setAberto]   = useState(false)
+  const [enviando, setEnviando] = useState(null)
+  const wrapRef = useRef(null)
+
+  useEffect(() => {
+    const fn = e => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setAberto(false) }
+    document.addEventListener('mousedown', fn)
+    return () => document.removeEventListener('mousedown', fn)
+  }, [])
+
+  const buscar = async () => {
+    if (!busca.trim()) return
+    setLoading(true); setAberto(true)
+    try {
+      const r = await fetch(`${api}/api/dashboard/catalogo?q=${encodeURIComponent(busca)}`)
+      if (r.ok) { const d = await r.json(); setProdutos(d.produtos||[]) }
+    } catch {}
+    setLoading(false)
+  }
+
+  const enviar = async prod => {
+    setEnviando(prod.id||prod.nome)
+    const n = parseFloat(prod.preco||prod.precoVenda||0)
+    const msg = `*${prod.nome||prod.descricao}*\n💳 Cartão: ${fmtR(n)} | 💰 PIX: ${fmtR(n*.9)}\n${prod.disponivel!==false?'✅ Disponível':'⚠️ Indisponível'}`
+    try {
+      await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone,mensagem:msg})})
+    } catch {}
+    setEnviando(null); setAberto(false); setBusca('')
+  }
+
+  return (
+    <div ref={wrapRef} className="relative flex-1">
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[var(--color-background-primary)] border border-purple-500/20 focus-within:border-purple-500/50 transition-colors">
+        <svg className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input
+          value={busca} onChange={e=>setBusca(e.target.value)}
+          onKeyDown={e=>e.key==='Enter'&&buscar()}
+          placeholder="Buscar produto para enviar ao cliente..."
+          className="flex-1 bg-transparent text-[11.5px] text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"
+        />
+        {busca && (
+          <button onClick={()=>{setBusca('');setAberto(false);setProdutos([])}}
+            className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        )}
+      </div>
+
+      {aberto && (
+        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-[var(--color-background-primary)] border border-[var(--color-border-tertiary)] rounded-xl shadow-xl max-h-60 overflow-y-auto">
+          {loading
+            ? <p className="px-3 py-2.5 text-[11px] text-[var(--color-text-tertiary)]">Buscando...</p>
+            : produtos.length === 0
+              ? <p className="px-3 py-2.5 text-[11px] text-[var(--color-text-tertiary)]">Nenhum produto encontrado</p>
+              : produtos.slice(0,8).map((p,i) => (
+                <div key={i}
+                  className="flex items-center gap-3 px-3 py-2.5 border-b border-[var(--color-border-tertiary)] last:border-0 hover:bg-[var(--color-background-secondary)] transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-medium text-[var(--color-text-primary)] truncate">{p.nome||p.descricao}</p>
+                    <p className="text-[10px] text-[var(--color-text-tertiary)]">{p.codigo||''} · {fmtR(p.preco||p.precoVenda||0)}</p>
+                  </div>
+                  <button onClick={()=>enviar(p)} disabled={enviando===(p.id||p.nome)}
+                    className="flex-shrink-0 px-3 py-1 rounded-lg text-[10px] font-semibold border border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10 disabled:opacity-40 transition-colors">
+                    {enviando===(p.id||p.nome)?'…':'Enviar'}
+                  </button>
+                </div>
+              ))
+          }
         </div>
       )}
     </div>
   )
 }
 
-// ── Painel Lateral Direito: Perfil / Pedidos / Catálogo ───────────────────────
-function PainelInfo({ conv, api }) {
+// ── Painel lateral direito: Perfil / Pedidos / Catálogo ───────────────────────
+function PainelInfo({ conv, api, statusAtend, setStatusAtend }) {
   const [aba,      setAba]      = useState('perfil')
   const [perfil,   setPerfil]   = useState(null)
   const [pedidos,  setPedidos]  = useState([])
@@ -206,188 +277,190 @@ function PainelInfo({ conv, api }) {
 
   useEffect(() => {
     if (!conv?.telefone) return
-    let mounted = true
-
-    // Carrega perfil
+    let m = true
     fetch(`${api}/api/contatos/${conv.telefone}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (mounted && d) setPerfil(d) })
-      .catch(() => {})
-
-    // Carrega pedidos
+      .then(r=>r.ok?r.json():null).then(d=>{if(m&&d)setPerfil(d)}).catch(()=>{})
     setLoadPed(true)
     fetch(`${api}/api/contatos/${conv.telefone}/pedidos`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (mounted) {
-          // Aceita { pedidos: [...] } ou array direto
-          const lista = Array.isArray(d) ? d : d?.pedidos || []
-          setPedidos(lista)
-        }
-      })
-      .catch(() => {})
-      .finally(() => { if (mounted) setLoadPed(false) })
-
-    return () => { mounted = false }
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{if(m){const l=Array.isArray(d)?d:d?.pedidos||[];setPedidos(l)}})
+      .catch(()=>{}).finally(()=>{if(m)setLoadPed(false)})
+    return ()=>{m=false}
   }, [conv?.telefone, api])
 
-  const buscarProdutos = async () => {
+  const buscarProd = async () => {
     if (!busca.trim()) return
     setLoadP(true); setProdutos([])
     try {
-      const r = await fetch(`${api}/api/dashboard/catalogo?q=${encodeURIComponent(busca)}`)
-      if (r.ok) { const d = await r.json(); setProdutos(d.produtos || []) }
+      const r=await fetch(`${api}/api/dashboard/catalogo?q=${encodeURIComponent(busca)}`)
+      if(r.ok){const d=await r.json();setProdutos(d.produtos||[])}
     } catch {}
     setLoadP(false)
   }
 
-  // Envia produto para o cliente via WhatsApp
-  const enviarProduto = async (prod) => {
-    setEnviando(prod.id || prod.nome)
-    const precoNum = parseFloat(prod.preco || prod.precoVenda || 0)
-    const pix = (precoNum * 0.9).toFixed(2).replace('.', ',')
-    const msg = `*${prod.nome || prod.descricao}*\n💳 Cartão: ${fmtR(precoNum)} | 💰 PIX: R$ ${pix}\n${prod.disponivel !== false ? '✅ Disponível em estoque' : '⚠️ Indisponível'}`
-    try {
-      await fetch(`${api}/api/dashboard/mensagem`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telefone: conv.telefone, mensagem: msg })
-      })
-    } catch {}
+  const enviarProd = async prod => {
+    setEnviando(prod.id||prod.nome)
+    const n=parseFloat(prod.preco||prod.precoVenda||0)
+    const msg=`*${prod.nome||prod.descricao}*\n💳 ${fmtR(n)} | 💰 PIX ${fmtR(n*.9)}\n${prod.disponivel!==false?'✅ Disponível':'⚠️ Indisponível'}`
+    try{await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone:conv.telefone,mensagem:msg})})}catch{}
     setEnviando(null)
   }
 
-  // Envia resumo do pedido para o cliente
-  const enviarPedido = async (p) => {
-    setEnviando('ped_' + (p.numero || p.id))
-    const rastreio = p.rastreio && p.rastreio !== '—' ? `\n📦 Rastreio: ${p.rastreio}` : ''
-    const msg = `📋 *Pedido #${p.numero || p.id}*\nData: ${p.data || '—'}\nStatus: ${p.situacao || p.status || '—'}\nValor: ${p.total || '—'}${rastreio}`
-    try {
-      await fetch(`${api}/api/dashboard/mensagem`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telefone: conv.telefone, mensagem: msg })
-      })
-    } catch {}
+  const enviarPedido = async p => {
+    setEnviando('ped_'+(p.numero||p.id))
+    const rastr=p.rastreio&&p.rastreio!=='—'?`\n📦 Rastreio: ${p.rastreio}`:''
+    const msg=`📋 *Pedido #${p.numero||p.id}*\nData: ${p.data||'—'}\nStatus: ${p.situacao||p.status||'—'}\nValor: ${p.total||'—'}${rastr}`
+    try{await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone:conv.telefone,mensagem:msg})})}catch{}
     setEnviando(null)
   }
-
-  const ABAS = [
-    { id:'perfil',   label:'Perfil'   },
-    { id:'pedidos',  label:'Pedidos'  },
-    { id:'catalogo', label:'Catálogo' },
-  ]
 
   const mapSit = s => {
     if (!s) return '—'
-    const id = typeof s === 'object' ? s?.id || s?.valor : s
-    return { 6:'Aberto', 9:'Atendido', 12:'Cancelado', 14:'Faturado', 15:'Verificado' }[id] || String(id || s)
+    const id=typeof s==='object'?s?.id||s?.valor:s
+    return {6:'Aberto',9:'Atendido',12:'Cancelado',14:'Faturado',15:'Verificado'}[id]||String(id||s)
   }
 
+  const STATUS_ATEND = [
+    {id:'pendente',    label:'Pendente',    cls:'text-amber-500 bg-amber-500/10 border-amber-500/30'},
+    {id:'em_andamento',label:'Em andamento',cls:'text-blue-400 bg-blue-500/10 border-blue-500/30'},
+    {id:'resolvido',   label:'Resolvido',   cls:'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'},
+    {id:'encerrado',   label:'Encerrado',   cls:'text-[var(--color-text-tertiary)] bg-[var(--color-background-tertiary)] border-[var(--color-border-tertiary)]'},
+  ]
+
   return (
-    <div style={{ width:262, flexShrink:0, borderLeft:`1px solid ${V.sep}`, display:'flex', flexDirection:'column', background:V.bg2, overflow:'hidden' }}>
-      {/* Mini header */}
-      <div style={{ padding:'10px 12px', borderBottom:`1px solid ${V.sep}`, display:'flex', gap:8, alignItems:'center', flexShrink:0 }}>
-        <Avatar nome={conv.nome} telefone={conv.telefone} size={30} />
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontSize:12, fontWeight:600, color:V.label, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{conv.nome || fmtTel(conv.telefone)}</div>
-          <div style={{ fontSize:10, color:V.label4 }}>{fmtTel(conv.telefone)}</div>
+    <div className="w-60 flex-shrink-0 flex flex-col overflow-hidden border-l border-[var(--color-border-tertiary)] bg-[var(--color-background-secondary)]">
+      {/* mini header */}
+      <div className="px-3 py-2.5 border-b border-[var(--color-border-tertiary)] flex items-center gap-2.5 flex-shrink-0">
+        <Avatar nome={conv.nome} telefone={conv.telefone} fotoUrl={conv.foto_url||conv.fotoUrl} size={28}/>
+        <div className="flex-1 min-w-0">
+          <p className="text-[12px] font-semibold text-[var(--color-text-primary)] truncate">{conv.nome||fmtTel(conv.telefone)}</p>
+          <p className="text-[10px] text-[var(--color-text-tertiary)] truncate">{fmtTel(conv.telefone)}</p>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display:'flex', borderBottom:`1px solid ${V.sep}`, flexShrink:0 }}>
-        {ABAS.map(a => (
-          <button key={a.id} onClick={() => setAba(a.id)} style={{ flex:1, padding:'7px 0', border:'none', cursor:'pointer', background:aba===a.id?V.bg:'transparent', borderBottom:aba===a.id?`2px solid ${V.accent}`:'2px solid transparent', fontSize:11, fontWeight:aba===a.id?600:400, color:aba===a.id?V.accent:V.label4, transition:'all 0.15s' }}>
-            {a.label}
+      {/* status de atendimento */}
+      <div className="px-3 py-2.5 border-b border-[var(--color-border-tertiary)] flex-shrink-0">
+        <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--color-text-tertiary)] mb-2">Status</p>
+        <div className="grid grid-cols-2 gap-1">
+          {STATUS_ATEND.map(s=>(
+            <button key={s.id} onClick={()=>setStatusAtend(s.id)}
+              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[9px] font-semibold border transition-all ${
+                statusAtend===s.id ? s.cls : 'text-[var(--color-text-tertiary)] border-transparent hover:bg-[var(--color-background-tertiary)]'
+              }`}>
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusAtend===s.id?'bg-current':'bg-[var(--color-border-tertiary)]'}`}/>
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* tabs */}
+      <div className="flex border-b border-[var(--color-border-tertiary)] flex-shrink-0">
+        {['perfil','pedidos','catálogo'].map(a=>(
+          <button key={a} onClick={()=>setAba(a)}
+            className={`flex-1 py-2 text-[10px] font-semibold capitalize transition-colors border-b-2 ${
+              aba===a?'text-emerald-500 border-emerald-500':'text-[var(--color-text-tertiary)] border-transparent hover:text-[var(--color-text-secondary)]'
+            }`}>
+            {a}
           </button>
         ))}
       </div>
 
-      {/* Conteúdo */}
-      <div style={{ flex:1, overflowY:'auto', padding:'10px 12px' }}>
+      {/* conteúdo */}
+      <div className="flex-1 overflow-y-auto p-3">
 
-        {/* ABA: Perfil */}
-        {aba === 'perfil' && (
-          <div style={{ display:'flex', flexDirection:'column', gap:9 }}>
-            {perfil ? [
-              { label:'Nome',        value: perfil.nome },
-              { label:'Telefone',    value: fmtTel(perfil.telefone || conv.telefone) },
-              { label:'E-mail',      value: perfil.email },
-              { label:'Cidade',      value: perfil.cidade },
-              { label:'Documento',   value: perfil.cpf_cnpj || perfil.cpf || perfil.cnpj },
-              { label:'Total gasto', value: perfil.total_gasto ? fmtR(perfil.total_gasto) : null },
-            ].filter(i => i.value).map((item, i) => (
-              <div key={i}>
-                <div style={{ fontSize:9, color:V.label4, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:2 }}>{item.label}</div>
-                <div style={{ fontSize:12, fontWeight:500, color:V.label }}>{item.value}</div>
-              </div>
-            )) : (
-              <div style={{ fontSize:11, color:V.label4, textAlign:'center', padding:16 }}>Sem cadastro vinculado</div>
-            )}
-          </div>
-        )}
-
-        {/* ABA: Pedidos */}
-        {aba === 'pedidos' && (
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {loadPed ? (
-              <div style={{ textAlign:'center', padding:16, fontSize:11, color:V.label4 }}>Carregando...</div>
-            ) : pedidos.length === 0 ? (
-              <div style={{ textAlign:'center', padding:16 }}>
-                <div style={{ fontSize:22, marginBottom:6 }}>📋</div>
-                <div style={{ fontSize:11, color:V.label4 }}>Nenhum pedido encontrado</div>
-                <div style={{ fontSize:10, color:V.label4, marginTop:4 }}>CPF/CNPJ pode não estar vinculado</div>
-              </div>
-            ) : (
-              pedidos.map((p, i) => {
-                const sit    = mapSit(p.situacao || p.status)
-                const sitCor = { Atendido:'#00d4aa', Verificado:'#00d4aa', Aberto:'#f59e0b', Cancelado:'#ef4444', Faturado:'#4a9fff' }[sit] || V.label3
-                const pedId  = 'ped_' + (p.numero || p.id)
-                return (
-                  <div key={i} style={{ background:V.bg, borderRadius:10, padding:'10px 12px', border:`1px solid ${V.sep}` }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-                      <span style={{ fontSize:12, fontWeight:700, color:V.label }}>#{p.numero || p.id}</span>
-                      <span style={{ fontSize:9, color:V.label4 }}>{p.data}</span>
-                    </div>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-                      <span style={{ fontSize:10, padding:'2px 7px', borderRadius:99, background:`${sitCor}18`, color:sitCor, fontWeight:600 }}>{sit}</span>
-                      <span style={{ fontSize:12, fontWeight:700, color:V.accent }}>{p.total}</span>
-                    </div>
-                    {p.rastreio && p.rastreio !== '—' && (
-                      <div style={{ fontSize:10, color:'#4a9fff', marginBottom:6, display:'flex', alignItems:'center', gap:3 }}>
-                        <IcoTruck /> {p.rastreio}
-                      </div>
-                    )}
-                    {/* Botão enviar pedido ao cliente */}
-                    <button onClick={() => enviarPedido(p)} disabled={enviando === pedId} style={{ width:'100%', padding:'5px 0', borderRadius:7, border:`1px solid ${V.accent}`, background: enviando === pedId ? V.fill : 'transparent', color:V.accent, cursor:'pointer', fontSize:11, fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center', gap:5, transition:'all 0.15s' }}>
-                      <IcoSend /> {enviando === pedId ? 'Enviando...' : 'Enviar ao cliente'}
-                    </button>
+        {/* ABA PERFIL */}
+        {aba==='perfil' && (
+          <div className="space-y-3">
+            {perfil
+              ? [
+                  {l:'Nome',        v:perfil.nome},
+                  {l:'Telefone',    v:fmtTel(perfil.telefone||conv.telefone)},
+                  {l:'E-mail',      v:perfil.email},
+                  {l:'Cidade',      v:perfil.cidade},
+                  {l:'Documento',   v:perfil.cpf_cnpj||perfil.cpf||perfil.cnpj},
+                  {l:'Total gasto', v:perfil.total_gasto?fmtR(perfil.total_gasto):null},
+                ].filter(i=>i.v).map((item,i)=>(
+                  <div key={i}>
+                    <p className="text-[9px] uppercase tracking-wider text-[var(--color-text-tertiary)] mb-0.5">{item.l}</p>
+                    <p className="text-[11.5px] font-medium text-[var(--color-text-primary)]">{item.v}</p>
                   </div>
-                )
-              })
-            )}
+                ))
+              : <p className="text-[11px] text-[var(--color-text-tertiary)] text-center py-6">Sem cadastro vinculado</p>
+            }
           </div>
         )}
 
-        {/* ABA: Catálogo */}
-        {aba === 'catalogo' && (
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            <div style={{ display:'flex', gap:5 }}>
-              <input value={busca} onChange={e => setBusca(e.target.value)} onKeyDown={e => e.key === 'Enter' && buscarProdutos()} placeholder="Buscar produto..." style={{ flex:1, padding:'6px 9px', borderRadius:8, border:`1px solid ${V.sep}`, background:V.bg, outline:'none', fontSize:11.5, color:V.label }} />
-              <button onClick={buscarProdutos} style={{ padding:'6px 10px', borderRadius:8, border:'none', background:V.accent, color:'#fff', cursor:'pointer', fontSize:13, fontWeight:700 }}>{loadP ? '…' : '↵'}</button>
+        {/* ABA PEDIDOS */}
+        {aba==='pedidos' && (
+          <div className="space-y-2">
+            {loadPed
+              ? <p className="text-[11px] text-[var(--color-text-tertiary)] text-center py-6">Carregando...</p>
+              : pedidos.length===0
+                ? <div className="text-center py-6">
+                    <p className="text-[24px] mb-2">📋</p>
+                    <p className="text-[11px] text-[var(--color-text-tertiary)]">Nenhum pedido</p>
+                    <p className="text-[10px] text-[var(--color-text-tertiary)] mt-1">CPF pode não estar vinculado</p>
+                  </div>
+                : pedidos.map((p,i)=>{
+                    const sit=mapSit(p.situacao||p.status)
+                    const sitCls={Atendido:'text-emerald-500',Verificado:'text-emerald-500',Aberto:'text-amber-500',Cancelado:'text-red-400',Faturado:'text-blue-400'}[sit]||'text-[var(--color-text-tertiary)]'
+                    const pedId='ped_'+(p.numero||p.id)
+                    return (
+                      <div key={i} className="rounded-xl bg-[var(--color-background-primary)] border border-[var(--color-border-tertiary)] p-2.5">
+                        <div className="flex justify-between items-center mb-1.5">
+                          <span className="text-[11px] font-bold text-[var(--color-text-primary)]">#{p.numero||p.id}</span>
+                          <span className={`text-[9px] font-semibold ${sitCls}`}>{sit}</span>
+                        </div>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-[9px] text-[var(--color-text-tertiary)]">{p.data||'—'}</span>
+                          <span className="text-[12px] font-bold text-emerald-500">{p.total||'—'}</span>
+                        </div>
+                        {p.rastreio&&p.rastreio!=='—'&&(
+                          <p className="text-[9px] text-blue-400 mb-2 flex items-center gap-1">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                            {p.rastreio}
+                          </p>
+                        )}
+                        <button onClick={()=>enviarPedido(p)} disabled={enviando===pedId}
+                          className="w-full py-1.5 rounded-lg border border-emerald-500/40 text-emerald-500 text-[10px] font-semibold hover:bg-emerald-500/10 disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                          {enviando===pedId?'Enviando…':'Enviar ao cliente'}
+                        </button>
+                      </div>
+                    )
+                  })
+            }
+          </div>
+        )}
+
+        {/* ABA CATÁLOGO */}
+        {aba==='catálogo' && (
+          <div className="space-y-2">
+            <div className="flex gap-1.5">
+              <input value={busca} onChange={e=>setBusca(e.target.value)} onKeyDown={e=>e.key==='Enter'&&buscarProd()}
+                placeholder="Buscar produto..."
+                className="flex-1 px-2.5 py-1.5 rounded-lg bg-[var(--color-background-primary)] border border-[var(--color-border-tertiary)] text-[11.5px] text-[var(--color-text-primary)] outline-none focus:border-emerald-500/50"/>
+              <button onClick={buscarProd}
+                className="px-2.5 py-1.5 rounded-lg bg-emerald-500 text-white text-[11px] font-bold">
+                {loadP?'…':'↵'}
+              </button>
             </div>
-            {produtos.length === 0
-              ? <div style={{ fontSize:10, color:V.label4, textAlign:'center', padding:'16px 0' }}>Digite e pressione Enter para buscar</div>
-              : produtos.map((p, i) => (
-                <div key={i} style={{ background:V.bg, borderRadius:8, padding:'9px 11px', border:`1px solid ${V.sep}` }}>
-                  <div style={{ fontSize:11.5, fontWeight:600, color:V.label, marginBottom:4, lineHeight:1.3 }}>{p.nome || p.descricao}</div>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-                    <span style={{ fontSize:13, fontWeight:700, color:V.accent }}>{fmtR(p.preco || p.precoVenda || 0)}</span>
-                    <span style={{ fontSize:9, padding:'2px 6px', borderRadius:5, background: p.disponivel !== false ? '#ecfdf5' : '#fef2f2', color: p.disponivel !== false ? '#059669' : '#dc2626', border:`1px solid ${p.disponivel !== false ? '#6ee7b7' : '#fca5a5'}` }}>
-                      {p.disponivel !== false ? '✓ Disponível' : '✗ Indisponível'}
+            {produtos.length===0
+              ? <p className="text-[10px] text-[var(--color-text-tertiary)] text-center py-4">Enter para buscar</p>
+              : produtos.map((p,i)=>(
+                <div key={i} className="rounded-xl bg-[var(--color-background-primary)] border border-[var(--color-border-tertiary)] p-2.5">
+                  <p className="text-[11px] font-semibold text-[var(--color-text-primary)] mb-1.5 leading-tight">{p.nome||p.descricao}</p>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-[12px] font-bold text-emerald-500">{fmtR(p.preco||p.precoVenda||0)}</span>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${p.disponivel!==false?'text-emerald-500 bg-emerald-500/10':'text-red-400 bg-red-500/10'}`}>
+                      {p.disponivel!==false?'✓ Disponível':'✗ Indisponível'}
                     </span>
                   </div>
-                  <button onClick={() => enviarProduto(p)} disabled={enviando === (p.id || p.nome)} style={{ width:'100%', padding:'5px 0', borderRadius:6, border:`1px solid ${V.accent}`, background: enviando === (p.id || p.nome) ? V.fill : 'transparent', color:V.accent, cursor:'pointer', fontSize:11, fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
-                    <IcoSend /> {enviando === (p.id || p.nome) ? 'Enviando…' : 'Enviar ao cliente'}
+                  <button onClick={()=>enviarProd(p)} disabled={enviando===(p.id||p.nome)}
+                    className="w-full py-1.5 rounded-lg border border-emerald-500/40 text-emerald-500 text-[10px] font-semibold hover:bg-emerald-500/10 disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    {enviando===(p.id||p.nome)?'Enviando…':'Enviar ao cliente'}
                   </button>
                 </div>
               ))
@@ -399,19 +472,17 @@ function PainelInfo({ conv, api }) {
   )
 }
 
-// ── Barra de envio completa ───────────────────────────────────────────────────
-function BarraEnvio({ modoManual, telefone, api, onEnviou }) {
-  const [texto,     setTexto]     = useState('')
-  const [sending,   setSending]   = useState(false)
-  const [sugestoes, setSugestoes] = useState([])
-  const [loadSug,   setLoadSug]   = useState(false)
-  const [anotacao,  setAnotacao]  = useState(false)
-  const [emoji,     setEmoji]     = useState(false)
+// ── Barra de envio ────────────────────────────────────────────────────────────
+function BarraEnvio({ modoManual, telefone, api, onEnviou, onAssumirIA }) {
+  const [texto,    setTexto]    = useState('')
+  const [sending,  setSending]  = useState(false)
+  const [sugestoes,setSugestoes]= useState([])
+  const [loadSug,  setLoadSug]  = useState(false)
+  const [anotacao, setAnotacao] = useState(false)
+  const [emojiOpen,setEmojiOpen]= useState(false)
   const inputRef = useRef(null)
   const imgRef   = useRef(null)
   const vidRef   = useRef(null)
-
-  const EMOJIS = ['😊','👍','🙏','❤️','✅','📦','💰','🚀','😅','🎉','💬','⏳']
 
   const buscarSugestoes = useCallback(async () => {
     if (!telefone) return
@@ -420,24 +491,15 @@ function BarraEnvio({ modoManual, telefone, api, onEnviou }) {
       const r = await fetch(`${api}/api/sugestoes/${telefone}`)
       if (r.ok) {
         const d = await r.json()
-        const lista = d.sugestoes || d.suggestions || []
-        if (lista.length > 0) {
-          setSugestoes(lista)
-        } else {
-          // Fallback local quando endpoint não retorna sugestões
-          setSugestoes([
-            'Olá! Em que posso te ajudar hoje? 😊',
-            'Pode me contar mais detalhes sobre o que precisa?',
-            'Vou verificar isso para você agora mesmo! ⚡',
-          ])
-        }
+        const l = d.sugestoes||d.suggestions||[]
+        setSugestoes(l.length>0 ? l : [
+          'Olá! Em que posso te ajudar hoje? 😊',
+          'Pode me contar mais sobre o que precisa?',
+          'Vou verificar isso agora mesmo! ⚡',
+        ])
       }
     } catch {
-      // Fallback em caso de erro de rede
-      setSugestoes([
-        'Olá! Em que posso te ajudar hoje? 😊',
-        'Pode me contar mais sobre o que precisa?',
-      ])
+      setSugestoes(['Olá! Em que posso te ajudar? 😊','Vou verificar isso agora! ⚡'])
     }
     setLoadSug(false)
   }, [telefone, api])
@@ -448,329 +510,340 @@ function BarraEnvio({ modoManual, telefone, api, onEnviou }) {
   }, [modoManual, telefone])
 
   const enviar = async (msg) => {
-    const txt = (msg || texto).trim()
-    if (!txt || sending) return
+    const txt=(msg||texto).trim()
+    if (!txt||sending) return
     setTexto(''); setSugestoes([])
     setSending(true)
     try {
-      await fetch(`${api}/api/dashboard/mensagem`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telefone, mensagem: txt })
-      })
+      await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone,mensagem:txt})})
       onEnviou?.()
     } catch {}
     setSending(false)
     inputRef.current?.focus()
   }
 
-  const enviarArquivo = (file, tipo) => {
+  const enviarArq = (file, tipo) => {
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = async () => {
-      const base64 = reader.result.split(',')[1]
+    const rd = new FileReader()
+    rd.onload = async () => {
       try {
-        await fetch(`${api}/api/dashboard/mensagem`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ telefone, tipo, midia_base64: base64, midia_nome: file.name })
-        })
+        await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone,tipo,midia_base64:rd.result.split(',')[1],midia_nome:file.name})})
         onEnviou?.()
       } catch {}
     }
-    reader.readAsDataURL(file)
+    rd.readAsDataURL(file)
   }
 
   if (!modoManual) return (
-    <div style={{ padding:'10px 14px', borderTop:`1px solid ${V.sep}`, background:V.bg2, display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:11, color:V.label4 }}>
-      <span>IA respondendo automaticamente</span>
+    <div className="px-4 py-3 border-t border-[var(--color-border-tertiary)] bg-[var(--color-background-secondary)] flex items-center justify-between flex-shrink-0">
+      <p className="text-[11px] text-[var(--color-text-tertiary)]">IA respondendo automaticamente</p>
+      <button onClick={onAssumirIA}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-blue-400 bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 transition-colors">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Assumir conversa
+      </button>
     </div>
   )
 
-  const toolBtn = (content, label, onClick, active = false, accentColor = null) => (
-    <button title={label} onClick={onClick} style={{ width:28, height:28, borderRadius:7, border:`1px solid ${accentColor ? accentColor + '40' : V.sep}`, background: active ? (accentColor || V.accent) + '15' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color: active ? (accentColor || V.accent) : V.label4, transition:'all 0.12s' }}>
-      {content}
-    </button>
-  )
-
   return (
-    <div style={{ borderTop:`1px solid ${V.sep}`, background:V.bg2, flexShrink:0 }}>
-      {/* Tabs resposta / anotação */}
-      <div style={{ display:'flex', gap:0, borderBottom:`1px solid ${V.sep}` }}>
-        {[{ id:false, label:'Resposta Pública' }, { id:true, label:'Anotação Interna' }].map(a => (
-          <button key={String(a.id)} onClick={() => setAnotacao(a.id)} style={{ padding:'7px 12px', border:'none', cursor:'pointer', background:'transparent', fontSize:11.5, fontWeight:anotacao === a.id ? 700 : 400, color:anotacao === a.id ? V.label : V.label4, borderBottom:anotacao === a.id ? `2px solid ${V.accent}` : '2px solid transparent', display:'flex', alignItems:'center', gap:4 }}>
-            {a.id && <span style={{ color:'#7c3aed' }}><IcoLock /></span>}
+    <div className="border-t border-[var(--color-border-tertiary)] bg-[var(--color-background-secondary)] flex-shrink-0">
+      {/* tabs resposta/anotação */}
+      <div className="flex border-b border-[var(--color-border-tertiary)]">
+        {[{id:false,label:'Resposta pública'},{id:true,label:'Anotação interna'}].map(a=>(
+          <button key={String(a.id)} onClick={()=>setAnotacao(a.id)}
+            className={`px-3 py-2 text-[11.5px] font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+              anotacao===a.id
+                ? 'text-emerald-500 border-emerald-500'
+                : 'text-[var(--color-text-tertiary)] border-transparent hover:text-[var(--color-text-secondary)]'
+            }`}>
+            {a.id && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
             {a.label}
           </button>
         ))}
       </div>
 
-      {/* Sugestões da IA */}
-      {sugestoes.length > 0 && (
-        <div style={{ padding:'6px 12px', display:'flex', gap:5, flexWrap:'wrap', alignItems:'center', borderBottom:`1px solid ${V.sep}` }}>
-          <span style={{ color:'#f59e0b' }}><IcoBulb /></span>
-          {sugestoes.slice(0, 3).map((s, i) => (
-            <button key={i} onClick={() => enviar(s)} style={{ fontSize:10.5, padding:'3px 9px', borderRadius:12, border:`1px solid rgba(245,158,11,0.35)`, background:'rgba(245,158,11,0.08)', color:V.label2, cursor:'pointer', maxWidth:240, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+      {/* sugestões IA */}
+      {sugestoes.length>0 && (
+        <div className="px-3 py-2 flex gap-1.5 flex-wrap items-center border-b border-[var(--color-border-tertiary)]">
+          <svg className="w-3 h-3 text-amber-400 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 1 7 7c0 2.4-1.2 4.5-3 5.7V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.3A7 7 0 0 1 5 9a7 7 0 0 1 7-7z"/></svg>
+          {sugestoes.slice(0,3).map((s,i)=>(
+            <button key={i} onClick={()=>enviar(s)}
+              className="text-[10.5px] px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[var(--color-text-secondary)] hover:bg-amber-500/20 max-w-[220px] truncate transition-colors">
               {s}
             </button>
           ))}
-          <button onClick={buscarSugestoes} style={{ marginLeft:'auto', fontSize:10, color:V.label4, background:'transparent', border:'none', cursor:'pointer', display:'flex', alignItems:'center' }}>
-            {loadSug ? '…' : <IcoRefresh />}
+          <button onClick={buscarSugestoes} className="ml-auto text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]">
+            {loadSug
+              ? <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              : <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/></svg>
+            }
           </button>
         </div>
       )}
 
-      {/* Picker de emoji */}
-      {emoji && (
-        <div style={{ padding:'8px 12px', borderBottom:`1px solid ${V.sep}`, display:'flex', gap:6, flexWrap:'wrap' }}>
-          {EMOJIS.map(e => (
-            <button key={e} onClick={() => { setTexto(t => t + e); setEmoji(false); inputRef.current?.focus() }} style={{ fontSize:18, background:'transparent', border:'none', cursor:'pointer', padding:2 }}>
-              {e}
-            </button>
+      {/* emoji picker */}
+      {emojiOpen && (
+        <div className="px-3 py-2 flex flex-wrap gap-1.5 border-b border-[var(--color-border-tertiary)]">
+          {EMOJIS.map(e=>(
+            <button key={e} onClick={()=>{setTexto(t=>t+e);setEmojiOpen(false);inputRef.current?.focus()}}
+              className="text-lg hover:scale-125 transition-transform">{e}</button>
           ))}
         </div>
       )}
 
-      {/* Nota interna */}
       {anotacao && (
-        <div style={{ fontSize:10, color:'#7c3aed', fontWeight:600, margin:'6px 12px 0', padding:'3px 8px', background:'#f5f0ff', borderRadius:5, display:'inline-flex', alignItems:'center', gap:4 }}>
-          <IcoLock /> Anotação interna — não enviada ao cliente
+        <div className="mx-3 mt-2 px-2.5 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-[10px] font-semibold text-purple-400 flex items-center gap-1.5">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Anotação interna — não enviada ao cliente
         </div>
       )}
 
-      {/* Campo de texto */}
-      <div style={{ padding:'8px 12px' }}>
-        <textarea ref={inputRef} value={texto} onChange={e => setTexto(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar() } }} placeholder={anotacao ? 'Escreva uma anotação interna...' : 'Escreva uma mensagem...'} rows={2} style={{ width:'100%', border:'none', background:'transparent', outline:'none', fontSize:13, color:V.label, resize:'none', lineHeight:1.55, maxHeight:100, overflow:'auto', fontFamily:'inherit' }} />
+      <div className="px-3 py-2">
+        <textarea ref={inputRef} value={texto} onChange={e=>setTexto(e.target.value)}
+          onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviar()}}}
+          placeholder={anotacao?'Escreva uma anotação interna...':'Escreva uma mensagem...'}
+          rows={2}
+          className="w-full bg-transparent text-[13px] text-[var(--color-text-primary)] resize-none outline-none leading-relaxed placeholder:text-[var(--color-text-tertiary)]"/>
       </div>
 
-      {/* Toolbar */}
-      <div style={{ display:'flex', alignItems:'center', gap:5, padding:'4px 10px 8px' }}>
-        {toolBtn(<IcoSmile />, 'Emoji', () => setEmoji(v => !v), emoji)}
-        <label title="Enviar imagem" style={{ width:28, height:28, borderRadius:7, border:`1px solid ${V.sep}`, background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:V.label4 }}>
-          <IcoImage />
-          <input ref={imgRef} type="file" accept="image/*" style={{ display:'none' }} onChange={e => { if (e.target.files[0]) enviarArquivo(e.target.files[0], 'image'); e.target.value = '' }} />
+      <div className="px-3 pb-2.5 flex items-center gap-1.5">
+        {/* emoji */}
+        <button onClick={()=>setEmojiOpen(v=>!v)}
+          className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-all ${emojiOpen?'border-emerald-500/40 bg-emerald-500/10 text-emerald-500':'border-[var(--color-border-tertiary)] text-[var(--color-text-tertiary)] hover:bg-[var(--color-background-tertiary)]'}`}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+        </button>
+        {/* imagem */}
+        <label className="w-7 h-7 rounded-lg border border-[var(--color-border-tertiary)] flex items-center justify-center cursor-pointer text-[var(--color-text-tertiary)] hover:bg-[var(--color-background-tertiary)] transition-colors">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <input ref={imgRef} type="file" accept="image/*" className="hidden" onChange={e=>{if(e.target.files[0])enviarArq(e.target.files[0],'image');e.target.value=''}}/>
         </label>
-        <label title="Enviar vídeo" style={{ width:28, height:28, borderRadius:7, border:`1px solid ${V.sep}`, background:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:V.label4 }}>
-          <IcoVideo />
-          <input ref={vidRef} type="file" accept="video/*" style={{ display:'none' }} onChange={e => { if (e.target.files[0]) enviarArquivo(e.target.files[0], 'video'); e.target.value = '' }} />
+        {/* vídeo */}
+        <label className="w-7 h-7 rounded-lg border border-[var(--color-border-tertiary)] flex items-center justify-center cursor-pointer text-[var(--color-text-tertiary)] hover:bg-[var(--color-background-tertiary)] transition-colors">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          <input ref={vidRef} type="file" accept="video/*" className="hidden" onChange={e=>{if(e.target.files[0])enviarArq(e.target.files[0],'video');e.target.value=''}}/>
         </label>
-        {toolBtn(<IcoMic />, 'Áudio', () => {})}
-        {toolBtn(<IcoBulb />, 'Sugestão IA', buscarSugestoes, false, '#f59e0b')}
+        {/* áudio */}
+        <button className="w-7 h-7 rounded-lg border border-[var(--color-border-tertiary)] flex items-center justify-center text-[var(--color-text-tertiary)] hover:bg-[var(--color-background-tertiary)] transition-colors">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+        {/* sugestão IA */}
+        <button onClick={buscarSugestoes} disabled={loadSug}
+          className="w-7 h-7 rounded-lg border border-amber-500/30 bg-amber-500/8 flex items-center justify-center text-amber-400 hover:bg-amber-500/15 transition-colors">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 1 7 7c0 2.4-1.2 4.5-3 5.7V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.3A7 7 0 0 1 5 9a7 7 0 0 1 7-7z"/></svg>
+        </button>
 
-        <div style={{ flex:1 }} />
+        <div className="flex-1"/>
 
-        <button onClick={() => enviar()} disabled={sending || !texto.trim()} style={{ padding:'6px 16px', borderRadius:8, border:'none', background: texto.trim() && !sending ? V.accent : V.fill, color: texto.trim() && !sending ? '#fff' : V.label4, cursor: texto.trim() ? 'pointer' : 'default', display:'flex', alignItems:'center', gap:6, fontSize:12, fontWeight:600, transition:'all 0.15s' }}>
-          {sending ? '…' : <><IcoSend /> Enviar</>}
+        <button onClick={()=>enviar()} disabled={!texto.trim()||sending}
+          className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${
+            texto.trim()&&!sending
+              ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+              : 'bg-[var(--color-background-tertiary)] text-[var(--color-text-tertiary)] cursor-default'
+          }`}>
+          {sending
+            ? <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          }
+          Enviar
         </button>
       </div>
     </div>
   )
 }
 
-// ── Chat principal ────────────────────────────────────────────────────────────
-function Chat({ telefone, nome, totalMsgs, hora, api, status, onStatusChange, modoManual, onToggleModo }) {
-  const [msgs,           setMsgs]           = useState([])
-  const [loading,        setLoading]         = useState(true)
-  const [hasMore,        setHasMore]         = useState(false)
-  const [offset,         setOffset]          = useState(0)
-  const [mostrarGatilhos,setMostrarGatilhos] = useState(false)
-  const bottomRef = useRef(null)
-  const prevLen   = useRef(0)
-  const fetching  = useRef(false)
+// ── Chat central ──────────────────────────────────────────────────────────────
+function Chat({ conv, api, statusAtend, setStatusAtend, modoManual, onToggleModo }) {
+  const [msgs,            setMsgs]            = useState([])
+  const [loading,         setLoading]          = useState(true)
+  const [hasMore,         setHasMore]          = useState(false)
+  const [offset,          setOffset]           = useState(0)
+  const [mostrarGatilhos, setMostrarGatilhos]  = useState(false)
+  const bottomRef  = useRef(null)
+  const prevLen    = useRef(0)
+  const fetching   = useRef(false)
   const pollingRef = useRef(null)
 
-  const carregar = useCallback(async (off = 0, sil = false) => {
-    if (!telefone || fetching.current) return
-    fetching.current = true
+  const telefone = conv?.telefone
+
+  const carregar = useCallback(async (off=0, sil=false) => {
+    if (!telefone||fetching.current) return
+    fetching.current=true
     if (!sil) setLoading(true)
     try {
-      const r = await fetch(`${api}/api/dashboard/historico/${telefone}?limit=60&offset=${off}`)
+      const r=await fetch(`${api}/api/dashboard/historico/${telefone}?limit=60&offset=${off}`)
       if (r.ok) {
-        const d    = await r.json()
-        const novas = d.mensagens || []
-        if (off === 0) setMsgs(novas)
-        else setMsgs(prev => [...novas, ...prev])
-        setHasMore(d.hasMore || false)
-        setOffset(off === 0 ? novas.length : off + novas.length)
+        const d=await r.json()
+        const novas=d.mensagens||[]
+        if(off===0) setMsgs(novas); else setMsgs(p=>[...novas,...p])
+        setHasMore(d.hasMore||false)
+        setOffset(off===0?novas.length:off+novas.length)
       }
     } catch {}
     if (!sil) setLoading(false)
-    fetching.current = false
+    fetching.current=false
   }, [telefone, api])
 
   useEffect(() => {
-    setMsgs([]); setOffset(0); prevLen.current = 0
+    setMsgs([]); setOffset(0); prevLen.current=0
     carregar(0)
-    pollingRef.current = setInterval(() => {
-      if (document.visibilityState === 'visible') carregar(0, true)
-    }, 8000)
-    return () => clearInterval(pollingRef.current)
+    pollingRef.current=setInterval(()=>{if(document.visibilityState==='visible')carregar(0,true)},8000)
+    return ()=>clearInterval(pollingRef.current)
   }, [telefone])
 
   useEffect(() => {
-    if (msgs.length > prevLen.current) {
-      bottomRef.current?.scrollIntoView({ behavior: prevLen.current === 0 ? 'instant' : 'smooth' })
-    }
-    prevLen.current = msgs.length
+    if (msgs.length>prevLen.current)
+      bottomRef.current?.scrollIntoView({behavior:prevLen.current===0?'instant':'smooth'})
+    prevLen.current=msgs.length
   }, [msgs])
 
-  const grupos = useMemo(() => {
-    const g = []; let d = null
+  const grupos = useMemo(()=>{
+    const g=[]; let d=null
     for (const m of msgs) {
-      const dt = new Date(m.criado_em).toDateString()
-      if (dt !== d) { g.push({ tipo:'sep', data:m.criado_em }); d = dt }
-      g.push({ tipo:'msg', msg:m })
+      const dt=new Date(m.criado_em).toDateString()
+      if(dt!==d){g.push({tipo:'sep',data:m.criado_em});d=dt}
+      g.push({tipo:'msg',msg:m})
     }
     return g
   }, [msgs])
 
-  const stCfg = STATUS.find(s => s.id === status) || STATUS[0]
+  const nGatilhos = msgs.filter(m=>m.modo==='transacional').length
 
-  // Conta gatilhos na conversa
-  const nGatilhos = msgs.filter(m => m.modo === 'transacional').length
+  const stCfg = STATUS.find(s=>s.id===statusAtend)||STATUS[0]
 
   return (
-    <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0, background:V.bg }}>
-      {/* Header */}
-      <div style={{ padding:'10px 16px', borderBottom:`1px solid ${V.sep}`, background:V.bg2, display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
-        <Avatar nome={nome} telefone={telefone} size={36} />
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontSize:13.5, fontWeight:600, color:V.label }}>{nome || fmtTel(telefone)}</div>
-          <div style={{ fontSize:10, color:V.label4 }}>{totalMsgs} msgs · {hora}</div>
+    <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      {/* header */}
+      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-[var(--color-border-tertiary)] bg-[var(--color-background-secondary)] flex-shrink-0">
+        <Avatar nome={conv.nome} telefone={conv.telefone} fotoUrl={conv.foto_url||conv.fotoUrl} size={34}/>
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-semibold text-[var(--color-text-primary)] truncate">{conv.nome||fmtTel(conv.telefone)}</p>
+          <p className="text-[10px] text-[var(--color-text-tertiary)]">{conv.total_msgs||0} msgs · {conv.hora||''}</p>
         </div>
 
-        {/* Toggle IA/Manual */}
-        <button onClick={onToggleModo} style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 11px', borderRadius:8, border:`1px solid ${modoManual ? '#93c5fd' : V.sep}`, background:modoManual ? '#eff6ff' : V.fill, color:modoManual ? '#2563eb' : V.label3, cursor:'pointer', fontSize:11, fontWeight:600, flexShrink:0 }}>
-          {modoManual ? <><IcoBot /> Devolver à IA</> : <><IcoUser /> Assumir</>}
-        </button>
-
-        {/* Botões de status */}
-        <div style={{ display:'flex', gap:3 }}>
-          {STATUS.filter(s => s.id !== 'gatilhos').map(s => (
-            <button key={s.id} onClick={() => onStatusChange(telefone, s.id)} title={s.label} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, padding:'5px 8px', borderRadius:8, border:'none', cursor:'pointer', background:status === s.id ? s.bg : 'transparent', color:status === s.id ? s.cor : V.label4, outline:status === s.id ? `1.5px solid ${s.cor}50` : 'none', minWidth:46, transition:'all 0.12s' }}>
-              <span style={{ width:7, height:7, borderRadius:'50%', background:status === s.id ? s.cor : V.label4, display:'inline-block' }} />
-              <span style={{ fontSize:9, fontWeight:600 }}>{s.label}</span>
+        {/* status row inline */}
+        <div className="flex gap-1.5">
+          {STATUS.filter(s=>s.id!=='gatilhos').map(s=>(
+            <button key={s.id} onClick={()=>setStatusAtend(s.id)}
+              className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-lg border transition-all min-w-[44px] ${
+                statusAtend===s.id
+                  ? 'border-current opacity-100'
+                  : 'border-transparent opacity-50 hover:opacity-80 hover:bg-[var(--color-background-tertiary)]'
+              }`}
+              style={{color: statusAtend===s.id ? stCfg.cor : 'var(--color-text-tertiary)'}}>
+              <span className={`w-2 h-2 rounded-full ${s.dot}`}/>
+              <span className="text-[8px] font-semibold whitespace-nowrap leading-none">{s.label}</span>
             </button>
           ))}
         </div>
 
-        <button onClick={() => carregar(0)} style={{ padding:5, border:`1px solid ${V.sep}`, borderRadius:6, background:'transparent', cursor:'pointer', color:V.label4 }}>
-          <IcoRefresh />
+        {/* assumir/devolver */}
+        <button onClick={onToggleModo}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all flex-shrink-0 ${
+            modoManual
+              ? 'text-blue-400 bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20'
+              : 'text-[var(--color-text-tertiary)] bg-[var(--color-background-tertiary)] border-[var(--color-border-tertiary)] hover:bg-[var(--color-background-secondary)]'
+          }`}>
+          {modoManual
+            ? <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 11V3"/><circle cx="12" cy="3" r="1"/></svg> Devolver à IA</>
+            : <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Assumir</>
+          }
+        </button>
+
+        <button onClick={()=>carregar(0)}
+          className="w-7 h-7 rounded-lg border border-[var(--color-border-tertiary)] flex items-center justify-center text-[var(--color-text-tertiary)] hover:bg-[var(--color-background-tertiary)] transition-colors">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/></svg>
         </button>
       </div>
 
-      {/* Barra do catálogo — ACIMA das mensagens (Versão A) */}
-      <div style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 12px', background:'#534AB708', borderBottom:`1px solid #534AB720`, flexShrink:0 }}>
-        <span style={{ color:'#534AB7', flexShrink:0 }}><IcoPkg /></span>
-        <span style={{ fontSize:10, fontWeight:600, color:'#534AB7', flexShrink:0 }}>Catálogo</span>
-        <CatalogoBarra telefone={telefone} api={api} />
+      {/* barra catálogo — acima das mensagens */}
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/5 border-b border-purple-500/15 flex-shrink-0">
+        <svg width="13" height="13" className="text-purple-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        <span className="text-[10px] font-semibold text-purple-400 flex-shrink-0">Catálogo</span>
+        <CatalogoBarra telefone={telefone} api={api}/>
       </div>
 
-      {/* Filtro gatilhos */}
-      {nGatilhos > 0 && (
-        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'4px 12px', background:'#a78bfa08', borderBottom:`1px solid #a78bfa20`, flexShrink:0 }}>
-          <span style={{ fontSize:10, color:'#7c3aed', display:'flex', alignItems:'center', gap:3 }}><IcoZap /> {nGatilhos} gatilho{nGatilhos > 1 ? 's' : ''} nesta conversa</span>
-          <button onClick={() => setMostrarGatilhos(v => !v)} style={{ fontSize:10, padding:'1px 8px', borderRadius:99, border:`1px solid #a78bfa50`, background:mostrarGatilhos ? '#a78bfa18' : 'transparent', color:'#7c3aed', cursor:'pointer', fontWeight:500 }}>
-            {mostrarGatilhos ? 'Ocultar' : 'Mostrar'}
+      {/* filtro de gatilhos */}
+      {nGatilhos>0 && (
+        <div className="flex items-center gap-2 px-3 py-1 bg-purple-500/5 border-b border-purple-500/10 flex-shrink-0">
+          <svg width="10" height="10" className="text-purple-400" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span className="text-[10px] text-purple-400">{nGatilhos} gatilho{nGatilhos>1?'s':''} nesta conversa</span>
+          <button onClick={()=>setMostrarGatilhos(v=>!v)}
+            className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+              mostrarGatilhos
+                ? 'border-purple-500/40 bg-purple-500/15 text-purple-400'
+                : 'border-purple-500/20 text-purple-400 hover:bg-purple-500/10'
+            }`}>
+            {mostrarGatilhos?'Ocultar':'Mostrar'}
           </button>
         </div>
       )}
 
-      {/* Mensagens */}
-      <div style={{ flex:1, overflow:'auto', padding:'12px 16px', background:V.bg }}>
+      {/* mensagens */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 bg-[var(--color-background-primary)]">
         {hasMore && (
-          <div style={{ textAlign:'center', padding:'4px 0' }}>
-            <button onClick={() => carregar(offset)} style={{ fontSize:10, color:V.accent, background:'transparent', border:`1px solid ${V.sep}`, borderRadius:6, padding:'3px 10px', cursor:'pointer' }}>
+          <div className="text-center pb-3">
+            <button onClick={()=>carregar(offset)}
+              className="text-[10px] text-emerald-500 border border-[var(--color-border-tertiary)] rounded-full px-3 py-1 hover:bg-[var(--color-background-secondary)] transition-colors">
               Carregar anteriores
             </button>
           </div>
         )}
-        {loading && msgs.length === 0
-          ? <div style={{ textAlign:'center', padding:40, color:V.label4, fontSize:12 }}>Carregando...</div>
-          : grupos.length === 0
-          ? <div style={{ textAlign:'center', padding:40, color:V.label4, fontSize:12 }}>Nenhuma mensagem</div>
-          : grupos.map((g, i) =>
-              g.tipo === 'sep'
-                ? <DateSep key={`s${i}`} data={g.data} />
-                : <Bolha key={g.msg.id || i} msg={{ ...g.msg, telefone }} mostrarGatilhos={mostrarGatilhos} />
+        {loading&&msgs.length===0
+          ? <p className="text-center py-12 text-[12px] text-[var(--color-text-tertiary)]">Carregando...</p>
+          : grupos.length===0
+          ? <p className="text-center py-12 text-[12px] text-[var(--color-text-tertiary)]">Nenhuma mensagem</p>
+          : grupos.map((g,i)=>
+              g.tipo==='sep'
+                ? <DateSep key={`s${i}`} data={g.data}/>
+                : <Bolha key={g.msg.id||i} msg={{...g.msg,telefone}} mostrarGatilhos={mostrarGatilhos}/>
             )
         }
-        <div ref={bottomRef} />
+        <div ref={bottomRef}/>
       </div>
 
-      <BarraEnvio modoManual={modoManual} telefone={telefone} api={api} onEnviou={() => carregar(0, true)} />
+      <BarraEnvio
+        modoManual={modoManual}
+        telefone={telefone}
+        api={api}
+        onEnviou={()=>carregar(0,true)}
+        onAssumirIA={onToggleModo}
+      />
     </div>
   )
 }
 
-// ── Barra de catálogo embutida acima das mensagens ────────────────────────────
-function CatalogoBarra({ telefone, api }) {
-  const [busca,    setBusca]    = useState('')
-  const [produtos, setProdutos] = useState([])
-  const [loading,  setLoading]  = useState(false)
-  const [aberto,   setAberto]   = useState(false)
-  const [enviando, setEnviando] = useState(null)
-
-  const buscar = async () => {
-    if (!busca.trim()) return
-    setLoading(true); setAberto(true)
-    try {
-      const r = await fetch(`${api}/api/dashboard/catalogo?q=${encodeURIComponent(busca)}`)
-      if (r.ok) { const d = await r.json(); setProdutos(d.produtos || []) }
-    } catch {}
-    setLoading(false)
-  }
-
-  const enviar = async (prod) => {
-    setEnviando(prod.id || prod.nome)
-    const precoNum = parseFloat(prod.preco || prod.precoVenda || 0)
-    const pix = (precoNum * 0.9).toFixed(2).replace('.', ',')
-    const msg = `*${prod.nome || prod.descricao}*\n💳 Cartão: ${fmtR(precoNum)} | 💰 PIX: R$ ${pix}\n${prod.disponivel !== false ? '✅ Disponível em estoque' : '⚠️ Indisponível'}`
-    try {
-      await fetch(`${api}/api/dashboard/mensagem`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telefone, mensagem: msg })
-      })
-    } catch {}
-    setEnviando(null); setAberto(false); setBusca('')
-  }
-
+// ── Card de conversa na lista ─────────────────────────────────────────────────
+const ConvCard = memo(function ConvCard({ conv, selecionada, status, onClick }) {
+  const st = STATUS.find(s=>s.id===status)||STATUS[0]
   return (
-    <div style={{ flex:1, position:'relative' }}>
-      <div style={{ display:'flex', gap:5 }}>
-        <div style={{ flex:1, display:'flex', alignItems:'center', gap:5, padding:'3px 8px', borderRadius:7, background:V.bg, border:`1px solid #534AB730` }}>
-          <span style={{ color:'#534AB780' }}><IcoSearch /></span>
-          <input value={busca} onChange={e => setBusca(e.target.value)} onKeyDown={e => e.key === 'Enter' && buscar()} placeholder="Buscar produto para enviar ao cliente..." style={{ flex:1, border:'none', background:'transparent', outline:'none', fontSize:11, color:V.label }} />
-          {busca && <button onClick={() => { setBusca(''); setAberto(false); setProdutos([]) }} style={{ background:'transparent', border:'none', cursor:'pointer', color:V.label4, display:'flex', alignItems:'center' }}><IcoX /></button>}
+    <div onClick={onClick}
+      className={`flex items-center gap-2.5 px-4 py-2.5 cursor-pointer border-b border-[var(--color-border-tertiary)] border-l-2 transition-all ${
+        selecionada
+          ? 'bg-emerald-500/8 border-l-emerald-500'
+          : 'border-l-transparent hover:bg-[var(--color-background-secondary)]'
+      }`}>
+      <Avatar nome={conv.nome} telefone={conv.telefone} fotoUrl={conv.foto_url||conv.fotoUrl} size={34}/>
+      <div className="flex-1 min-w-0">
+        <div className="flex justify-between items-center mb-0.5">
+          <span className={`text-[12px] font-semibold truncate max-w-[130px] ${selecionada?'text-emerald-500':'text-[var(--color-text-primary)]'}`}>
+            {conv.nome||fmtTel(conv.telefone)}
+          </span>
+          <span className="text-[9px] text-[var(--color-text-tertiary)] flex-shrink-0">{conv.hora||''}</span>
         </div>
-        <button onClick={buscar} style={{ padding:'3px 10px', borderRadius:7, border:'none', background:'#534AB7', color:'#fff', cursor:'pointer', fontSize:11, fontWeight:600 }}>
-          Buscar
-        </button>
+        <p className="text-[10.5px] text-[var(--color-text-secondary)] truncate mb-1">
+          {conv.ultima_direcao==='saida'?'↩ ':''}{conv.ultima_msg||'—'}
+        </p>
+        <div className="flex gap-1.5">
+          {conv.agente && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">IA</span>}
+          <span className="text-[8px] font-semibold px-1.5 py-0.5 rounded"
+            style={{background:st.bg, color:st.cor}}>
+            {st.label}
+          </span>
+        </div>
       </div>
-
-      {/* Dropdown de resultados */}
-      {aberto && (
-        <div style={{ position:'absolute', top:'100%', left:0, right:0, zIndex:100, marginTop:3, background:V.bg2, border:`1px solid ${V.sep}`, borderRadius:10, boxShadow:'0 8px 24px rgba(0,0,0,0.15)', maxHeight:240, overflowY:'auto' }}>
-          {loading ? (
-            <div style={{ padding:'12px 14px', fontSize:11, color:V.label4 }}>Buscando...</div>
-          ) : produtos.length === 0 ? (
-            <div style={{ padding:'12px 14px', fontSize:11, color:V.label4 }}>Nenhum produto encontrado</div>
-          ) : produtos.slice(0, 8).map((p, i) => (
-            <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderBottom:`1px solid ${V.sep}`, cursor:'pointer' }}
-              onMouseEnter={e => e.currentTarget.style.background = V.bg3}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:12, fontWeight:500, color:V.label, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.nome || p.descricao}</div>
-                <div style={{ fontSize:10, color:V.label4 }}>{p.codigo || ''} · {fmtR(p.preco || p.precoVenda || 0)}</div>
-              </div>
-              <button onClick={() => enviar(p)} disabled={enviando === (p.id || p.nome)} style={{ padding:'3px 10px', borderRadius:6, border:`1px solid ${V.accent}`, background:'transparent', color:V.accent, cursor:'pointer', fontSize:10, fontWeight:600, flexShrink:0 }}>
-                {enviando === (p.id || p.nome) ? '…' : 'Enviar'}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   )
-}
+})
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function PageConversas({ api: apiProp }) {
@@ -778,38 +851,33 @@ export default function PageConversas({ api: apiProp }) {
 
   const [convs,     setConvs]     = useState([])
   const [selTel,    setSelTel]    = useState(null)
-  const [statusSel, setStatusSel] = useState(() => sessionStorage.getItem('bia_conv_status') || 'pendente')
+  const [statusSel, setStatusSel] = useState(()=>sessionStorage.getItem('bia_conv_status')||'pendente')
   const [statusMap, setStatusMap] = useState({})
   const [modoMap,   setModoMap]   = useState({})
   const [busca,     setBusca]     = useState('')
   const [loading,   setLoading]   = useState(true)
-  const [sidebar,   setSidebar]   = useState(() => sessionStorage.getItem('bia_sidebar') === 'true')
+  const [sidebar,   setSidebar]   = useState(()=>sessionStorage.getItem('bia_sidebar')==='true')
 
-  useEffect(() => { sessionStorage.setItem('bia_conv_status', statusSel) }, [statusSel])
-  useEffect(() => { sessionStorage.setItem('bia_sidebar', String(sidebar)) }, [sidebar])
+  useEffect(()=>{sessionStorage.setItem('bia_conv_status',statusSel)},[statusSel])
+  useEffect(()=>{sessionStorage.setItem('bia_sidebar',String(sidebar))},[sidebar])
 
-  const getStatus = tel => statusMap[tel] || 'pendente'
-  const getModo   = tel => modoMap[tel]   || false
+  const getStatus = tel => statusMap[tel]||'pendente'
+  const getModo   = tel => modoMap[tel]||false
 
-  const carregar = useCallback(async (sil = false) => {
+  const carregar = useCallback(async (sil=false)=>{
     if (!sil) setLoading(true)
     try {
-      const r = await fetch(`${api}/api/dashboard/conversas?aba=todas`)
+      const r=await fetch(`${api}/api/dashboard/conversas?aba=todas`)
       if (r.ok) {
-        const d    = await r.json()
-        const novas = d.conversas || []
-        setConvs(prev => {
-          const map = new Map(prev.map(c => [c.telefone, c]))
-          return novas.map(c => ({ ...map.get(c.telefone), ...c }))
+        const d=await r.json()
+        const novas=d.conversas||[]
+        setConvs(prev=>{
+          const map=new Map(prev.map(c=>[c.telefone,c]))
+          return novas.map(c=>({...map.get(c.telefone),...c}))
         })
-        // Popula statusMap com valores do banco sem sobrescrever locais
-        setStatusMap(prev => {
-          const novo = { ...prev }
-          novas.forEach(c => {
-            if (!novo[c.telefone] && c.status_atendimento) {
-              novo[c.telefone] = c.status_atendimento
-            }
-          })
+        setStatusMap(prev=>{
+          const novo={...prev}
+          novas.forEach(c=>{if(!novo[c.telefone]&&c.status_atendimento)novo[c.telefone]=c.status_atendimento})
           return novo
         })
       }
@@ -817,148 +885,126 @@ export default function PageConversas({ api: apiProp }) {
     if (!sil) setLoading(false)
   }, [api])
 
-  useEffect(() => {
+  useEffect(()=>{
     carregar()
-    const i = setInterval(() => {
-      if (document.visibilityState === 'visible') carregar(true)
-    }, 15000)
-    return () => clearInterval(i)
-  }, [carregar])
+    const i=setInterval(()=>{if(document.visibilityState==='visible')carregar(true)},15000)
+    return()=>clearInterval(i)
+  },[carregar])
 
-  // ── Salva status no servidor e atualiza local ─────────────────────────────
-  const setConvStatus = useCallback((tel, st) => {
-    // Atualiza imediatamente no estado local
-    setStatusMap(prev => ({ ...prev, [tel]: st }))
+  // Salva status localmente E no servidor
+  const setConvStatus = useCallback((tel, st)=>{
+    setStatusMap(prev=>({...prev,[tel]:st}))
+    fetch(`${api}/api/dashboard/status/${tel}`,{
+      method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:st})
+    }).catch(()=>{})
+    fetch(`${api}/api/contatos/${tel}`,{
+      method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:st})
+    }).catch(()=>{})
+  },[api])
 
-    // Persiste no servidor — tenta PATCH no status do atendimento
-    fetch(`${api}/api/dashboard/status/${tel}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: st })
-    }).catch(() => {})
+  const toggleModo = useCallback(tel=>{
+    const novoModo = !getModo(tel)
+    setModoMap(prev=>({...prev,[tel]:novoModo}))
+    if (novoModo) {
+      fetch(`${api}/api/dashboard/manual/${tel}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({modo:'manual'})}).catch(()=>{})
+    }
+  },[api, modoMap])
 
-    // Também tenta salvar no contatos
-    fetch(`${api}/api/contatos/${tel}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: st })
-    }).catch(() => {})
-  }, [api])
-
-  const toggleModo = useCallback(tel => {
-    setModoMap(prev => ({ ...prev, [tel]: !prev[tel] }))
-  }, [])
-
-  const contadores = useMemo(() => {
-    const c = {}
-    STATUS.forEach(s => { c[s.id] = convs.filter(cv => getStatus(cv.telefone) === s.id).length })
-    c['gatilhos'] = convs.filter(c => c.modo === 'transacional').length
+  const contadores = useMemo(()=>{
+    const c={}
+    STATUS.forEach(s=>{c[s.id]=convs.filter(cv=>getStatus(cv.telefone)===s.id).length})
+    c['gatilhos']=convs.filter(c=>c.modo==='transacional').length
     return c
-  }, [convs, statusMap])
+  },[convs,statusMap])
 
-  const filtradas = useMemo(() => convs
-    .filter(c => {
-      if (statusSel === 'gatilhos') return c.modo === 'transacional'
-      return getStatus(c.telefone) === statusSel
+  const filtradas = useMemo(()=>convs
+    .filter(c=>{
+      if(statusSel==='gatilhos') return c.modo==='transacional'
+      return getStatus(c.telefone)===statusSel
     })
-    .filter(c => !busca ||
-      (c.nome || '').toLowerCase().includes(busca.toLowerCase()) ||
-      c.telefone.includes(busca) ||
-      (c.ultima_msg || '').toLowerCase().includes(busca.toLowerCase())
-    ), [convs, statusSel, statusMap, busca])
+    .filter(c=>!busca||(c.nome||'').toLowerCase().includes(busca.toLowerCase())||c.telefone.includes(busca)||(c.ultima_msg||'').toLowerCase().includes(busca.toLowerCase()))
+  ,[convs,statusSel,statusMap,busca])
 
-  const selConv = convs.find(c => c.telefone === selTel)
-  const stCfg   = STATUS.find(s => s.id === statusSel) || STATUS[0]
+  const selConv = convs.find(c=>c.telefone===selTel)
+  const stSel   = STATUS.find(s=>s.id===statusSel)||STATUS[0]
 
   return (
-    <div style={{ display:'flex', height:'100%', overflow:'hidden', background:V.bg }}>
-      {/* Sidebar de filtros */}
-      <Sidebar statusSel={statusSel} setStatusSel={setStatusSel} contadores={contadores} expandida={sidebar} setExpandida={setSidebar} />
+    <div className="flex h-full overflow-hidden">
 
-      {/* Lista de conversas */}
-      <div style={{ width:280, flexShrink:0, display:'flex', flexDirection:'column', borderRight:`1px solid ${V.sep}`, background:V.bg }}>
-        <div style={{ padding:'10px 12px', borderBottom:`1px solid ${V.sep}`, flexShrink:0 }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-              <span style={{ width:8, height:8, borderRadius:'50%', background:stCfg.cor, display:'inline-block' }} />
-              <span style={{ fontSize:13, fontWeight:600, color:V.label }}>{stCfg.label}</span>
-              <span style={{ fontSize:10, color:V.label4, background:V.fill, padding:'1px 6px', borderRadius:8 }}>{filtradas.length}</span>
+      {/* sidebar filtros */}
+      <Sidebar statusSel={statusSel} setStatusSel={setStatusSel} contadores={contadores} expandida={sidebar} setExpandida={setSidebar}/>
+
+      {/* lista de conversas */}
+      <div className={`flex-shrink-0 flex flex-col overflow-hidden border-r border-[var(--color-border-tertiary)] transition-all duration-200 ${selTel?'w-72':'w-96'}`}>
+        <div className="px-4 py-3 border-b border-[var(--color-border-tertiary)] flex-shrink-0">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className={`w-2.5 h-2.5 rounded-full ${stSel.dot}`}/>
+              <span className="text-[14px] font-bold text-[var(--color-text-primary)]">{stSel.label}</span>
+              <span className="text-[10px] text-[var(--color-text-tertiary)] bg-[var(--color-background-tertiary)] px-2 py-0.5 rounded-full">{filtradas.length}</span>
             </div>
-            <button onClick={() => carregar()} style={{ padding:4, border:'none', background:'transparent', cursor:'pointer', color:V.label4 }}>
-              <IcoRefresh />
+            <button onClick={()=>carregar()}
+              className="w-7 h-7 rounded-lg border border-[var(--color-border-tertiary)] flex items-center justify-center text-[var(--color-text-tertiary)] hover:bg-[var(--color-background-secondary)] transition-colors">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-.96-7.3"/></svg>
             </button>
           </div>
-          <div style={{ display:'flex', alignItems:'center', gap:6, background:V.fill, borderRadius:8, padding:'6px 9px', border:`1px solid ${V.sep}` }}>
-            <span style={{ color:V.label4 }}><IcoSearch /></span>
-            <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..." style={{ flex:1, border:'none', background:'transparent', outline:'none', fontSize:11.5, color:V.label }} />
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--color-background-secondary)] border border-[var(--color-border-tertiary)] focus-within:border-emerald-500/40 transition-colors">
+            <svg width="12" height="12" className="text-[var(--color-text-tertiary)] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar..."
+              className="flex-1 bg-transparent text-[12px] text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"/>
           </div>
         </div>
 
-        <div style={{ flex:1, overflow:'auto' }}>
+        <div className="flex-1 overflow-y-auto">
           {loading
-            ? Array.from({ length:5 }).map((_, i) => (
-                <div key={i} style={{ padding:'10px 12px', borderBottom:`1px solid ${V.sep}` }}>
-                  <div style={{ height:10, width:'55%', borderRadius:4, background:V.sep, marginBottom:5 }} />
-                  <div style={{ height:8, width:'75%', borderRadius:4, background:V.sep }} />
+            ? Array.from({length:4}).map((_,i)=>(
+                <div key={i} className="flex gap-3 px-4 py-3 border-b border-[var(--color-border-tertiary)]">
+                  <div className="w-8 h-8 rounded-full bg-[var(--color-background-tertiary)] flex-shrink-0"/>
+                  <div className="flex-1 space-y-2 pt-1">
+                    <div className="h-2.5 rounded bg-[var(--color-background-tertiary)] w-2/3"/>
+                    <div className="h-2 rounded bg-[var(--color-background-tertiary)] w-full"/>
+                  </div>
                 </div>
               ))
-            : filtradas.length === 0
-              ? <div style={{ padding:24, textAlign:'center', fontSize:12, color:V.label4 }}>
-                  {statusSel === 'pendente' ? 'Novas conversas aparecem aqui'
-                   : statusSel === 'gatilhos' ? 'Disparos automáticos aqui'
-                   : 'Mude o status de uma conversa para ver aqui'}
-                </div>
-              : filtradas.map(c => {
-                  const ativo   = selTel === c.telefone
-                  const st      = STATUS.find(s => s.id === getStatus(c.telefone)) || STATUS[0]
-                  return (
-                    <div key={c.telefone} onClick={() => setSelTel(c.telefone)}
-                      style={{ display:'flex', gap:9, padding:'10px 12px', cursor:'pointer', borderBottom:`1px solid ${V.sep}`, borderLeft:ativo?`3px solid ${V.accent}`:'3px solid transparent', background:ativo?`${V.accent}08`:'transparent', transition:'background 0.1s' }}
-                      onMouseEnter={e => { if (!ativo) e.currentTarget.style.background = V.fill }}
-                      onMouseLeave={e => { if (!ativo) e.currentTarget.style.background = 'transparent' }}>
-                      <Avatar nome={c.nome} telefone={c.telefone} size={34} />
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ display:'flex', justifyContent:'space-between', marginBottom:2 }}>
-                          <span style={{ fontSize:12, fontWeight:600, color:V.label, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:130 }}>{c.nome || fmtTel(c.telefone)}</span>
-                          <span style={{ fontSize:9, color:V.label4, flexShrink:0 }}>{c.hora}</span>
-                        </div>
-                        <div style={{ fontSize:10.5, color:V.label3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginBottom:4 }}>
-                          {c.ultima_direcao === 'saida' ? '↩ ' : ''}{c.ultima_msg || '—'}
-                        </div>
-                        <div style={{ display:'flex', gap:3 }}>
-                          {c.agente && <span style={{ fontSize:8, fontWeight:700, padding:'1px 5px', borderRadius:4, background:'#ecfdf5', color:'#059669', border:'1px solid #6ee7b7' }}>IA</span>}
-                          <span style={{ fontSize:8, fontWeight:600, padding:'1px 5px', borderRadius:4, background:st.bg, color:st.cor }}>{st.label}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })
+            : filtradas.length===0
+              ? <p className="p-8 text-center text-[12px] text-[var(--color-text-tertiary)]">
+                  {busca?'Nenhum resultado':statusSel==='pendente'?'Novas conversas aparecem aqui':'Sem conversas neste status'}
+                </p>
+              : filtradas.map(c=>(
+                  <ConvCard key={c.telefone} conv={c} selecionada={selTel===c.telefone}
+                    status={getStatus(c.telefone)}
+                    onClick={()=>setSelTel(c.telefone===selTel?null:c.telefone)}/>
+                ))
           }
         </div>
       </div>
 
-      {/* Chat + Painel */}
-      {selTel ? (
+      {/* área principal */}
+      {selConv ? (
         <>
           <Chat
-            key={selTel}
-            telefone={selTel}
-            nome={selConv?.nome}
-            totalMsgs={selConv?.total_msgs}
-            hora={selConv?.hora}
+            key={selConv.telefone}
+            conv={selConv}
             api={api}
-            status={getStatus(selTel)}
-            onStatusChange={setConvStatus}
-            modoManual={getModo(selTel)}
-            onToggleModo={() => toggleModo(selTel)}
+            statusAtend={getStatus(selConv.telefone)}
+            setStatusAtend={st=>setConvStatus(selConv.telefone, st)}
+            modoManual={getModo(selConv.telefone)}
+            onToggleModo={()=>toggleModo(selConv.telefone)}
           />
-          {selConv && <PainelInfo conv={selConv} api={api} />}
+          <PainelInfo
+            conv={selConv}
+            api={api}
+            statusAtend={getStatus(selConv.telefone)}
+            setStatusAtend={st=>setConvStatus(selConv.telefone, st)}
+          />
         </>
       ) : (
-        <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:10, color:V.label4, background:V.bg }}>
-          <div style={{ fontSize:36, opacity:.12 }}>💬</div>
-          <div style={{ fontSize:14, fontWeight:500, color:V.label3 }}>Selecione uma conversa</div>
-          <div style={{ fontSize:11, color:V.label4 }}>{filtradas.length} em {stCfg.label.toLowerCase()}</div>
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-[var(--color-background-secondary)]">
+          <div className="w-12 h-12 rounded-2xl bg-[var(--color-background-primary)] border border-[var(--color-border-tertiary)] flex items-center justify-center">
+            <svg width="22" height="22" className="text-[var(--color-text-tertiary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <p className="text-[14px] font-medium text-[var(--color-text-primary)]">Selecione uma conversa</p>
+          <p className="text-[12px] text-[var(--color-text-tertiary)]">{filtradas.length} em {stSel.label.toLowerCase()}</p>
         </div>
       )}
     </div>
