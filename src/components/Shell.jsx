@@ -113,7 +113,18 @@ export default function Shell() {
       case 'iaconfig':    return <Page nome="Config IA"   comp={PageIAConfig}    />
       case 'llmconfig':   return <Page nome="LLM & Bypasses" comp={PageLLMConfig}  />
       case 'gatilhos':    return <Page nome="Gatilhos"       comp={PageGatilhos}   />
-      case 'conversas':    return <Page nome="Conversas"      comp={PageConversas}   />
+      case 'conversas':    return (
+        <ErroBoundary nome="Conversas">
+          <Suspense fallback={<Spinner />}>
+            <PageConversas api={API} onNavigate={(destino, params={}) => {
+              setPage(destino)
+              if (params.novaOcorrencia && params.tel) {
+                sessionStorage.setItem('bia_nova_ocorrencia', JSON.stringify(params))
+              }
+            }}/>
+          </Suspense>
+        </ErroBoundary>
+      )
       case 'disparos':     return <Page nome="Disparos"       comp={PageDisparos}    />
       case 'ocorrencias':  return <Page nome="Ocorrências"    comp={PageOcorrencias} />
       case 'reengajamento': return <Page nome="Reengajamento"  comp={PageReengajamento} />
