@@ -277,9 +277,9 @@ function CatOverlay({ telefone, api, onClose }) {
           type:'button',
           body:{ text: bodyText },
           action:{ buttons:[
-            { type:'reply', reply:{ id:'btn_carrinho', title:'🛒 Ao Carrinho' } },
-            { type:'reply', reply:{ id:'btn_foto',     title:'📸 Ver Foto'             } },
-            { type:'reply', reply:{ id:'btn_duvidas',  title:'💬 Tirar Dúvidas'        } },
+            { type:'reply', reply:{ id:'btn_carrinho', title:'Adicionar carrinho' } },
+            { type:'reply', reply:{ id:'btn_foto',     title:'Ver foto'             } },
+            { type:'reply', reply:{ id:'btn_duvidas',  title:'Tirar duvida'        } },
           ]},
         }
         if (vars.foto_produto) interactive.header = { type:'image', image:{ link:vars.foto_produto } }
@@ -618,9 +618,9 @@ function PainelInfo({ conv, api }) {
         type:'button',
         body:{ text: bodyText },
         action:{ buttons:[
-          { type:'reply', reply:{ id:'btn_carrinho', title:'🛒 Ao Carrinho' } },
-          { type:'reply', reply:{ id:'btn_foto',     title:'📸 Ver Foto'             } },
-          { type:'reply', reply:{ id:'btn_duvidas',  title:'💬 Tirar Dúvidas'        } },
+          { type:'reply', reply:{ id:'btn_carrinho', title:'Adicionar carrinho' } },
+          { type:'reply', reply:{ id:'btn_foto',     title:'Ver foto'              } },
+          { type:'reply', reply:{ id:'btn_duvidas',  title:'Tirar dúvida'          } },
         ]},
       }
       if (vars.foto_produto) {
@@ -1108,115 +1108,129 @@ export default function PageConversas({ api: apiProp, onNavigate }) {
   return (
     <div className="flex h-full overflow-hidden bg-[var(--bg)]">
 
-      {/* ── SIDEBAR — retrátil: collapsed=48px ícones / open=260px lista ── */}
-      <div style={{
-        flexShrink:0, display:'flex', flexDirection:'row', overflow:'visible',
-        position:'relative', zIndex:10
-      }}>
+      {/* ── SIDEBAR — multi-coluna: ícones fixos (48px) + lista retrátil ── */}
+      <div style={{display:'flex',flexShrink:0,borderRight:'1px solid var(--sep)'}}>
 
-        {/* Coluna de ícones sempre visível (48px) */}
+        {/* Coluna de ícones — SEMPRE visível */}
         <div style={{
           width:48, flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center',
-          borderRight:'1px solid var(--sep)', background:'var(--bg-2)', paddingTop:8, gap:2
+          borderRight:'1px solid var(--sep)', background:'var(--bg-2)', paddingTop:8, gap:2, paddingBottom:8
         }}>
-          {/* Botão toggle */}
+          {/* Botão toggle da lista */}
           <button onClick={()=>setListMode(m=>m==='open'?'collapsed':'open')}
-            title={listMode==='open'?'Recolher':'Expandir lista'}
+            title={listMode==='open'?'Recolher lista':'Expandir lista'}
             style={{
-              width:32, height:32, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center',
-              border:'1px solid var(--sep)', background:'transparent', cursor:'pointer', marginBottom:8,
-              color:'var(--label-4)', transition:'background .12s'
+              width:32, height:32, borderRadius:8, display:'flex', alignItems:'center',
+              justifyContent:'center', background:'transparent', border:'1px solid var(--sep)',
+              cursor:'pointer', color:'var(--label-4)', marginBottom:8, flexShrink:0
             }}>
             {listMode==='open'
-              ? <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L6 7L9 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              : <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 2L8 7L5 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              ? <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M8.5 2L5.5 6.5L8.5 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              : <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M4.5 2L7.5 6.5L4.5 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
             }
           </button>
 
-          {/* Ícones de status — clique muda aba e abre lista */}
+          {/* Ícones de status — clique seleciona filtro + abre lista */}
           {[
-            {key:'pendente',     Ic:CircleDot,   tw:'#f59e0b'},
-            {key:'em_andamento', Ic:RefreshCw,   tw:'#3b82f6'},
-            {key:'resolvido',    Ic:CheckCircle, tw:'#10b981'},
-            {key:'aguardando',   Ic:Clock,       tw:'#8b5cf6'},
-            {key:'encerrado',    Ic:XCircle,     tw:'#94a3b8'},
-          ].map(({key,Ic,tw})=>{
-            const on=statusSel===key; const cnt=contadores[key]||0
+            {key:'pendente',     Ic:CircleDot,   color:'#f59e0b'},
+            {key:'em_andamento', Ic:RefreshCw,   color:'#3b82f6'},
+            {key:'resolvido',    Ic:CheckCircle, color:'#10b981'},
+            {key:'aguardando',   Ic:Clock,       color:'#8b5cf6'},
+            {key:'encerrado',    Ic:XCircle,     color:'#94a3b8'},
+          ].map(({key,Ic,color})=>{
+            const on = statusSel===key
+            const cnt = contadores[key]||0
             return (
               <button key={key}
-                onClick={()=>{setStatusSel(key);setListMode('open')}}
-                title={STATUS_CFG[key]?.label}
+                onClick={()=>{ setStatusSel(key); setListMode('open') }}
+                title={STATUS_CFG[key]?.label + (cnt ? ` (${cnt})` : '')}
                 style={{
-                  position:'relative', width:32, height:32, borderRadius:8, display:'flex',
-                  alignItems:'center', justifyContent:'center', border:'none', cursor:'pointer',
-                  background: on ? tw+'20' : 'transparent',
-                  transition:'background .12s', marginBottom:2
+                  position:'relative', width:32, height:32, borderRadius:8,
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  background: on ? color+'22' : 'transparent',
+                  border: on ? `1px solid ${color}44` : '1px solid transparent',
+                  cursor:'pointer', marginBottom:2, flexShrink:0, transition:'all .15s'
                 }}>
-                <Ic size={16} style={{color: on ? tw : 'var(--label-4)', transition:'color .12s'}}/>
-                {cnt>0 && (
+                <Ic size={15} style={{color: on ? color : 'var(--label-4)', transition:'color .15s'}}/>
+                {cnt > 0 && (
                   <span style={{
-                    position:'absolute', top:2, right:2, width:14, height:14, borderRadius:'50%',
-                    background: on ? tw : '#4b5563', color:'#fff', fontSize:8, fontWeight:700,
-                    display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1
+                    position:'absolute', top:-1, right:-1, minWidth:14, height:14,
+                    borderRadius:7, background: on ? color : '#6b7280',
+                    color:'#fff', fontSize:8, fontWeight:700, display:'flex',
+                    alignItems:'center', justifyContent:'center', padding:'0 3px',
+                    lineHeight:1, border:'1.5px solid var(--bg-2)'
                   }}>{cnt>9?'9+':cnt}</span>
                 )}
               </button>
             )
           })}
 
-          {/* Refresh */}
+          {/* Spacer + Refresh */}
           <div style={{flex:1}}/>
-          <button onClick={()=>carregar()} title="Atualizar"
+          <button onClick={()=>carregar()} title="Atualizar conversas"
             style={{
-              width:32, height:32, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center',
-              border:'1px solid var(--sep)', background:'transparent', cursor:'pointer', marginBottom:8,
-              color:'var(--label-4)'
+              width:32, height:32, borderRadius:8, display:'flex', alignItems:'center',
+              justifyContent:'center', background:'transparent',
+              border:'1px solid var(--sep)', cursor:'pointer', color:'var(--label-4)'
             }}>
-            {loading ? <RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/> : <RefreshCw size={13}/>}
+            <RefreshCw size={12} style={{animation: loading ? 'spin 1s linear infinite' : 'none'}}/>
           </button>
         </div>
 
-        {/* Painel de lista — expande/retrai */}
+        {/* Painel de lista — retrátil (212px ↔ 0) */}
         <div style={{
           width: listMode==='open' ? 212 : 0,
           minWidth: listMode==='open' ? 212 : 0,
           overflow:'hidden',
           display:'flex', flexDirection:'column',
           background:'var(--bg-2)',
-          borderRight: listMode==='open' ? '1px solid var(--sep)' : 'none',
           transition:'width 220ms cubic-bezier(0.4,0,0.2,1), min-width 220ms cubic-bezier(0.4,0,0.2,1)',
         }}>
-          {/* Header */}
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 12px 6px',borderBottom:'1px solid var(--sep)',flexShrink:0}}>
-            <span style={{fontSize:13,fontWeight:700,color:'var(--label)',whiteSpace:'nowrap'}}>Conversas</span>
+
+          {/* Header da lista */}
+          <div style={{
+            display:'flex', alignItems:'center', justifyContent:'space-between',
+            padding:'10px 12px 6px', borderBottom:'1px solid var(--sep)', flexShrink:0
+          }}>
+            <span style={{
+              fontSize:12, fontWeight:700, color:'var(--label)', whiteSpace:'nowrap',
+              display:'flex', alignItems:'center', gap:6
+            }}>
+              {STATUS_CFG[statusSel]?.label}
+              <span style={{
+                padding:'1px 7px', borderRadius:99, fontSize:9, fontWeight:700,
+                background: STATUS_CFG[statusSel]?.bg || 'var(--bg-3)',
+                color: STATUS_CFG[statusSel]?.tw ? undefined : 'var(--label-4)',
+              }} className={STATUS_CFG[statusSel]?.tw}>
+                {filtradas.length}
+              </span>
+            </span>
           </div>
 
-          {/* Status pills */}
-          <div style={{padding:'6px 8px',borderBottom:'1px solid var(--sep)',flexShrink:0,display:'flex',flexDirection:'column',gap:2}}>
-            {[
-              {key:'pendente',     label:'Pendente',    Ic:CircleDot,   color:'#f59e0b', bg:'rgba(245,158,11,0.12)',  bor:'rgba(245,158,11,0.3)'},
-              {key:'em_andamento', label:'Em andamento',Ic:RefreshCw,   color:'#3b82f6', bg:'rgba(59,130,246,0.12)', bor:'rgba(59,130,246,0.3)'},
-              {key:'resolvido',    label:'Resolvido',   Ic:CheckCircle, color:'#10b981', bg:'rgba(16,185,129,0.12)', bor:'rgba(16,185,129,0.3)'},
-              {key:'aguardando',   label:'Aguardando',  Ic:Clock,       color:'#8b5cf6', bg:'rgba(139,92,246,0.12)', bor:'rgba(139,92,246,0.3)'},
-              {key:'encerrado',    label:'Encerrado',   Ic:XCircle,     color:'#94a3b8', bg:'rgba(148,163,184,0.1)', bor:'rgba(148,163,184,0.3)'},
-            ].map(({key,label,Ic,color,bg,bor})=>{
-              const on=statusSel===key; const cnt=contadores[key]||0
+          {/* Status pills compactas */}
+          <div style={{padding:'5px 8px', borderBottom:'1px solid var(--sep)', flexShrink:0, display:'flex', flexDirection:'column', gap:1}}>
+            {Object.entries(STATUS_CFG).map(([key,s])=>{
+              const on=statusSel===key; const cnt=contadores[key]||0; const Ic=s.icon
               return (
                 <button key={key} onClick={()=>setStatusSel(key)}
                   style={{
-                    display:'flex',alignItems:'center',gap:6,padding:'5px 8px',borderRadius:7,
-                    border:`1px solid ${on?bor:'transparent'}`,
-                    background:on?bg:'transparent',cursor:'pointer',textAlign:'left',
+                    display:'flex', alignItems:'center', gap:6, padding:'4px 7px',
+                    borderRadius:6, border:`1px solid ${on?s.bg:'transparent'}`,
+                    background:on?s.bg:'transparent', cursor:'pointer', textAlign:'left',
                     transition:'all .12s', whiteSpace:'nowrap'
                   }}>
-                  <Ic size={12} style={{color:on?color:'var(--label-4)',flexShrink:0}}/>
-                  <span style={{flex:1,fontSize:11.5,fontWeight:600,color:on?color:'var(--label-3)'}}>{label}</span>
+                  <Ic size={11} style={{color:on?undefined:'var(--label-4)',flexShrink:0}}
+                    className={on?s.tw:''}/>
+                  <span style={{flex:1, fontSize:11, fontWeight:on?600:400, color:on?undefined:'var(--label-4)'}}
+                    className={on?s.tw:''}>
+                    {s.label}
+                  </span>
                   {cnt>0 && (
                     <span style={{
-                      padding:'1px 6px',borderRadius:99,fontSize:9,fontWeight:700,
-                      background:on?color+'25':'var(--bg-3)',
-                      color:on?color:'var(--label-4)',
-                    }}>{cnt}</span>
+                      padding:'0 5px', borderRadius:99, fontSize:9, fontWeight:700,
+                      background:on?'rgba(255,255,255,0.15)':'var(--bg-3)',
+                      color:on?'currentColor':'var(--label-4)'
+                    }} className={on?s.tw:''}>{cnt}</span>
                   )}
                 </button>
               )
@@ -1224,31 +1238,30 @@ export default function PageConversas({ api: apiProp, onNavigate }) {
           </div>
 
           {/* Busca */}
-          <div style={{padding:'6px 8px',borderBottom:'1px solid var(--sep)',flexShrink:0}}>
-            <div style={{display:'flex',alignItems:'center',gap:6,padding:'5px 8px',borderRadius:8,border:'1px solid var(--sep)',background:'var(--bg-3)'}}>
+          <div style={{padding:'6px 8px', borderBottom:'1px solid var(--sep)', flexShrink:0}}>
+            <div style={{display:'flex',alignItems:'center',gap:6,padding:'4px 8px',borderRadius:7,border:'1px solid var(--sep)',background:'var(--bg-3)'}}>
               <Search size={11} style={{color:'var(--label-4)',flexShrink:0}}/>
               <input value={busca} onChange={e=>setBusca(e.target.value)}
-                placeholder="Buscar..." style={{flex:1,background:'transparent',border:'none',outline:'none',fontSize:11.5,color:'var(--label)'}}/>
-              {busca && <button onClick={()=>setBusca('')} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',display:'flex'}}><X size={11}/></button>}
+                placeholder="Buscar..." style={{flex:1,background:'transparent',border:'none',outline:'none',fontSize:11,color:'var(--label)'}}/>
+              {busca && <button onClick={()=>setBusca('')} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',display:'flex',padding:0}}><X size={10}/></button>}
             </div>
           </div>
 
-          {/* Lista */}
+          {/* Lista de conversas */}
           <div style={{flex:1,overflowY:'auto'}}>
             {filtradas.length===0 ? (
               <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:120,gap:6}}>
-                <MessageSquare size={16} style={{color:'var(--label-4)',opacity:.25}}/>
-                <p style={{fontSize:11,color:'var(--label-4)'}}>{loading?'Carregando...':'Nenhuma conversa'}</p>
+                <MessageSquare size={16} style={{color:'var(--label-4)',opacity:.2}}/>
+                <p style={{fontSize:10.5,color:'var(--label-4)',textAlign:'center'}}>{loading?'Carregando...':'Nenhuma conversa'}</p>
               </div>
             ) : filtradas.map(conv=>(
               <ConvCard key={conv.telefone} conv={conv} sel={selTel===conv.telefone}
                 statusAtend={getStatus(conv.telefone)} nomeIA={nomeIA}
-                onClick={()=>setSelTel(conv.telefone)}/>
+                onClick={()=>{ setSelTel(conv.telefone) }}/>
             ))}
           </div>
         </div>
       </div>
-
 
       {/* ── CHAT (centro) ── */}
       <ChatArea conv={convSel} api={api}
