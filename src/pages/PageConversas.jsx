@@ -577,16 +577,33 @@ function PainelInfo({ conv, api }) {
     if (!conv?.telefone) return
     let m=true; setPerfil(null); setPedidos([]); setErrPerfil(false)
 
-    fetch(`${api}/api/contatos/${conv.telefone}`)
-      .then(r=>r.ok?r.json():Promise.reject('err'))
-      .then(d=>{ if(m && d) { setPerfil(d) } })  // aceita resposta mesmo parcial (igual PageAtendimento)
-      .catch(()=>{ if(m) setErrPerfil(true) })
-
-    setLoadPed(true)
-    fetch(`${api}/api/contatos/${conv.telefone}/pedidos`)
+    // 1. Carrinho + modo via /historico (igual PageAtendimento, sem depender do Bling)
+    fetch(`${api}/api/dashboard/historico/${conv.telefone}?limit=1`)
       .then(r=>r.ok?r.json():null)
-      .then(d=>{ if(m){const l=Array.isArray(d)?d:d?.pedidos||[];setPedidos(l)} })
+      .then(d=>{ if(m && d) setPerfil(prev=>({...(prev||{}), carrinho: d.carrinho||[], modo: d.modo||'ia'})) })
+      .catch(()=>{})
+
+    // 2. Pedidos via /financeiro filtrado por nome/tel (igual PageAtendimento, sem Bling direto)
+    setLoadPed(true)
+    fetch(`${api}/api/dashboard/financeiro`)
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{
+        if(!m || !d) return
+        const nome = (conv.nome||'').toLowerCase()
+        const tel  = (conv.telefone||'').replace(/\D/g,'').slice(-8)
+        const peds = (d.pedidos_recentes||[]).filter(p=>{
+          const cn = (p.contato||'').toLowerCase()
+          return (nome && nome.split(' ')[0].length>2 && cn.includes(nome.split(' ')[0])) || cn.includes(tel)
+        })
+        setPedidos(peds.slice(0,8))
+      })
       .catch(()=>{}).finally(()=>{ if(m) setLoadPed(false) })
+
+    // 3. Dados cadastrais do Bling (enriquece quando token disponível)
+    fetch(`${api}/api/contatos/${conv.telefone}`)
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{ if(m && d && (d.cpf||d.email||d.cidade)) setPerfil(prev=>({...(prev||{}), ...Object.fromEntries(Object.entries(d).filter(([,v])=>v!=null))})) })
+      .catch(()=>{})
 
     return ()=>{m=false}
   }, [conv?.telefone, api])
@@ -688,6 +705,9 @@ function PainelInfo({ conv, api }) {
     // Só sobrescreve com dados do Bling se não forem null/undefined
     ...(perfil ? Object.fromEntries(Object.entries(perfil).filter(([,v])=>v!=null)) : {})
   }
+  const carrinh = dadosPerfil.carrinho || []
+  const totalCarr = carrinh.reduce((s,i)=>s+(parseFloat(i.preco||0)*parseInt(i.quantidade||1)),0)
+  const fmtR2 = n=>`R$ ${Number(n||0).toFixed(2).replace('.',',')}`
 
   const campoPerfil = [
     {l:'Nome',        v:dadosPerfil.nome},
@@ -801,6 +821,22 @@ function PainelInfo({ conv, api }) {
                 </div>
               )}
             </div>
+
+            {/* Banner carrinho ativo — igual PageAtendimento */}
+            {carrinh.length>0 && (
+              <div style={{marginTop:8,padding:'8px 10px',borderRadius:8,background:'rgba(239,159,39,0.08)',border:'1px solid rgba(239,159,39,0.2)'}}>
+                <div style={{fontSize:10,fontWeight:700,color:'#EF9F27',marginBottom:4}}>
+                  🛒 {carrinh.length} item{carrinh.length>1?'s':''} no carrinho · {fmtR2(totalCarr)}
+                </div>
+                {carrinh.slice(0,3).map((item,i)=>(
+                  <div key={i} style={{fontSize:10,color:'var(--label-3)',display:'flex',justifyContent:'space-between'}}>
+                    <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1,marginRight:4}}>{item.quantidade}× {(item.nome||'').slice(0,22)}</span>
+                    <span style={{flexShrink:0,color:'#EF9F27',fontWeight:500}}>{fmtR2(parseFloat(item.preco||0)*item.quantidade)}</span>
+                  </div>
+                ))}
+                {carrinh.length>3 && <div style={{fontSize:9,color:'var(--label-4)',marginTop:2}}>+{carrinh.length-3} item(s)...</div>}
+              </div>
+            )}
 
             {/* Pedido recente */}
             {pedidos.length>0 && (
