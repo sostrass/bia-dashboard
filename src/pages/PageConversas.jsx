@@ -251,10 +251,41 @@ function CatOverlay({ telefone, api, onClose }) {
   }
 
   const enviar = async p => {
-    setEnv(p.id||p.nome||p.nome)
-    const n = parseFloat(p.preco||p.precoVenda||0)
-    const msg = `*${p.nome||p.descricao}*\n💳 Cartão: ${fmtR(n)} | 💰 PIX: ${fmtR(n*.9)}\n✅ Disponível em estoque`
-    try { await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone,mensagem:msg})}) } catch {}
+    setEnv(p.id||p.nome)
+    const n    = parseFloat(p.preco||p.precoVenda||0)
+    const nome = p.nome||p.descricao||'Produto'
+    const vars = {
+      nome_produto:      nome,
+      preco_cartao:      fmtR(n),
+      preco_pix:         fmtR(n*.9),
+      foto_produto:      (Array.isArray(p.imagens)?p.imagens[0]:p.imagens)||'',
+      descricao_produto: p.descricao||p.descricao_curta||'',
+      codigo_produto:    p.sku||p.codigo||'',
+    }
+    try {
+      // 1. Tenta disparar via template editável
+      const rT = await fetch(`${api}/api/templates/disparar-gatilho`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ gatilho:'catalogo_produto', telefone, variaveis:vars })
+      })
+      const dT = await rT.json()
+      if (!dT.ok) {
+        // 2. Fallback com botões interativos
+        const bodyText = `✨ *${nome}*\n\n💳 Cartão: *${fmtR(n)}* | 💰 PIX: *${fmtR(n*.9)}*${vars.descricao_produto?'\n\n'+vars.descricao_produto:''}\n\nEscolha uma opção 👇`
+        const interactive = {
+          type:'button',
+          body:{ text: bodyText },
+          action:{ buttons:[
+            { type:'reply', reply:{ id:'btn_carrinho', title:'🛒 Adicionar ao Carrinho' } },
+            { type:'reply', reply:{ id:'btn_foto',     title:'📸 Ver Foto'             } },
+            { type:'reply', reply:{ id:'btn_duvidas',  title:'💬 Tirar Dúvidas'        } },
+          ]},
+        }
+        if (vars.foto_produto) interactive.header = { type:'image', image:{ link:vars.foto_produto } }
+        interactive.footer = { text:'Só Strass — Atendimento ao Cliente' }
+        await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone,interactive})})
+      }
+    } catch {}
     setEnv(null); onClose()
   }
 
@@ -560,9 +591,44 @@ function PainelInfo({ conv, api }) {
 
   const enviarProd = async p => {
     if (!conv?.telefone) return
-    const n=parseFloat(p.preco||p.precoVenda||0)
-    const msg=`*${p.nome||p.descricao}*\n💳 Cartão: ${fmtR(n)} | 💰 PIX: ${fmtR(n*.9)}\n✅ Disponível em estoque`
-    try { await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone:conv.telefone,mensagem:msg})}) } catch {}
+    const n    = parseFloat(p.preco||p.precoVenda||0)
+    const nome = p.nome||p.descricao||'Produto'
+    const vars = {
+      nome_produto:      nome,
+      preco_cartao:      fmtR(n),
+      preco_pix:         fmtR(n*.9),
+      foto_produto:      (Array.isArray(p.imagens)?p.imagens[0]:p.imagens)||'',
+      descricao_produto: p.descricao||p.descricao_curta||'',
+      codigo_produto:    p.sku||p.codigo||'',
+    }
+    try {
+      // 1. Tenta disparar via template editável (Gatilhos → Produto do Catálogo)
+      const rTmpl = await fetch(`${api}/api/templates/disparar-gatilho`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ gatilho:'catalogo_produto', telefone:conv.telefone, variaveis:vars })
+      })
+      const dTmpl = await rTmpl.json()
+      if (dTmpl.ok) return  // Template enviado com sucesso
+
+      // 2. Fallback: envia mensagem interativa com botões hardcoded
+      const bodyText = `✨ *${nome}*\n\n💳 Cartão: *${fmtR(n)}* | 💰 PIX: *${fmtR(n*.9)}*\n\n${vars.descricao_produto ? vars.descricao_produto+'\n\n' : ''}Escolha uma opção abaixo 👇`
+      const interactive = {
+        type:'button',
+        body:{ text: bodyText },
+        action:{ buttons:[
+          { type:'reply', reply:{ id:'btn_carrinho', title:'🛒 Adicionar ao Carrinho' } },
+          { type:'reply', reply:{ id:'btn_foto',     title:'📸 Ver Foto'             } },
+          { type:'reply', reply:{ id:'btn_duvidas',  title:'💬 Tirar Dúvidas'        } },
+        ]},
+      }
+      if (vars.foto_produto) {
+        interactive.header = { type:'image', image:{ link: vars.foto_produto } }
+      }
+      interactive.footer = { text:'Só Strass — Atendimento ao Cliente' }
+      await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ telefone:conv.telefone, interactive })
+      })
+    } catch {}
   }
 
   const avisarQuandoChegar = async p => {
@@ -832,7 +898,7 @@ function PainelInfo({ conv, api }) {
 }
 
 // ── ChatArea ──────────────────────────────────────────────────────────────────
-function ChatArea({ conv, api, statusAtend, onStatusChange, modoManual, onToggleModo, nomeIA, listOpen, onToggleList }) {
+function ChatArea({ conv, api, statusAtend, onStatusChange, modoManual, onToggleModo, nomeIA, listMode, onToggleList }) {
   const [msgs,          setMsgs]         = useState([])
   const [loading,       setLoading]      = useState(true)
   const [hasMore,       setHasMore]      = useState(false)
@@ -903,19 +969,7 @@ function ChatArea({ conv, api, statusAtend, onStatusChange, modoManual, onToggle
 
       {/* ── Header ── */}
       <div className="flex items-center gap-3 px-4 h-14 border-b border-[var(--sep)] bg-[var(--bg-2)] flex-shrink-0">
-        {/* Botão retrair/expandir lista */}
-        {onToggleList && (
-          <button onClick={onToggleList} title={listOpen?'Recolher lista':'Expandir lista'}
-            className="w-8 h-8 rounded-lg border border-[var(--sep)] flex items-center justify-center text-[var(--label-4)] hover:bg-[var(--bg-3)] transition-colors flex-shrink-0">
-            {/* Setas para indicar expansão/recolhimento */}
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              {listOpen
-                ? <><path d="M5 2L2 7L5 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M9 2L6 7L9 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5"/></>
-                : <><path d="M9 2L12 7L9 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 2L8 7L5 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5"/></>
-              }
-            </svg>
-          </button>
-        )}
+
         <Av nome={conv.nome||tel} foto={conv.foto_url||conv.fotoUrl} size={30}/>
         <div className="min-w-0">
           <p className="text-[13px] font-semibold text-[var(--label)] leading-none mb-0.5 truncate" style={{maxWidth:200}}>{conv.nome||fmtTel(tel)}</p>
@@ -975,40 +1029,6 @@ function ChatArea({ conv, api, statusAtend, onStatusChange, modoManual, onToggle
   )
 }
 
-// ── Pipeline de status — pills verticais legíveis ─────────────────────────────
-function PipelineTabs({ sel, setSel, contadores }) {
-  const ITEMS = [
-    { key:'pendente',     label:'Pendente',    icon:CircleDot,   tw:'text-amber-400',   activeBg:'bg-amber-400/12 border-amber-400/25'   },
-    { key:'em_andamento', label:'Em andamento',icon:RefreshCw,   tw:'text-blue-400',    activeBg:'bg-blue-400/12 border-blue-400/25'    },
-    { key:'resolvido',    label:'Resolvido',   icon:CheckCircle, tw:'text-emerald-400', activeBg:'bg-emerald-400/12 border-emerald-400/25' },
-    { key:'aguardando',   label:'Aguardando',  icon:Clock,       tw:'text-purple-400',  activeBg:'bg-purple-400/12 border-purple-400/25'  },
-    { key:'encerrado',    label:'Encerrado',   icon:XCircle,     tw:'text-slate-400',   activeBg:'bg-slate-400/12 border-slate-400/25'   },
-  ]
-  return (
-    <div className="flex flex-col gap-0.5 px-2 py-2 border-b border-[var(--sep)] flex-shrink-0">
-      {ITEMS.map(({key,label,icon:Ic,tw,activeBg})=>{
-        const on=sel===key; const cnt=contadores[key]||0
-        return (
-          <button key={key} onClick={()=>setSel(key)}
-            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11.5px] font-medium border transition-all text-left ${
-              on
-                ? `${tw} ${activeBg} border`
-                : 'text-[var(--label-3)] border-transparent hover:bg-[var(--bg-3)] hover:border-[var(--sep)]'
-            }`}>
-            <Ic size={13} className="flex-shrink-0"/>
-            <span className="flex-1">{label}</span>
-            {cnt>0 && (
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold leading-none flex-shrink-0 ${
-                on ? 'bg-white/20' : 'bg-[var(--bg-3)] text-[var(--label-4)]'
-              }`}>{cnt}</span>
-            )}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function PageConversas({ api: apiProp, onNavigate }) {
   const api = apiProp || BASE
@@ -1020,7 +1040,7 @@ export default function PageConversas({ api: apiProp, onNavigate }) {
   const [busca,     setBusca]     = useState('')
   const [loading,   setLoading]   = useState(true)
   const [nomeIA,    setNomeIA]    = useState('Molise')
-  const [listOpen,  setListOpen]  = useState(true)
+  const [listMode,  setListMode]  = useState('open') // 'open' | 'collapsed'
   const pollingRef = useRef(null)
 
   useEffect(()=>{ sessionStorage.setItem('bia_conv_status',statusSel) }, [statusSel])
@@ -1086,56 +1106,147 @@ export default function PageConversas({ api: apiProp, onNavigate }) {
   return (
     <div className="flex h-full overflow-hidden bg-[var(--bg)]">
 
-      {/* ── LISTA — Multi-column narrow sidebar retrátil ── */}
+      {/* ── SIDEBAR — retrátil: collapsed=48px ícones / open=260px lista ── */}
       <div style={{
-          flexShrink:0, display:'flex', flexDirection:'column', overflow:'hidden',
-          borderRight: listOpen ? '1px solid var(--sep)' : 'none',
-          background:'var(--bg-2)',
-          width: listOpen ? 260 : 0,
-          minWidth: listOpen ? 260 : 0,
-          maxWidth: listOpen ? 260 : 0,
-          transition:'width 200ms ease, min-width 200ms ease, max-width 200ms ease',
+        flexShrink:0, display:'flex', flexDirection:'row', overflow:'visible',
+        position:'relative', zIndex:10
+      }}>
+
+        {/* Coluna de ícones sempre visível (48px) */}
+        <div style={{
+          width:48, flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center',
+          borderRight:'1px solid var(--sep)', background:'var(--bg-2)', paddingTop:8, gap:2
         }}>
+          {/* Botão toggle */}
+          <button onClick={()=>setListMode(m=>m==='open'?'collapsed':'open')}
+            title={listMode==='open'?'Recolher':'Expandir lista'}
+            style={{
+              width:32, height:32, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center',
+              border:'1px solid var(--sep)', background:'transparent', cursor:'pointer', marginBottom:8,
+              color:'var(--label-4)', transition:'background .12s'
+            }}>
+            {listMode==='open'
+              ? <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L6 7L9 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              : <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 2L8 7L5 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            }
+          </button>
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-3 py-2.5 border-b border-[var(--sep)] flex-shrink-0">
-          <h2 className="text-[14px] font-bold text-[var(--label)]">Conversas</h2>
-          <div className="flex gap-1 items-center">
-            {loading && <RefreshCw size={11} className="animate-spin text-[var(--label-4)]"/>}
-            <button onClick={()=>carregar()} title="Atualizar lista"
-              className="w-7 h-7 rounded-lg border border-[var(--sep)] flex items-center justify-center text-[var(--label-4)] hover:bg-[var(--bg-3)] transition-colors">
-              <RefreshCw size={12}/>
-            </button>
-          </div>
+          {/* Ícones de status — clique muda aba e abre lista */}
+          {[
+            {key:'pendente',     Ic:CircleDot,   tw:'#f59e0b'},
+            {key:'em_andamento', Ic:RefreshCw,   tw:'#3b82f6'},
+            {key:'resolvido',    Ic:CheckCircle, tw:'#10b981'},
+            {key:'aguardando',   Ic:Clock,       tw:'#8b5cf6'},
+            {key:'encerrado',    Ic:XCircle,     tw:'#94a3b8'},
+          ].map(({key,Ic,tw})=>{
+            const on=statusSel===key; const cnt=contadores[key]||0
+            return (
+              <button key={key}
+                onClick={()=>{setStatusSel(key);setListMode('open')}}
+                title={STATUS_CFG[key]?.label}
+                style={{
+                  position:'relative', width:32, height:32, borderRadius:8, display:'flex',
+                  alignItems:'center', justifyContent:'center', border:'none', cursor:'pointer',
+                  background: on ? tw+'20' : 'transparent',
+                  transition:'background .12s', marginBottom:2
+                }}>
+                <Ic size={16} style={{color: on ? tw : 'var(--label-4)', transition:'color .12s'}}/>
+                {cnt>0 && (
+                  <span style={{
+                    position:'absolute', top:2, right:2, width:14, height:14, borderRadius:'50%',
+                    background: on ? tw : '#4b5563', color:'#fff', fontSize:8, fontWeight:700,
+                    display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1
+                  }}>{cnt>9?'9+':cnt}</span>
+                )}
+              </button>
+            )
+          })}
+
+          {/* Refresh */}
+          <div style={{flex:1}}/>
+          <button onClick={()=>carregar()} title="Atualizar"
+            style={{
+              width:32, height:32, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center',
+              border:'1px solid var(--sep)', background:'transparent', cursor:'pointer', marginBottom:8,
+              color:'var(--label-4)'
+            }}>
+            {loading ? <RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/> : <RefreshCw size={13}/>}
+          </button>
         </div>
 
-        {/* Pipeline tabs — legíveis com ícone + label + counter */}
-        <PipelineTabs sel={statusSel} setSel={setStatusSel} contadores={contadores}/>
-
-        {/* Busca */}
-        <div className="px-3 py-2 border-b border-[var(--sep)] flex-shrink-0">
-          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-[var(--sep)] bg-[var(--bg-3)]">
-            <Search size={12} className="text-[var(--label-4)] flex-shrink-0"/>
-            <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar..."
-              className="flex-1 bg-transparent border-none outline-none text-[11.5px] text-[var(--label)] placeholder:text-[var(--label-4)]"/>
-            {busca && <button onClick={()=>setBusca('')} className="text-[var(--label-4)] hover:text-[var(--label-3)]"><X size={11}/></button>}
+        {/* Painel de lista — expande/retrai */}
+        <div style={{
+          width: listMode==='open' ? 212 : 0,
+          minWidth: listMode==='open' ? 212 : 0,
+          overflow:'hidden',
+          display:'flex', flexDirection:'column',
+          background:'var(--bg-2)',
+          borderRight: listMode==='open' ? '1px solid var(--sep)' : 'none',
+          transition:'width 220ms cubic-bezier(0.4,0,0.2,1), min-width 220ms cubic-bezier(0.4,0,0.2,1)',
+        }}>
+          {/* Header */}
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 12px 6px',borderBottom:'1px solid var(--sep)',flexShrink:0}}>
+            <span style={{fontSize:13,fontWeight:700,color:'var(--label)',whiteSpace:'nowrap'}}>Conversas</span>
           </div>
-        </div>
 
-        {/* Lista */}
-        <div className="flex-1 overflow-y-auto">
-          {filtradas.length===0 ? (
-            <div className="flex flex-col items-center justify-center h-32 gap-2">
-              <MessageSquare size={18} className="text-[var(--label-4)] opacity-25"/>
-              <p className="text-[11px] text-[var(--label-4)]">{loading?'Carregando...':'Nenhuma conversa'}</p>
+          {/* Status pills */}
+          <div style={{padding:'6px 8px',borderBottom:'1px solid var(--sep)',flexShrink:0,display:'flex',flexDirection:'column',gap:2}}>
+            {[
+              {key:'pendente',     label:'Pendente',    Ic:CircleDot,   color:'#f59e0b', bg:'rgba(245,158,11,0.12)',  bor:'rgba(245,158,11,0.3)'},
+              {key:'em_andamento', label:'Em andamento',Ic:RefreshCw,   color:'#3b82f6', bg:'rgba(59,130,246,0.12)', bor:'rgba(59,130,246,0.3)'},
+              {key:'resolvido',    label:'Resolvido',   Ic:CheckCircle, color:'#10b981', bg:'rgba(16,185,129,0.12)', bor:'rgba(16,185,129,0.3)'},
+              {key:'aguardando',   label:'Aguardando',  Ic:Clock,       color:'#8b5cf6', bg:'rgba(139,92,246,0.12)', bor:'rgba(139,92,246,0.3)'},
+              {key:'encerrado',    label:'Encerrado',   Ic:XCircle,     color:'#94a3b8', bg:'rgba(148,163,184,0.1)', bor:'rgba(148,163,184,0.3)'},
+            ].map(({key,label,Ic,color,bg,bor})=>{
+              const on=statusSel===key; const cnt=contadores[key]||0
+              return (
+                <button key={key} onClick={()=>setStatusSel(key)}
+                  style={{
+                    display:'flex',alignItems:'center',gap:6,padding:'5px 8px',borderRadius:7,
+                    border:`1px solid ${on?bor:'transparent'}`,
+                    background:on?bg:'transparent',cursor:'pointer',textAlign:'left',
+                    transition:'all .12s', whiteSpace:'nowrap'
+                  }}>
+                  <Ic size={12} style={{color:on?color:'var(--label-4)',flexShrink:0}}/>
+                  <span style={{flex:1,fontSize:11.5,fontWeight:600,color:on?color:'var(--label-3)'}}>{label}</span>
+                  {cnt>0 && (
+                    <span style={{
+                      padding:'1px 6px',borderRadius:99,fontSize:9,fontWeight:700,
+                      background:on?color+'25':'var(--bg-3)',
+                      color:on?color:'var(--label-4)',
+                    }}>{cnt}</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Busca */}
+          <div style={{padding:'6px 8px',borderBottom:'1px solid var(--sep)',flexShrink:0}}>
+            <div style={{display:'flex',alignItems:'center',gap:6,padding:'5px 8px',borderRadius:8,border:'1px solid var(--sep)',background:'var(--bg-3)'}}>
+              <Search size={11} style={{color:'var(--label-4)',flexShrink:0}}/>
+              <input value={busca} onChange={e=>setBusca(e.target.value)}
+                placeholder="Buscar..." style={{flex:1,background:'transparent',border:'none',outline:'none',fontSize:11.5,color:'var(--label)'}}/>
+              {busca && <button onClick={()=>setBusca('')} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',display:'flex'}}><X size={11}/></button>}
             </div>
-          ) : filtradas.map(c=>(
-            <ConvCard key={c.telefone} conv={c} sel={selTel===c.telefone}
-              statusAtend={getStatus(c.telefone)} nomeIA={nomeIA}
-              onClick={()=>setSelTel(c.telefone)}/>
-          ))}
+          </div>
+
+          {/* Lista */}
+          <div style={{flex:1,overflowY:'auto'}}>
+            {filtradas.length===0 ? (
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:120,gap:6}}>
+                <MessageSquare size={16} style={{color:'var(--label-4)',opacity:.25}}/>
+                <p style={{fontSize:11,color:'var(--label-4)'}}>{loading?'Carregando...':'Nenhuma conversa'}</p>
+              </div>
+            ) : filtradas.map(conv=>(
+              <ConvCard key={conv.telefone} conv={conv} sel={selTel===conv.telefone}
+                statusAtend={getStatus(conv.telefone)} nomeIA={nomeIA}
+                onClick={()=>setSelTel(conv.telefone)}/>
+            ))}
+          </div>
         </div>
       </div>
+
 
       {/* ── CHAT (centro) ── */}
       <ChatArea conv={convSel} api={api}
@@ -1144,8 +1255,8 @@ export default function PageConversas({ api: apiProp, onNavigate }) {
         modoManual={convSel?getModo(convSel.telefone):false}
         onToggleModo={()=>convSel&&toggleModo(convSel.telefone)}
         nomeIA={nomeIA}
-        listOpen={listOpen}
-        onToggleList={()=>setListOpen(v=>!v)}/>
+        listMode={listMode}
+        onToggleList={()=>setListMode(m=>m==='open'?'collapsed':'open')}/>
 
       {/* ── PAINEL DIREITO ── */}
       <PainelInfo conv={convSel} api={api}/>
