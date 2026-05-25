@@ -681,7 +681,13 @@ function PainelInfo({ conv, api }) {
   if (!conv) return <div className="w-56 flex-shrink-0 border-l border-[var(--sep)] bg-[var(--bg-2)]"/>
 
   // Mescla dados do conv (sempre disponíveis) com dados do perfil (Bling, quando carregado)
-  const dadosPerfil = { nome: conv.nome, telefone: conv.telefone, ...perfil }
+  // Mescla: dados do conv sempre disponíveis, perfil do Bling enriquece (ignora nulls)
+  const dadosPerfil = {
+    nome:     conv.nome,
+    telefone: conv.telefone,
+    // Só sobrescreve com dados do Bling se não forem null/undefined
+    ...(perfil ? Object.fromEntries(Object.entries(perfil).filter(([,v])=>v!=null)) : {})
+  }
 
   const campoPerfil = [
     {l:'Nome',        v:dadosPerfil.nome},
