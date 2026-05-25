@@ -270,6 +270,16 @@ function CatOverlay({ telefone, api, onClose }) {
         body:JSON.stringify({ gatilho:'catalogo_produto', telefone, variaveis:vars })
       })
       const dT = await rT.json()
+      if (dT.ok) {
+        // Salva produto no ctx da IA
+        await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ telefone, mensagem:'_ctx_only_', produto_ctx:{
+            bling_id:p.bling_id, nome, preco:n, pix:n*.9,
+            unidade:p.unidade||'UN', codigo:p.sku||p.codigo||'',
+            descricao:vars.descricao_produto,
+          }})
+        }).catch(()=>{})
+      }
       if (!dT.ok) {
         // 2. Fallback com botões interativos
         const bodyRaw = `✨ *${nome}*\n\n💳 Cartão: *${fmtR(n)}* | 💰 PIX: *${fmtR(n*.9)}*${vars.descricao_produto?'\n\n'+vars.descricao_produto.slice(0,200):''}\n\nEscolha uma opção 👇`
@@ -611,7 +621,17 @@ function PainelInfo({ conv, api }) {
         body:JSON.stringify({ gatilho:'catalogo_produto', telefone:conv.telefone, variaveis:vars })
       })
       const dTmpl = await rTmpl.json()
-      if (dTmpl.ok) return  // Template enviado com sucesso
+      if (dTmpl.ok) {
+        // Salva produto no ctx da IA para que botões funcionem
+        await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ telefone:conv.telefone, mensagem:'_ctx_only_', produto_ctx:{
+            bling_id:p.bling_id, nome, preco:n, pix:n*.9,
+            unidade:p.unidade||'UN', codigo:p.sku||p.codigo||'',
+            descricao:vars.descricao_produto,
+          }})
+        }).catch(()=>{})
+        return
+      }
 
       // 2. Fallback: envia mensagem interativa com botões hardcoded
       const bodyRaw = `✨ *${nome}*\n\n💳 Cartão: *${fmtR(n)}* | 💰 PIX: *${fmtR(n*.9)}*${vars.descricao_produto ? '\n\n'+vars.descricao_produto.slice(0,200) : ''}\n\nEscolha uma opção 👇`
@@ -630,7 +650,11 @@ function PainelInfo({ conv, api }) {
       }
       interactive.footer = { text:'Só Strass — Atendimento ao Cliente' }
       await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ telefone:conv.telefone, interactive })
+        body:JSON.stringify({ telefone:conv.telefone, interactive, produto_ctx:{
+          bling_id:p.bling_id, nome, preco:n, pix:n*.9,
+          unidade:p.unidade||'UN', codigo:p.sku||p.codigo||'',
+          descricao:vars.descricao_produto,
+        }})
       })
     } catch {}
   }
