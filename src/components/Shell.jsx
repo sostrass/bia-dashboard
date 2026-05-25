@@ -28,7 +28,7 @@ const NAV = [
   { id:'dashboard',   icon:LayoutDashboard, label:'Dashboard',      group:'main'   },
   { id:'atendimento', icon:MessageSquare,   label:'Atendimento',    group:'main'   },
   { id:'conversas',   icon:MessageSquare,   label:'Conversas',      group:'main'   },
-  { id:'debug-pedidos', label:'Debug Pedidos', hidden:true },
+  { id:'debug-pedidos', icon:Activity, label:'Debug Pedidos', group:'tools' },
   { id:'pedidos',     icon:ShoppingCart,    label:'Pedidos',        group:'main'   },
   { id:'clientes',    icon:Users,           label:'Clientes',       group:'main'   },
   { id:'caixa',       icon:CreditCard,      label:'Fluxo de Caixa', group:'main'   },
@@ -110,6 +110,7 @@ export default function Shell() {
       case 'dashboard':   return <Page nome="Dashboard"   comp={PageDashboard}   />
       case 'atendimento': return <Page nome="Atendimento" comp={PageAtendimento} />
       case 'pedidos':     return <Page nome="Pedidos"     comp={PagePedidos}     />
+      case 'debug-pedidos': return <Page nome="Debug Pedidos" comp={PagePedidosDebug} />
       case 'clientes':    return <Page nome="Clientes"    comp={PageClientes}    />
       case 'caixa':       return <Page nome="Caixa"       comp={PageCaixa}       />
       case 'iaconfig':    return <Page nome="Config IA"   comp={PageIAConfig}    />
