@@ -8,6 +8,7 @@ import {
   AlertCircle, Activity, Construction, Search
 } from 'lucide-react'
 import CommandPalette from './CommandPalette'
+import LiveActivityBar from './LiveActivityBar'
 
 const PageDashboard   = lazy(() => import('../pages/PageDashboard'))
 const PagePedidosDebug= lazy(() => import('../pages/PagePedidosDebug'))
@@ -157,7 +158,8 @@ export default function Shell() {
   return (
     <>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      <div style={{ display:'flex', height:'100%' }}>
+      <div style={{ display:'flex', flexDirection:'column', height:'100%' }}>
+        <div style={{ display:'flex', flex:1, overflow:'hidden' }}>
 
         {/* Sidebar */}
         <aside style={{ width:210, flexShrink:0, display:'flex', flexDirection:'column', background:'var(--bg-2)', borderRight:'0.5px solid var(--sep)' }}>
@@ -239,6 +241,10 @@ export default function Shell() {
         </main>
 
       </div>
+        </div>
+        {/* Live Activity Bar — sempre visível na base */}
+        <LiveActivityBar api={API} onNavigate={setPage}/>
+
       {/* Command Palette */}
       {cmdOpen && (
         <CommandPalette
