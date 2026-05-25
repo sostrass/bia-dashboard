@@ -1,4 +1,4 @@
-import { useState, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 
 const ALIASES = ["{nome_cliente}","{produto}","{valor_pix}","{valor_cartao}","{numero_pedido}","{loja}","{prazo_entrega}","{nome_ia}"]
 
@@ -190,6 +190,48 @@ export default function PageIAConfig({ api }) {
   const [schedule, setSchedule] = useState(
     DIAS.map((d,i) => ({ day:d, on: i<6, start: i===5?"09:00":"08:00", end: i===5?"14:00":"18:00" }))
   )
+  const [cfg, setCfg] = useState({})
+
+  // Carrega configuração salva do banco ao montar
+  useEffect(() => {
+    if (!api) return
+    fetch(`${api}/api/ia/config`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d) return
+        if (d.persona) setIaPersona(d.persona)
+        if (d.iaName)  setIaName(d.iaName)
+        if (d.btns)    setBtns(d.btns)
+        if (d.schedule) setSchedule(d.schedule)
+        if (d.tons)    setTons(d.tons)
+        if (d.emoji)   setEmoji(d.emoji)
+        if (d.ctxData) setCtxData(d.ctxData)
+        // Campos de integração/logística
+        setCfg({
+          provedor:          d.provedor          || 'google',
+          modelo:            d.modelo            || 'gemini-2.5-flash',
+          temperatura:       d.temperatura       || '0.7',
+          maxTokens:         d.maxTokens         || 4000,
+          geminiKey:         d.geminiKey         || '',
+          claudeKey:         d.claudeKey         || '',
+          melhorEnvioToken:  d.melhorEnvioToken  || '',
+          correiosUsuario:   d.correiosUsuario   || '',
+          correiosCartao:    d.correiosCartao    || '',
+          correiosContrato:  d.correiosContrato  || '',
+          correiosApiKey:    d.correiosApiKey    || '',
+          pixChave:          d.pixChave          || '',
+          cepOrigem:         d.cepOrigem         || '',
+          caixaAltura:       d.caixaAltura       || '8',
+          caixaLargura:      d.caixaLargura      || '26',
+          caixaComprimento:  d.caixaComprimento  || '16',
+          caixaPesoMinimo:   d.caixaPesoMinimo   || '0.3',
+          nomeLoja:          d.nomeLoja          || 'Só Strass',
+          horarioAtendimento:d.horarioAtendimento|| '08:00-18:00',
+          diasAtendimento:   d.diasAtendimento   || 'seg-sex',
+        })
+      })
+      .catch(() => {})
+  }, [api])
 
   const NAV = [
     { id:"identidade",    icon:"✦",  label:"Identidade" },
@@ -208,7 +250,12 @@ export default function PageIAConfig({ api }) {
     try {
       await fetch(`${api}/api/ia/config`, {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ iaName, iaPersona, tons, emoji, ctxData, btns, schedule })
+        body: JSON.stringify({
+          iaName, iaPersona, tons, emoji, ctxData, btns, schedule,
+          // Integração e logística
+          persona: iaPersona,
+          ...cfg
+        })
       })
     } catch {}
   }
