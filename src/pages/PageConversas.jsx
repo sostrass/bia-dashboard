@@ -271,12 +271,13 @@ function CatOverlay({ telefone, api, onClose }) {
       const dT = await rT.json()
       if (!dT.ok) {
         // 2. Fallback com botões interativos
-        const bodyText = `✨ *${nome}*\n\n💳 Cartão: *${fmtR(n)}* | 💰 PIX: *${fmtR(n*.9)}*${vars.descricao_produto?'\n\n'+vars.descricao_produto:''}\n\nEscolha uma opção 👇`
+        const bodyRaw = `✨ *${nome}*\n\n💳 Cartão: *${fmtR(n)}* | 💰 PIX: *${fmtR(n*.9)}*${vars.descricao_produto?'\n\n'+vars.descricao_produto.slice(0,200):''}\n\nEscolha uma opção 👇`
+        const bodyText = bodyRaw.slice(0, 1000) || `${nome} disponível. Escolha uma opção 👇`
         const interactive = {
           type:'button',
           body:{ text: bodyText },
           action:{ buttons:[
-            { type:'reply', reply:{ id:'btn_carrinho', title:'🛒 Adicionar ao Carrinho' } },
+            { type:'reply', reply:{ id:'btn_carrinho', title:'🛒 Ao Carrinho' } },
             { type:'reply', reply:{ id:'btn_foto',     title:'📸 Ver Foto'             } },
             { type:'reply', reply:{ id:'btn_duvidas',  title:'💬 Tirar Dúvidas'        } },
           ]},
@@ -611,12 +612,13 @@ function PainelInfo({ conv, api }) {
       if (dTmpl.ok) return  // Template enviado com sucesso
 
       // 2. Fallback: envia mensagem interativa com botões hardcoded
-      const bodyText = `✨ *${nome}*\n\n💳 Cartão: *${fmtR(n)}* | 💰 PIX: *${fmtR(n*.9)}*\n\n${vars.descricao_produto ? vars.descricao_produto+'\n\n' : ''}Escolha uma opção abaixo 👇`
+      const bodyRaw = `✨ *${nome}*\n\n💳 Cartão: *${fmtR(n)}* | 💰 PIX: *${fmtR(n*.9)}*${vars.descricao_produto ? '\n\n'+vars.descricao_produto.slice(0,200) : ''}\n\nEscolha uma opção 👇`
+      const bodyText = bodyRaw.slice(0, 1000) || `${nome} disponível. Escolha uma opção 👇`
       const interactive = {
         type:'button',
         body:{ text: bodyText },
         action:{ buttons:[
-          { type:'reply', reply:{ id:'btn_carrinho', title:'🛒 Adicionar ao Carrinho' } },
+          { type:'reply', reply:{ id:'btn_carrinho', title:'🛒 Ao Carrinho' } },
           { type:'reply', reply:{ id:'btn_foto',     title:'📸 Ver Foto'             } },
           { type:'reply', reply:{ id:'btn_duvidas',  title:'💬 Tirar Dúvidas'        } },
         ]},
