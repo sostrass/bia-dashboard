@@ -569,7 +569,7 @@ function PainelInfo({ conv, api }) {
 
     fetch(`${api}/api/contatos/${conv.telefone}`)
       .then(r=>r.ok?r.json():Promise.reject('err'))
-      .then(d=>{ if(m) { if(d.nome||d.cpf||d.email) setPerfil(d); else setErrPerfil(true) } })
+      .then(d=>{ if(m && d) { setPerfil(d) } })  // aceita resposta mesmo parcial (igual PageAtendimento)
       .catch(()=>{ if(m) setErrPerfil(true) })
 
     setLoadPed(true)
@@ -656,16 +656,19 @@ function PainelInfo({ conv, api }) {
 
   if (!conv) return <div className="w-56 flex-shrink-0 border-l border-[var(--sep)] bg-[var(--bg-2)]"/>
 
+  // Mescla dados do conv (sempre disponíveis) com dados do perfil (Bling, quando carregado)
+  const dadosPerfil = { nome: conv.nome, telefone: conv.telefone, ...perfil }
+
   const campoPerfil = [
-    {l:'Nome',        v:perfil?.nome||conv.nome},
-    {l:'Telefone',    v:fmtTel(perfil?.telefone||conv.telefone)},
-    {l:'CPF/CNPJ',    v:perfil?.cpf||perfil?.cnpj},
-    {l:'E-mail',      v:perfil?.email},
-    {l:'Endereço',    v:[perfil?.logradouro,perfil?.numero].filter(Boolean).join(', ')||null},
-    {l:'Complemento', v:perfil?.complemento},
-    {l:'Bairro',      v:perfil?.bairro},
-    {l:'Cidade/UF',   v:[perfil?.cidade,perfil?.uf].filter(Boolean).join(' · ')||null},
-    {l:'CEP',         v:perfil?.cep},
+    {l:'Nome',        v:dadosPerfil.nome},
+    {l:'Telefone',    v:fmtTel(dadosPerfil.telefone)},
+    {l:'CPF/CNPJ',    v:dadosPerfil.cpf||dadosPerfil.cnpj},
+    {l:'E-mail',      v:dadosPerfil.email},
+    {l:'Endereço',    v:[dadosPerfil.logradouro,dadosPerfil.numero].filter(Boolean).join(', ')||null},
+    {l:'Complemento', v:dadosPerfil.complemento},
+    {l:'Bairro',      v:dadosPerfil.bairro},
+    {l:'Cidade/UF',   v:[dadosPerfil.cidade,dadosPerfil.uf].filter(Boolean).join(' · ')||null},
+    {l:'CEP',         v:dadosPerfil.cep},
     {l:'Total gasto', v:totalGasto, accent:true},
   ].filter(c=>c.v)
 
