@@ -5,8 +5,9 @@ import { logout } from '../pages/PageLogin'
 import {
   LayoutDashboard, ShoppingCart, Users, CreditCard,
   MessageSquare, Bot, Settings, Sun, Moon, Zap, Send, Package,
-  AlertCircle, Activity, Construction
+  AlertCircle, Activity, Construction, Search
 } from 'lucide-react'
+import CommandPalette from './CommandPalette'
 
 const PageDashboard   = lazy(() => import('../pages/PageDashboard'))
 const PagePedidosDebug= lazy(() => import('../pages/PagePedidosDebug'))
@@ -91,10 +92,22 @@ export default function Shell() {
   const [aiIdx,  setAiIdx]  = useState(0)
   const [online, setOnline] = useState(true)
   const [blingOk,setBlingOk]= useState(false)
+  const [cmdOpen,setCmdOpen]= useState(false)
 
   useEffect(() => {
     const i = setInterval(() => setAiIdx(x => (x + 1) % AI_STATES.length), 3500)
     return () => clearInterval(i)
+  }, [])
+
+  useEffect(() => {
+    const fn = e => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setCmdOpen(v => !v)
+      }
+    }
+    window.addEventListener('keydown', fn)
+    return () => window.removeEventListener('keydown', fn)
   }, [])
 
   useEffect(() => {
@@ -162,6 +175,13 @@ export default function Shell() {
               <span style={{ width:6, height:6, borderRadius:'50%', background:'var(--accent)', flexShrink:0 }} />
               <span style={{ fontSize:11, fontWeight:500, color:'var(--accent)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{AI_STATES[aiIdx]}</span>
             </div>
+            {/* Botão ⌘K */}
+            <button onClick={() => setCmdOpen(true)}
+              style={{ display:'flex', alignItems:'center', gap:7, padding:'6px 10px', borderRadius:8, border:'1px solid var(--sep)', background:'var(--fill)', color:'var(--label-3)', cursor:'pointer', width:'100%', marginTop:7, fontSize:12 }}>
+              <Search size={12} style={{ flexShrink:0 }}/>
+              <span style={{ flex:1, textAlign:'left', color:'var(--label-4)', fontSize:12 }}>Buscar...</span>
+              <kbd style={{ fontSize:10, padding:'1px 5px', borderRadius:4, background:'var(--bg-2)', border:'1px solid var(--sep)', color:'var(--label-4)', fontFamily:'inherit' }}>⌘K</kbd>
+            </button>
           </div>
 
           {/* Nav */}
@@ -219,6 +239,17 @@ export default function Shell() {
         </main>
 
       </div>
+      {/* Command Palette */}
+      {cmdOpen && (
+        <CommandPalette
+          api={API}
+          onNavigate={(page, params={}) => {
+            setPage(page)
+            if (params.telefone) sessionStorage.setItem('cmd_goto_tel', params.telefone)
+          }}
+          onClose={() => setCmdOpen(false)}
+        />
+      )}
     </>
   )
 }
