@@ -259,8 +259,9 @@ function CatOverlay({ telefone, api, onClose }) {
       preco_cartao:      fmtR(n),
       preco_pix:         fmtR(n*.9),
       foto_produto:      (Array.isArray(p.imagens)?p.imagens[0]:p.imagens)||'',
-      descricao_produto: p.descricao||p.descricao_curta||'',
-      codigo_produto:    p.sku||p.codigo||'',
+      descricao_produto:       p.descricao||p.descricao_curta||'',
+      descricao_complementar:  p.descricaoComp||p.descricao_complementar||'',
+      codigo_produto:          p.sku||p.codigo||'',
     }
     try {
       // 1. Tenta disparar via template editável
@@ -599,8 +600,9 @@ function PainelInfo({ conv, api }) {
       preco_cartao:      fmtR(n),
       preco_pix:         fmtR(n*.9),
       foto_produto:      (Array.isArray(p.imagens)?p.imagens[0]:p.imagens)||'',
-      descricao_produto: p.descricao||p.descricao_curta||'',
-      codigo_produto:    p.sku||p.codigo||'',
+      descricao_produto:       p.descricao||p.descricao_curta||'',
+      descricao_complementar:  p.descricaoComp||p.descricao_complementar||'',
+      codigo_produto:          p.sku||p.codigo||'',
     }
     try {
       // 1. Tenta disparar via template editável (Gatilhos → Produto do Catálogo)
