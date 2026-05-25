@@ -251,11 +251,22 @@ function CatOverlay({ telefone, api, onClose }) {
   }
 
   const enviar = async p => {
-    setEnv(p.id||p.nome)
+    setEnv(p.id||p.nome||p.nome)
     const n = parseFloat(p.preco||p.precoVenda||0)
-    const disp = p.disponivel !== false
-    const msg = `*${p.nome||p.descricao}*\n💳 Cartão: ${fmtR(n)} | 💰 PIX: ${fmtR(n*.9)}\n${disp?'✅ Disponível em estoque':'⚠️ Indisponível'}`
+    const msg = `*${p.nome||p.descricao}*\n💳 Cartão: ${fmtR(n)} | 💰 PIX: ${fmtR(n*.9)}\n✅ Disponível em estoque`
     try { await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone,mensagem:msg})}) } catch {}
+    setEnv(null); onClose()
+  }
+
+  const avisar = async p => {
+    setEnv('aviso_'+(p.id||p.nome))
+    try {
+      await fetch(`${api}/api/avise-me`,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ telefone, produto_nome:p.nome||p.descricao, bling_id:p.bling_id||p.id })
+      })
+      const msg = `⏰ *Produto cadastrado na lista de espera!*\n\n*${p.nome||p.descricao}*\n\nAssim que este produto chegar ao estoque, você será avisado automaticamente. 😊\n\n_Só Strass — Atendimento ao Cliente_`
+      await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone,mensagem:msg})})
+    } catch {}
     setEnv(null); onClose()
   }
 
@@ -290,10 +301,16 @@ function CatOverlay({ telefone, api, onClose }) {
                   </span>
                 </div>
               </div>
-              <button onClick={()=>enviar(p)} disabled={env===(p.id||p.nome)}
-                className="px-3 py-1 rounded-lg border border-emerald-500/30 text-emerald-400 text-[10px] font-semibold hover:bg-emerald-500/20 transition-colors flex-shrink-0 disabled:opacity-50">
-                {env===(p.id||p.nome)?'Enviando...':'Enviar'}
-              </button>
+              {disp
+                ? <button onClick={()=>enviar(p)} disabled={env===(p.id||p.nome)}
+                    className="px-3 py-1 rounded-lg border border-emerald-500/30 text-emerald-400 text-[10px] font-semibold hover:bg-emerald-500/20 transition-colors flex-shrink-0 disabled:opacity-50">
+                    {env===(p.id||p.nome)?'Enviando...':'Enviar'}
+                  </button>
+                : <button onClick={()=>avisar(p)} disabled={env===('aviso_'+(p.id||p.nome))}
+                    className="px-3 py-1 rounded-lg border border-amber-500/30 text-amber-400 text-[10px] font-semibold hover:bg-amber-500/15 transition-colors flex-shrink-0 disabled:opacity-50 flex items-center gap-1">
+                    ⏰ Avise-me
+                  </button>
+              }
             </div>
           )
         })}
@@ -544,9 +561,21 @@ function PainelInfo({ conv, api }) {
   const enviarProd = async p => {
     if (!conv?.telefone) return
     const n=parseFloat(p.preco||p.precoVenda||0)
-    const disp=p.disponivel!==false
-    const msg=`*${p.nome||p.descricao}*\n💳 Cartão: ${fmtR(n)} | 💰 PIX: ${fmtR(n*.9)}\n${disp?'✅ Disponível em estoque':'⚠️ Indisponível'}`
+    const msg=`*${p.nome||p.descricao}*\n💳 Cartão: ${fmtR(n)} | 💰 PIX: ${fmtR(n*.9)}\n✅ Disponível em estoque`
     try { await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone:conv.telefone,mensagem:msg})}) } catch {}
+  }
+
+  const avisarQuandoChegar = async p => {
+    if (!conv?.telefone) return
+    try {
+      // Registra na lista "Avise-me" do backend
+      await fetch(`${api}/api/avise-me`,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ telefone:conv.telefone, produto_nome:p.nome||p.descricao, bling_id:p.bling_id||p.id })
+      })
+      // Informa o cliente via WhatsApp
+      const msg = `⏰ *Produto cadastrado na lista de espera!*\n\n*${p.nome||p.descricao}*\n\nAssim que este produto chegar ao estoque, você será avisado automaticamente. 😊\n\n_Só Strass — Atendimento ao Cliente_`
+      await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone:conv.telefone,mensagem:msg})})
+    } catch {}
   }
 
   const totalGasto = useMemo(()=>{
@@ -785,10 +814,13 @@ function PainelInfo({ conv, api }) {
                       </span>
                     </div>
                   </div>
-                  <button onClick={()=>enviarProd(p)} disabled={!disp}
-                    className={`w-full py-1.5 text-[10px] font-bold transition-opacity ${disp?'bg-[var(--accent)] text-white hover:opacity-90':'bg-[var(--bg-3)] text-[var(--label-4)] cursor-not-allowed'}`}>
-                    {disp ? 'Enviar ao cliente' : 'Sem estoque'}
-                  </button>
+                  {disp
+                    ? <button onClick={()=>enviarProd(p)} className="w-full py-1.5 bg-[var(--accent)] text-white text-[10px] font-bold hover:opacity-90 transition-opacity">Enviar ao cliente</button>
+                    : <button onClick={()=>avisarQuandoChegar(p)} className="w-full py-1.5 bg-amber-500/15 text-amber-400 text-[10px] font-bold hover:bg-amber-500/25 transition-colors border-t border-amber-500/20 flex items-center justify-center gap-1">
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v4l2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><circle cx="5" cy="5" r="4.2" stroke="currentColor" strokeWidth="1.3"/></svg>
+                        Avise-me quando chegar
+                      </button>
+                  }
                 </div>
               )
             })}
@@ -875,7 +907,13 @@ function ChatArea({ conv, api, statusAtend, onStatusChange, modoManual, onToggle
         {onToggleList && (
           <button onClick={onToggleList} title={listOpen?'Recolher lista':'Expandir lista'}
             className="w-8 h-8 rounded-lg border border-[var(--sep)] flex items-center justify-center text-[var(--label-4)] hover:bg-[var(--bg-3)] transition-colors flex-shrink-0">
-            <MessageSquare size={13} className={listOpen?'':'rotate-180'}/>
+            {/* Setas para indicar expansão/recolhimento */}
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              {listOpen
+                ? <><path d="M5 2L2 7L5 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M9 2L6 7L9 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5"/></>
+                : <><path d="M9 2L12 7L9 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 2L8 7L5 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5"/></>
+              }
+            </svg>
           </button>
         )}
         <Av nome={conv.nome||tel} foto={conv.foto_url||conv.fotoUrl} size={30}/>
@@ -1049,7 +1087,15 @@ export default function PageConversas({ api: apiProp, onNavigate }) {
     <div className="flex h-full overflow-hidden bg-[var(--bg)]">
 
       {/* ── LISTA — Multi-column narrow sidebar retrátil ── */}
-      <div className={`flex-shrink-0 flex flex-col overflow-hidden border-r border-[var(--sep)] bg-[var(--bg-2)] transition-all duration-200 ${listOpen?'w-[260px]':'w-0 border-r-0'}`}>
+      <div style={{
+          flexShrink:0, display:'flex', flexDirection:'column', overflow:'hidden',
+          borderRight: listOpen ? '1px solid var(--sep)' : 'none',
+          background:'var(--bg-2)',
+          width: listOpen ? 260 : 0,
+          minWidth: listOpen ? 260 : 0,
+          maxWidth: listOpen ? 260 : 0,
+          transition:'width 200ms ease, min-width 200ms ease, max-width 200ms ease',
+        }}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-[var(--sep)] flex-shrink-0">
