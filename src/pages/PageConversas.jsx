@@ -60,7 +60,7 @@ const ConvCard = memo(function ConvCard({ conv, sel, statusAtend, nomeIA, onClic
           <span className="text-[9px] text-[var(--label-4)] flex-shrink-0">{fmtRel(conv.ultima_atividade||conv.hora)}</span>
         </div>
         <p className="text-[10.5px] text-[var(--label-3)] truncate mb-1.5" style={{maxWidth:180}}>{conv.ultima_mensagem||conv.ultima_msg||'—'}</p>
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 flex-wrap">
           <span className={`inline-flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full border ${S.tw} ${S.bg} ${S.border}`}>
             <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${S.dot}`}/>
             {S.label}
@@ -71,6 +71,11 @@ const ConvCard = memo(function ConvCard({ conv, sel, statusAtend, nomeIA, onClic
             {man ? <User size={8}/> : <Bot size={8}/>}
             {man ? 'Atendente' : nomeIA}
           </span>
+          {parseInt(conv.itens_carrinho||0)>0 && (
+            <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full border text-amber-400 bg-amber-400/10 border-amber-400/25">
+              🛒 {conv.itens_carrinho}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -797,7 +802,32 @@ function PainelInfo({ conv, api }) {
 
         {/* ── PERFIL ── */}
         {aba==='perfil' && (
-          <div className="px-3 py-3 space-y-4">
+          <div className="px-3 py-3 space-y-3">
+
+            {/* ── Card avatar + nome + telefone ── */}
+            <div className="rounded-xl border border-[var(--sep)] bg-[var(--bg)] p-3 text-center">
+              <Av nome={conv.nome||conv.telefone} foto={conv.foto_url||conv.fotoUrl} size={36} className="mx-auto mb-2"/>
+              <p className="text-[13px] font-semibold text-[var(--label)] mb-0.5">{dadosPerfil.nome||fmtTel(conv.telefone)}</p>
+              <p className="text-[11px] text-[var(--label-4)]">{fmtTel(dadosPerfil.telefone||conv.telefone)}</p>
+            </div>
+
+            {/* ── Carrinho ativo ── */}
+            {carrinh.length>0 && (
+              <div className="rounded-xl border border-amber-400/25 bg-amber-400/8 p-3">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--label-4)] mb-2">Carrinho ({carrinh.length})</p>
+                {carrinh.map((item,i)=>(
+                  <div key={i} className="flex justify-between text-[11px] py-1 border-b border-[var(--sep)] last:border-0">
+                    <span className="flex-1 truncate text-[var(--label-3)] mr-2">{item.quantidade}× {(item.nome||'').slice(0,20)}</span>
+                    <span className="flex-shrink-0 font-medium text-amber-400">{fmtR2(parseFloat(item.preco||0)*item.quantidade)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between text-[12px] font-semibold text-[var(--label)] mt-2 pt-1.5 border-t border-[var(--sep)]">
+                  <span>Total</span><span className="text-amber-400">{fmtR2(totalCarr)}</span>
+                </div>
+              </div>
+            )}
+
+            {/* ── Dados do cliente ── */}
             <div>
               <p className="text-[8px] font-bold uppercase tracking-widest text-[var(--label-4)] mb-1.5">Dados do cliente</p>
               {errPerfil ? (
@@ -1073,6 +1103,14 @@ function ChatArea({ conv, api, statusAtend, onStatusChange, modoManual, onToggle
           </button>
         </div>
       </div>
+
+      {/* ── Banner carrinho ativo — igual PageAtendimento ── */}
+      {parseInt(conv.itens_carrinho||0)>0 && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-amber-400/8 border-b border-amber-400/20 flex-shrink-0">
+          <span className="text-amber-400 text-[11px] font-semibold">🛒 {conv.itens_carrinho} item{parseInt(conv.itens_carrinho)>1?'s':''} no carrinho</span>
+          <span className="text-[var(--label-4)] text-[10px]">· cliente realizando pedido</span>
+        </div>
+      )}
 
       {/* ── Mensagens ── */}
       <div className="flex-1 overflow-y-auto px-5 py-4 bg-[var(--bg)]">
