@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 
 const PageDashboard   = lazy(() => import('../pages/PageDashboard'))
+const PagePedidosDebug= lazy(() => import('../pages/PagePedidosDebug'))
 const PagePedidos     = lazy(() => import('../pages/PagePedidos'))
 const PageClientes    = lazy(() => import('../pages/PageClientes'))
 const PageCaixa       = lazy(() => import('../pages/PageCaixa'))
@@ -27,6 +28,7 @@ const NAV = [
   { id:'dashboard',   icon:LayoutDashboard, label:'Dashboard',      group:'main'   },
   { id:'atendimento', icon:MessageSquare,   label:'Atendimento',    group:'main'   },
   { id:'conversas',   icon:MessageSquare,   label:'Conversas',      group:'main'   },
+  { id:'debug-pedidos', label:'Debug Pedidos', hidden:true },
   { id:'pedidos',     icon:ShoppingCart,    label:'Pedidos',        group:'main'   },
   { id:'clientes',    icon:Users,           label:'Clientes',       group:'main'   },
   { id:'caixa',       icon:CreditCard,      label:'Fluxo de Caixa', group:'main'   },
