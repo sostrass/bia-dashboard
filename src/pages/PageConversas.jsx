@@ -278,7 +278,7 @@ function CatOverlay({ telefone, api, onClose }) {
           <p className="px-4 py-3 text-[11px] text-[var(--label-4)] text-center">Nenhum produto encontrado</p>
         )}
         {prods.slice(0,12).map((p,i)=>{
-          const disp = p.disponivel !== false
+          const disp = parseInt(p.estoque||0) > 0 || (p.disponivel === true && p.estoque === undefined)
           return (
             <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-b border-[var(--sep)] hover:bg-[var(--bg-3)] transition-colors">
               <div className="flex-1 min-w-0">
@@ -286,7 +286,7 @@ function CatOverlay({ telefone, api, onClose }) {
                 <div className="flex items-center gap-2 mt-0.5">
                   <p className="text-[10px] font-semibold text-emerald-400">{fmtR(p.preco||p.precoVenda||0)}</p>
                   <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${disp?'text-emerald-400 bg-emerald-400/10':'text-red-400 bg-red-400/10'}`}>
-                    {disp?'✓ Disponível':'✗ Indisponível'}
+                    {disp ? (p.estoque!==undefined ? `✓ Est: ${parseInt(p.estoque||0)}` : '✓ Disponível') : '✗ Sem estoque'}
                   </span>
                 </div>
               </div>
@@ -574,10 +574,50 @@ function PainelInfo({ conv, api }) {
 
   // Ações rápidas — com navegação real
   const acoesRapidas = [
-    { l:'Abrir ocorrência', ic:AlertTriangle, action:()=>{ window.open('/ocorrencias?novo=1&tel='+conv.telefone,'_blank') } },
-    { l:'Ver catálogo',     ic:ShoppingCart,  action:()=>setAba('catalogo') },
-    { l:'Ver rastreio',     ic:Truck,         action:()=>{ const url='https://www.linketrack.com'; window.open(url,'_blank') } },
-    { l:'Enviar CSAT',      ic:Star,          action:()=>alert('CSAT: implemente via aba Ocorrências → CSAT') },
+    {
+      l:'Abrir ocorrência', ic:AlertTriangle,
+      action:()=>{
+        if (onNavigate) {
+          onNavigate('ocorrencias', { novaOcorrencia: true, tel: conv.telefone, nome: conv.nome })
+        } else {
+          // fallback: CustomEvent para o Shell
+          window.dispatchEvent(new CustomEvent('bia:navigate', { detail:{ page:'ocorrencias', tel:conv.telefone } }))
+        }
+      }
+    },
+    { l:'Ver catálogo', ic:ShoppingCart, action:()=>setAba('catalogo') },
+    {
+      l:'Ver rastreio', ic:Truck,
+      action:()=>{
+        const ped = pedidos[0]
+        const cod = ped?.rastreio && ped.rastreio!=='—' ? ped.rastreio : ''
+        const url = cod
+          ? `https://www.linketrack.com/trace/busca?user=linketrack&token=1abcd&codigo=${cod}`
+          : 'https://www.linketrack.com'
+        window.open(url, '_blank')
+      }
+    },
+    {
+      l:'Enviar CSAT', ic:Star,
+      action:async ()=>{
+        if (!conv?.telefone) return
+        try {
+          // Busca a ocorrência mais recente deste telefone e dispara CSAT
+          const r = await fetch(`${api}/api/ocorrencias?telefone=${conv.telefone}&limit=1`)
+          if (r.ok) {
+            const d = await r.json()
+            const oc = (d.ocorrencias||[])[0]
+            if (oc) {
+              const rc = await fetch(`${api}/api/ocorrencias/${oc.id}/csat`, { method:'POST' })
+              if (rc.ok) alert('✅ Pesquisa CSAT enviada para ' + (conv.nome||conv.telefone))
+              else alert('⚠️ Abra uma ocorrência primeiro para enviar o CSAT.')
+            } else {
+              alert('⚠️ Nenhuma ocorrência encontrada. Abra um chamado primeiro.')
+            }
+          }
+        } catch { alert('Erro ao enviar CSAT') }
+      }
+    },
   ]
 
   return (
@@ -732,7 +772,8 @@ function PainelInfo({ conv, api }) {
               </button>
             </div>
             {catProds.map((p,i)=>{
-              const disp=p.disponivel!==false
+              const estoque = parseInt(p.estoque||0)
+              const disp    = estoque > 0 || (p.disponivel === true && p.estoque === undefined)
               return (
                 <div key={i} className="border border-[var(--sep)] rounded-lg overflow-hidden mb-2">
                   <div className="px-2.5 py-2 bg-[var(--bg-3)]">
@@ -740,12 +781,13 @@ function PainelInfo({ conv, api }) {
                     <div className="flex items-center gap-2 mt-0.5">
                       <p className="text-[10px] font-bold text-emerald-400">{fmtR(p.preco||p.precoVenda||0)}</p>
                       <span className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full ${disp?'text-emerald-400 bg-emerald-400/10':'text-red-400 bg-red-400/10'}`}>
-                        {disp?'✓ Disponível':'✗ Indisponível'}
+                        {disp ? (p.estoque!==undefined ? `✓ Est: ${estoque}` : '✓ Disponível') : '✗ Sem estoque'}
                       </span>
                     </div>
                   </div>
-                  <button onClick={()=>enviarProd(p)} className="w-full py-1.5 bg-[var(--accent)] text-white text-[10px] font-bold hover:opacity-90 transition-opacity">
-                    Enviar ao cliente
+                  <button onClick={()=>enviarProd(p)} disabled={!disp}
+                    className={`w-full py-1.5 text-[10px] font-bold transition-opacity ${disp?'bg-[var(--accent)] text-white hover:opacity-90':'bg-[var(--bg-3)] text-[var(--label-4)] cursor-not-allowed'}`}>
+                    {disp ? 'Enviar ao cliente' : 'Sem estoque'}
                   </button>
                 </div>
               )
@@ -758,7 +800,7 @@ function PainelInfo({ conv, api }) {
 }
 
 // ── ChatArea ──────────────────────────────────────────────────────────────────
-function ChatArea({ conv, api, statusAtend, onStatusChange, modoManual, onToggleModo, nomeIA }) {
+function ChatArea({ conv, api, statusAtend, onStatusChange, modoManual, onToggleModo, nomeIA, listOpen, onToggleList }) {
   const [msgs,          setMsgs]         = useState([])
   const [loading,       setLoading]      = useState(true)
   const [hasMore,       setHasMore]      = useState(false)
@@ -829,6 +871,13 @@ function ChatArea({ conv, api, statusAtend, onStatusChange, modoManual, onToggle
 
       {/* ── Header ── */}
       <div className="flex items-center gap-3 px-4 h-14 border-b border-[var(--sep)] bg-[var(--bg-2)] flex-shrink-0">
+        {/* Botão retrair/expandir lista */}
+        {onToggleList && (
+          <button onClick={onToggleList} title={listOpen?'Recolher lista':'Expandir lista'}
+            className="w-8 h-8 rounded-lg border border-[var(--sep)] flex items-center justify-center text-[var(--label-4)] hover:bg-[var(--bg-3)] transition-colors flex-shrink-0">
+            <MessageSquare size={13} className={listOpen?'':'rotate-180'}/>
+          </button>
+        )}
         <Av nome={conv.nome||tel} foto={conv.foto_url||conv.fotoUrl} size={30}/>
         <div className="min-w-0">
           <p className="text-[13px] font-semibold text-[var(--label)] leading-none mb-0.5 truncate" style={{maxWidth:200}}>{conv.nome||fmtTel(tel)}</p>
@@ -888,30 +937,32 @@ function ChatArea({ conv, api, statusAtend, onStatusChange, modoManual, onToggle
   )
 }
 
-// ── Pipeline tabs na lista ────────────────────────────────────────────────────
+// ── Pipeline de status — pills verticais legíveis ─────────────────────────────
 function PipelineTabs({ sel, setSel, contadores }) {
   const ITEMS = [
-    { key:'pendente',     label:'Pendente',   icon:CircleDot,   tw:'text-amber-400',   sel_bg:'bg-amber-400/15',   sel_border:'border-amber-400/30'   },
-    { key:'em_andamento', label:'Andamento',  icon:RefreshCw,   tw:'text-blue-400',    sel_bg:'bg-blue-400/15',    sel_border:'border-blue-400/30'    },
-    { key:'resolvido',    label:'Resolvido',  icon:CheckCircle, tw:'text-emerald-400', sel_bg:'bg-emerald-400/15', sel_border:'border-emerald-400/30' },
-    { key:'aguardando',   label:'Aguardando', icon:Clock,       tw:'text-purple-400',  sel_bg:'bg-purple-400/15',  sel_border:'border-purple-400/30'  },
-    { key:'encerrado',    label:'Encerrado',  icon:XCircle,     tw:'text-slate-400',   sel_bg:'bg-slate-400/15',   sel_border:'border-slate-400/30'   },
+    { key:'pendente',     label:'Pendente',    icon:CircleDot,   tw:'text-amber-400',   activeBg:'bg-amber-400/12 border-amber-400/25'   },
+    { key:'em_andamento', label:'Em andamento',icon:RefreshCw,   tw:'text-blue-400',    activeBg:'bg-blue-400/12 border-blue-400/25'    },
+    { key:'resolvido',    label:'Resolvido',   icon:CheckCircle, tw:'text-emerald-400', activeBg:'bg-emerald-400/12 border-emerald-400/25' },
+    { key:'aguardando',   label:'Aguardando',  icon:Clock,       tw:'text-purple-400',  activeBg:'bg-purple-400/12 border-purple-400/25'  },
+    { key:'encerrado',    label:'Encerrado',   icon:XCircle,     tw:'text-slate-400',   activeBg:'bg-slate-400/12 border-slate-400/25'   },
   ]
   return (
-    <div className="flex border-b border-[var(--sep)] overflow-x-auto flex-shrink-0" style={{scrollbarWidth:'none'}}>
-      {ITEMS.map(({key,label,icon:Ic,tw,sel_bg,sel_border})=>{
+    <div className="flex flex-col gap-0.5 px-2 py-2 border-b border-[var(--sep)] flex-shrink-0">
+      {ITEMS.map(({key,label,icon:Ic,tw,activeBg})=>{
         const on=sel===key; const cnt=contadores[key]||0
         return (
           <button key={key} onClick={()=>setSel(key)}
-            className={`flex items-center gap-1 px-2.5 py-2 text-[10px] font-semibold whitespace-nowrap flex-shrink-0 border-b-2 transition-all ${
+            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11.5px] font-medium border transition-all text-left ${
               on
-                ? `${tw} border-b-current`
-                : 'text-[var(--label-4)] border-transparent hover:text-[var(--label-3)] hover:border-[var(--sep)]'
+                ? `${tw} ${activeBg} border`
+                : 'text-[var(--label-3)] border-transparent hover:bg-[var(--bg-3)] hover:border-[var(--sep)]'
             }`}>
-            <Ic size={11}/>
-            {label}
+            <Ic size={13} className="flex-shrink-0"/>
+            <span className="flex-1">{label}</span>
             {cnt>0 && (
-              <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-bold leading-none ${on?'bg-white/15':' bg-[var(--bg-3)]'}`}>{cnt}</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold leading-none flex-shrink-0 ${
+                on ? 'bg-white/20' : 'bg-[var(--bg-3)] text-[var(--label-4)]'
+              }`}>{cnt}</span>
             )}
           </button>
         )
@@ -921,7 +972,7 @@ function PipelineTabs({ sel, setSel, contadores }) {
 }
 
 // ── Página principal ──────────────────────────────────────────────────────────
-export default function PageConversas({ api: apiProp }) {
+export default function PageConversas({ api: apiProp, onNavigate }) {
   const api = apiProp || BASE
   const [convs,     setConvs]     = useState([])
   const [selTel,    setSelTel]    = useState(null)
@@ -931,6 +982,7 @@ export default function PageConversas({ api: apiProp }) {
   const [busca,     setBusca]     = useState('')
   const [loading,   setLoading]   = useState(true)
   const [nomeIA,    setNomeIA]    = useState('Molise')
+  const [listOpen,  setListOpen]  = useState(true)
   const pollingRef = useRef(null)
 
   useEffect(()=>{ sessionStorage.setItem('bia_conv_status',statusSel) }, [statusSel])
@@ -996,8 +1048,8 @@ export default function PageConversas({ api: apiProp }) {
   return (
     <div className="flex h-full overflow-hidden bg-[var(--bg)]">
 
-      {/* ── LISTA — Multi-column narrow sidebar ── */}
-      <div className="w-[260px] flex-shrink-0 flex flex-col overflow-hidden border-r border-[var(--sep)] bg-[var(--bg-2)]">
+      {/* ── LISTA — Multi-column narrow sidebar retrátil ── */}
+      <div className={`flex-shrink-0 flex flex-col overflow-hidden border-r border-[var(--sep)] bg-[var(--bg-2)] transition-all duration-200 ${listOpen?'w-[260px]':'w-0 border-r-0'}`}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-[var(--sep)] flex-shrink-0">
@@ -1045,7 +1097,9 @@ export default function PageConversas({ api: apiProp }) {
         onStatusChange={st=>convSel&&updateStatus(convSel.telefone,st)}
         modoManual={convSel?getModo(convSel.telefone):false}
         onToggleModo={()=>convSel&&toggleModo(convSel.telefone)}
-        nomeIA={nomeIA}/>
+        nomeIA={nomeIA}
+        listOpen={listOpen}
+        onToggleList={()=>setListOpen(v=>!v)}/>
 
       {/* ── PAINEL DIREITO ── */}
       <PainelInfo conv={convSel} api={api}/>
