@@ -333,7 +333,7 @@ export default function PageGatilhos({ api }) {
     setDirty(false)
     setErroIA('')
     setResTeste(null)
-    setMetaSt(cfg?.meta_template_status || '')
+    setMetaStatus(cfg?.meta_template_status || '')
     setMetaErro('')
     setAba('editor')
   }, [selId, configs])
@@ -344,7 +344,7 @@ export default function PageGatilhos({ api }) {
     if (cfg?.id) {
       fetch(`${api}/api/meta-templates/status/${cfg.id}`)
         .then(r => r.json())
-        .then(d => { if(d.status) setMetaSt(d.status) })
+        .then(d => { if(d.status) setMetaStatus(d.status) })
         .catch(() => {})
     }
   }, [selId, configs, api])
@@ -438,17 +438,17 @@ export default function PageGatilhos({ api }) {
   const submeterMeta = async () => {
     const c = configs[selId]
     if (!c?.id) { alert('Salve o template primeiro'); return }
-    setSubmet(true); setMetaErro('')
+    setSubmetendo(true); setMetaErro('')
     try {
       const r = await fetch(`${api}/api/meta-templates/submeter/${c.id}`, { method:'POST' })
       const d = await r.json()
       if (d.ok) {
-        setMetaSt(d.status || 'PENDING')
+        setMetaStatus(d.status || 'PENDING')
       } else {
         setMetaErro(`${d.erro || 'Erro desconhecido'}${d.dica ? ' — ' + d.dica : ''}${d.payload_debug ? ' | ' + d.payload_debug : ''}`)
       }
     } catch { setMetaErro('Erro de conexão') }
-    setSubmet(false)
+    setSubmetendo(false)
   }
 
   // ── Grupos filtrados ───────────────────────────────────────────────────────
