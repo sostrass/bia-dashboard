@@ -306,37 +306,65 @@ function TrackTimeline({codigo,api,linkExterno}) {
 // SHEET LATERAL — 5 abas
 // ─────────────────────────────────────────────────────────────────────────────
 function OrderSheet({pedRow,onClose,api,allPedidos}) {
-  const [det,setDet]=useState(null)
-  const [load,setLoad]=useState(true)
-  const [tab,setTab]=useState('overview')
-  const [sending,setSend]=useState(false)
-  const [sent,setSent]=useState(false)
+  const [det,     setDet]     = useState(null)
+  const [load,    setLoad]    = useState(true)
+  const [tab,     setTab]     = useState('overview')
+  const [sending, setSend]    = useState(false)
+  const [sent,    setSent]    = useState(false)
+  const [cpKey,   setCpKey]   = useState('')
+  const [rastrLoad,setRLoad]  = useState(false)
+  const [trackEvs, setTrackEvs] = useState([])
+  const [trackSt,  setTrackSt]  = useState(null)
 
-  const canal  = getCanal(pedRow)
-  const CH_info= CH[canal]||CH.bling
-  const sitId  = getSitId(pedRow)
-  const sit    = SIT[sitId]||SIT[9]
-  const hist   = allPedidos.filter(p=>p.contato===pedRow.contato&&p.numero!==pedRow.numero)
-  const nComp  = hist.filter(p=>p.numero<pedRow.numero).length+1
+  // Dados derivados
+  const canal   = getCanal(pedRow)
+  const CH_info = CH[canal] || CH.bling
+  const sitId   = getSitId(pedRow)
+  const sit     = SIT[sitId] || {label:'—',cor:'#888',bg:'var(--fill)',bdr:'var(--sep)'}
+  const hist    = allPedidos.filter(p=>p.contato===pedRow.contato&&p.numero!==pedRow.numero)
+  const nComp   = hist.filter(p=>p.numero<pedRow.numero).length+1
   const gastaTotal = hist.reduce((s,p)=>s+Number(p.total||0),0)+Number(pedRow.total||0)
-  const isNew  = nComp===1
+  const isNew   = nComp===1
 
-  // Dados do detalhe
-  const p   = det?.pedido||{}
-  const c   = det?.contato||{}
-  const t   = det?.transporte||{}
-  const r   = det?.rastreio||{}
-  const hDet= det?.historico||{}
-  const msgs= det?.mensagens||{}
+  const p    = det?.pedido    || {}
+  const c    = det?.contato   || {}
+  const t    = det?.transporte|| {}
+  const r    = det?.rastreio  || {}
+  const hDet = det?.historico || {}
+  const msgs = det?.mensagens || {}
+
+  const end  = t.etiqueta || c.enderecoGeral || c.enderecos?.[0] || null
+  const rastreioCod = r.codigo || pedRow.codigoRastreio || null
+  const nfLink = p.notaFiscal
+    ? (p.notaFiscal.linkDanfe || `https://www.bling.com.br/notas-fiscais/${p.notaFiscal.id}`)
+    : null
 
   useEffect(()=>{
     if(!pedRow?.numero) return
-    setLoad(true);setDet(null);setTab('overview')
+    setLoad(true);setDet(null);setTab('overview');setTrackEvs([]);setTrackSt(null)
     fetch(`${api}/api/dashboard/pedido-completo/${pedRow.numero}`)
       .then(rr=>rr.ok?rr.json():null)
       .then(d=>{setDet(d);setLoad(false)})
       .catch(()=>setLoad(false))
   },[pedRow?.numero])
+
+  // Busca rastreio ao entrar na aba
+  useEffect(()=>{
+    if(tab!=='rastreio'||!rastreioCod||trackEvs.length>0) return
+    setRLoad(true)
+    fetch(`${api}/api/dashboard/rastreio/${rastreioCod}`)
+      .then(rr=>rr.ok?rr.json():null)
+      .then(d=>{
+        const r0=d?.resultados?.[0]
+        if(r0){setTrackEvs(r0.eventos||[]);setTrackSt(r0.status||null)}
+        setRLoad(false)
+      }).catch(()=>setRLoad(false))
+  },[tab,rastreioCod])
+
+  const copy=(text,key)=>{
+    navigator.clipboard.writeText(String(text??''))
+    setCpKey(key);setTimeout(()=>setCpKey(''),2000)
+  }
 
   const enviarWA=async()=>{
     if(!det) return;setSend(true)
@@ -352,278 +380,540 @@ function OrderSheet({pedRow,onClose,api,allPedidos}) {
   }
 
   const enviarRastreioWA=async()=>{
-    if(!r.codigo) return
+    if(!rastreioCod) return
     const tel=(c.celular||c.telefone||'').replace(/\D/g,'')
     if(!tel) return
-    const link=linkRastreio(r.codigo)
-    const msg=`📦 *Rastreio do pedido #${p.numero}*\n\n*Código:* \`${r.codigo}\`\n${r.status?`*Status:* ${r.status}\n`:''}\n🔗 Rastreie em: ${link}\n\n_Qualquer dúvida, estamos aqui! 🥰 Só Strass_`
-    try{ await fetch(`${api}/api/dashboard/manual/${tel}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:msg})}) }catch{}
+    const link=linkRastreio(rastreioCod)
+    const statusTxt=trackSt||r.status||''
+    const msg=`📦 *Rastreio do pedido #${p.numero||pedRow.numero}*\n\n*Código:* \`${rastreioCod}\`${statusTxt?`\n*Status:* ${statusTxt}`:''}\n\n🔗 ${link}\n\n_Só Strass 🥰_`
+    try{await fetch(`${api}/api/dashboard/manual/${tel}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:msg})})}catch{}
   }
 
   const TABS=[
     {id:'overview', label:'Visão Geral'},
     {id:'cliente',  label:'Cliente'},
     {id:'rastreio', label:'Rastreio'},
-    {id:'historico',label:`Histórico (${hDet.total||hist.length})`},
+    {id:'historico',label:`Histórico (${hDet.total??hist.length})`},
     {id:'msgs',     label:'Mensagens'},
   ]
 
-  // Endereço correto — etiqueta ou contato.enderecoGeral
-  const end = t.etiqueta || c.enderecoGeral || c.enderecos?.[0] || null
+  // ── Utilitários visuais locais ──────────────────────────────────────────────
+  const Divider = () => <div style={{height:'1px',background:'var(--sep)',margin:'2px 0'}}/>
+
+  const InfoRow = ({label,value,mono,action,cor,badge}) => {
+    if(!value&&value!==0) return null
+    const v = String(value)
+    return (
+      <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:'1px solid var(--sep)'}}>
+        <span style={{fontSize:11.5,color:'var(--label-4)',minWidth:140,flexShrink:0,letterSpacing:'-.01em'}}>{label}</span>
+        <div style={{flex:1,display:'flex',alignItems:'center',gap:8,minWidth:0}}>
+          <span style={{fontSize:13,fontWeight:500,color:cor||'var(--label)',fontFamily:mono?'monospace':'inherit',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+            {v}
+          </span>
+          {badge&&<span style={{fontSize:10,fontWeight:700,padding:'1px 7px',borderRadius:99,background:`${badge.cor}15`,color:badge.cor,border:`1px solid ${badge.cor}25`,flexShrink:0}}>{badge.label}</span>}
+        </div>
+        {action}
+      </div>
+    )
+  }
+
+  const CopyField = ({label,value,mono}) => (
+    <InfoRow label={label} value={value} mono={mono}
+      action={value&&<button onClick={()=>copy(value,label)} style={{display:'flex',alignItems:'center',gap:3,padding:'3px 8px',borderRadius:6,border:'1px solid var(--sep)',background:'transparent',color:cpKey===label?'#22c55e':'var(--label-4)',cursor:'pointer',fontSize:10,flexShrink:0}}>
+        {cpKey===label?<><Check size={9}/> Ok</>:<><Copy size={9}/> Copiar</>}
+      </button>}
+    />
+  )
+
+  const SectionHeader = ({icon:Ic,label,action}) => (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12,marginTop:4}}>
+      <div style={{display:'flex',alignItems:'center',gap:7}}>
+        {Ic&&<Ic size={13} style={{color:'var(--label-4)'}}/>}
+        <span style={{fontSize:10.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)'}}>{label}</span>
+      </div>
+      {action}
+    </div>
+  )
+
+  // ── Skeleton loader ─────────────────────────────────────────────────────────
+  if(load) return <>
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:40,backdropFilter:'blur(6px)'}}/>
+    <div style={{position:'fixed',top:0,right:0,bottom:0,width:600,zIndex:50,background:'var(--bg-2)',borderLeft:'1px solid var(--sep)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16}}>
+      <div style={{width:48,height:48,borderRadius:'50%',border:'3px solid var(--sep)',borderTopColor:'var(--accent)',animation:'spin 1s linear infinite'}}/>
+      <span style={{fontSize:13,color:'var(--label-4)',fontWeight:500}}>Carregando pedido #{pedRow.numero}...</span>
+    </div>
+  </>
 
   return <>
-    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.55)',zIndex:40,backdropFilter:'blur(4px)'}}/>
-    <div style={{position:'fixed',top:0,right:0,bottom:0,width:580,zIndex:50,background:'var(--bg-2)',borderLeft:'1px solid var(--sep)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'-32px 0 100px rgba(0,0,0,.4)'}}>
+    {/* Overlay */}
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:40,backdropFilter:'blur(6px)'}}/>
 
-      {/* ── HEADER ── */}
-      <div style={{padding:'20px 24px 0',borderBottom:'1px solid var(--sep)',flexShrink:0,background:`linear-gradient(135deg,${CH_info.cor}06,transparent)`}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
-          <div>
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:7}}>
-              <span style={{fontSize:26,fontWeight:800,color:'var(--label)',letterSpacing:'-.6px'}}>#{pedRow.numero}</span>
-              <StatusPill sitId={sitId}/>
-              {isNew&&<span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:11,fontWeight:700,padding:'3px 9px',borderRadius:99,background:'rgba(245,158,11,.12)',color:'#f59e0b',border:'1px solid rgba(245,158,11,.3)'}}><Star size={10} style={{fill:'#f59e0b',strokeWidth:0}}/> 1ª compra</span>}
+    {/* Painel */}
+    <div style={{position:'fixed',top:0,right:0,bottom:0,width:600,zIndex:50,background:'var(--bg-2)',borderLeft:'1px solid var(--sep)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'-40px 0 120px rgba(0,0,0,.5)'}}>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          HEADER — Identidade do pedido
+      ══════════════════════════════════════════════════════════════════════════ */}
+      <div style={{flexShrink:0,background:'var(--bg-2)',borderBottom:'1px solid var(--sep)'}}>
+
+        {/* Barra de status colorida no topo */}
+        <div style={{height:3,background:`linear-gradient(90deg,${sit.cor},${CH_info.cor})`,borderRadius:0}}/>
+
+        <div style={{padding:'18px 24px 0'}}>
+          {/* Linha 1: número + status + canal + fechar */}
+          <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:14}}>
+            <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+              <span style={{fontSize:28,fontWeight:900,color:'var(--label)',letterSpacing:'-1px',lineHeight:1}}>
+                #{pedRow.numero}
+              </span>
+              {/* Status pill */}
+              <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:12,fontWeight:700,padding:'4px 12px',borderRadius:99,background:sit.bg,color:sit.cor,border:`1px solid ${sit.bdr}`}}>
+                <span style={{width:7,height:7,borderRadius:'50%',background:sit.cor,display:'inline-block',boxShadow:`0 0 0 3px ${sit.cor}30`}}/>
+                {sit.label}
+              </span>
+              {isNew&&<span style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:11.5,fontWeight:700,padding:'4px 11px',borderRadius:99,background:'rgba(245,158,11,.12)',color:'#f59e0b',border:'1px solid rgba(245,158,11,.3)'}}>
+                <Star size={11} style={{fill:'#f59e0b',strokeWidth:0}}/> 1ª compra
+              </span>}
             </div>
-            <div style={{display:'flex',flexWrap:'wrap',gap:7,alignItems:'center'}}>
-              <CanalBadge canal={canal} size={15}/>
-              <span style={{fontSize:12,color:'var(--label-4)'}}>{fmtDT(pedRow.data)}</span>
-              {r.codigo&&<TraspBadge codigo={r.codigo}/>}
+            <button onClick={onClose} style={{width:34,height:34,borderRadius:9,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-4)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'background .1s'}}
+              onMouseEnter={e=>e.currentTarget.style.background='var(--bg)'}
+              onMouseLeave={e=>e.currentTarget.style.background='var(--fill)'}>
+              <X size={14}/>
+            </button>
+          </div>
+
+          {/* Linha 2: Canal + data + número loja */}
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16,flexWrap:'wrap'}}>
+            <CanalBadge canal={canal} size={15}/>
+            <span style={{fontSize:12,color:'var(--label-4)',display:'flex',alignItems:'center',gap:5}}>
+              <Clock size={11}/> {fmtDT(pedRow.data)}
+            </span>
+            {(p.numeroLoja||pedRow.numeroLoja)&&<span style={{fontSize:11,fontFamily:'monospace',color:'var(--label-4)',padding:'2px 8px',borderRadius:6,background:'var(--fill)',border:'1px solid var(--sep)',display:'flex',alignItems:'center',gap:4}}>
+              <Tag size={10}/>{p.numeroLoja||pedRow.numeroLoja}
+            </span>}
+          </div>
+
+          {/* KPI strip — 4 métricas */}
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:16}}>
+            {[
+              {l:'Valor do pedido', v:R(pedRow.total),                           c:'var(--accent)', big:true},
+              {l:'Nº compra',       v:`${hDet.nCompra??nComp}ª`,                 c:'var(--label)'},
+              {l:'Pedidos total',   v:fmt(hDet.total!=null?hDet.total:hist.length+1), c:'var(--label)'},
+              {l:'LTV cliente',     v:R(hDet.gasto??gastaTotal),                 c:'var(--label-3)'},
+            ].map(k=>(
+              <div key={k.l} style={{padding:'10px 12px',borderRadius:10,background:'var(--bg)',border:`1px solid ${k.big?`${sit.cor}30`:'var(--sep)'}`,textAlign:'center',position:'relative',overflow:'hidden'}}>
+                {k.big&&<div style={{position:'absolute',top:0,left:0,right:0,height:2,background:sit.cor}}/>}
+                <div style={{fontSize:15,fontWeight:800,color:k.c,lineHeight:1,marginBottom:3}}>{k.v}</div>
+                <div style={{fontSize:9.5,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.06em',lineHeight:1.2}}>{k.l}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Links de acesso rápido */}
+          <div style={{display:'flex',gap:6,marginBottom:16,flexWrap:'wrap'}}>
+            {p.linkBling&&<a href={p.linkBling} target="_blank" rel="noreferrer"
+              style={{display:'inline-flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-3)',textDecoration:'none',fontSize:12,fontWeight:500,transition:'all .1s'}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.color='var(--accent)'}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--sep)';e.currentTarget.style.color='var(--label-3)'}}>
+              <ExternalLink size={11}/> Bling
+            </a>}
+            {nfLink&&<a href={nfLink} target="_blank" rel="noreferrer"
+              style={{display:'inline-flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:8,border:'1px solid rgba(34,197,94,.3)',background:'rgba(34,197,94,.07)',color:'#22c55e',textDecoration:'none',fontSize:12,fontWeight:600}}>
+              <FileText size={11}/> NF {p.notaFiscal?.numero?`#${p.notaFiscal.numero}`:''}
+            </a>}
+            {c.linkBling&&<a href={c.linkBling} target="_blank" rel="noreferrer"
+              style={{display:'inline-flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-3)',textDecoration:'none',fontSize:12,fontWeight:500}}>
+              <Users size={11}/> Cadastro
+            </a>}
+            {rastreioCod&&<a href={linkRastreio(rastreioCod)} target="_blank" rel="noreferrer"
+              style={{display:'inline-flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:8,border:'1px solid rgba(74,159,255,.3)',background:'rgba(74,159,255,.07)',color:'#4a9fff',textDecoration:'none',fontSize:12,fontWeight:600}}>
+              <Truck size={11}/> Rastrear
+            </a>}
+          </div>
+
+          {/* Tabs */}
+          <div style={{display:'flex',borderBottom:'none',gap:0,marginBottom:-1}}>
+            {TABS.map(tt=>(
+              <button key={tt.id} onClick={()=>setTab(tt.id)} style={{padding:'9px 16px',fontSize:12.5,fontWeight:tab===tt.id?700:400,border:'none',borderBottom:`2px solid ${tab===tt.id?'var(--accent)':'transparent'}`,background:'transparent',cursor:'pointer',color:tab===tt.id?'var(--accent)':'var(--label-4)',whiteSpace:'nowrap',flexShrink:0,letterSpacing:'-.01em',transition:'color .12s'}}>
+                {tt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          CONTEÚDO — scroll area
+      ══════════════════════════════════════════════════════════════════════════ */}
+      <div style={{flex:1,overflowY:'auto',padding:'0'}}>
+
+        {/* ── TAB: VISÃO GERAL ─────────────────────────────────────────────── */}
+        {tab==='overview'&&<div style={{padding:'20px 24px'}}>
+
+          {/* Progress Steps enterprise */}
+          <div style={{marginBottom:22}}>
+            <SectionHeader icon={Activity} label="Progresso do pedido"/>
+            <ProgressSteps sitId={sitId} dataPedido={pedRow.data||p.data} dataSaida={p.dataSaida}/>
+          </div>
+
+          {/* Gatilhos de automação */}
+          <div style={{background:'linear-gradient(135deg,rgba(124,106,247,.06),rgba(124,106,247,.02))',border:'1px solid rgba(124,106,247,.2)',borderRadius:14,padding:'14px 16px',marginBottom:20}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+              <div style={{display:'flex',alignItems:'center',gap:7}}>
+                <Zap size={13} style={{color:'#7c6af7'}}/>
+                <span style={{fontSize:10.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'#7c6af7'}}>Gatilhos de automação</span>
+              </div>
+              <span style={{fontSize:10,color:'rgba(124,106,247,.6)',background:'rgba(124,106,247,.1)',padding:'2px 8px',borderRadius:99,fontWeight:600}}>12 disponíveis</span>
+            </div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+              {ETAPAS_GATILHO.map(e=>(
+                <span key={e.id} title={e.label} style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:11,fontWeight:600,padding:'4px 10px',borderRadius:99,background:`${e.cor}10`,color:e.cor,border:`1px solid ${e.cor}25`,cursor:'default',whiteSpace:'nowrap',transition:'background .1s'}}>
+                  {e.icone} {e.label}
+                </span>
+              ))}
             </div>
           </div>
-          <button onClick={onClose} style={{padding:8,borderRadius:10,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-3)',cursor:'pointer',display:'flex',flexShrink:0}}><X size={14}/></button>
-        </div>
 
-        {/* KPIs 4 col */}
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14}}>
-          {[
-            {l:'Valor',       v:R(pedRow.total),                      c:'var(--accent)'},
-            {l:'Nº compra',   v:hDet.nCompra?`${hDet.nCompra}ª`:`${nComp}ª`, c:'var(--label)'},
-            {l:'Total pedidos',v:fmt(hDet.total||hist.length+1),       c:'var(--label)'},
-            {l:'Gasto total', v:R(hDet.gasto||gastaTotal),             c:'var(--label-3)'},
-          ].map(k=><div key={k.l} style={{padding:'9px 10px',borderRadius:10,background:'var(--bg)',border:'1px solid var(--sep)',textAlign:'center'}}>
-            <div style={{fontSize:14,fontWeight:800,color:k.c,lineHeight:1}}>{k.v}</div>
-            <div style={{fontSize:9.5,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.05em',marginTop:3}}>{k.l}</div>
-          </div>)}
-        </div>
-
-        {/* Links rápidos */}
-        <div style={{display:'flex',gap:6,marginBottom:14,flexWrap:'wrap'}}>
-          {p.linkBling&&<a href={p.linkBling} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:7,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-3)',textDecoration:'none',fontSize:11.5,fontWeight:500}}><ExternalLink size={11}/> Bling</a>}
-          {p.notaFiscal&&<a href={`https://www.bling.com.br/notas-fiscais/${p.notaFiscal.id}`} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:7,border:'1px solid rgba(34,197,94,.3)',background:'rgba(34,197,94,.07)',color:'#22c55e',textDecoration:'none',fontSize:11.5,fontWeight:600}}><FileText size={11}/> NF #{p.notaFiscal.numero}</a>}
-          {c.linkBling&&<a href={c.linkBling} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:7,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-3)',textDecoration:'none',fontSize:11.5,fontWeight:500}}><Users size={11}/> Cadastro</a>}
-          {p.numeroLoja&&<span style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:7,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-4)',fontSize:11,fontFamily:'monospace'}}><Tag size={10}/>{p.numeroLoja}</span>}
-        </div>
-
-        {/* Tabs */}
-        <div style={{display:'flex',gap:0,overflowX:'auto',marginBottom:-1}}>
-          {TABS.map(tt=><button key={tt.id} onClick={()=>setTab(tt.id)} style={{padding:'9px 15px',fontSize:12.5,fontWeight:500,border:'none',background:'transparent',cursor:'pointer',color:tab===tt.id?'var(--accent)':'var(--label-3)',borderBottom:`2px solid ${tab===tt.id?'var(--accent)':'transparent'}`,whiteSpace:'nowrap',flexShrink:0}}>{tt.label}</button>)}
-        </div>
-      </div>
-
-      {/* ── CONTENT ── */}
-      <div style={{flex:1,overflowY:'auto',padding:'20px 24px'}}>
-        {load?<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:12,padding:'60px 0'}}>
-          <RefreshCw size={22} style={{color:'var(--accent)',animation:'spin 1s linear infinite'}}/>
-          <span style={{fontSize:13,color:'var(--label-4)'}}>Carregando dados completos do Bling...</span>
-        </div>:<>
-
-          {/* OVERVIEW */}
-          {tab==='overview'&&<>
-            <div style={{marginBottom:20}}>
-              <h4 style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',margin:'0 0 14px'}}>Progresso do pedido</h4>
-              <ProgressSteps sitId={sitId} dataPedido={pedRow.data||p.data} dataSaida={p.dataSaida}/>
-            </div>
-
-            {/* Gatilhos de automação */}
-            <div style={{background:'rgba(124,106,247,.05)',border:'1px solid rgba(124,106,247,.2)',borderRadius:12,padding:'12px 14px',marginBottom:16}}>
-              <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:10}}>
-                <Zap size={13} style={{color:'#7c6af7'}}/><span style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'#7c6af7'}}>Gatilhos disponíveis</span>
+          {/* Financeiro — card estilo enterprise */}
+          <div style={{borderRadius:14,border:'1px solid var(--sep)',overflow:'hidden',marginBottom:20}}>
+            {/* Header do card */}
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'13px 18px',background:'var(--fill)',borderBottom:'1px solid var(--sep)'}}>
+              <div style={{display:'flex',alignItems:'center',gap:7}}>
+                <Wallet size={13} style={{color:'var(--label-4)'}}/>
+                <span style={{fontSize:10.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)'}}>Financeiro</span>
               </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                {ETAPAS_GATILHO.slice(0,8).map(e=><span key={e.id} style={{fontSize:10.5,fontWeight:600,padding:'3px 9px',borderRadius:99,background:`${e.cor}12`,color:e.cor,border:`1px solid ${e.cor}25`,cursor:'pointer'}}>{e.icone} {e.label}</span>)}
+              <div style={{textAlign:'right'}}>
+                <div style={{fontSize:20,fontWeight:900,color:'var(--accent)',letterSpacing:'-.5px',lineHeight:1}}>{R(pedRow.total)}</div>
+                {p.totalDesconto>0&&<div style={{fontSize:10.5,color:'#22c55e',fontWeight:600}}>-{R(p.totalDesconto)} desconto</div>}
               </div>
             </div>
-
-            {/* Financeiro */}
-            <div style={{background:'var(--bg)',borderRadius:14,border:'1px solid var(--sep)',overflow:'hidden',marginBottom:14}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 16px',background:'var(--fill)',borderBottom:'1px solid var(--sep)'}}>
-                <span style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--label-4)',display:'flex',alignItems:'center',gap:5}}><Wallet size={12}/> Financeiro</span>
-                <span style={{fontSize:18,fontWeight:800,color:'var(--accent)'}}>{R(pedRow.total)}</span>
-              </div>
+            {/* Linhas */}
+            <div style={{padding:'0 18px'}}>
               {[
-                [Banknote,'Pagamento',p.formaPagamento||'—'],
-                [Truck,'Frete',t.frete>0?R(t.frete):'Grátis'],
-                p.totalDesconto>0?[Tag,'Desconto',`- ${R(p.totalDesconto)}`]:null,
-              ].filter(Boolean).map(([Ic,lb,vl])=><div key={lb} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 16px',borderBottom:'1px solid var(--sep)'}}>
-                <span style={{fontSize:12.5,color:'var(--label-3)',display:'flex',alignItems:'center',gap:7}}><Ic size={12} style={{color:'var(--label-4)'}}/> {lb}</span>
-                <span style={{fontSize:13,fontWeight:600,color:'var(--label)'}}>{vl}</span>
-              </div>)}
-            </div>
-
-            {/* Itens */}
-            {p.itens?.length>0&&<div style={{background:'var(--bg)',borderRadius:14,border:'1px solid var(--sep)',overflow:'hidden',marginBottom:14}}>
-              <div style={{padding:'12px 16px',background:'var(--fill)',borderBottom:'1px solid var(--sep)'}}>
-                <span style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--label-4)',display:'flex',alignItems:'center',gap:5}}><Package size={12}/> Itens ({p.itens.length})</span>
-              </div>
-              {p.itens.map((item,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'11px 16px',borderBottom:i<p.itens.length-1?'1px solid var(--sep)':'none'}}>
-                <div style={{width:40,height:40,borderRadius:10,background:'var(--bg-2)',border:'1px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Package2 size={16} style={{color:'var(--label-4)'}}/></div>
-                <div style={{flex:1,minWidth:0}}>
-                  <p style={{fontSize:13,fontWeight:600,color:'var(--label)',margin:'0 0 3px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.descricao}</p>
-                  <p style={{fontSize:11,color:'var(--label-4)',margin:0,fontFamily:'monospace'}}>{item.codigo} · {item.quantidade}× · {R(item.valor)}/un</p>
+                {Ic:Banknote, label:'Forma de pagamento', value:p.formaPagamento||'—'},
+                {Ic:Truck,    label:'Frete',               value:t.frete>0?R(t.frete):'Grátis', cor:t.frete>0?'var(--label)':'#22c55e'},
+                p.totalProdutos?{Ic:Package,label:'Subtotal produtos', value:R(p.totalProdutos)}:null,
+              ].filter(Boolean).map(({Ic,label,value,cor})=>(
+                <div key={label} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'11px 0',borderBottom:'1px solid var(--sep)'}}>
+                  <span style={{fontSize:13,color:'var(--label-3)',display:'flex',alignItems:'center',gap:8}}><Ic size={13} style={{color:'var(--label-4)',flexShrink:0}}/>{label}</span>
+                  <span style={{fontSize:13,fontWeight:600,color:cor||'var(--label)'}}>{value}</span>
                 </div>
-                <span style={{fontSize:14,fontWeight:700,color:'var(--label)',flexShrink:0}}>{R((item.valor||0)*(item.quantidade||1))}</span>
-              </div>)}
-            </div>}
+              ))}
+            </div>
+          </div>
 
-            {(p.observacoes||p.observacoesInt)&&<div style={{background:'var(--bg)',borderRadius:14,border:'1px solid var(--sep)',padding:'14px 16px'}}>
-              <h4 style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--label-4)',margin:'0 0 8px'}}>Observações</h4>
-              {p.observacoes&&<p style={{fontSize:12.5,color:'var(--label-2)',lineHeight:1.6,margin:0}}>{p.observacoes}</p>}
-              {p.observacoesInt&&<p style={{fontSize:12,color:'var(--label-3)',background:'var(--fill)',padding:'9px 12px',borderRadius:9,marginTop:8,lineHeight:1.5}}>🔒 {p.observacoesInt}</p>}
-            </div>}
-          </>}
-
-          {/* CLIENTE */}
-          {tab==='cliente'&&<>
-            <div style={{display:'flex',alignItems:'center',gap:14,padding:'16px',background:'var(--bg)',borderRadius:14,border:'1px solid var(--sep)',marginBottom:14}}>
-              <Avatar nome={c.nome||pedRow.contato} size={56}/>
-              <div style={{flex:1,minWidth:0}}>
-                <p style={{fontSize:17,fontWeight:800,color:'var(--label)',margin:'0 0 4px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.nome||pedRow.contato||'—'}</p>
-                {c.fantasia&&c.fantasia.trim()&&<p style={{fontSize:12,color:'var(--label-4)',margin:'0 0 6px',fontStyle:'italic'}}>{c.fantasia.trim()}</p>}
-                <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-                  {isNew&&<span style={{fontSize:11,fontWeight:700,padding:'2px 9px',borderRadius:99,background:'rgba(245,158,11,.12)',color:'#f59e0b',border:'1px solid rgba(245,158,11,.3)'}}>⭐ 1ª compra</span>}
-                  <span style={{fontSize:11,color:'var(--label-4)'}}>{c.tipo==='J'?'Pessoa Jurídica':'Pessoa Física'}</span>
+          {/* Itens — design rico */}
+          {(p.itens||[]).length>0&&(
+            <div style={{borderRadius:14,border:'1px solid var(--sep)',overflow:'hidden',marginBottom:20}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'13px 18px',background:'var(--fill)',borderBottom:'1px solid var(--sep)'}}>
+                <div style={{display:'flex',alignItems:'center',gap:7}}>
+                  <Package size={13} style={{color:'var(--label-4)'}}/>
+                  <span style={{fontSize:10.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)'}}>Itens do pedido</span>
+                  <span style={{fontSize:11,fontWeight:700,padding:'1px 7px',borderRadius:99,background:'var(--accent-dim)',color:'var(--accent)'}}>{p.itens.length}</span>
                 </div>
               </div>
-            </div>
-
-            <div style={{background:'var(--bg)',borderRadius:14,border:'1px solid var(--sep)',overflow:'hidden',marginBottom:14}}>
-              <div style={{padding:'11px 16px',background:'var(--fill)',borderBottom:'1px solid var(--sep)'}}><span style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--label-4)'}}>Dados de contato</span></div>
-              {[
-                [Phone,'Celular',    c.celular||c.telefone,        'tel'],
-                [Phone,'Telefone',   c.telefone&&c.celular!==c.telefone?c.telefone:null,'tel2'],
-                [Mail, 'Email',      c.email,                      'email'],
-                [Hash, 'CPF/CNPJ',   c.cpfCnpj||c.numeroDocumento, 'doc'],
-                [Building2,'IE/RG',  c.ie,                         'ie'],
-              ].filter(([,,v])=>v).map(([Ic,lb,vl,k],i,arr)=><div key={k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'11px 16px',borderBottom:i<arr.length-1?'1px solid var(--sep)':'none'}}>
-                <span style={{fontSize:12.5,color:'var(--label-3)',display:'flex',alignItems:'center',gap:8}}><Ic size={13} style={{color:'var(--label-4)'}}/> {lb}</span>
-                <div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <span style={{fontSize:12.5,fontWeight:500,color:'var(--label)',fontFamily:['tel','tel2','doc','ie'].includes(k)?'monospace':'inherit'}}>{vl}</span>
-                  <CopyBtn value={vl} small/>
-                </div>
-              </div>)}
-              {!c.celular&&!c.email&&<div style={{padding:'20px',textAlign:'center',color:'var(--label-4)',fontSize:12}}>Dados de contato não disponíveis</div>}
-            </div>
-
-            {/* Endereço */}
-            {end&&<div style={{background:'var(--bg)',borderRadius:14,border:'1px solid var(--sep)',padding:'14px 16px',marginBottom:14}}>
-              <h4 style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--label-4)',margin:'0 0 10px',display:'flex',alignItems:'center',gap:5}}><MapPin size={11}/> Endereço de entrega</h4>
-              <div style={{fontSize:13.5,color:'var(--label)',lineHeight:2.1}}>
-                <div style={{fontWeight:600}}>{end.logradouro||end.endereco||'—'}, {end.numero||''} {(end.complemento)?`— ${end.complemento}`:''}</div>
-                <div style={{color:'var(--label-3)'}}>{end.bairro||''}</div>
-                <div style={{color:'var(--label-3)'}}>{end.municipio||''}{(end.uf)?`/${end.uf}`:''}</div>
-                {(end.cep)&&<div style={{fontFamily:'monospace',color:'var(--accent)',fontSize:12}}>CEP {fmtCEP(end.cep)}</div>}
-              </div>
-            </div>}
-
-            {/* Stats */}
-            <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:10}}>
-              {[
-                {lb:'Total pedidos',  v:fmt(hDet.total||hist.length+1), c:'var(--accent)'},
-                {lb:'Gasto total',    v:R(hDet.gasto||gastaTotal),      c:'var(--label)'},
-                {lb:'Ticket médio',   v:hDet.total>0?R((hDet.gasto||gastaTotal)/(hDet.total)):R(pedRow.total), c:'var(--label-3)'},
-                {lb:'Nº da compra',   v:`${hDet.nCompra||nComp}ª`,       c:isNew?'#f59e0b':'var(--label-3)'},
-              ].map(k=><div key={k.lb} style={{padding:'14px',borderRadius:12,background:'var(--bg)',border:'1px solid var(--sep)',textAlign:'center'}}>
-                <div style={{fontSize:20,fontWeight:800,color:k.c,lineHeight:1,marginBottom:4}}>{k.v}</div>
-                <div style={{fontSize:10.5,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.05em'}}>{k.lb}</div>
-              </div>)}
-            </div>
-          </>}
-
-          {/* RASTREIO */}
-          {tab==='rastreio'&&<>
-            {r.codigo&&<button onClick={enviarRastreioWA} style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'11px 16px',borderRadius:11,border:'1px solid rgba(37,211,102,.3)',background:'rgba(37,211,102,.07)',color:'#25D366',cursor:'pointer',fontSize:13,fontWeight:600,marginBottom:14}}>
-              <MessageSquare size={15}/> Enviar atualização de rastreio no WhatsApp
-              {r.msgEnviada&&<span style={{marginLeft:'auto',fontSize:11,color:'rgba(37,211,102,.7)'}}>✓ Já enviado {r.qtdMsgRastreio}x</span>}
-            </button>}
-            {(t.volumes||[]).length>0
-              ? t.volumes.map((vol,i)=><div key={i} style={{marginBottom:14}}>
-                  {t.volumes.length>1&&<p style={{fontSize:10.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--label-4)',margin:'0 0 8px'}}>Volume {i+1} — {vol.servico||''}</p>}
-                  <TrackTimeline codigo={vol.codigo} api={api} linkExterno={vol.codigo?linkRastreio(vol.codigo):null}/>
-                </div>)
-              : r.codigo
-                ? <TrackTimeline codigo={r.codigo} api={api}/>
-                : <div style={{padding:'40px',textAlign:'center',borderRadius:14,border:'1px dashed var(--sep)',color:'var(--label-4)'}}>
-                    <Truck size={32} style={{display:'block',margin:'0 auto 14px',opacity:.2}}/>
-                    <p style={{fontSize:13,margin:'0 0 6px'}}>Sem informações de envio</p>
-                  </div>}
-          </>}
-
-          {/* HISTÓRICO */}
-          {tab==='historico'&&(
-            (hDet.pedidos||hist).length>0
-              ? <div>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-                    <span style={{fontSize:13,color:'var(--label-3)',fontWeight:500}}>{hDet.total||hist.length} pedido{(hDet.total||hist.length)!==1?'s':''} anteriores</span>
-                    <span style={{fontSize:13,fontWeight:700,color:'var(--accent)'}}>{R(hDet.gasto||gastaTotal)}</span>
-                  </div>
-                  <div style={{display:'flex',flexDirection:'column',gap:7}}>
-                    {[...(hDet.pedidos||hist)].sort((a,b)=>b.numero-a.numero).map((hp,i)=>{
-                      const hSit=hp.situacaoId||getSitId(hp)
-                      const hCan=hp.canal||getCanal(hp)
-                      return <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',borderRadius:12,background:'var(--bg)',border:'1px solid var(--sep)'}}>
-                        <div style={{width:42,height:42,borderRadius:10,background:'var(--accent-dim)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><span style={{fontSize:12,fontWeight:800,color:'var(--accent)'}}>#{hp.numero}</span></div>
-                        <div style={{flex:1}}>
-                          <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:4}}><StatusPill sitId={hSit}/><CanalBadge canal={hCan} size={12}/></div>
-                          <div style={{fontSize:11.5,color:'var(--label-4)'}}>{fmtD(hp.data)}</div>
-                        </div>
-                        <span style={{fontSize:15,fontWeight:800,color:'var(--label)',flexShrink:0}}>{R(hp.total)}</span>
+              {p.itens.map((item,i)=>{
+                const subtotal=(item.valor||0)*(item.quantidade||1)
+                return (
+                  <div key={i} style={{display:'flex',alignItems:'center',gap:14,padding:'13px 18px',borderBottom:i<p.itens.length-1?'1px solid var(--sep)':'none',transition:'background .08s'}}
+                    onMouseEnter={e=>e.currentTarget.style.background='var(--fill)'}
+                    onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                    {/* Thumb */}
+                    <div style={{width:42,height:42,borderRadius:10,background:'var(--bg)',border:'1px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                      <Package2 size={18} style={{color:'var(--label-4)'}}/>
+                    </div>
+                    {/* Info */}
+                    <div style={{flex:1,minWidth:0}}>
+                      <p style={{fontSize:13.5,fontWeight:600,color:'var(--label)',margin:'0 0 3px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',lineHeight:1.3}}>{item.descricao}</p>
+                      <div style={{display:'flex',alignItems:'center',gap:8}}>
+                        <span style={{fontSize:11,color:'var(--label-4)',fontFamily:'monospace'}}>{item.codigo}</span>
+                        <span style={{width:3,height:3,borderRadius:'50%',background:'var(--label-4)',display:'inline-block'}}/>
+                        <span style={{fontSize:11,color:'var(--label-4)'}}>{item.quantidade}× · {R(item.valor)}/un</span>
                       </div>
-                    })}
+                    </div>
+                    {/* Total */}
+                    <div style={{textAlign:'right',flexShrink:0}}>
+                      <div style={{fontSize:15,fontWeight:700,color:'var(--label)'}}>{R(subtotal)}</div>
+                      {item.quantidade>1&&<div style={{fontSize:10.5,color:'var(--label-4)'}}>{item.quantidade} un</div>}
+                    </div>
                   </div>
-                </div>
-              : <div style={{padding:'48px',textAlign:'center',borderRadius:14,border:'1px dashed var(--sep)'}}>
-                  <Star size={32} style={{display:'block',margin:'0 auto 14px',color:'#f59e0b',opacity:.4}}/>
-                  <p style={{fontSize:14,fontWeight:700,color:'var(--label)',margin:'0 0 6px'}}>Primeira compra!</p>
-                  <p style={{fontSize:12,color:'var(--label-4)',margin:0}}>Nenhum pedido anterior</p>
-                </div>
+                )
+              })}
+              {/* Rodapé totalizador */}
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 18px',background:'var(--fill)',borderTop:'1px solid var(--sep)'}}>
+                <span style={{fontSize:12,color:'var(--label-4)',fontWeight:500}}>{p.itens.length} item{p.itens.length!==1?'s':''}</span>
+                <span style={{fontSize:15,fontWeight:800,color:'var(--accent)'}}>{R(p.itens.reduce((s,i)=>s+(i.valor||0)*(i.quantidade||1),0))}</span>
+              </div>
+            </div>
           )}
 
-          {/* MENSAGENS */}
-          {tab==='msgs'&&(
-            (msgs.lista||[]).length>0
-              ? <div style={{display:'flex',flexDirection:'column',gap:7}}>
-                  {msgs.lista.slice(0,40).map((m,i)=><div key={i} style={{display:'flex',gap:10,alignItems:'flex-start'}}>
-                    <div style={{width:30,height:30,borderRadius:'50%',background:m.direcao==='entrada'?'var(--fill)':'var(--accent-dim)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:2}}>
-                      {m.direcao==='entrada'?<Users size={13} style={{color:'var(--label-4)'}}/>:<Zap size={13} style={{color:'var(--accent)'}}/>}
-                    </div>
-                    <div style={{flex:1,background:'var(--bg)',borderRadius:12,padding:'10px 13px',border:`1px solid ${m.direcao==='entrada'?'var(--sep)':'var(--accent)30'}`}}>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:5}}>
-                        <span style={{fontSize:11,fontWeight:700,color:m.direcao==='entrada'?'var(--label-3)':'var(--accent)'}}>{m.direcao==='entrada'?'Cliente':'Bia IA'}</span>
-                        <span style={{fontSize:10.5,color:'var(--label-4)',fontFamily:'monospace'}}>{fmtDT(m.criado_em)}</span>
-                      </div>
-                      <p style={{fontSize:12.5,color:'var(--label-2)',margin:0,lineHeight:1.5,whiteSpace:'pre-wrap',wordBreak:'break-word'}}>{(m.conteudo||'').slice(0,400)}</p>
-                    </div>
-                  </div>)}
-                </div>
-              : <div style={{padding:'48px',textAlign:'center',borderRadius:14,border:'1px dashed var(--sep)',color:'var(--label-4)'}}>
-                  <MessageSquare size={32} style={{display:'block',margin:'0 auto 14px',opacity:.2}}/>
-                  <p style={{fontSize:13,margin:0}}>Sem mensagens</p>
-                </div>
+          {/* Observações */}
+          {(p.observacoes||p.observacoesInt)&&(
+            <div style={{borderRadius:14,border:'1px solid var(--sep)',padding:'14px 18px',marginBottom:20}}>
+              <SectionHeader icon={Info} label="Observações"/>
+              {p.observacoes&&<p style={{fontSize:12.5,color:'var(--label-2)',lineHeight:1.7,margin:'0 0 8px'}}>{p.observacoes}</p>}
+              {p.observacoesInt&&<div style={{display:'flex',alignItems:'flex-start',gap:7,padding:'9px 12px',borderRadius:9,background:'rgba(245,158,11,.06)',border:'1px solid rgba(245,158,11,.2)'}}>
+                <AlertTriangle size={12} style={{color:'#f59e0b',flexShrink:0,marginTop:2}}/>
+                <p style={{fontSize:12,color:'var(--label-3)',lineHeight:1.6,margin:0}}>{p.observacoesInt}</p>
+              </div>}
+            </div>
           )}
-        </>}
+        </div>}
+
+        {/* ── TAB: CLIENTE ─────────────────────────────────────────────────── */}
+        {tab==='cliente'&&<div style={{padding:'20px 24px'}}>
+          {/* Card perfil */}
+          <div style={{borderRadius:14,border:'1px solid var(--sep)',overflow:'hidden',marginBottom:16}}>
+            {/* Banner + avatar */}
+            <div style={{height:56,background:`linear-gradient(135deg,${CH_info.cor}30,var(--fill))`,position:'relative'}}>
+              <div style={{position:'absolute',bottom:-22,left:18}}>
+                <Avatar nome={c.nome||pedRow.contato} size={52}/>
+              </div>
+            </div>
+            <div style={{padding:'28px 18px 16px'}}>
+              <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between'}}>
+                <div>
+                  <h3 style={{fontSize:17,fontWeight:800,color:'var(--label)',margin:'0 0 4px',letterSpacing:'-.3px'}}>{c.nome||pedRow.contato||'—'}</h3>
+                  {c.fantasia&&c.fantasia.trim()&&<p style={{fontSize:12,color:'var(--label-4)',margin:'0 0 8px',fontStyle:'italic'}}>{c.fantasia.trim()}</p>}
+                  <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                    {isNew&&<span style={{fontSize:11,fontWeight:700,padding:'3px 10px',borderRadius:99,background:'rgba(245,158,11,.12)',color:'#f59e0b',border:'1px solid rgba(245,158,11,.3)'}}> 1ª compra</span>}
+                    <span style={{fontSize:11,fontWeight:500,padding:'3px 10px',borderRadius:99,background:'var(--fill)',color:'var(--label-4)',border:'1px solid var(--sep)'}}>{c.tipo==='J'?'🏢 Pessoa Jurídica':'👤 Pessoa Física'}</span>
+                  </div>
+                </div>
+                {c.linkBling&&<a href={c.linkBling} target="_blank" rel="noreferrer"
+                  style={{display:'flex',alignItems:'center',gap:5,padding:'6px 12px',borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-3)',textDecoration:'none',fontSize:12,fontWeight:500,flexShrink:0}}>
+                  <ExternalLink size={11}/> Bling
+                </a>}
+              </div>
+            </div>
+
+            {/* Stats LTV */}
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',borderTop:'1px solid var(--sep)'}}>
+              {[
+                {l:'Pedidos', v:fmt(hDet.total!=null?hDet.total:hist.length+1), c:'var(--accent)'},
+                {l:'LTV',     v:R(hDet.gasto??gastaTotal),                       c:'var(--label)'},
+                {l:'Ticket',  v:R((hDet.gasto??gastaTotal)/Math.max(hDet.total??hist.length+1,1)), c:'var(--label-3)'},
+                {l:'Compra',  v:`${hDet.nCompra??nComp}ª`,                       c:isNew?'#f59e0b':'var(--label-3)'},
+              ].map((k,i,arr)=>(
+                <div key={k.l} style={{padding:'12px 10px',textAlign:'center',borderRight:i<arr.length-1?'1px solid var(--sep)':'none'}}>
+                  <div style={{fontSize:16,fontWeight:800,color:k.c,lineHeight:1,marginBottom:4}}>{k.v}</div>
+                  <div style={{fontSize:10,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.06em'}}>{k.l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Dados de contato */}
+          <div style={{borderRadius:14,border:'1px solid var(--sep)',overflow:'hidden',marginBottom:16}}>
+            <div style={{padding:'13px 18px',background:'var(--fill)',borderBottom:'1px solid var(--sep)'}}>
+              <span style={{fontSize:10.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',display:'flex',alignItems:'center',gap:6}}><Phone size={11}/> Contato</span>
+            </div>
+            <div style={{padding:'0 18px'}}>
+              <CopyField label="Celular"    value={c.celular||c.telefone} mono/>
+              <CopyField label="Telefone"   value={c.telefone&&c.celular!==c.telefone?c.telefone:null} mono/>
+              <CopyField label="Email"      value={c.email} mono/>
+              <CopyField label="CPF / CNPJ" value={c.cpfCnpj||c.numeroDocumento} mono/>
+              {c.tipo==='J'&&<CopyField label="Inscrição Estadual" value={c.ie} mono/>}
+            </div>
+          </div>
+
+          {/* Endereço de entrega */}
+          {end&&<div style={{borderRadius:14,border:'1px solid var(--sep)',overflow:'hidden',marginBottom:16}}>
+            <div style={{padding:'13px 18px',background:'var(--fill)',borderBottom:'1px solid var(--sep)'}}>
+              <span style={{fontSize:10.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',display:'flex',alignItems:'center',gap:6}}><MapPin size={11}/> Endereço de entrega</span>
+            </div>
+            <div style={{padding:'14px 18px'}}>
+              <div style={{fontSize:14,color:'var(--label)',lineHeight:2,fontWeight:500}}>
+                {end.logradouro||end.endereco||'—'}, {end.numero||''} {end.complemento?`· ${end.complemento}`:''}
+              </div>
+              <div style={{fontSize:13,color:'var(--label-3)',lineHeight:1.8}}>
+                {end.bairro&&`${end.bairro} · `}{end.municipio||''}{end.uf?`/${end.uf}`:''}
+              </div>
+              {end.cep&&<div style={{marginTop:6,display:'flex',alignItems:'center',gap:8}}>
+                <span style={{fontSize:13,fontFamily:'monospace',color:'var(--accent)',fontWeight:700}}>{fmtCEP(end.cep)}</span>
+                <button onClick={()=>copy(`${end.logradouro||end.endereco}, ${end.numero} - ${end.bairro}, ${end.municipio}/${end.uf} - CEP ${fmtCEP(end.cep)}`,'endereço')} style={{display:'flex',alignItems:'center',gap:4,padding:'3px 8px',borderRadius:6,border:'1px solid var(--sep)',background:'transparent',color:cpKey==='endereço'?'#22c55e':'var(--label-4)',cursor:'pointer',fontSize:11}}>
+                  {cpKey==='endereço'?<><Check size={9}/> Copiado</>:<><Copy size={9}/> Copiar endereço</>}
+                </button>
+              </div>}
+            </div>
+          </div>}
+        </div>}
+
+        {/* ── TAB: RASTREIO ────────────────────────────────────────────────── */}
+        {tab==='rastreio'&&<div style={{padding:'20px 24px'}}>
+          {rastreioCod ? <>
+            {/* Ação WhatsApp */}
+            <button onClick={enviarRastreioWA}
+              style={{display:'flex',alignItems:'center',gap:9,width:'100%',padding:'12px 16px',borderRadius:12,border:'1px solid rgba(37,211,102,.3)',background:'rgba(37,211,102,.06)',color:'#25D366',cursor:'pointer',fontSize:13.5,fontWeight:700,marginBottom:16,transition:'background .15s'}}
+              onMouseEnter={e=>e.currentTarget.style.background='rgba(37,211,102,.12)'}
+              onMouseLeave={e=>e.currentTarget.style.background='rgba(37,211,102,.06)'}>
+              <MessageSquare size={16}/>
+              <span>Enviar rastreio no WhatsApp</span>
+              {r.msgEnviada&&<span style={{marginLeft:'auto',fontSize:11,color:'rgba(37,211,102,.7)',fontWeight:500}}>✓ Enviado {r.qtdMsgRastreio}x</span>}
+            </button>
+
+            {/* Código + transportadora */}
+            <div style={{borderRadius:12,border:'1px solid var(--sep)',overflow:'hidden',marginBottom:16}}>
+              <div style={{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',background:'var(--fill)',borderBottom:'1px solid var(--sep)'}}>
+                <Truck size={15} style={{color:'var(--accent)',flexShrink:0}}/>
+                <span style={{fontSize:14,fontFamily:'monospace',fontWeight:700,color:'var(--accent)',flex:1,letterSpacing:'.05em'}}>{rastreioCod}</span>
+                <TraspBadge codigo={rastreioCod}/>
+                <button onClick={()=>copy(rastreioCod,'cod')} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:7,border:'1px solid var(--sep)',background:'transparent',color:cpKey==='cod'?'#22c55e':'var(--label-4)',cursor:'pointer',fontSize:11}}>
+                  {cpKey==='cod'?<><Check size={9}/> Copiado</>:<><Copy size={9}/> Copiar</>}
+                </button>
+                <a href={linkRastreio(rastreioCod)} target="_blank" rel="noreferrer"
+                  style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:7,border:'1px solid rgba(74,159,255,.3)',background:'rgba(74,159,255,.08)',color:'#4a9fff',textDecoration:'none',fontSize:11,fontWeight:600}}>
+                  <ExternalLink size={10}/> Ver
+                </a>
+              </div>
+
+              {/* Status atual */}
+              {(trackSt||r.status)&&<div style={{padding:'12px 16px',borderBottom:'1px solid var(--sep)',display:'flex',alignItems:'center',gap:9}}>
+                <div style={{width:8,height:8,borderRadius:'50%',background:'#00d4aa',boxShadow:'0 0 0 3px rgba(0,212,170,.2)',flexShrink:0}}/>
+                <span style={{fontSize:13.5,fontWeight:700,color:'#00d4aa'}}>{trackSt||r.status}</span>
+              </div>}
+
+              {/* Timeline de eventos */}
+              {rastrLoad&&<div style={{padding:'32px',textAlign:'center',color:'var(--label-4)',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',gap:10}}>
+                <RefreshCw size={14} style={{animation:'spin 1s linear infinite',color:'var(--accent)'}}/> Consultando transportadora...
+              </div>}
+              {!rastrLoad&&trackEvs.length===0&&<div style={{padding:'28px',textAlign:'center',color:'var(--label-4)'}}>
+                <Clock size={24} style={{display:'block',margin:'0 auto 10px',opacity:.2}}/>
+                <p style={{fontSize:13,margin:0}}>Sem eventos de rastreio ainda</p>
+                <p style={{fontSize:11,margin:'5px 0 0',opacity:.6}}>Atualiza após a postagem do objeto</p>
+              </div>}
+              {trackEvs.length>0&&<div style={{padding:'16px'}}>
+                <div style={{position:'relative',paddingLeft:20}}>
+                  <div style={{position:'absolute',left:7,top:8,bottom:8,width:2,background:'var(--sep)',borderRadius:99}}/>
+                  {trackEvs.map((ev,i)=>(
+                    <div key={i} style={{position:'relative',paddingLeft:20,paddingBottom:i<trackEvs.length-1?14:0}}>
+                      <div style={{position:'absolute',left:-5,top:4,width:14,height:14,borderRadius:'50%',background:i===0?'var(--accent)':'var(--fill)',border:`2px solid ${i===0?'var(--accent)':'var(--sep)'}`,zIndex:1,boxShadow:i===0?`0 0 0 3px var(--accent)20`:undefined}}/>
+                      <div style={{background:i===0?'rgba(0,212,170,.04)':'transparent',borderRadius:10,padding:i===0?'10px 12px':'6px 0',border:i===0?'1px solid rgba(0,212,170,.15)':'none'}}>
+                        <p style={{fontSize:13,fontWeight:i===0?700:400,color:i===0?'var(--label)':'var(--label-3)',margin:'0 0 3px',lineHeight:1.3}}>{ev.status}</p>
+                        {ev.detalhe&&<p style={{fontSize:11.5,color:'var(--label-4)',margin:'0 0 2px'}}>{ev.detalhe}</p>}
+                        {ev.local&&<p style={{fontSize:11.5,color:'var(--label-4)',margin:'0 0 2px',display:'flex',alignItems:'center',gap:4}}><MapPin size={9}/>{ev.local}</p>}
+                        <p style={{fontSize:11,color:'var(--label-4)',margin:0,fontFamily:'monospace',opacity:.7}}>{ev.data?fmtDT(ev.data):''}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>}
+            </div>
+          </> : (
+            <div style={{padding:'60px 0',textAlign:'center',color:'var(--label-4)'}}>
+              <Truck size={36} style={{display:'block',margin:'0 auto 14px',opacity:.15}}/>
+              <p style={{fontSize:14,margin:'0 0 6px',fontWeight:600,color:'var(--label-3)'}}>Sem informações de envio</p>
+              <p style={{fontSize:12,margin:0,opacity:.7}}>O código aparece após a postagem</p>
+            </div>
+          )}
+        </div>}
+
+        {/* ── TAB: HISTÓRICO ───────────────────────────────────────────────── */}
+        {tab==='historico'&&<div style={{padding:'20px 24px'}}>
+          {(hDet.pedidos||hist).length>0 ? <>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+              <span style={{fontSize:13,color:'var(--label-3)',fontWeight:500}}>{hDet.total??hist.length} pedido{(hDet.total??hist.length)!==1?'s':''} anteriores</span>
+              <span style={{fontSize:13,fontWeight:700,color:'var(--accent)'}}>{R(hDet.gasto??gastaTotal)}</span>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:7}}>
+              {[...(hDet.pedidos||hist)].sort((a,b)=>b.numero-a.numero).map((hp,i)=>{
+                const hSid=hp.situacaoId||getSitId(hp)
+                const hSit=SIT[hSid]||{label:'—',cor:'#888',bg:'var(--fill)',bdr:'var(--sep)'}
+                const hCan=hp.canal||getCanal(hp)
+                return (
+                  <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',borderRadius:12,background:'var(--bg)',border:'1px solid var(--sep)',transition:'border .1s'}}
+                    onMouseEnter={e=>e.currentTarget.style.border='1px solid var(--label-4)'}
+                    onMouseLeave={e=>e.currentTarget.style.border='1px solid var(--sep)'}>
+                    <div style={{width:44,height:44,borderRadius:10,background:'var(--bg-2)',border:'1px solid var(--sep)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                      <span style={{fontSize:10,fontWeight:800,color:'var(--accent)',lineHeight:1}}>#{hp.numero}</span>
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:5}}>
+                        <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:11,fontWeight:700,padding:'2px 9px',borderRadius:99,background:hSit.bg,color:hSit.cor,border:`1px solid ${hSit.bdr}`}}>
+                          <span style={{width:5,height:5,borderRadius:'50%',background:hSit.cor,display:'inline-block'}}/>
+                          {hSit.label}
+                        </span>
+                        <CanalBadge canal={hCan} size={12}/>
+                      </div>
+                      <div style={{fontSize:12,color:'var(--label-4)'}}>{fmtD(hp.data)}</div>
+                    </div>
+                    <div style={{textAlign:'right',flexShrink:0}}>
+                      <div style={{fontSize:16,fontWeight:800,color:'var(--label)'}}>{R(hp.total)}</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </> : (
+            <div style={{padding:'60px 0',textAlign:'center'}}>
+              <Star size={36} style={{display:'block',margin:'0 auto 14px',color:'#f59e0b',opacity:.3}}/>
+              <p style={{fontSize:15,fontWeight:700,color:'var(--label)',margin:'0 0 6px'}}>Primeira compra!</p>
+              <p style={{fontSize:12,color:'var(--label-4)',margin:0}}>Nenhum pedido anterior deste cliente</p>
+            </div>
+          )}
+        </div>}
+
+        {/* ── TAB: MENSAGENS ───────────────────────────────────────────────── */}
+        {tab==='msgs'&&<div style={{padding:'20px 24px'}}>
+          {(msgs.lista||[]).length>0 ? (
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              {msgs.lista.slice(0,40).map((m,i)=>{
+                const entrada=m.direcao==='entrada'
+                return (
+                  <div key={i} style={{display:'flex',gap:10,alignItems:'flex-end',flexDirection:entrada?'row':'row-reverse'}}>
+                    <div style={{width:28,height:28,borderRadius:'50%',background:entrada?'var(--fill)':'var(--accent-dim)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                      {entrada?<Users size={12} style={{color:'var(--label-4)'}}/>:<Zap size={12} style={{color:'var(--accent)'}}/>}
+                    </div>
+                    <div style={{maxWidth:'80%',background:entrada?'var(--bg)':'var(--accent-dim)',borderRadius:entrada?'14px 14px 14px 4px':'14px 14px 4px 14px',padding:'10px 13px',border:`1px solid ${entrada?'var(--sep)':'var(--accent)30'}`}}>
+                      <div style={{display:'flex',justifyContent:entrada?'flex-start':'flex-end',marginBottom:4}}>
+                        <span style={{fontSize:10.5,fontWeight:700,color:entrada?'var(--label-4)':'var(--accent)'}}>{entrada?'Cliente':'Bia IA'}</span>
+                        <span style={{fontSize:10,color:'var(--label-4)',marginLeft:8,fontFamily:'monospace'}}>{fmtDT(m.criado_em)}</span>
+                      </div>
+                      <p style={{fontSize:13,color:'var(--label-2)',margin:0,lineHeight:1.5,whiteSpace:'pre-wrap',wordBreak:'break-word'}}>{(m.conteudo||'').slice(0,400)}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div style={{padding:'60px 0',textAlign:'center',color:'var(--label-4)'}}>
+              <MessageSquare size={36} style={{display:'block',margin:'0 auto 14px',opacity:.15}}/>
+              <p style={{fontSize:14,margin:0,fontWeight:600,color:'var(--label-3)'}}>Sem mensagens</p>
+              <p style={{fontSize:12,margin:'6px 0 0',opacity:.7}}>Nenhuma conversa registrada</p>
+            </div>
+          )}
+        </div>}
+
       </div>
 
-      {/* FOOTER */}
-      <div style={{padding:'14px 24px',borderTop:'1px solid var(--sep)',display:'flex',gap:8,flexShrink:0,background:'var(--bg-2)'}}>
-        <button onClick={enviarWA} disabled={sending||!det} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'10px',borderRadius:11,border:`1px solid ${sent?'rgba(34,197,94,.3)':'rgba(37,211,102,.3)'}`,background:sent?'rgba(34,197,94,.1)':'rgba(37,211,102,.08)',color:sent?'#22c55e':'#25D366',cursor:det?'pointer':'not-allowed',fontSize:13,fontWeight:700,opacity:!det?.4:1}}>
-          {sent?<><CheckCircle size={15}/> Enviado!</>:sending?<><RefreshCw size={14} style={{animation:'spin 1s linear infinite'}}/> Enviando...</>:<><MessageSquare size={15}/> Enviar no WhatsApp</>}
+      {/* ═══════════════════════════════════════════════════════════════════════
+          FOOTER — Ações
+      ══════════════════════════════════════════════════════════════════════════ */}
+      <div style={{flexShrink:0,borderTop:'1px solid var(--sep)',padding:'14px 24px',display:'flex',gap:8,background:'var(--bg-2)'}}>
+        <button onClick={enviarWA} disabled={sending||!det}
+          style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'11px',borderRadius:11,border:`1px solid ${sent?'rgba(34,197,94,.4)':'rgba(37,211,102,.35)'}`,background:sent?'rgba(34,197,94,.1)':'rgba(37,211,102,.07)',color:sent?'#22c55e':'#25D366',cursor:det?'pointer':'not-allowed',fontSize:13.5,fontWeight:700,opacity:!det?.5:1,transition:'all .2s'}}
+          onMouseEnter={e=>{if(det)e.currentTarget.style.background='rgba(37,211,102,.14)'}}
+          onMouseLeave={e=>{if(det)e.currentTarget.style.background=sent?'rgba(34,197,94,.1)':'rgba(37,211,102,.07)'}}>
+          {sent?<><CheckCircle size={16}/> Enviado!</>:sending?<><RefreshCw size={15} style={{animation:'spin 1s linear infinite'}}/> Enviando...</>:<><MessageSquare size={16}/> Enviar no WhatsApp</>}
         </button>
-        {r.codigo&&<a href={linkRastreio(r.codigo)} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:6,padding:'10px 14px',borderRadius:11,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-3)',fontSize:13,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap'}}><Truck size={14}/> Rastrear</a>}
-        {p.linkBling&&<a href={p.linkBling} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:6,padding:'10px 14px',borderRadius:11,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-3)',fontSize:13,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap'}}><ExternalLink size={14}/> Bling</a>}
+        {rastreioCod&&<a href={linkRastreio(rastreioCod)} target="_blank" rel="noreferrer"
+          style={{display:'flex',alignItems:'center',gap:7,padding:'11px 16px',borderRadius:11,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-3)',fontSize:13,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap',transition:'all .15s'}}
+          onMouseEnter={e=>{e.currentTarget.style.borderColor='#4a9fff';e.currentTarget.style.color='#4a9fff'}}
+          onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--sep)';e.currentTarget.style.color='var(--label-3)'}}>
+          <Truck size={14}/> Rastrear
+        </a>}
+        {p.linkBling&&<a href={p.linkBling} target="_blank" rel="noreferrer"
+          style={{display:'flex',alignItems:'center',gap:7,padding:'11px 16px',borderRadius:11,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-3)',fontSize:13,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap',transition:'all .15s'}}
+          onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.color='var(--accent)'}}
+          onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--sep)';e.currentTarget.style.color='var(--label-3)'}}>
+          <ExternalLink size={14}/> Bling
+        </a>}
       </div>
+
     </div>
   </>
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // KPI CARD
