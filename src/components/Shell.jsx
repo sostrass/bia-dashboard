@@ -8,6 +8,7 @@ import {
   AlertCircle, Activity, Construction, Search
 } from 'lucide-react'
 import CommandPalette from './CommandPalette'
+const PageDebugPedido = lazy(() => import('../pages/PageDebugPedido'))
 import LiveActivityBar from './LiveActivityBar'
 
 const PageDashboard   = lazy(() => import('../pages/PageDashboard'))
@@ -31,6 +32,7 @@ const NAV = [
   { id:'atendimento', icon:MessageSquare,   label:'Atendimento',    group:'main'   },
   { id:'conversas',   icon:MessageSquare,   label:'Conversas',      group:'main'   },
   { id:'debug-pedidos', icon:Activity, label:'Debug Pedidos', group:'tools' },
+  { id:'debug-pedido-raw', icon:Activity, label:'Debug Pedido Raw', group:'tools' },
   { id:'pedidos',     icon:ShoppingCart,    label:'Pedidos',        group:'main'   },
   { id:'clientes',    icon:Users,           label:'Clientes',       group:'main'   },
   { id:'caixa',       icon:CreditCard,      label:'Fluxo de Caixa', group:'main'   },
@@ -125,6 +127,7 @@ export default function Shell() {
       case 'atendimento': return <Page nome="Atendimento" comp={PageAtendimento} />
       case 'pedidos':     return <Page nome="Pedidos"     comp={PagePedidos}     />
       case 'debug-pedidos': return <Page nome="Debug Pedidos" comp={PagePedidosDebug} />
+      case 'debug-pedido-raw': return <Page nome="Debug Pedido" comp={PageDebugPedido} />
       case 'clientes':    return <Page nome="Clientes"    comp={PageClientes}    />
       case 'caixa':       return <Page nome="Caixa"       comp={PageCaixa}       />
       case 'iaconfig':    return <Page nome="Config IA"   comp={PageIAConfig}    />
