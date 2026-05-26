@@ -809,7 +809,7 @@ export default function PagePedidos({api}) {
           return <div key={c.canal} style={{marginBottom:9}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
               <div style={{display:'flex',alignItems:'center',gap:6}}>
-                {React && (CH[c.canal]||CH.bling).icon({s:12})}
+                {(CH[c.canal]||CH.bling).icon({s:12})}
                 <span style={{fontSize:12,fontWeight:500,color:'var(--label-2)'}}>{c.label}</span>
               </div>
               <div style={{display:'flex',gap:10}}>
