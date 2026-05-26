@@ -24,7 +24,6 @@ const PageGatilhos    = lazy(() => import('../pages/PageGatilhos'))
 const PageConversas   = lazy(() => import('../pages/PageConversas'))
 const PageDisparos    = lazy(() => import('../pages/PageDisparos'))
 const PageOcorrencias = lazy(() => import('../pages/PageOcorrencias'))
-const PageReengajamento = lazy(() => import('../pages/PageClientesReengajamento'))
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -43,7 +42,6 @@ const NAV = [
   { id:'ocorrencias', icon:AlertCircle,     label:'Ocorrências',    group:'tools'  },
   { id:'enviomassa',  icon:Send,            label:'Envio em Massa', group:'tools'  },
   { id:'avise',       icon:Package,         label:'Avise-me',       group:'tools'  },
-  { id:'reengajamento', icon:Users,           label:'Reengajamento',  group:'tools'  },
   { id:'iaconfig',    icon:Bot,             label:'Config IA',      group:'config' },
   { id:'config',      icon:Settings,        label:'Configurações',  group:'config' },
   { id:'llmconfig',   icon:Zap,             label:'LLM & Bypasses',  group:'config' },
@@ -149,9 +147,7 @@ export default function Shell() {
         </ErroBoundary>
       )
       case 'disparos':     return <Page nome="Disparos"       comp={PageDisparos}    />
-      case 'ocorrencias':  return <Page nome="Ocorrências"    comp={PageOcorrencias} />
-      case 'reengajamento': return <Page nome="Reengajamento"  comp={PageReengajamento} />
-      default: return <EmBreve title={NAV.find(n => n.id === page)?.label || page} />
+      case 'ocorrencias':  return <Page nome="Ocorrências"    comp={PageOcorrencias} />      default: return <EmBreve title={NAV.find(n => n.id === page)?.label || page} />
     }
   }
 
