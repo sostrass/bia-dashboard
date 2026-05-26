@@ -258,8 +258,8 @@ export default function PageGatilhos({ api }) {
   const [telTeste,    setTelTeste]  = useState('')
   const [enviandoT,   setEnviandoT] = useState(false)
   const [resTeste,    setResTeste]  = useState(null)
-  const [submetendo,  setSubmet]    = useState(false)
-  const [metaStatus,  setMetaSt]    = useState('')
+  const [submetendo,  setSubmetendo] = useState(false)
+  const [metaStatus,  setMetaStatus] = useState('')
   const [metaErro,    setMetaErro]  = useState('')
   const [aba,         setAba]       = useState('editor')  // editor | preview | config | meta
   const [grupoAberto, setGrupoAb]   = useState({})
