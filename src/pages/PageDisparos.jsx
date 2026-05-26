@@ -136,10 +136,21 @@ export default function PageDisparos({ api: apiProp }) {
   const [autoRef,  setAutoRef]  = useState(true)
 
   const carregar = useCallback(async () => {
+    const url = `${api}/bling-webhook/stats?periodo=${periodo}`
     try {
-      const r = await fetch(`${api}/bling-webhook/stats?periodo=${periodo}`)
-      if (r.ok) { const d = await r.json(); setStats(d) }
-    } catch {}
+      console.log('[PageDisparos] Buscando:', url)
+      const r = await fetch(url)
+      console.log('[PageDisparos] Status:', r.status, '| ok:', r.ok)
+      if (r.ok) {
+        const d = await r.json()
+        console.log('[PageDisparos] Dados recebidos:', JSON.stringify(d).slice(0,200))
+        setStats(d)
+      } else {
+        console.error('[PageDisparos] Erro HTTP:', r.status, url)
+      }
+    } catch(e) {
+      console.error('[PageDisparos] Erro fetch:', e.message, url)
+    }
     setLoading(false)
   }, [api, periodo])
 
