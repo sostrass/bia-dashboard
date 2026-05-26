@@ -423,13 +423,14 @@ export default function PageGatilhos({ api }) {
     if (!telTeste || !selId) return
     setEnviandoT(true); setResTeste(null)
     try {
-      const r = await fetch(`${api}/api/dashboard/mensagem`, {
+      const tel = telTeste.replace(/\D/g,'')
+      const r = await fetch(`${api}/api/templates/disparar-gatilho`, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ telefone:telTeste.replace(/\D/g,''), gatilho:selId, variaveis:EXEMPLOS })
+        body: JSON.stringify({ gatilho:selId, telefone:tel, variaveis:AMOSTRAS })
       })
       const d = await r.json()
-      setResTeste(d.ok ? 'ok' : d.erro || 'erro')
-    } catch { setResTeste('erro') }
+      setResTeste(d.ok || r.ok ? 'ok' : d.erro || 'erro')
+    } catch(e) { setResTeste(e.message||'erro') }
     setEnviandoT(false)
   }
 
@@ -850,9 +851,7 @@ export default function PageGatilhos({ api }) {
 
               {/* Preview */}
               <div style={{flex:1,overflowY:'auto',padding:'20px 16px',background:'#e5ddd5'}}>
-                <div style={{backgroundImage:'url("data:image/svg+xml,%3Csvg width=\'200\' height=\'200\' viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'200\' height=\'200\' fill=\'%23e5ddd5\'/%3E%3C/svg%3E")'}}>
-                  <PreviewWA blocos={blocos} tipo={gatilho?.tipo}/>
-                </div>
+                <PreviewWA blocos={blocos} label={gatilho?.label}/>
               </div>
 
               {/* Barra de salvar */}
