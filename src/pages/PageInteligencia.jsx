@@ -141,7 +141,7 @@ function ProgressBar({ value, max, cor, height=5 }) {
 // ── Chip de segmento ──────────────────────────────────────────────────────────
 function SegChip({ seg }) {
   const s = SEG[seg] || SEG.regular
-  const I = s.
+  const I = s.Icon
   return (
     <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:10.5,fontWeight:700,padding:'2px 8px',borderRadius:99,background:`${s.cor}15`,color:s.cor,border:`1px solid ${s.cor}30`,whiteSpace:'nowrap'}}>
       <I size={9}/>{s.label}
@@ -166,7 +166,7 @@ function BiaCard({ sug, onAction, onDismiss, api }) {
   const [acting,   setActing]   = useState(false)
   const [done,     setDone]     = useState(false)
   const tipo = TIPO_SUGESTAO[sug.tipo] || TIPO_SUGESTAO.oportunidade
-  const Icon = tipo.
+  const Icon = tipo.Icon
 
   const agir = async () => {
     if (acting || done) return
@@ -277,7 +277,7 @@ function ClienteSheet({ cliente, onClose, api }) {
   const [sent,    setSent]    = useState(false)
   const [msg,     setMsg]     = useState('')
   const s = SEG[cliente.segmento] || SEG.regular
-  const Icon = s.
+  const Icon = s.Icon
 
   const copy = (v,k) => { navigator.clipboard.writeText(String(v??'')); setCp(k); setTimeout(()=>setCp(''),2000) }
 
@@ -563,7 +563,7 @@ function ConfigModal({ config, onSave, onClose }) {
                 : key.includes('rastreio')||key.includes('entregue')||key.includes('ocorrencia') ? 'posVenda'
                 : key.includes('produto') ? 'oportunidade' : 'urgente'
               const t = TIPO_SUGESTAO[tipo] || TIPO_SUGESTAO.oportunidade
-              const Icon = t.
+              const Icon = t.Icon
               return (
                 <div key={key} style={{display:'flex',alignItems:'center',gap:12,padding:'11px 13px',borderRadius:10,background:analise.ativo?`${t.cor}05`:'var(--fill)',border:`1px solid ${analise.ativo?t.cor+'25':'var(--sep)'}`,transition:'all .2s'}}>
                   <div style={{width:30,height:30,borderRadius:8,background:`${t.cor}15`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
@@ -882,7 +882,7 @@ export default function PageInteligencia({ api }) {
                   )}
                   {distSeg.map(s=>{
                     const pct = s.total > 0 ? Math.round((s.count/s.total)*100) : 0
-                    const Icon = s.
+                    const Icon = s.Icon
                     return (
                       <div key={s.key} onClick={()=>{setSegFiltro(s.key);setView('clientes')}}
                         className="bia-row"
@@ -942,7 +942,7 @@ export default function PageInteligencia({ api }) {
                 { label:'Taxa de retenção (90d)',    value:`${stats?.taxaRetencao||0}%`,         sub:'compraram novamente',     Icon:Repeat, cor:'#22c55e' },
                 { label:'Clientes com ciclo regular',value:`${stats?.clientesCiclo||0}`,         sub:'padrão de recompra',      Icon:Activity,cor:'#7c6af7' },
               ].map(m=>{
-                const Icon = m.
+                const Icon = m.Icon
                 return (
                   <div key={m.label} style={{padding:'14px 16px',borderRadius:12,background:'var(--bg-2)',border:'1px solid var(--sep)',display:'flex',alignItems:'center',gap:14}}>
                     <div style={{width:40,height:40,borderRadius:10,background:`${m.cor}15`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
@@ -1103,7 +1103,7 @@ export default function PageInteligencia({ api }) {
 
               {clientesPaginados.map((c,i)=>{
                 const s   = SEG[c.segmento] || SEG.regular
-                const SIcon = s.
+                const SIcon = s.Icon
                 const corDias = c.diasSemComprar > 60 ? '#ef4444' : c.diasSemComprar > 30 ? '#f97316' : '#22c55e'
                 return (
                   <div key={i} className="bia-row"
