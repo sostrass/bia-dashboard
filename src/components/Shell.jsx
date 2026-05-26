@@ -8,9 +8,9 @@ import {
   AlertCircle, Activity, Construction, Search
 } from 'lucide-react'
 import CommandPalette from './CommandPalette'
-const PageDebugPedido = lazy(() => import('../pages/PageDebugPedido'))
 import LiveActivityBar from './LiveActivityBar'
 
+const PageDebugPedido = lazy(() => import('../pages/PageDebugPedido'))
 const PageDashboard   = lazy(() => import('../pages/PageDashboard'))
 const PagePedidosDebug= lazy(() => import('../pages/PagePedidosDebug'))
 const PagePedidos     = lazy(() => import('../pages/PagePedidos'))
