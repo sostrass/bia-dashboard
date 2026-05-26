@@ -86,6 +86,7 @@ const PADROES = {
   cancelamento:       { cab:'❌ Pedido Cancelado', corpo:'Olá *{{nome_cliente}}*, o pedido *#{{numero_pedido}}* foi cancelado.\n\nQualquer dúvida estamos aqui!', rod:'Só Strass.', bts:[] },
   reengajamento:      { cab:'', corpo:'Olá *{{nome_cliente}}*! 🥰\n\nSentimos sua falta! Faz {{dias_inativo}} dias desde sua última compra.\n\nTemos novidades que você vai adorar!', rod:'', bts:[] },
   pos_entrega:        { cab:'', corpo:'Olá *{{nome_cliente}}*! Como foi sua experiência com o pedido *#{{numero_pedido}}*?\n\nSua opinião é muito importante para nós! ⭐', rod:'', bts:[] },
+  lembrete_rastreio:  { cab:'🚚 Atualização do seu pedido', corpo:'Olá *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* tem novidades.\n\n📦 Status: *{{status_rastreio}}*\n🔍 Código: {{codigo_rastreio}}', rod:'Acompanhe pelo site da transportadora.', bts:[] },
 }
 
 
@@ -129,7 +130,7 @@ function PreviewBolha({ blocos }) {
                     dangerouslySetInnerHTML={{__html:rv(b.conteudo||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br/>').replace(/\*([^*\n]+)\*/g,'<strong>$1</strong>').replace(/_([^_\n]+)_/g,'<em>$1</em>')}}/>
                 </div>
               ))}
-              {rod?.conteudo&&<div className="px-3 pb-2"><p style={{fontSize:10,color:'#8696a0',fontStyle:'italic'}}>{rv(rod.conteudo)}</p></div>}
+              {rod?.conteudo&&<div className="px-3 pb-2"><p style={{fontSize:10,color:'#8696a0'}}>{rv(rod.conteudo)}</p></div>}
               <div className="px-3 pb-1.5 flex justify-end"><span style={{fontSize:9,color:'#8696a0'}}>{hora} ✓✓</span></div>
               {bts.length>0&&<div style={{borderTop:'1px solid #2a3942'}}>{bts.map((b,i)=>(
                 <div key={i} className="flex items-center justify-center gap-1.5 py-2" style={{borderTop:i>0?'1px solid #2a3942':'none',color:'#00a884',cursor:'pointer'}}>
@@ -444,7 +445,7 @@ export default function PageGatilhos({ api }) {
       if (d.ok) {
         setMetaSt(d.status || 'PENDING')
       } else {
-        setMetaErro(d.erro || 'Erro desconhecido')
+        setMetaErro(`${d.erro || 'Erro desconhecido'}${d.dica ? ' — ' + d.dica : ''}${d.payload_debug ? ' | ' + d.payload_debug : ''}`)
       }
     } catch { setMetaErro('Erro de conexão') }
     setSubmet(false)
