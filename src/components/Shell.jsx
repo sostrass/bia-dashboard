@@ -147,7 +147,8 @@ export default function Shell() {
         </ErroBoundary>
       )
       case 'disparos':     return <Page nome="Disparos"       comp={PageDisparos}    />
-      case 'ocorrencias':  return <Page nome="Ocorrências"    comp={PageOcorrencias} />      default: return <EmBreve title={NAV.find(n => n.id === page)?.label || page} />
+      case 'ocorrencias':  return <Page nome="Ocorrências"    comp={PageOcorrencias} />
+      default: return <EmBreve title={NAV.find(n => n.id === page)?.label || page} />
     }
   }
 
