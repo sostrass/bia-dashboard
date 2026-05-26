@@ -5,7 +5,7 @@ import { logout } from '../pages/PageLogin'
 import {
   LayoutDashboard, ShoppingCart, Users, CreditCard,
   MessageSquare, Bot, Settings, Sun, Moon, Zap, Send, Package,
-  AlertCircle, Activity, Construction, Search
+  AlertCircle, Activity, Construction, Search, Brain
 } from 'lucide-react'
 import CommandPalette from './CommandPalette'
 import LiveActivityBar from './LiveActivityBar'
