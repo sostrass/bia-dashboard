@@ -118,28 +118,7 @@ const DELAY_OPCOES = [
   { valor:240,label:'4 horas' },
 ]
 
-const TIPOS_BLOCO = [
-  { tipo:'cabecalho', label:'Cabeçalho', icon:Hash,        cor:'#00d4aa', desc:'Negrito no topo' },
-  { tipo:'texto',     label:'Texto',     icon:FileText,     cor:'#4a9fff', desc:'Corpo da mensagem' },
-  { tipo:'rodape',    label:'Rodapé',    icon:FileText,     cor:'#8696a0', desc:'Itálico no final' },
-  { tipo:'imagem',    label:'Imagem',    icon:Image,        cor:'#fb923c', desc:'Foto ou produto' },
-  { tipo:'video',     label:'Vídeo',     icon:Video,        cor:'#a78bfa', desc:'Link de vídeo' },
-  { tipo:'audio',     label:'Áudio',     icon:Mic,          cor:'#22c55e', desc:'Link de áudio' },
-  { tipo:'botao',     label:'Botão',     icon:MousePointer, cor:'#e879f9', desc:'Ação interativa' },
-  { tipo:'link',      label:'Link',      icon:LinkIcon,     cor:'#f59e0b', desc:'URL clicável' },
-  { tipo:'ligar',     label:'Ligar',     icon:Phone,        cor:'#f87171', desc:'Botão de chamada' },
-  { tipo:'quebra',    label:'+ Mensagem',icon:Plus,         cor:'#6b7280', desc:'Nova mensagem separada' },
-]
 
-const DELAY_OPCOES = [
-  { valor:0,  label:'Envio imediato' },
-  { valor:5,  label:'5 minutos' },
-  { valor:15, label:'15 minutos' },
-  { valor:30, label:'30 minutos' },
-  { valor:60, label:'1 hora' },
-  { valor:120,label:'2 horas' },
-  { valor:240,label:'4 horas' },
-]
 
 const AMOSTRAS = {
   '{{nome_cliente}}':'Maria Silva','{{numero_pedido}}':'224307','{{valor_total}}':'R$ 47,52',
@@ -153,15 +132,6 @@ const AMOSTRAS = {
 }
 const rv = t=>(t||'').replace(/\{\{([^}]+)\}\}/g,(_,k)=>AMOSTRAS[`{{${k}}}`]||`{{${k}}}`)
 
-const DELAY_OPCOES = [
-  { valor:0,  label:'Envio imediato' },
-  { valor:5,  label:'5 minutos' },
-  { valor:15, label:'15 minutos' },
-  { valor:30, label:'30 minutos' },
-  { valor:60, label:'1 hora' },
-  { valor:120,label:'2 horas' },
-  { valor:240,label:'4 horas' },
-]
 
 
 // ── Preview WhatsApp ───────────────────────────────────────────────────────────
