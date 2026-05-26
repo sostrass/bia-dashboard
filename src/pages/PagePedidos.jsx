@@ -542,18 +542,8 @@ function OrderSheet({pedRow, onClose, api, allPedidos}) {
   const enviarWA = async () => {
     if(!det) return; setSend(true)
     const nome = (c.nome||pedRow.contato||'').split(' ')[0]
-    const itens = (p.itens||[]).map(i=>`• ${i.descricao?.slice(0,40)} (${i.quantidade}x) — ${R((i.valor||0)*(i.quantidade||1))}`).join('
-')
-    const msg = `✅ *Pedido #${pedRow.numero}*
-
-Olá, *${nome}*!
-
-${itens}
-
-💰 *Total: ${R(pedRow.total)}*
-📦 ${sit.label}
-
-_Só Strass 🥰_`
+    const itens = (p.itens||[]).map(i=>`• ${i.descricao?.slice(0,40)} (${i.quantidade}x) — ${R((i.valor||0)*(i.quantidade||1))}`).join('\n')
+    const msg = `✅ *Pedido #${pedRow.numero}*\n\nOlá, *${nome}*!\n\n${itens}\n\n💰 *Total: ${R(pedRow.total)}*\n📦 ${sit.label}\n\n_Só Strass 🥰_`
     try {
       const tel = (c.celular||c.telefone||'').replace(/\D/g,'')
       if(tel) await fetch(`${api}/api/dashboard/manual/${tel}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:msg})})
@@ -567,14 +557,7 @@ _Só Strass 🥰_`
     const tel = (c.celular||c.telefone||'').replace(/\D/g,'')
     if(!tel) return
     const link = linkRastreio(cod)
-    const msg = `📦 *Rastreio #${p.numero||pedRow.numero}*
-
-\`${cod}\`${trackSt?`
-*${trackSt}*`:''}
-
-${link}
-
-_Só Strass 🥰_`
+    const msg = `📦 *Rastreio #${p.numero||pedRow.numero}*\n\n\`${cod}\`${trackSt?`\n*${trackSt}*`:''}\n\n${link}\n\n_Só Strass 🥰_`
     try { await fetch(`${api}/api/dashboard/manual/${tel}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:msg})}) } catch {}
   }
 
