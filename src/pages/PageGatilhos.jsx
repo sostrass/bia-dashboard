@@ -416,14 +416,16 @@ export default function PageGatilhos({ api: apiProp }) {
   const testar=async()=>{
     if(!telTeste.trim())return;setEnviandoT(true);setResTeste(null)
     try {
-      const corpo=blocos.find(b=>b.tipo==='texto')?.conteudo||''
-      const cab=blocos.find(b=>b.tipo==='cabecalho')?.conteudo||''
-      const rod=blocos.find(b=>b.tipo==='rodape')?.conteudo||''
-      let msg='';if(cab)msg+=`*${rv(cab)}*\n\n`;msg+=rv(corpo);if(rod)msg+=`\n\n_${rv(rod)}_`
-      const r=await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone:telTeste.replace(/\D/g,''),mensagem:msg})})
-      setResTeste(r.ok?'ok':'erro')
-    } catch{setResTeste('erro')}
-    setEnviandoT(false);setTimeout(()=>setResTeste(null),4000)
+      // Usa disparar-gatilho com dados de exemplo — mesmo fluxo do disparo real
+      const tel=telTeste.replace(/\D/g,'')
+      const r=await fetch(`${api}/api/templates/disparar-gatilho`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({gatilho:selId,telefone:tel,variaveis:AMOSTRAS})
+      })
+      const d=await r.json()
+      setResTeste(d.ok||r.ok?'ok':d.erro||'erro')
+    } catch(e){setResTeste(e.message||'erro')}
+    setEnviandoT(false);setTimeout(()=>setResTeste(null),5000)
   }
 
   const gatilho = gatilhos.find(g=>g.id===selId)
