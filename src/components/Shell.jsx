@@ -15,6 +15,7 @@ const PageDashboard   = lazy(() => import('../pages/PageDashboard'))
 const PagePedidosDebug= lazy(() => import('../pages/PagePedidosDebug'))
 const PagePedidos     = lazy(() => import('../pages/PagePedidos'))
 const PageClientes    = lazy(() => import('../pages/PageClientes'))
+const PageInteligencia = lazy(() => import('../pages/PageInteligencia'))
 const PageCaixa       = lazy(() => import('../pages/PageCaixa'))
 const PageAtendimento = lazy(() => import('../pages/PageAtendimento'))
 const PageIAConfig    = lazy(() => import('../pages/PageIAConfig'))
@@ -35,6 +36,7 @@ const NAV = [
   { id:'debug-pedido-raw', icon:Activity, label:'Debug Pedido Raw', group:'tools' },
   { id:'pedidos',     icon:ShoppingCart,    label:'Pedidos',        group:'main'   },
   { id:'clientes',    icon:Users,           label:'Clientes',       group:'main'   },
+  { id:'inteligencia',icon:Brain,           label:'Inteligência IA',group:'main'   },
   { id:'caixa',       icon:CreditCard,      label:'Fluxo de Caixa', group:'main'   },
   { id:'gatilhos',    icon:Zap,             label:'Gatilhos',       group:'tools'  },
   { id:'disparos',    icon:Activity,        label:'Disparos',       group:'tools'  },
@@ -129,6 +131,7 @@ export default function Shell() {
       case 'debug-pedidos': return <Page nome="Debug Pedidos" comp={PagePedidosDebug} />
       case 'debug-pedido-raw': return <Page nome="Debug Pedido" comp={PageDebugPedido} />
       case 'clientes':    return <Page nome="Clientes"    comp={PageClientes}    />
+      case 'inteligencia': return <Page nome="Inteligência" comp={PageInteligencia} />
       case 'caixa':       return <Page nome="Caixa"       comp={PageCaixa}       />
       case 'iaconfig':    return <Page nome="Config IA"   comp={PageIAConfig}    />
       case 'llmconfig':   return <Page nome="LLM & Bypasses" comp={PageLLMConfig}  />
