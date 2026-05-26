@@ -1,809 +1,943 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
-  Zap, Save, Send, RefreshCw, X, Sparkles, ToggleLeft, ToggleRight,
-  CheckCircle, Plus, Image, FileText, MousePointer, Link as LinkIcon,
-  ShoppingBag, CreditCard, Truck, Bell, Star, Package, Clock,
-  MessageSquare, AlertCircle, GripVertical, ChevronDown, ChevronUp,
-  Mic, Video, Phone, Copy, Hash, HelpCircle, Timer, Tag, XCircle, Edit3,
-  Info, BookOpen, Layers, Settings2, Send as SendIcon,
-  ArrowRight, RotateCcw, Search, ShieldAlert
+  Zap, Save, Send, RefreshCw, X, Sparkles, Check, Plus,
+  FileText, MousePointer, Link as LinkIcon, ShoppingBag,
+  CreditCard, Truck, Bell, Star, Package, Clock, MessageSquare,
+  AlertCircle, ChevronRight, ChevronDown, ChevronUp, Eye,
+  Settings, ToggleLeft, ToggleRight, Brain, Hash, Image,
+  Mic, Video, Phone, Layers, XCircle, Copy, ExternalLink,
+  AlertTriangle, CheckCircle, Info, MoreHorizontal, Pencil,
+  PlayCircle, PauseCircle, Radio, Wifi, Shield, Globe,
+  ArrowRight, SlidersHorizontal, Tag, Repeat, Activity
 } from 'lucide-react'
 
-const BASE = import.meta.env.VITE_API_URL || ''
+// ── Constantes ────────────────────────────────────────────────────────────────
+const R   = n => `R$ ${Number(n||0).toFixed(2).replace('.',',')}`
+const fmt = n => Number(n||0).toLocaleString('pt-BR')
 
-const GATILHOS_ESTATICOS = [
-  { id:'pedido_criado',       label:'Pedido Criado',         grupo:'Pedidos',      icon:ShoppingBag, cor:'#00d4aa', corBg:'rgba(0,212,170,0.1)',   desc:'Novo pedido gerado no Bling',                    situacao:'id = 6',  variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}','{{forma_pagamento}}','{{link_pedido}}'] },
-  { id:'pagamento_aprovado',  label:'Pagamento Aprovado',    grupo:'Pedidos',      icon:CreditCard,  cor:'#4a9fff', corBg:'rgba(74,159,255,0.1)',   desc:'PIX ou cartão confirmado',                       situacao:'id = 9',  variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}'] },
-  { id:'pagamento_pendente',  label:'Pagamento Pendente',    grupo:'Pedidos',      icon:Clock,       cor:'#f59e0b', corBg:'rgba(245,158,11,0.1)',   desc:'Pedido aguardando pagamento',                    situacao:'id = 6',  variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}','{{link_pedido}}'] },
-  { id:'pedido_enviado',      label:'Pedido Enviado',        grupo:'Entrega',      icon:Truck,       cor:'#a78bfa', corBg:'rgba(167,139,250,0.1)',  desc:'Pedido despachado com código de rastreio',       situacao:'id = 27', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}','{{prazo_entrega}}'] },
-  { id:'pedido_entregue',     label:'Pedido Entregue',       grupo:'Entrega',      icon:Package,     cor:'#22c55e', corBg:'rgba(34,197,94,0.1)',    desc:'Entrega confirmada pela transportadora',         situacao:'id = 30', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
-  { id:'nao_entregue',        label:'Não Entregue',          grupo:'Entrega',      icon:AlertCircle, cor:'#ef4444', corBg:'rgba(239,68,68,0.1)',    desc:'Tentativa de entrega falhou',                    situacao:'id = 33', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}'] },
-  { id:'catalogo_produto', label:'Produto do Catálogo', grupo:'Catálogo',  icon:ShoppingBag, cor:'#10b981', corBg:'rgba(16,185,129,0.1)', desc:'Mensagem interativa com botões ao enviar produto do catálogo ao cliente. Edite texto e botões.', situacao:'manual', variaveis:['{{nome_produto}}','{{preco_cartao}}','{{preco_pix}}','{{foto_produto}}','{{descricao_produto}}','{{codigo_produto}}'] },
-  { id:'avise_me',            label:'Produto Disponível',    grupo:'Estoque',      icon:Bell,        cor:'#fb923c', corBg:'rgba(251,146,60,0.1)',   desc:'Produto voltou ao estoque (Avise-me)',           situacao:'manual',  variaveis:['{{nome_cliente}}','{{nome_produto}}','{{preco_produto}}','{{preco_pix}}','{{link_produto}}','{{foto_produto}}'] },
-  { id:'boas_vindas',         label:'Boas-vindas',           grupo:'Relacionamento',icon:Star,       cor:'#e879f9', corBg:'rgba(232,121,249,0.1)', desc:'Primeiro contato do cliente no WhatsApp',        situacao:'manual',  variaveis:['{{nome_cliente}}','{{nome_loja}}'] },
-  { id:'avaliar_pedido',      label:'Avaliação Pós-venda',   grupo:'Relacionamento',icon:Star,       cor:'#f87171', corBg:'rgba(248,113,113,0.1)', desc:'Pesquisa de satisfação após entrega',            situacao:'manual',  variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
-  { id:'em_andamento',        label:'Em Andamento',          grupo:'Faturamento',  icon:RefreshCw,   cor:'#8b5cf6', corBg:'rgba(139,92,246,0.1)',  desc:'Expedição iniciou separação/faturamento',        situacao:'id = 15', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}'] },
-  { id:'nfe_pendente',        label:'NF-e Pendente',         grupo:'Faturamento',  icon:FileText,    cor:'#f59e0b', corBg:'rgba(245,158,11,0.1)',  desc:'Nota fiscal criada, aguardando SEFAZ',           situacao:'id = 21', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}'] },
-  { id:'nfe_emitida',         label:'NF-e Emitida',          grupo:'Faturamento',  icon:FileText,    cor:'#06b6d4', corBg:'rgba(6,182,212,0.1)',   desc:'NF-e autorizada — link DANFE disponível',        situacao:'id = 24', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{numero_nfe}}','{{link_nfe}}'] },
-  { id:'devolucao',           label:'Devolução',             grupo:'Pós-venda',    icon:RefreshCw,   cor:'#f87171', corBg:'rgba(248,113,113,0.1)', desc:'Pedido devolvido ao remetente',                  situacao:'id = 36', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
-  { id:'cancelamento',        label:'Pedido Cancelado',      grupo:'Pós-venda',    icon:XCircle,     cor:'#6b7280', corBg:'rgba(107,114,128,0.1)', desc:'Pedido cancelado no Bling',                      situacao:'id = 12', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}'] },
-  { id:'em_separacao',        label:'Em Separação',          grupo:'Personalizado',icon:Layers,      cor:'#8b5cf6', corBg:'rgba(139,92,246,0.1)',  desc:'Observações Internas: #SEPARACAO',               situacao:'#SEPARACAO', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
-  { id:'produto_embalado',    label:'Produto Embalado',      grupo:'Personalizado',icon:Package,     cor:'#06b6d4', corBg:'rgba(6,182,212,0.1)',   desc:'Observações Internas: #EMBALADO',                situacao:'#EMBALADO',  variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
-  { id:'saiu_entrega',        label:'Saiu para Entrega',     grupo:'Personalizado',icon:Truck,       cor:'#f59e0b', corBg:'rgba(245,158,11,0.1)',  desc:'Observações Internas: #SAIU',                    situacao:'#SAIU',      variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}'] },
-  { id:'aguardando_retirada', label:'Aguardando Retirada',   grupo:'Personalizado',icon:Clock,       cor:'#a78bfa', corBg:'rgba(167,139,250,0.1)', desc:'Observações Internas: #AGUARDANDO',              situacao:'#AGUARDANDO',variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
-  { id:'lembrete_rastreio',   label:'Lembrete de Rastreio',  grupo:'Personalizado',icon:Bell,        cor:'#fb923c', corBg:'rgba(251,146,60,0.1)',  desc:'Observações Internas: #RASTREIO',                situacao:'#RASTREIO',  variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{link_rastreio}}'] },
-
-  // ── Grupo: Ocorrências ────────────────────────────────────────────────────
-  // Usado pelo sistema de CRM de ocorrências para envio via PATCH /api/ocorrencias/:id
-  // O campo situacao: 'ocorrencia' identifica estes gatilhos no sistema de CRM
-  { id:'ocorrencia_abertura',    label:'Confirmação de Abertura',  grupo:'Ocorrências', icon:AlertCircle,  cor:'#f59e0b', corBg:'rgba(245,158,11,0.1)',   desc:'Enviado automaticamente ao criar um chamado de ocorrência',      situacao:'ocorrencia', variaveis:['{{nome_cliente}}','{{ticket_id}}','{{tipo_ocorrencia}}','{{numero_pedido}}','{{descricao}}'] },
-  { id:'ocorrencia_em_analise',  label:'Em Análise',               grupo:'Ocorrências', icon:Search,       cor:'#4a9fff', corBg:'rgba(74,159,255,0.1)',    desc:'Informa o cliente que a equipe está investigando o caso',        situacao:'ocorrencia', variaveis:['{{nome_cliente}}','{{ticket_id}}','{{descricao}}'] },
-  { id:'ocorrencia_atualizada',  label:'Atualização de Status',    grupo:'Ocorrências', icon:ArrowRight,   cor:'#8b5cf6', corBg:'rgba(139,92,246,0.1)',    desc:'Mensagem estruturada de resposta ao cliente com contexto',       situacao:'ocorrencia', variaveis:['{{nome_cliente}}','{{ticket_id}}','{{descricao}}','{{resposta}}','{{status}}'] },
-  { id:'ocorrencia_resolvida',   label:'Ocorrência Resolvida',     grupo:'Ocorrências', icon:CheckCircle,  cor:'#22c55e', corBg:'rgba(34,197,94,0.1)',     desc:'Confirma a resolução do chamado ao cliente',                     situacao:'ocorrencia', variaveis:['{{nome_cliente}}','{{ticket_id}}','{{numero_pedido}}'] },
-  { id:'ocorrencia_troca',       label:'Troca / Devolução',        grupo:'Ocorrências', icon:RotateCcw,    cor:'#f59e0b', corBg:'rgba(245,158,11,0.1)',    desc:'Instrui o cliente sobre o processo de troca ou devolução',       situacao:'ocorrencia', variaveis:['{{nome_cliente}}','{{ticket_id}}','{{numero_pedido}}'] },
-  { id:'ocorrencia_extravio',    label:'Pedido Extraviado',        grupo:'Ocorrências', icon:ShieldAlert,  cor:'#ef4444', corBg:'rgba(239,68,68,0.1)',     desc:'Informa sobre extravio e providências tomadas com a transportadora', situacao:'ocorrencia', variaveis:['{{nome_cliente}}','{{ticket_id}}','{{numero_pedido}}','{{transportadora}}'] },
-  { id:'ocorrencia_encerrada',   label:'Chamado Encerrado',        grupo:'Ocorrências', icon:XCircle,      cor:'#6b7280', corBg:'rgba(107,114,128,0.1)',   desc:'Encerramento do chamado — enviado ao marcar status como encerrado',  situacao:'ocorrencia', variaveis:['{{nome_cliente}}','{{ticket_id}}','{{numero_pedido}}'] },
+// Grupos e gatilhos
+const GATILHOS = [
+  // Bling automáticos
+  { id:'pedido_criado',       label:'Pedido Criado',         grupo:'Pedidos',       tipo:'bling', icon:ShoppingBag, cor:'#00d4aa', situacao:'sit=6',   desc:'Novo pedido gerado no Bling', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}','{{forma_pagamento}}','{{link_pedido}}'] },
+  { id:'pagamento_aprovado',  label:'Pagamento Aprovado',    grupo:'Pedidos',       tipo:'bling', icon:CreditCard,  cor:'#4a9fff', situacao:'sit=9',   desc:'PIX ou cartão confirmado', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}'] },
+  { id:'pagamento_pendente',  label:'Pagamento Pendente',    grupo:'Pedidos',       tipo:'bling', icon:Clock,       cor:'#f59e0b', situacao:'sit=6',   desc:'Aguardando pagamento', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}','{{link_pedido}}'] },
+  { id:'pedido_enviado',      label:'Pedido Enviado',        grupo:'Entrega',       tipo:'bling', icon:Truck,       cor:'#a78bfa', situacao:'sit=27',  desc:'Despachado com rastreio', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}','{{prazo_entrega}}'] },
+  { id:'pedido_entregue',     label:'Pedido Entregue',       grupo:'Entrega',       tipo:'bling', icon:Package,     cor:'#22c55e', situacao:'sit=30',  desc:'Entrega confirmada', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  { id:'nao_entregue',        label:'Não Entregue',          grupo:'Entrega',       tipo:'bling', icon:AlertCircle, cor:'#ef4444', situacao:'sit=33',  desc:'Tentativa falhou', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{link_rastreio}}'] },
+  { id:'em_andamento',        label:'Em Andamento',          grupo:'Faturamento',   tipo:'bling', icon:RefreshCw,   cor:'#8b5cf6', situacao:'sit=15',  desc:'Separação/faturamento iniciou', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}'] },
+  { id:'nfe_pendente',        label:'NF-e Pendente',         grupo:'Faturamento',   tipo:'bling', icon:FileText,    cor:'#f59e0b', situacao:'sit=21',  desc:'NF criada, aguardando SEFAZ', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}'] },
+  { id:'nfe_emitida',         label:'NF-e Emitida',          grupo:'Faturamento',   tipo:'bling', icon:FileText,    cor:'#06b6d4', situacao:'sit=24',  desc:'DANFE disponível', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{numero_nfe}}','{{link_nfe}}'] },
+  { id:'cancelamento',        label:'Pedido Cancelado',      grupo:'Pós-venda',     tipo:'bling', icon:XCircle,     cor:'#6b7280', situacao:'sit=12',  desc:'Pedido cancelado', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}'] },
+  { id:'devolucao',           label:'Devolução',             grupo:'Pós-venda',     tipo:'bling', icon:RefreshCw,   cor:'#f87171', situacao:'sit=36',  desc:'Pedido devolvido', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  // Observações internas
+  { id:'em_separacao',        label:'Em Separação',          grupo:'Manual Bling',  tipo:'bling', icon:Layers,      cor:'#8b5cf6', situacao:'#SEPARACAO', desc:'Obs. internas: #SEPARACAO', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  { id:'produto_embalado',    label:'Produto Embalado',      grupo:'Manual Bling',  tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'#EMBALADO',  desc:'Obs. internas: #EMBALADO', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  { id:'saiu_entrega',        label:'Saiu para Entrega',     grupo:'Manual Bling',  tipo:'bling', icon:Truck,       cor:'#f59e0b', situacao:'#SAIU',      desc:'Obs. internas: #SAIU', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{link_rastreio}}'] },
+  { id:'aguardando_retirada', label:'Aguardando Retirada',   grupo:'Manual Bling',  tipo:'bling', icon:Clock,       cor:'#0ea5e9', situacao:'#AGUARDANDO',desc:'Obs. internas: #AGUARDANDO', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  // Rastreio job
+  { id:'lembrete_rastreio',   label:'Rastreio em Movimento', grupo:'Rastreio',      tipo:'bling', icon:Radio,       cor:'#4a9fff', situacao:'auto',    desc:'Atualização detectada pelo job', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{status_rastreio}}'] },
+  // Manual/catálogo
+  { id:'catalogo_produto',    label:'Produto do Catálogo',   grupo:'Catálogo',      tipo:'bling', icon:ShoppingBag, cor:'#10b981', situacao:'manual',  desc:'Produto enviado via catálogo', variaveis:['{{nome_produto}}','{{preco_cartao}}','{{preco_pix}}','{{foto_produto}}','{{descricao_produto}}'] },
+  { id:'avise_me',            label:'Produto Disponível',    grupo:'Estoque',       tipo:'bling', icon:Bell,        cor:'#fb923c', situacao:'manual',  desc:'Produto voltou ao estoque', variaveis:['{{nome_cliente}}','{{nome_produto}}','{{preco_produto}}','{{link_produto}}'] },
+  // Relacionamento
+  { id:'boas_vindas',         label:'Boas-vindas',           grupo:'Relacionamento',tipo:'bling', icon:Star,        cor:'#e879f9', situacao:'manual',  desc:'Primeiro contato no WhatsApp', variaveis:['{{nome_cliente}}','{{nome_loja}}'] },
+  { id:'avaliar_pedido',      label:'Avaliação Pós-venda',   grupo:'Relacionamento',tipo:'bling', icon:Star,        cor:'#f87171', situacao:'manual',  desc:'Satisfação após entrega', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  // Inteligência IA — inline (sem aprovação Meta)
+  { id:'reengajamento',       label:'Reengajamento',         grupo:'Inteligência',  tipo:'ia',    icon:Brain,       cor:'#7c6af7', situacao:'auto-ia', desc:'Cliente inativo detectado pela Bia', variaveis:['{{nome_cliente}}','{{dias_inativo}}','{{ultimo_produto}}'] },
+  { id:'recompra_vip',        label:'Ciclo VIP',             grupo:'Inteligência',  tipo:'ia',    icon:Brain,       cor:'#7c6af7', situacao:'auto-ia', desc:'VIP no ciclo de recompra', variaveis:['{{nome_cliente}}','{{ciclo_dias}}'] },
+  { id:'primeira_recompra',   label:'1ª Recompra',           grupo:'Inteligência',  tipo:'ia',    icon:Brain,       cor:'#7c6af7', situacao:'auto-ia', desc:'1ª compra sem retorno', variaveis:['{{nome_cliente}}','{{ultimo_produto}}'] },
+  { id:'pos_entrega',         label:'Pós-entrega IA',        grupo:'Inteligência',  tipo:'ia',    icon:Brain,       cor:'#7c6af7', situacao:'auto-ia', desc:'Follow-up automático pós-entrega', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
 ]
 
-const GRUPOS = [...new Set(GATILHOS_ESTATICOS.map(g=>g.grupo))]
-
-const PADROES = {
-  pedido_criado:      { cab:'🛒 Pedido Confirmado!',      img:'', corpo:'Olá *{{nome_cliente}}*!\n\nSeu pedido *#{{numero_pedido}}* foi criado com sucesso.\n\n💳 Total: *{{valor_total}}*\n💰 Pagamento: {{forma_pagamento}}',                           rod:'Mensagem automática — para dúvidas, responda aqui.', bts:[{texto:'Ver pedido',acao:'url',valor:'{{link_pedido}}',id:1}] },
-  pagamento_aprovado: { cab:'✅ Pagamento Aprovado!',      img:'', corpo:'Olá *{{nome_cliente}}*!\n\nO pagamento do pedido *#{{numero_pedido}}* foi confirmado. 🎉\n\nJá estamos preparando com carinho!',                               rod:'Mensagem automática.', bts:[] },
-  pagamento_pendente: { cab:'⏳ Pagamento Pendente',       img:'', corpo:'Olá *{{nome_cliente}}*, seu pedido *#{{numero_pedido}}* aguarda pagamento.\n\nTotal: *{{valor_total}}*',                                                        rod:'O link expira em 24 horas.', bts:[{texto:'Pagar agora',acao:'url',valor:'{{link_pedido}}',id:1},{texto:'Preciso de ajuda',acao:'reply',valor:'Ajuda com pagamento',id:2}] },
-  pedido_enviado:     { cab:'🚚 Seu pedido foi enviado!', img:'', corpo:'Olá *{{nome_cliente}}*! O pedido *#{{numero_pedido}}* saiu para entrega.\n\n📦 Transportadora: {{transportadora}}\n🔍 Rastreio: *{{codigo_rastreio}}*\n📅 Prazo: *{{prazo_entrega}}*', rod:'Continuaremos monitorando e avisaremos quando chegar.', bts:[{texto:'Rastrear pedido',acao:'url',valor:'{{link_rastreio}}',id:1}] },
-  pedido_entregue:    { cab:'📦 Pedido entregue!',        img:'', corpo:'Olá *{{nome_cliente}}*, seu pedido *#{{numero_pedido}}* foi entregue! 😊\n\nEsperamos que você goste muito!',                                                  rod:'Qualquer problema estamos à disposição.', bts:[{texto:'Avaliar ⭐⭐⭐⭐⭐',acao:'reply',valor:'Quero avaliar',id:1},{texto:'Tive um problema',acao:'reply',valor:'Preciso de ajuda',id:2}] },
-  nao_entregue:       { cab:'⚠️ Tentativa de entrega',    img:'', corpo:'Olá *{{nome_cliente}}*, houve uma tentativa de entrega do pedido *#{{numero_pedido}}* que não foi concluída.\n\n🚚 {{transportadora}}\n🔍 *{{codigo_rastreio}}*', rod:'Entre em contato com a transportadora.', bts:[{texto:'Rastrear',acao:'url',valor:'{{link_rastreio}}',id:1},{texto:'Preciso de ajuda',acao:'reply',valor:'Ajuda com entrega',id:2}] },
-  catalogo_produto:   {
-    cab:'🛍️ Olha o que temos pra você!',
-    img:'{{foto_produto}}',
-    corpo:'✨ *{{nome_produto}}*\n\n{{descricao_produto}}\n\n💳 Cartão: *{{preco_cartao}}*\n💰 PIX: *{{preco_pix}}*\n\nEscolha uma opção abaixo 👇',
-    rod:'Só Strass — Atendimento ao Cliente',
-    bts:[
-      {texto:'🛒 Adicionar ao Carrinho', acao:'reply', valor:'Adicionar ao Carrinho', id:1},
-      {texto:'📸 Ver Foto',             acao:'reply', valor:'Ver Foto',               id:2},
-      {texto:'💬 Tirar Dúvidas',        acao:'reply', valor:'Tirar Dúvidas',          id:3},
-    ]
-  },
-  avise_me:           { cab:'🔔 Produto disponível!',     img:'{{foto_produto}}', corpo:'Olá *{{nome_cliente}}*!\n\n✨ *{{nome_produto}}* voltou ao estoque!\n\n💳 Cartão: *{{preco_produto}}*\n💰 PIX: *{{preco_pix}}* (10% off)', rod:'Estoque limitado — garanta o seu!', bts:[{texto:'Comprar agora',acao:'url',valor:'{{link_produto}}',id:1}] },
-  boas_vindas:        { cab:'',                           img:'', corpo:'👋 Olá *{{nome_cliente}}*! Bem-vindo(a) à *{{nome_loja}}*!\n\nSou a Molise, sua assistente virtual. Estou aqui para ajudar com produtos, pedidos, rastreio e muito mais. 😊', rod:'', bts:[] },
-  avaliar_pedido:     { cab:'⭐ Como foi sua experiência?',img:'', corpo:'Olá *{{nome_cliente}}*, seu pedido *#{{numero_pedido}}* foi entregue!\n\nSua opinião nos ajuda a melhorar sempre 🙏',                                          rod:'Obrigado por comprar conosco!', bts:[{texto:'Adorei! ⭐⭐⭐⭐⭐',acao:'reply',valor:'Fiquei satisfeito',id:1},{texto:'Tive um problema',acao:'reply',valor:'Preciso de ajuda',id:2}] },
-  em_andamento:       { cab:'⚙️ Pedido em processamento!',img:'', corpo:'Olá *{{nome_cliente}}*!\n\nSeu pedido *#{{numero_pedido}}* está sendo processado pela nossa expedição.\n\nEstamos iniciando separação e faturamento. Em breve você receberá a nota fiscal! 📋', rod:'Mensagem automática.', bts:[] },
-  nfe_pendente:       { cab:'📋 Nota Fiscal em análise',  img:'', corpo:'Olá *{{nome_cliente}}*!\n\nA nota fiscal do pedido *#{{numero_pedido}}* foi gerada e está aguardando autorização da SEFAZ. 📄\n\nAssim que for autorizada, você receberá o link.', rod:'Processo automático — em breve.', bts:[] },
-  nfe_emitida:        { cab:'📄 Nota Fiscal emitida!',    img:'', corpo:'Olá *{{nome_cliente}}*!\n\nA nota fiscal do pedido *#{{numero_pedido}}* foi emitida e autorizada.\n\n📋 NF-e: *{{numero_nfe}}*',                               rod:'Guarde para seus registros.', bts:[{texto:'Ver NF-e',acao:'url',valor:'{{link_nfe}}',id:1}] },
-  devolucao:          { cab:'↩️ Pedido devolvido',         img:'', corpo:'Olá *{{nome_cliente}}*, infelizmente seu pedido *#{{numero_pedido}}* foi devolvido.\n\nEntre em contato conosco para resolvermos juntos.',                   rod:'Estamos à disposição.', bts:[{texto:'Falar com atendente',acao:'reply',valor:'Ajuda com devolução',id:1}] },
-  cancelamento:       { cab:'❌ Pedido cancelado',         img:'', corpo:'Olá *{{nome_cliente}}*, seu pedido *#{{numero_pedido}}* foi cancelado.\n\nSe tiver dúvidas ou quiser fazer um novo pedido, é só nos chamar.',               rod:'Obrigado pela compreensão.', bts:[{texto:'Falar conosco',acao:'reply',valor:'Dúvida sobre cancelamento',id:1}] },
-  em_separacao:       { cab:'📋 Pedido em separação!',    img:'', corpo:'Olá *{{nome_cliente}}*!\n\nSeu pedido *#{{numero_pedido}}* está sendo separado com cuidado. Em breve será embalado e enviado! 📦',                            rod:'Mensagem automática.', bts:[] },
-  produto_embalado:   { cab:'📦 Pedido embalado!',        img:'', corpo:'Olá *{{nome_cliente}}*!\n\nSeu pedido *#{{numero_pedido}}* foi embalado e está pronto para despacho. Em breve você receberá o rastreio! 🚚',                  rod:'Mensagem automática.', bts:[] },
-  saiu_entrega:       { cab:'🚚 Saiu para entrega!',      img:'', corpo:'Olá *{{nome_cliente}}*!\n\nSeu pedido *#{{numero_pedido}}* saiu para entrega hoje!\n\n🔍 Rastreio: *{{codigo_rastreio}}*',                                    rod:'Continuaremos monitorando.', bts:[{texto:'Rastrear',acao:'url',valor:'{{link_rastreio}}',id:1}] },
-  aguardando_retirada:{ cab:'📍 Pronto para retirada!',   img:'', corpo:'Olá *{{nome_cliente}}*, seu pedido *#{{numero_pedido}}* está pronto para retirada!\n\nCompareça com seu documento de identidade.',                          rod:'Aguardamos sua visita.', bts:[] },
-  lembrete_rastreio:  { cab:'📦 Atualização do pedido',   img:'', corpo:'Olá *{{nome_cliente}}*, atualização do pedido *#{{numero_pedido}}*:\n\n🔍 Rastreio: *{{codigo_rastreio}}*',                                                 rod:'Continuaremos monitorando.', bts:[{texto:'Rastrear agora',acao:'url',valor:'{{link_rastreio}}',id:1}] },
-
-  // ── Ocorrências ───────────────────────────────────────────────────────────
-  ocorrencia_abertura:    { cab:'✅ Chamado aberto — {{ticket_id}}',        img:'', corpo:'Olá *{{nome_cliente}}*!\n\nRecebemos sua solicitação e abrimos um chamado para acompanhamento.\n\n📋 *Protocolo:* {{ticket_id}}\n🏷️ *Assunto:* {{tipo_ocorrencia}}\n{{numero_pedido}}\n\n*Sua solicitação:*\n_{{descricao}}_\n\nNossa equipe irá analisar e retornará em breve. Guarde este protocolo.',                            rod:'Só Strass — Atendimento ao Cliente', bts:[] },
-  ocorrencia_em_analise:  { cab:'🔍 Em análise — {{ticket_id}}',            img:'', corpo:'Olá *{{nome_cliente}}*!\n\nSua ocorrência *{{ticket_id}}* está sendo analisada por nossa equipe.\n\n> _{{descricao}}_\n\nEstamos investigando o caso e entraremos em contato assim que tivermos uma atualização. Isso pode levar até 48h úteis.',                                                                                          rod:'Só Strass — Atendimento ao Cliente', bts:[] },
-  ocorrencia_atualizada:  { cab:'📋 Atualização — {{ticket_id}}',           img:'', corpo:'Olá *{{nome_cliente}}*!\n\n> *Sua solicitação:*\n> _{{descricao}}_\n\n*Nossa resposta:*\n{{resposta}}\n\n🏷️ Status: *{{status}}*\n📋 Protocolo: {{ticket_id}}',                                                                                                                                                                    rod:'Só Strass — Atendimento ao Cliente', bts:[] },
-  ocorrencia_resolvida:   { cab:'✅ Ocorrência resolvida — {{ticket_id}}',  img:'', corpo:'Olá *{{nome_cliente}}*!\n\nFicamos felizes em informar que sua ocorrência *{{ticket_id}}* foi resolvida com sucesso.\n\n{{numero_pedido}}\n\nQualquer dúvida ou novo problema, estamos à disposição. Obrigado pela compreensão!',                                                                                                        rod:'Só Strass — Atendimento ao Cliente', bts:[{texto:'Avaliar atendimento',acao:'reply',valor:'Quero avaliar o atendimento',id:1}] },
-  ocorrencia_troca:       { cab:'🔄 Troca / Devolução — {{ticket_id}}',    img:'', corpo:'Olá *{{nome_cliente}}*!\n\nSobre sua solicitação de troca/devolução *{{ticket_id}}*:\n\n📦 Pedido: *#{{numero_pedido}}*\n\nPara prosseguir, por favor nos envie:\n• Foto do produto com o problema\n• Embalagem original (se possível)\n\nAssim que recebermos, processaremos rapidamente.',                                          rod:'Só Strass — Atendimento ao Cliente', bts:[{texto:'Enviar fotos',acao:'reply',valor:'Vou enviar as fotos',id:1}] },
-  ocorrencia_extravio:    { cab:'⚠️ Pedido extraviado — {{ticket_id}}',    img:'', corpo:'Olá *{{nome_cliente}}*!\n\nSobre o pedido *#{{numero_pedido}}* extraviado pela *{{transportadora}}*:\n\nJá abrimos uma acareação junto à transportadora. O prazo para retorno é de 5 dias úteis.\n\nAssim que tivermos uma resposta, você será notificado imediatamente.',                                                              rod:'Só Strass — Atendimento ao Cliente', bts:[] },
-  ocorrencia_encerrada:   { cab:'🔒 Chamado encerrado — {{ticket_id}}',    img:'', corpo:'Olá *{{nome_cliente}}*!\n\nSeu chamado *{{ticket_id}}* foi encerrado.\n{{numero_pedido}}\n\nCaso o problema persista ou tenha uma nova dúvida, pode abrir um novo chamado a qualquer momento. Estamos sempre à disposição!',                                                                                                                          rod:'Só Strass — Atendimento ao Cliente', bts:[] },
-}
+const GRUPOS_ORDEM = ['Pedidos','Entrega','Faturamento','Pós-venda','Manual Bling','Rastreio','Catálogo','Estoque','Relacionamento','Inteligência']
 
 const TIPOS_BLOCO = [
-  { tipo:'cabecalho', label:'Cabeçalho', icon:Hash,        cor:'#00d4aa', desc:'Negrito no topo' },
-  { tipo:'texto',     label:'Texto',     icon:FileText,     cor:'#4a9fff', desc:'Corpo da mensagem' },
-  { tipo:'rodape',    label:'Rodapé',    icon:FileText,     cor:'#8696a0', desc:'Itálico no final' },
-  { tipo:'imagem',    label:'Imagem',    icon:Image,        cor:'#fb923c', desc:'Foto ou produto' },
-  { tipo:'video',     label:'Vídeo',     icon:Video,        cor:'#a78bfa', desc:'Link de vídeo' },
-  { tipo:'audio',     label:'Áudio',     icon:Mic,          cor:'#22c55e', desc:'Link de áudio' },
-  { tipo:'botao',     label:'Botão',     icon:MousePointer, cor:'#e879f9', desc:'Ação interativa' },
-  { tipo:'link',      label:'Link',      icon:LinkIcon,     cor:'#f59e0b', desc:'URL clicável' },
-  { tipo:'ligar',     label:'Ligar',     icon:Phone,        cor:'#f87171', desc:'Botão de chamada' },
-  { tipo:'quebra',    label:'+ Mensagem',icon:Plus,         cor:'#6b7280', desc:'Nova mensagem separada' },
+  { tipo:'cabecalho', label:'Cabeçalho', icon:Hash,          cor:'#00d4aa', desc:'Negrito no topo (apenas texto)' },
+  { tipo:'texto',     label:'Texto',     icon:FileText,       cor:'#4a9fff', desc:'Corpo da mensagem — obrigatório' },
+  { tipo:'rodape',    label:'Rodapé',    icon:FileText,       cor:'#8696a0', desc:'Texto cinza no final' },
+  { tipo:'imagem',    label:'Imagem',    icon:Image,          cor:'#fb923c', desc:'URL de imagem (JPG/PNG)' },
+  { tipo:'botao',     label:'Botão',     icon:MousePointer,   cor:'#e879f9', desc:'Botão interativo (máx. 3)' },
 ]
 
-const DELAY_OPCOES = [
-  { valor:0,  label:'Envio imediato' },
-  { valor:5,  label:'5 minutos' },
-  { valor:15, label:'15 minutos' },
-  { valor:30, label:'30 minutos' },
-  { valor:60, label:'1 hora' },
-  { valor:120,label:'2 horas' },
-  { valor:240,label:'4 horas' },
-]
-
-const AMOSTRAS = {
-  '{{nome_cliente}}':'Maria Silva','{{numero_pedido}}':'224307','{{valor_total}}':'R$ 47,52',
-  '{{forma_pagamento}}':'PIX','{{transportadora}}':'Jadlog','{{codigo_rastreio}}':'JD123456789BR',
-  '{{link_rastreio}}':'https://rastreamento.jadlog.com.br','{{prazo_entrega}}':'3 dias úteis',
-  '{{nome_produto}}':'Fio de Seda Rabo de Rato Preto','{{preco_produto}}':'R$ 11,62',
-  '{{preco_pix}}':'R$ 10,46','{{link_produto}}':'https://sostrass.com.br/produto',
-  '{{foto_produto}}':'https://cdn-sostrass-image.s3.sa-east-1.amazonaws.com/perola-furo-passante-creme.jpg',
-  '{{nome_loja}}':'Só Strass','{{link_pedido}}':'https://sostrass.com.br/pedido/224307',
-  '{{numero_nfe}}':'123456','{{link_nfe}}':'https://sostrass.com.br/nfe/123456',
+// Templates padrão por gatilho
+const PADROES = {
+  pedido_criado:      { cab:'🛒 Pedido Confirmado!', corpo:'Olá *{{nome_cliente}}*!\n\nSeu pedido *#{{numero_pedido}}* foi criado com sucesso.\n\n💳 Total: *{{valor_total}}*\n💰 Pagamento: {{forma_pagamento}}', rod:'Mensagem automática — dúvidas, responda aqui.', bts:[{texto:'Ver pedido',acao:'url',valor:'{{link_pedido}}'}] },
+  pagamento_aprovado: { cab:'✅ Pagamento Aprovado!', corpo:'Olá *{{nome_cliente}}*!\n\nO pagamento do pedido *#{{numero_pedido}}* foi confirmado. 🎉\n\nJá estamos preparando com carinho!', rod:'Mensagem automática.', bts:[] },
+  pagamento_pendente: { cab:'⏳ Pagamento Pendente', corpo:'Olá *{{nome_cliente}}*, seu pedido *#{{numero_pedido}}* aguarda pagamento.\n\nTotal: *{{valor_total}}*', rod:'O link expira em 24 horas.', bts:[{texto:'Pagar agora',acao:'url',valor:'{{link_pedido}}'},{texto:'Preciso de ajuda',acao:'reply',valor:'Ajuda com pagamento'}] },
+  pedido_enviado:     { cab:'🚚 Seu pedido foi enviado!', corpo:'Olá *{{nome_cliente}}*! O pedido *#{{numero_pedido}}* saiu para entrega.\n\n📦 Transportadora: {{transportadora}}\n🔍 Rastreio: *{{codigo_rastreio}}*\n📅 Prazo: *{{prazo_entrega}}*', rod:'Continuaremos monitorando!', bts:[{texto:'Rastrear pedido',acao:'url',valor:'{{link_rastreio}}'}] },
+  pedido_entregue:    { cab:'📦 Pedido entregue!', corpo:'Olá *{{nome_cliente}}*, seu pedido *#{{numero_pedido}}* foi entregue! 😊\n\nEsperamos que você goste muito!', rod:'Qualquer problema estamos aqui.', bts:[{texto:'Avaliar ⭐⭐⭐⭐⭐',acao:'reply',valor:'Quero avaliar'},{texto:'Tive um problema',acao:'reply',valor:'Preciso de ajuda'}] },
+  nfe_emitida:        { cab:'📄 Nota Fiscal Emitida', corpo:'Olá *{{nome_cliente}}*!\n\nA nota fiscal do pedido *#{{numero_pedido}}* foi emitida.\n\n📎 NF-e nº {{numero_nfe}}', rod:'Mensagem automática.', bts:[{texto:'Download NF-e',acao:'url',valor:'{{link_nfe}}'}] },
+  cancelamento:       { cab:'❌ Pedido Cancelado', corpo:'Olá *{{nome_cliente}}*, o pedido *#{{numero_pedido}}* foi cancelado.\n\nQualquer dúvida estamos aqui!', rod:'Só Strass.', bts:[] },
+  reengajamento:      { cab:'', corpo:'Olá *{{nome_cliente}}*! 🥰\n\nSentimos sua falta! Faz {{dias_inativo}} dias desde sua última compra.\n\nTemos novidades que você vai adorar!', rod:'', bts:[] },
+  pos_entrega:        { cab:'', corpo:'Olá *{{nome_cliente}}*! Como foi sua experiência com o pedido *#{{numero_pedido}}*?\n\nSua opinião é muito importante para nós! ⭐', rod:'', bts:[] },
 }
-const rv = t=>(t||'').replace(/\{\{([^}]+)\}\}/g,(_,k)=>AMOSTRAS[`{{${k}}}`]||`{{${k}}}`)
 
-// ── Preview WhatsApp ───────────────────────────────────────────────────────────
-function PreviewBolha({ blocos }) {
-  const hora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
-  const msgs = [[]]
-  for (const b of blocos) {
-    if (b.tipo==='quebra') msgs.push([])
-    else msgs[msgs.length-1].push(b)
-  }
-  return (
-    <div className="space-y-2">
-      {msgs.filter(m=>m.length>0).map((msg,mi)=>{
-        const cab=msg.find(b=>b.tipo==='cabecalho'), img=msg.find(b=>b.tipo==='imagem')
-        const txts=msg.filter(b=>b.tipo==='texto'), rod=msg.find(b=>b.tipo==='rodape')
-        const bts=msg.filter(b=>['botao','ligar','link'].includes(b.tipo))
-        if(!cab&&!img&&!txts.length&&!rod) return null
-        return (
-          <div key={mi}>
-            {mi>0&&<div className="flex items-center gap-1 my-1"><div className="flex-1 border-t" style={{borderColor:'#2a3942'}}/><span style={{fontSize:8,color:'#8696a0'}}>msg separada</span><div className="flex-1 border-t" style={{borderColor:'#2a3942'}}/></div>}
-            <div className="rounded-[12px] rounded-tl-[2px] overflow-hidden max-w-[260px]" style={{background:'#202c33'}}>
-              {img?.url&&<div style={{background:'#1a2733'}}><img src={rv(img.url)} alt="" style={{width:'100%',maxHeight:120,objectFit:'cover'}} onError={e=>e.target.style.display='none'}/></div>}
-              {cab?.conteudo&&<div className="px-3 pt-2.5 pb-0.5"><p style={{fontSize:13,fontWeight:700,color:'#e9edef'}}>{rv(cab.conteudo)}</p></div>}
-              {txts.map((b,i)=>(
-                <div key={i} className="px-3 py-2">
-                  <p style={{fontSize:12,color:'#e9edef',lineHeight:1.6,whiteSpace:'pre-wrap'}}
-                    dangerouslySetInnerHTML={{__html:rv(b.conteudo||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br/>').replace(/\*([^*\n]+)\*/g,'<strong>$1</strong>').replace(/_([^_\n]+)_/g,'<em>$1</em>')}}/>
-                </div>
-              ))}
-              {rod?.conteudo&&<div className="px-3 pb-2"><p style={{fontSize:10,color:'#8696a0',fontStyle:'italic'}}>{rv(rod.conteudo)}</p></div>}
-              <div className="px-3 pb-1.5 flex justify-end"><span style={{fontSize:9,color:'#8696a0'}}>{hora} ✓✓</span></div>
-              {bts.length>0&&<div style={{borderTop:'1px solid #2a3942'}}>{bts.map((b,i)=>(
-                <div key={i} className="flex items-center justify-center gap-1.5 py-2" style={{borderTop:i>0?'1px solid #2a3942':'none',color:'#00a884',cursor:'pointer'}}>
-                  {b.tipo==='ligar'?<Phone size={10}/>:b.tipo==='link'?<LinkIcon size={10}/>:<MousePointer size={10}/>}
-                  <span style={{fontSize:12,fontWeight:500}}>{rv(b.texto||b.url||'Botão')}</span>
-                </div>
-              ))}</div>}
-            </div>
-          </div>
-        )
-      })}
-    </div>
+
+// ── Variáveis de exemplo para preview ────────────────────────────────────────
+const EXEMPLOS = {
+  '{{nome_cliente}}':        'Maria Silva',
+  '{{numero_pedido}}':       '229461',
+  '{{valor_total}}':         'R$ 543,84',
+  '{{forma_pagamento}}':     'PIX',
+  '{{link_pedido}}':         'https://sostrass.com.br/pedido/229461',
+  '{{transportadora}}':      'Correios',
+  '{{codigo_rastreio}}':     'BR269810533700S',
+  '{{link_rastreio}}':       'https://rastreamento.correios.com.br/?objetos=BR269810533700S',
+  '{{prazo_entrega}}':       '25/05/2026',
+  '{{numero_nfe}}':          '001234',
+  '{{link_nfe}}':            'https://nfe.io/danfe/001234',
+  '{{nome_produto}}':        'Strass Base Cônica SS20 Cristal',
+  '{{preco_produto}}':       'R$ 89,90',
+  '{{preco_cartao}}':        'R$ 89,90',
+  '{{preco_pix}}':           'R$ 85,41',
+  '{{foto_produto}}':        'https://img.sostrass.com.br/ss20-cristal.jpg',
+  '{{descricao_produto}}':   '4.320 pedras de strass cristal SS20',
+  '{{link_produto}}':        'https://sostrass.com.br/produto/ss20-cristal',
+  '{{nome_loja}}':           'Só Strass',
+  '{{dias_inativo}}':        '35',
+  '{{ultimo_produto}}':      'Strass SS20 Cristal',
+  '{{ciclo_dias}}':          '30',
+  '{{status_rastreio}}':     'Objeto saiu para entrega',
+  '{{descricao_complementar}}': 'Ideal para decoração e bijuterias',
+  '{{codigo_produto}}':      'SS20-CR-4320',
+}
+
+function aplicarExemplos(texto) {
+  return Object.entries(EXEMPLOS).reduce(
+    (t, [k, v]) => t.replaceAll(k, v), texto || ''
   )
 }
 
-function PreviewWA({ blocos=[], label='' }) {
-  const hora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
-  const vazio = !blocos.filter(b=>b.tipo!=='quebra').length
-  return (
-    <div style={{maxWidth:280,margin:'0 auto',userSelect:'none'}}>
-      <div className="rounded-[20px] overflow-hidden" style={{background:'#111b21',border:'6px solid #1a252f',boxShadow:'0 20px 50px rgba(0,0,0,0.5)'}}>
-        <div style={{background:'#1a252f',padding:'4px 12px'}}><div className="flex justify-between"><span style={{fontSize:9,color:'#8696a0'}}>{hora}</span><span style={{fontSize:9,color:'#8696a0'}}>●●●</span></div></div>
-        <div className="flex items-center gap-2 px-3 py-2" style={{background:'#202c33'}}>
-          <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-white" style={{background:'#00a884',fontSize:11}}>S</div>
-          <div><p style={{fontSize:12,fontWeight:700,color:'white',lineHeight:1.2}}>Só Strass</p><p style={{fontSize:9,color:'#8696a0'}}>mensagem automática</p></div>
-        </div>
-        <div className="p-3" style={{background:'#0b141a',minHeight:80}}>
-          {vazio?(
-            <div className="flex flex-col items-center py-4" style={{opacity:.3}}>
-              <MessageSquare size={20} style={{color:'#8696a0'}}/><p style={{fontSize:10,color:'#8696a0',marginTop:4}}>Configure os blocos</p>
-            </div>
-          ):<PreviewBolha blocos={blocos}/>}
-        </div>
-      </div>
-      {!vazio&&<p style={{fontSize:9,color:'var(--label-4)',textAlign:'center',marginTop:6}}>Preview com dados de exemplo</p>}
-    </div>
-  )
-}
+// ── Preview WhatsApp ──────────────────────────────────────────────────────────
+function PreviewWA({ blocos, tipo }) {
+  const cab    = blocos.find(b => b.tipo === 'cabecalho')
+  const img    = blocos.find(b => b.tipo === 'imagem')
+  const textos = blocos.filter(b => b.tipo === 'texto')
+  const rod    = blocos.find(b => b.tipo === 'rodape')
+  const botoes = blocos.filter(b => b.tipo === 'botao').slice(0, 3)
+  const corpo  = textos.map(b => b.conteudo || '').join('\n\n')
+  const isIA   = tipo === 'ia'
 
-// ── Bloco individual ──────────────────────────────────────────────────────────
-function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate }) {
-  const [aberto,setAberto]=useState(true)
-  const def=TIPOS_BLOCO.find(t=>t.tipo===b.tipo)||TIPOS_BLOCO[0], Ic=def.icon
-  const inserirVar=(v,fId)=>{
-    const el=document.getElementById(fId)
-    if(!el){onChange({...b,conteudo:(b.conteudo||'')+v});return}
-    const s=el.selectionStart,e=el.selectionEnd
-    const campo=el.tagName==='TEXTAREA'?'conteudo':'url'
-    const novo=(b[campo]||'').slice(0,s)+v+(b[campo]||'').slice(e)
-    onChange({...b,[campo]:novo})
-    setTimeout(()=>{el.focus();el.setSelectionRange(s+v.length,s+v.length)},0)
+  const renderTexto = (txt) => {
+    if (!txt) return null
+    const preview = aplicarExemplos(txt)
+    return preview.split('\n').map((line, i) => {
+      const formatted = line
+        .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+        .replace(/_(.*?)_/g, '<em>$1</em>')
+      return <div key={i} dangerouslySetInnerHTML={{__html: formatted || '&nbsp;'}}/>
+    })
   }
-  const sty={background:'var(--bg)',border:'1px solid var(--sep)',borderRadius:9,color:'var(--label)',outline:'none',padding:'9px 12px',fontSize:13,width:'100%',fontFamily:'inherit',lineHeight:1.6}
-  if(b.tipo==='quebra') return (
-    <div className="flex items-center gap-2 py-1.5">
-      <div className="flex-1 border-t border-dashed" style={{borderColor:'var(--sep)'}}/>
-      <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold" style={{background:'var(--bg-3)',color:'var(--label-3)',border:'1px solid var(--sep)'}}><Plus size={8}/> Nova mensagem separada</div>
-      <div className="flex-1 border-t border-dashed" style={{borderColor:'var(--sep)'}}/>
-      <button onClick={onDelete} style={{color:'var(--label-4)'}}><X size={11}/></button>
-    </div>
-  )
-  return (
-    <div className="rounded-[12px] overflow-hidden transition-all" style={{border:`1px solid ${aberto?def.cor+'30':'var(--sep)'}`,background:'var(--bg-2)'}}>
-      <div className="flex items-center gap-2 px-3 py-2" style={{background:'var(--bg-3)',borderBottom:aberto?'1px solid var(--sep)':'none'}}>
-        <GripVertical size={12} style={{color:'var(--label-4)',cursor:'grab'}}/>
-        <div className="w-4 h-4 rounded-[4px] flex items-center justify-center" style={{background:`${def.cor}20`}}><Ic size={10} style={{color:def.cor}}/></div>
-        <span className="text-[11px] font-semibold flex-1 truncate" style={{color:'var(--label-2)'}}>
-          {def.label}{b.tipo==='texto'&&b.conteudo?<span className="font-normal ml-1" style={{color:'var(--label-4)'}}> — {b.conteudo.slice(0,30).replace(/\n/g,' ')}{b.conteudo.length>30?'…':''}</span>:null}
-        </span>
-        <div className="flex items-center gap-0.5">
-          <button onClick={()=>onMove(idx,-1)} disabled={idx===0} className="p-0.5 rounded disabled:opacity-20" style={{color:'var(--label-4)'}}><ChevronUp size={10}/></button>
-          <button onClick={()=>onMove(idx,1)} disabled={idx===total-1} className="p-0.5 rounded disabled:opacity-20" style={{color:'var(--label-4)'}}><ChevronDown size={10}/></button>
-          <button onClick={onDuplicate} className="p-0.5 rounded" style={{color:'var(--label-4)'}}><Copy size={10}/></button>
-          <button onClick={()=>setAberto(v=>!v)} className="p-0.5 rounded" style={{color:'var(--label-4)'}}>{aberto?<ChevronUp size={10}/>:<ChevronDown size={10}/>}</button>
-          <button onClick={onDelete} className="p-0.5 rounded" style={{color:'var(--label-4)'}}><X size={10}/></button>
-        </div>
-      </div>
-      {aberto&&(
-        <div className="p-3 space-y-2">
-          {b.tipo==='cabecalho'&&<><input value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Emoji + título" style={sty}/><VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/></>}
-          {b.tipo==='texto'&&<><textarea id={`bloco-${b.id}`} value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Texto... Use *negrito*" rows={4} style={{...sty,resize:'none'}}/><VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/></>}
-          {b.tipo==='rodape'&&<input value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Ex: Mensagem automática — não responda." style={sty}/>}
-          {b.tipo==='imagem'&&<><input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})} placeholder="URL ou {{foto_produto}}" style={{...sty,fontFamily:'monospace',fontSize:12}}/><VarPills vars={['{{foto_produto}}',...vars.filter(v=>v.includes('foto'))]} onInsert={v=>onChange({...b,url:(b.url||'')+v})}/><input value={b.legenda||''} onChange={e=>onChange({...b,legenda:e.target.value})} placeholder="Legenda (opcional)" style={{...sty,fontSize:12}}/></>}
-          {b.tipo==='video'&&<input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})} placeholder="URL do vídeo" style={{...sty,fontFamily:'monospace',fontSize:12}}/>}
-          {b.tipo==='audio'&&<input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})} placeholder="URL do áudio" style={{...sty,fontFamily:'monospace',fontSize:12}}/>}
-          {b.tipo==='botao'&&<>
-            <input value={b.texto||''} onChange={e=>onChange({...b,texto:e.target.value})} placeholder="Texto do botão (máx. 20)" maxLength={20} style={sty}/>
-            <div className="grid grid-cols-3 gap-1.5">
-              {[['url','🔗 Link'],['reply','💬 Resposta'],['tel','📞 Ligar']].map(([v,l])=>(
-                <button key={v} onClick={()=>onChange({...b,acao:v})} className="py-1.5 rounded-[7px] text-[10px] font-medium" style={{background:b.acao===v?'var(--accent-dim)':'var(--bg)',color:b.acao===v?'var(--accent)':'var(--label-3)',border:b.acao===v?'1px solid var(--accent-border)':'1px solid var(--sep)'}}>{l}</button>
-              ))}
-            </div>
-            {(b.acao==='url'||b.acao==='tel')&&<><input value={b.valor||''} onChange={e=>onChange({...b,valor:e.target.value})} placeholder={b.acao==='tel'?'Número':'URL'} style={{...sty,fontFamily:'monospace',fontSize:11}}/><VarPills vars={vars.filter(v=>v.includes('link'))} onInsert={v=>onChange({...b,valor:(b.valor||'')+v})}/></>}
-          </>}
-          {b.tipo==='link'&&<><input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})} placeholder="URL" style={{...sty,fontFamily:'monospace',fontSize:12}}/><VarPills vars={vars.filter(v=>v.includes('link'))} onInsert={v=>onChange({...b,url:(b.url||'')+v})}/></>}
-          {b.tipo==='ligar'&&<><input value={b.texto||''} onChange={e=>onChange({...b,texto:e.target.value})} placeholder="Texto do botão" maxLength={20} style={sty}/><input value={b.valor||''} onChange={e=>onChange({...b,valor:e.target.value})} placeholder="Número telefone" style={{...sty,fontFamily:'monospace',fontSize:12}}/></>}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function VarPills({vars,onInsert}){
-  if(!vars?.length)return null
-  return <div className="flex flex-wrap gap-1">{vars.map(v=><button key={v} onClick={()=>onInsert(v)} style={{padding:'2px 6px',borderRadius:4,fontSize:9,fontFamily:'monospace',background:'var(--accent-dim)',color:'var(--accent)',border:'1px solid var(--accent-border)',cursor:'pointer'}}>{v}</button>)}</div>
-}
-
-// ── Página principal ───────────────────────────────────────────────────────────
-export default function PageGatilhos({ api: apiProp }) {
-  const api = apiProp || BASE
-  const [configs,   setConfigs]   = useState({})
-  const [gatilhos,  setGatilhos]  = useState(GATILHOS_ESTATICOS)
-  const [selId,     setSelId]     = useState('pedido_criado')
-  const [blocos,    setBlocos]    = useState([])
-  const [dirty,     setDirty]     = useState(false)
-  const [salvando,  setSalvando]  = useState(false)
-  const [salvoOk,   setSalvoOk]   = useState(false)
-  const [gerando,   setGerando]   = useState(false)
-  const [erroIA,    setErroIA]    = useState('')
-  const [telTeste,  setTelTeste]  = useState('')
-  const [enviandoT, setEnviandoT] = useState(false)
-  const [resTeste,  setResTeste]  = useState(null)
-  const [delays,    setDelays]    = useState({})
-  const [modalGat,  setModalGat]  = useState(null)
-  const [abaDir,     setAbaDir]    = useState('preview')
-  const [submetendo, setSubmetendo]= useState(false)
-  const [metaStatus, setMetaStatus]= useState('')
-
-  const carregar = useCallback(async()=>{
-    try {
-      const r = await fetch(`${api}/api/templates`)
-      if(!r.ok) return
-      const d = await r.json()
-      const map = {}
-      for(const t of d.templates||[]) { if(t.gatilho) map[t.gatilho]={id:t.id,ativo:t.ativo,blocos:t.blocos||[]} }
-      setConfigs(map)
-      // Carrega delays
-      try {
-        const rd = await fetch(`${api}/api/ia/config`)
-        if(rd.ok){const dd=await rd.json();const dm={};for(const[k,v] of Object.entries(dd.config||{})){if(k.startsWith('delay_'))dm[k.replace('delay_','')]=parseInt(v)||0};setDelays(dm)}
-      } catch {}
-    } catch {}
-  },[api])
-
-  useEffect(()=>{carregar()},[carregar])
-
-  useEffect(()=>{
-    const c=configs[selId]
-    if(c?.blocos?.length){setBlocos(c.blocos.map((b,i)=>({...b,id:b.id||Date.now()+i})))}
-    else{
-      const p=PADROES[selId]
-      if(p){const bs=[];if(p.cab)bs.push({tipo:'cabecalho',conteudo:p.cab,id:1});if(p.img)bs.push({tipo:'imagem',url:p.img,legenda:'',id:2});if(p.corpo)bs.push({tipo:'texto',conteudo:p.corpo,id:3});if(p.rod)bs.push({tipo:'rodape',conteudo:p.rod,id:4});p.bts?.forEach((b,i)=>bs.push({tipo:'botao',...b,id:10+i}));setBlocos(bs)}
-      else setBlocos([{tipo:'texto',conteudo:'',id:Date.now()}])
-    }
-    setDirty(false);setErroIA('')
-    // Carrega status Meta se existir
-    const cfgMeta=configs[selId]
-    if(cfgMeta?.id){
-      fetch(`${api}/api/meta-templates/status/${cfgMeta.id}`)
-        .then(r=>r.json())
-        .then(d=>setMetaStatus(d.status||''))
-        .catch(()=>{})
-    } else setMetaStatus('')
-  },[selId,configs])
-
-  const addBloco=tipo=>{setBlocos(p=>[...p,{tipo,conteudo:'',url:'',texto:'',acao:'reply',valor:'',legenda:'',id:Date.now()}]);setDirty(true)}
-  const delBloco=i=>{setBlocos(p=>p.filter((_,j)=>j!==i));setDirty(true)}
-  const updBloco=(i,b)=>{setBlocos(p=>p.map((x,j)=>j===i?b:x));setDirty(true)}
-  const moveBloco=(i,d)=>{const t=i+d;if(t<0||t>=blocos.length)return;const a=[...blocos];[a[i],a[t]]=[a[t],a[i]];setBlocos(a);setDirty(true)}
-  const dupBloco=i=>{const cl={...blocos[i],id:Date.now()};const a=[...blocos];a.splice(i+1,0,cl);setBlocos(a);setDirty(true)}
-
-  const toggleAtivo=async gId=>{
-    const c=configs[gId];if(!c)return
-    const novo=!c.ativo
-    setConfigs(p=>({...p,[gId]:{...c,ativo:novo}}))
-    await fetch(`${api}/api/templates/${c.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({ativo:novo})}).catch(()=>{})
-  }
-
-  const salvarDelay=async(gId,min)=>{
-    setDelays(p=>({...p,[gId]:min}))
-    await fetch(`${api}/api/ia/config`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chave:`delay_${gId}`,valor:String(min)})}).catch(()=>{})
-  }
-
-  const salvar=async()=>{
-    if(!selId||!dirty)return;setSalvando(true)
-    try {
-      const c=configs[selId],g=gatilhos.find(x=>x.id===selId)
-      await fetch(c?`${api}/api/templates/${c.id}`:`${api}/api/templates`,{
-        method:c?'PATCH':'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({gatilho:selId,nome:g?.label||selId,blocos,ativo:c?.ativo??true})
-      })
-      setSalvoOk(true);setDirty(false);await carregar()
-      setTimeout(()=>setSalvoOk(false),2500)
-    } catch {}
-    setSalvando(false)
-  }
-
-  const submeterMeta=async(templateId)=>{
-    setSubmetendo(true)
-    try {
-      const r=await fetch(`${api}/api/meta-templates/submeter/${templateId}`,{method:'POST'})
-      const d=await r.json()
-      if(d.ok){setMetaStatus(d.status);alert(`✅ ${d.mensagem}`)}
-      else alert(`❌ Erro: ${d.erro}${d.dica?'\n\nDica: '+d.dica:''}`)
-    } catch(e){alert('Erro ao conectar com o servidor')}
-    setSubmetendo(false)
-  }
-
-  const gerarIA=async()=>{
-    const g=gatilhos.find(x=>x.id===selId);if(!g)return
-    setGerando(true);setErroIA('')
-    try {
-      const r=await fetch(`${api}/api/templates/gerar`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome:g.label,gatilho:g.id,descricao:g.desc})})
-      const txt=await r.text()
-      if(!r.ok)throw new Error(`HTTP ${r.status}`)
-      const d=JSON.parse(txt)
-      if(d.blocos){setBlocos(d.blocos.map((b,i)=>({...b,id:Date.now()+i})));setDirty(true)}
-      else if(d.erro)throw new Error(d.erro)
-    } catch(e){setErroIA(e.message||'Erro desconhecido')}
-    setGerando(false)
-  }
-
-  const testar=async()=>{
-    if(!telTeste.trim())return;setEnviandoT(true);setResTeste(null)
-    try {
-      const corpo=blocos.find(b=>b.tipo==='texto')?.conteudo||''
-      const cab=blocos.find(b=>b.tipo==='cabecalho')?.conteudo||''
-      const rod=blocos.find(b=>b.tipo==='rodape')?.conteudo||''
-      let msg='';if(cab)msg+=`*${rv(cab)}*\n\n`;msg+=rv(corpo);if(rod)msg+=`\n\n_${rv(rod)}_`
-      const r=await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone:telTeste.replace(/\D/g,''),mensagem:msg})})
-      setResTeste(r.ok?'ok':'erro')
-    } catch{setResTeste('erro')}
-    setEnviandoT(false);setTimeout(()=>setResTeste(null),4000)
-  }
-
-  const gatilho = gatilhos.find(g=>g.id===selId)
-  const config  = configs[selId]
-  const isPersonalizado = gatilho?.grupo === 'Personalizado'
 
   return (
-    <div className="h-full flex overflow-hidden" style={{background:'var(--bg)'}}>
+    <div style={{fontFamily:'-apple-system,system-ui,sans-serif'}}>
+      {/* Bolha da mensagem */}
+      <div style={{background:'#fff',borderRadius:'0 12px 12px 12px',boxShadow:'0 1px 3px rgba(0,0,0,.15)',overflow:'hidden',maxWidth:320,margin:'0 auto'}}>
 
-      {/* ── Sidebar ─────────────────────────────────────────────── */}
-      <div className="w-[230px] flex-shrink-0 flex flex-col overflow-hidden"
-        style={{background:'var(--bg-2)',borderRight:'1px solid var(--sep)'}}>
-        {/* Header sidebar */}
-        <div className="px-4 pt-4 pb-3 flex-shrink-0" style={{borderBottom:'1px solid var(--sep)'}}>
-          <div className="flex items-center justify-between mb-0.5">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-[7px] flex items-center justify-center" style={{background:'var(--accent-dim)'}}>
-                <Zap size={12} style={{color:'var(--accent)'}}/>
-              </div>
-              <span className="text-[15px] font-bold" style={{color:'var(--label)'}}>Gatilhos</span>
-            </div>
-            <button onClick={()=>setModalGat({mode:'novo'})}
-              className="w-6 h-6 rounded-[7px] flex items-center justify-center"
-              style={{background:'var(--accent)',color:'#000'}} title="Novo gatilho personalizado">
-              <Plus size={11}/>
-            </button>
-          </div>
-          <p className="text-[10px]" style={{color:'var(--label-4)'}}>
-            {Object.values(configs).filter(c=>c.ativo).length} ativos · {gatilhos.length} disponíveis
-          </p>
-        </div>
-
-        {/* Lista */}
-        <div className="flex-1 overflow-y-auto py-1">
-          {GRUPOS.map(grupo=>(
-            <div key={grupo}>
-              <p className="px-4 pt-3 pb-1 text-[9px] font-bold uppercase tracking-widest" style={{color:'var(--label-4)'}}>{grupo}</p>
-              {gatilhos.filter(g=>g.grupo===grupo).map(g=>{
-                const c=configs[g.id], sel=selId===g.id, Ic=g.icon
-                return (
-                  <div key={g.id} className="flex items-center pl-2 pr-1 transition-all"
-                    style={{background:sel?`${g.cor}10`:'transparent',borderRight:sel?`2.5px solid ${g.cor}`:'2.5px solid transparent'}}>
-                    <button onClick={()=>setSelId(g.id)} className="flex-1 flex items-center gap-2 px-2 py-2 text-left min-w-0">
-                      <div className="w-7 h-7 rounded-[8px] flex items-center justify-center flex-shrink-0"
-                        style={{background:sel?g.corBg:'var(--fill)',border:`1px solid ${sel?g.cor+'60':'var(--sep)'}`}}>
-                        <Ic size={13} style={{color:sel?g.cor:'var(--label-3)'}}/>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-semibold truncate" style={{color:sel?g.cor:'var(--label)'}}>{g.label}</p>
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <div className={`w-1.5 h-1.5 rounded-full${c?.ativo?' animate-pulse':''}`}
-                            style={{background:c?(c.ativo?'#22c55e':'var(--label-4)'):'var(--sep)'}}/>
-                          <span className="text-[9px]" style={{color:'var(--label-4)'}}>
-                            {c?(c.ativo?'Ativo':'Inativo'):'Não configurado'}
-                          </span>
-                        </div>
-                      </div>
-                    </button>
-                    {/* Toggle inline */}
-                    {c&&(
-                      <button onClick={()=>toggleAtivo(g.id)}
-                        className="p-1 rounded-[6px] flex-shrink-0"
-                        style={{color:c.ativo?'#22c55e':'var(--label-4)',background:c.ativo?'rgba(34,197,94,0.08)':'transparent'}}>
-                        {c.ativo?<ToggleRight size={16} strokeWidth={2}/>:<ToggleLeft size={16} strokeWidth={1.5}/>}
-                      </button>
-                    )}
-                    {isPersonalizado&&g.grupo==='Personalizado'&&(
-                      <button onClick={e=>{e.stopPropagation();setModalGat({mode:'editar',gatilho:g})}}
-                        className="p-1 rounded-[6px] flex-shrink-0" style={{color:'var(--label-4)'}}>
-                        <Edit3 size={10}/>
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Área principal ───────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-
-        {/* ── Header premium ───────────────────────────────────── */}
-        {gatilho&&(
-          <div className="flex-shrink-0" style={{borderBottom:'1px solid var(--sep)'}}>
-            {/* Linha superior: identidade + ações */}
-            <div className="flex items-center gap-4 px-5 py-3"
-              style={{background:'var(--bg-2)'}}>
-              <div className="w-10 h-10 rounded-[12px] flex items-center justify-center flex-shrink-0"
-                style={{background:gatilho.corBg,border:`1.5px solid ${gatilho.cor}40`}}>
-                <gatilho.icon size={18} style={{color:gatilho.cor}}/>
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-[15px] font-bold leading-tight" style={{color:'var(--label)'}}>{gatilho.label}</h3>
-                <p className="text-[11px] truncate" style={{color:'var(--label-3)'}}>{gatilho.desc}</p>
-              </div>
-
-              {/* Ações principais */}
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {/* TOGGLE ATIVO/INATIVO — destaque */}
-                <button onClick={()=>config&&toggleAtivo(selId)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-[10px] text-[12px] font-semibold transition-all"
-                  style={{
-                    background: config?.ativo ? 'rgba(34,197,94,0.12)' : config ? 'var(--fill)' : 'var(--fill)',
-                    color:      config?.ativo ? '#22c55e'               : 'var(--label-3)',
-                    border:     config?.ativo ? '1px solid rgba(34,197,94,0.35)' : '1px solid var(--sep)',
-                    opacity:    config ? 1 : 0.4,
-                  }}>
-                  {config?.ativo
-                    ? <><ToggleRight size={16} strokeWidth={2}/> Ativo</>
-                    : <><ToggleLeft size={16} strokeWidth={1.5}/> {config ? 'Inativo' : 'Não salvo'}</>
-                  }
-                </button>
-
-                {/* Salvar */}
-                <button onClick={salvar} disabled={salvando||!dirty}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] text-[12px] font-semibold transition-all"
-                  style={{background:salvoOk?'#22c55e':dirty?'var(--accent)':'var(--fill)',color:dirty?'#000':'var(--label-4)',opacity:dirty?1:0.45}}>
-                  {salvando?<RefreshCw size={12} className="animate-spin"/>:salvoOk?<CheckCircle size={12}/>:<Save size={12}/>}
-                  {salvoOk?'Salvo!':'Salvar'}
-                </button>
-                {/* Enviar para Meta */}
-                {config&&!dirty&&(
-                  <button onClick={()=>submeterMeta(config.id)}
-                    disabled={submetendo}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[11px] font-semibold transition-all"
-                    title="Submeter template para aprovação da Meta WhatsApp Business"
-                    style={{
-                      background: metaStatus==='APPROVED'?'rgba(34,197,94,0.1)':metaStatus==='PENDING'?'rgba(245,158,11,0.1)':'var(--bg-3)',
-                      color:      metaStatus==='APPROVED'?'#22c55e':metaStatus==='PENDING'?'#f59e0b':'var(--label-3)',
-                      border:     metaStatus==='APPROVED'?'1px solid rgba(34,197,94,0.3)':metaStatus==='PENDING'?'1px solid rgba(245,158,11,0.3)':'1px solid var(--sep)',
-                    }}>
-                    {submetendo?<RefreshCw size={11} className="animate-spin"/>:
-                     metaStatus==='APPROVED'?<CheckCircle size={11}/>:
-                     metaStatus==='PENDING'?<Clock size={11}/>:
-                     <SendIcon size={11}/>}
-                    {submetendo?'Enviando...':
-                     metaStatus==='APPROVED'?'Meta ✓':
-                     metaStatus==='PENDING'?'Aguardando':'Enviar p/ Meta'}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Linha info: como é ativado + chip de ativação */}
-            <div className="flex items-center gap-3 px-5 py-2"
-              style={{background:'var(--bg-3)',borderTop:'1px solid var(--sep)'}}>
-              <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full" style={{background:gatilho.cor}}/>
-                <span className="text-[10px] font-semibold" style={{color:'var(--label-3)'}}>Ativação:</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold"
-                  style={{background:`${gatilho.cor}18`,color:gatilho.cor,border:`1px solid ${gatilho.cor}30`}}>
-                  {gatilho.situacao?.startsWith('#') ? `Obs. Internas: ${gatilho.situacao}` : `Bling situacao.${gatilho.situacao}`}
-                </span>
-              </div>
-              {delays[selId]>0&&(
-                <div className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full"
-                  style={{background:'rgba(245,158,11,0.1)',color:'#f59e0b',border:'1px solid rgba(245,158,11,0.2)'}}>
-                  <Timer size={9}/> {DELAY_OPCOES.find(d=>d.valor===delays[selId])?.label}
-                </div>
-              )}
-              {/* Abas do painel direito */}
-              <div className="ml-auto flex gap-0.5">
-                {[['preview','👁 Preview'],['config','⚙️ Config'],['ajuda','📖 Ajuda']].map(([id,lb])=>(
-                  <button key={id} onClick={()=>setAbaDir(id)}
-                    className="px-3 py-1 rounded-[7px] text-[10px] font-medium transition-all"
-                    style={{background:abaDir===id?'var(--bg)':'transparent',color:abaDir===id?'var(--label)':'var(--label-4)',boxShadow:abaDir===id?'0 1px 3px rgba(0,0,0,0.1)':undefined}}>
-                    {lb}
-                  </button>
-                ))}
-              </div>
-            </div>
+        {/* Imagem */}
+        {img?.url && (
+          <div style={{background:'#f0f2f5',height:160,display:'flex',alignItems:'center',justifyContent:'center',borderBottom:'1px solid #f0f2f5'}}>
+            <img src={aplicarExemplos(img.url)} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>e.target.style.display='none'}/>
           </div>
         )}
 
-        {/* ── Corpo ───────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-hidden flex">
+        <div style={{padding:'10px 12px'}}>
+          {/* Cabeçalho */}
+          {cab?.conteudo && (
+            <p style={{fontSize:14,fontWeight:700,color:'#111',marginBottom:6,lineHeight:1.3}}>
+              {aplicarExemplos(cab.conteudo)}
+            </p>
+          )}
 
-          {/* Editor */}
-          <div className="flex-1 overflow-y-auto" style={{borderRight:'1px solid var(--sep)'}}>
-            <div className="max-w-[580px] mx-auto p-5 space-y-3">
-              {/* Gerar IA */}
-              <button onClick={gerarIA} disabled={gerando}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-[11px] text-[13px] font-semibold transition-all"
-                style={{background:'var(--accent-dim)',color:'var(--accent)',border:'1px solid var(--accent-border)'}}>
-                {gerando?<RefreshCw size={13} className="animate-spin"/>:<Sparkles size={13}/>}
-                {gerando?'Gerando com IA...':'✨ Gerar mensagem com IA'}
-              </button>
-              {erroIA&&(
-                <div className="flex items-start gap-2 px-3 py-2.5 rounded-[10px] text-[11px]"
-                  style={{background:'rgba(239,68,68,0.08)',color:'var(--red)',border:'1px solid rgba(239,68,68,0.2)'}}>
-                  <AlertCircle size={12} className="flex-shrink-0 mt-0.5"/><span>{erroIA}</span>
-                </div>
-              )}
-              {/* Blocos */}
-              <div className="space-y-2">
-                {blocos.map((b,i)=>(
-                  <Bloco key={b.id||i} b={b} idx={i} total={blocos.length}
-                    vars={gatilho?.variaveis||[]}
-                    onChange={nb=>updBloco(i,nb)} onDelete={()=>delBloco(i)}
-                    onMove={moveBloco} onDuplicate={()=>dupBloco(i)}/>
-                ))}
-              </div>
-              {/* Paleta */}
-              <div className="rounded-[12px] overflow-hidden" style={{border:'1px solid var(--sep)',background:'var(--bg-2)'}}>
-                <div className="px-4 py-2" style={{borderBottom:'1px solid var(--sep)',background:'var(--bg-3)'}}>
-                  <p className="text-[10px] font-semibold" style={{color:'var(--label-3)'}}>Adicionar bloco</p>
-                </div>
-                <div className="p-2.5 grid grid-cols-5 gap-1.5">
-                  {TIPOS_BLOCO.map(t=>{const Ic=t.icon;return(
-                    <button key={t.tipo} onClick={()=>addBloco(t.tipo)}
-                      className="flex flex-col items-center gap-1 py-2 rounded-[8px] text-[9px] font-semibold transition-all group"
-                      style={{background:'var(--bg-3)',border:'1px solid var(--sep)',color:'var(--label-3)'}} title={t.desc}>
-                      <div className="w-5 h-5 rounded-[6px] flex items-center justify-center group-hover:scale-110 transition-transform"
-                        style={{background:`${t.cor}20`}}><Ic size={11} style={{color:t.cor}}/></div>
-                      {t.label}
-                    </button>
-                  )})}
-                </div>
-              </div>
-              {/* Testar */}
-              <div className="rounded-[12px] p-3.5 space-y-2.5" style={{background:'var(--bg-2)',border:'1px solid var(--sep)'}}>
-                <p className="text-[11px] font-semibold" style={{color:'var(--label-2)'}}>Testar envio</p>
-                <div className="flex gap-2">
-                  <input value={telTeste} onChange={e=>setTelTeste(e.target.value)} placeholder="5511999999999"
-                    className="flex-1 px-3 py-2 rounded-[8px] text-[12px] outline-none"
-                    style={{background:'var(--bg-3)',border:'1px solid var(--sep)',color:'var(--label)'}}/>
-                  <button onClick={testar} disabled={enviandoT||!telTeste.trim()}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-[8px] text-[12px] font-semibold"
-                    style={{background:'var(--blue)',color:'#fff',opacity:!telTeste.trim()?0.5:1}}>
-                    {enviandoT?<RefreshCw size={11} className="animate-spin"/>:<Send size={11}/>}
-                    Testar
-                  </button>
-                </div>
-                {resTeste&&<p className="text-[11px] font-medium" style={{color:resTeste==='ok'?'#22c55e':'var(--red)'}}>{resTeste==='ok'?'✓ Enviado!':'✗ Erro'}</p>}
-              </div>
+          {/* Corpo */}
+          {corpo && (
+            <div style={{fontSize:13.5,color:'#111',lineHeight:1.6,marginBottom:rod?.conteudo?8:4}}>
+              {renderTexto(corpo)}
             </div>
-          </div>
+          )}
 
-          {/* Painel direito com abas */}
-          <div className="w-[290px] flex-shrink-0 flex flex-col overflow-hidden">
+          {/* Rodapé */}
+          {rod?.conteudo && (
+            <p style={{fontSize:11.5,color:'#8696a0',marginTop:4,lineHeight:1.4,borderTop:'1px solid #f0f2f5',paddingTop:6}}>
+              {aplicarExemplos(rod.conteudo)}
+            </p>
+          )}
 
-            {/* ABA PREVIEW */}
-            {abaDir==='preview'&&(
-              <div className="flex-1 overflow-y-auto p-4 flex items-start justify-center" style={{background:'var(--bg-3)'}}>
-                <PreviewWA blocos={blocos} label={gatilho?.label}/>
-              </div>
-            )}
-
-            {/* ABA CONFIG */}
-            {abaDir==='config'&&(
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {/* Toggle ativo */}
-                <div className="rounded-[12px] overflow-hidden" style={{border:'1px solid var(--sep)'}}>
-                  <div className="px-4 py-3 flex items-center justify-between"
-                    style={{background:'var(--bg-3)',borderBottom:'1px solid var(--sep)'}}>
-                    <div>
-                      <p className="text-[12px] font-semibold" style={{color:'var(--label)'}}>Status do gatilho</p>
-                      <p className="text-[10px]" style={{color:'var(--label-3)'}}>Ativa ou desativa o envio automático</p>
-                    </div>
-                    <button onClick={()=>config&&toggleAtivo(selId)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] text-[12px] font-semibold"
-                      style={{background:config?.ativo?'rgba(34,197,94,0.1)':'var(--fill)',color:config?.ativo?'#22c55e':'var(--label-3)',border:config?.ativo?'1px solid rgba(34,197,94,0.3)':'1px solid var(--sep)',opacity:config?1:0.4}}>
-                      {config?.ativo?<ToggleRight size={14} strokeWidth={2}/>:<ToggleLeft size={14}/>}
-                      {config?.ativo?'Ativo':'Inativo'}
-                    </button>
-                  </div>
-                  <div className="p-3" style={{background:'var(--bg-2)'}}>
-                    <p className="text-[10px]" style={{color:'var(--label-3)'}}>
-                      {config?.ativo
-                        ? '🟢 Este gatilho está enviando mensagens automaticamente quando o evento ocorre.'
-                        : config ? '⚪ Este gatilho está salvo mas não está enviando mensagens.'
-                        : '⚫ Este gatilho ainda não foi configurado. Salve primeiro.'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Delay */}
-                <div className="rounded-[12px] overflow-hidden" style={{border:'1px solid var(--sep)'}}>
-                  <div className="px-4 py-2.5" style={{background:'var(--bg-3)',borderBottom:'1px solid var(--sep)'}}>
-                    <p className="text-[12px] font-semibold" style={{color:'var(--label)'}}>⏱ Delay de envio</p>
-                    <p className="text-[10px]" style={{color:'var(--label-3)'}}>Tempo de espera após o evento antes de enviar</p>
-                  </div>
-                  <div className="p-3 space-y-2" style={{background:'var(--bg-2)'}}>
-                    <select value={delays[selId]||0} onChange={e=>salvarDelay(selId,parseInt(e.target.value))}
-                      className="w-full px-3 py-2 rounded-[9px] text-[12px] outline-none"
-                      style={{background:'var(--bg)',border:'1px solid var(--sep)',color:'var(--label)'}}>
-                      {DELAY_OPCOES.map(d=><option key={d.valor} value={d.valor}>{d.label}</option>)}
-                    </select>
-                    {delays[selId]>0&&<p className="text-[10px]" style={{color:'#f59e0b'}}>⏳ Mensagem será enviada {DELAY_OPCOES.find(d=>d.valor===delays[selId])?.label} após o evento</p>}
-                  </div>
-                </div>
-
-                {/* Ativação */}
-                <div className="rounded-[12px] overflow-hidden" style={{border:'1px solid var(--sep)'}}>
-                  <div className="px-4 py-2.5" style={{background:'var(--bg-3)',borderBottom:'1px solid var(--sep)'}}>
-                    <p className="text-[12px] font-semibold" style={{color:'var(--label)'}}>🔗 Como é ativado</p>
-                  </div>
-                  <div className="p-3 space-y-2" style={{background:'var(--bg-2)'}}>
-                    <div className="px-3 py-2 rounded-[8px] font-mono text-[11px]" style={{background:'var(--bg)',color:'var(--accent)',border:'1px solid var(--accent-border)'}}>
-                      {gatilho?.situacao?.startsWith('#')
-                        ? `Obs. Internas: ${gatilho.situacao}`
-                        : `Bling situacao.${gatilho?.situacao}`}
-                    </div>
-                    {gatilho?.situacao?.startsWith('#')&&(
-                      <p className="text-[10px]" style={{color:'var(--label-3)'}}>
-                        No Bling, abra o pedido → campo <strong>Observações Internas</strong> → digite <strong style={{color:'var(--accent)'}}>{gatilho.situacao}</strong> e salve.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ABA AJUDA */}
-            {abaDir==='ajuda'&&gatilho&&(
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                <div className="rounded-[12px] p-4 space-y-3" style={{background:'var(--bg-3)',border:'1px solid var(--sep)'}}>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{background:gatilho.corBg}}>
-                      <gatilho.icon size={15} style={{color:gatilho.cor}}/>
-                    </div>
-                    <div>
-                      <p className="text-[13px] font-bold" style={{color:'var(--label)'}}>{gatilho.label}</p>
-                      <p className="text-[10px]" style={{color:'var(--label-3)'}}>{gatilho.desc}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-[12px] overflow-hidden" style={{border:'1px solid var(--sep)'}}>
-                  <div className="px-4 py-2.5" style={{background:'var(--bg-3)',borderBottom:'1px solid var(--sep)'}}>
-                    <p className="text-[11px] font-semibold" style={{color:'var(--label-2)'}}>📝 Variáveis disponíveis</p>
-                  </div>
-                  <div className="p-3 space-y-1" style={{background:'var(--bg-2)'}}>
-                    {(gatilho.variaveis||[]).map(v=>(
-                      <div key={v} className="flex items-center justify-between px-2 py-1.5 rounded-[7px]"
-                        style={{background:'var(--bg)'}}>
-                        <code className="text-[10px]" style={{color:'var(--accent)'}}>{v}</code>
-                        <button onClick={()=>navigator.clipboard?.writeText(v)}
-                          className="text-[9px] px-1.5 py-0.5 rounded" style={{color:'var(--label-4)'}}>
-                          copiar
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-[12px] overflow-hidden" style={{border:'1px solid var(--sep)'}}>
-                  <div className="px-4 py-2.5" style={{background:'var(--bg-3)',borderBottom:'1px solid var(--sep)'}}>
-                    <p className="text-[11px] font-semibold" style={{color:'var(--label-2)'}}>💡 Dicas de uso</p>
-                  </div>
-                  <div className="p-3 space-y-2 text-[10px]" style={{background:'var(--bg-2)',color:'var(--label-3)'}}>
-                    <p>• Use <code style={{color:'var(--accent)'}}>*texto*</code> para <strong>negrito</strong></p>
-                    <p>• Use <code style={{color:'var(--accent)'}}>_texto_</code> para <em>itálico</em></p>
-                    <p>• Clique em qualquer variável no editor para inserir</p>
-                    <p>• Use blocos separados por <strong>+ Mensagem</strong> para enviar múltiplas bolhas</p>
-                    {gatilho.situacao?.startsWith('#')&&(
-                      <div className="mt-2 p-2 rounded-[8px]" style={{background:'var(--bg)',border:'1px solid var(--sep)'}}>
-                        <p className="font-semibold mb-1" style={{color:'var(--label-2)'}}>Como usar strings:</p>
-                        <p>No Bling, abra o pedido → <strong>Observações Internas</strong> → cole <code style={{color:'var(--accent)'}}>{gatilho.situacao}</code> → salve. O webhook detecta e dispara esta mensagem.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
+          {/* Timestamp */}
+          <div style={{textAlign:'right',fontSize:11,color:'#8696a0',marginTop:4}}>
+            {new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})} ✓✓
           </div>
         </div>
+
+        {/* Botões */}
+        {botoes.length > 0 && (
+          <div style={{borderTop:'1px solid #f0f2f5'}}>
+            {botoes.map((b,i) => (
+              <div key={i} style={{
+                padding:'11px 12px', textAlign:'center',
+                borderBottom: i<botoes.length-1?'1px solid #f0f2f5':'none',
+                fontSize:13.5, fontWeight:500,
+                color: b.acao==='url'?'#0a7cff':'#0a7cff',
+                display:'flex', alignItems:'center', justifyContent:'center', gap:6
+              }}>
+                {b.acao==='url' && <ExternalLink size={13}/>}
+                {b.acao==='tel' && <Phone size={13}/>}
+                {b.texto || 'Botão'}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* ── Modal CRUD gatilho personalizado ─────────────────────── */}
-      {modalGat&&(
-        <ModalGatilho modo={modalGat.mode} existente={modalGat.gatilho} api={api}
-          onClose={()=>setModalGat(null)}
-          onSave={g=>{setModalGat(null);if(g?.id)setSelId(g.id)}}/>
-      )}
+      {/* Badge de tipo */}
+      <div style={{textAlign:'center',marginTop:10}}>
+        <span style={{fontSize:10.5,padding:'2px 10px',borderRadius:99,
+          background: isIA ? 'rgba(124,106,247,.12)' : 'rgba(37,211,102,.1)',
+          color: isIA ? '#7c6af7' : '#22c55e',
+          border: `1px solid ${isIA?'rgba(124,106,247,.25)':'rgba(37,211,102,.25)'}`
+        }}>
+          {isIA ? '✨ Inline — sem aprovação Meta' : '📋 Template HSM — requer aprovação Meta'}
+        </span>
+      </div>
     </div>
   )
 }
 
-function ModalGatilho({modo,existente,api,onClose,onSave}){
-  const [form,setForm]=useState({id:existente?.id||'',label:existente?.label||'',string:existente?.situacao||'',desc:existente?.desc||''})
-  const [salvando,setSalvando]=useState(false),[erro,setErro]=useState('')
-  const set=(k,v)=>setForm(f=>({...f,[k]:v}))
-  const salvar=async()=>{
-    if(!form.label.trim()){setErro('Nome obrigatório');return}
+// ── Editor de bloco individual ────────────────────────────────────────────────
+function BlocoEditor({ bloco, onChange, onRemove, variaveis=[], index, total }) {
+  const tipoInfo = TIPOS_BLOCO.find(t => t.tipo === bloco.tipo) || TIPOS_BLOCO[1]
+  const Icon = tipoInfo.icon
+  const b = { acao:'reply', valor:'', texto:'', conteudo:'', url:'', legenda:'', ...bloco }
+
+  const sty = {
+    width:'100%', padding:'7px 10px', borderRadius:8,
+    border:'0.5px solid var(--sep)', background:'var(--fill)',
+    color:'var(--label)', fontSize:12.5, outline:'none',
+    fontFamily:'inherit', resize:'none', lineHeight:1.5,
+    boxSizing:'border-box',
+  }
+
+  return (
+    <div style={{borderRadius:10,border:`0.5px solid ${tipoInfo.cor}25`,background:`${tipoInfo.cor}04`,overflow:'hidden',marginBottom:8}}>
+      {/* Header do bloco */}
+      <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',background:`${tipoInfo.cor}08`,borderBottom:`0.5px solid ${tipoInfo.cor}20`}}>
+        <div style={{width:24,height:24,borderRadius:6,background:`${tipoInfo.cor}20`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+          <Icon size={12} style={{color:tipoInfo.cor}}/>
+        </div>
+        <span style={{fontSize:11.5,fontWeight:600,color:tipoInfo.cor,flex:1}}>{tipoInfo.label}</span>
+        <span style={{fontSize:10.5,color:'var(--label-4)',marginRight:4}}>#{index+1}</span>
+        <button onClick={onRemove} style={{display:'flex',alignItems:'center',padding:'2px',borderRadius:4,border:'none',background:'transparent',color:'var(--label-4)',cursor:'pointer'}}>
+          <X size={12}/>
+        </button>
+      </div>
+
+      {/* Campos do bloco */}
+      <div style={{padding:'10px 12px'}}>
+
+        {/* Cabeçalho */}
+        {b.tipo === 'cabecalho' && (
+          <input value={b.conteudo} onChange={e=>onChange({...b,conteudo:e.target.value})}
+            placeholder="Texto do cabeçalho (máx. 60 chars)" maxLength={60} style={sty}/>
+        )}
+
+        {/* Texto */}
+        {b.tipo === 'texto' && (
+          <textarea value={b.conteudo} onChange={e=>onChange({...b,conteudo:e.target.value})}
+            placeholder="Corpo da mensagem... use *negrito*, _itálico_ e {{variáveis}}" rows={4} style={sty}/>
+        )}
+
+        {/* Rodapé */}
+        {b.tipo === 'rodape' && (
+          <input value={b.conteudo} onChange={e=>onChange({...b,conteudo:e.target.value})}
+            placeholder="Texto do rodapé (máx. 60 chars)" maxLength={60} style={sty}/>
+        )}
+
+        {/* Imagem */}
+        {b.tipo === 'imagem' && (
+          <input value={b.url} onChange={e=>onChange({...b,url:e.target.value})}
+            placeholder="URL da imagem (https://...jpg)" style={sty}/>
+        )}
+
+        {/* Botão */}
+        {b.tipo === 'botao' && (
+          <div style={{display:'flex',flexDirection:'column',gap:7}}>
+            <input value={b.texto} onChange={e=>onChange({...b,texto:e.target.value})}
+              placeholder="Texto do botão (máx. 20 chars)" maxLength={20} style={sty}/>
+            {/* Tipo de ação */}
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:5}}>
+              {[['reply','💬 Resposta'],['url','🔗 Link URL'],['tel','📞 Ligar']].map(([v,l])=>(
+                <button key={v} onClick={()=>onChange({...b,acao:v})} style={{
+                  padding:'6px 4px',borderRadius:7,fontSize:11,fontWeight:500,cursor:'pointer',textAlign:'center',
+                  background: b.acao===v ? `${tipoInfo.cor}15` : 'var(--fill)',
+                  color:       b.acao===v ? tipoInfo.cor : 'var(--label-4)',
+                  border:      b.acao===v ? `0.5px solid ${tipoInfo.cor}` : '0.5px solid var(--sep)',
+                }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            {/* Valor do botão */}
+            {(b.acao==='url' || b.acao==='tel') && (
+              <input value={b.valor} onChange={e=>onChange({...b,valor:e.target.value})}
+                placeholder={b.acao==='url'?'https://... ou {{link_pedido}}':'+55 11 9xxxx-xxxx'}
+                style={sty}/>
+            )}
+            {b.acao==='reply' && (
+              <input value={b.valor} onChange={e=>onChange({...b,valor:e.target.value})}
+                placeholder="Texto que será enviado ao clicar (ex: Quero avaliar)"
+                style={sty}/>
+            )}
+          </div>
+        )}
+
+        {/* Variáveis disponíveis */}
+        {variaveis.length > 0 && ['texto','cabecalho'].includes(b.tipo) && (
+          <div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:7}}>
+            {variaveis.map(v => (
+              <button key={v} onClick={()=>{
+                const campo = b.tipo==='texto'?'conteudo':'conteudo'
+                onChange({...b,[campo]:(b[campo]||'')+v})
+              }} style={{fontSize:10,padding:'2px 7px',borderRadius:99,border:'0.5px solid var(--sep)',background:'var(--fill)',color:'var(--label-4)',cursor:'pointer',fontFamily:'monospace'}}>
+                {v}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PÁGINA PRINCIPAL
+// ══════════════════════════════════════════════════════════════════════════════
+export default function PageGatilhos({ api }) {
+
+  // ── Estado ─────────────────────────────────────────────────────────────────
+  const [selId,       setSelId]     = useState(null)
+  const [configs,     setConfigs]   = useState({})
+  const [blocos,      setBlocos]    = useState([])
+  const [dirty,       setDirty]     = useState(false)
+  const [salvando,    setSalvando]  = useState(false)
+  const [salvoOk,     setSalvoOk]   = useState(false)
+  const [gerando,     setGerando]   = useState(false)
+  const [erroIA,      setErroIA]    = useState('')
+  const [delays,      setDelays]    = useState({})
+  const [telTeste,    setTelTeste]  = useState('')
+  const [enviandoT,   setEnviandoT] = useState(false)
+  const [resTeste,    setResTeste]  = useState(null)
+  const [submetendo,  setSubmet]    = useState(false)
+  const [metaStatus,  setMetaSt]    = useState('')
+  const [metaErro,    setMetaErro]  = useState('')
+  const [aba,         setAba]       = useState('editor')  // editor | preview | config | meta
+  const [grupoAberto, setGrupoAb]   = useState({})
+  const [busca,       setBusca]     = useState('')
+  const [loading,     setLoading]   = useState(true)
+
+  const gatilho = GATILHOS.find(g => g.id === selId)
+  const config  = configs[selId]
+  const isIA    = gatilho?.tipo === 'ia'
+
+  // ── Carrega templates do banco ─────────────────────────────────────────────
+  const carregar = useCallback(async () => {
+    setLoading(true)
+    try {
+      const r = await fetch(`${api}/api/templates`)
+      if (r.ok) {
+        const d = await r.json()
+        const map = {}
+        for (const t of (d.templates || d)) {
+          // Fix: garante que blocos de botão sempre têm 'acao' definido
+          const bls = (t.blocos || []).map(b => ({
+            acao:'reply', valor:'', texto:'', conteudo:'', url:'', ...b,
+            id: b.id || Date.now() + Math.random()
+          }))
+          map[t.gatilho] = { ...t, blocos: bls }
+        }
+        setConfigs(map)
+      }
+    } catch {}
+    setLoading(false)
+  }, [api])
+
+  const carregarDelays = useCallback(async () => {
+    try {
+      const r = await fetch(`${api}/api/ia/config`)
+      if (r.ok) {
+        const d = await r.json()
+        const dl = {}
+        for (const g of GATILHOS) {
+          const chave = `delay_${g.id}`
+          if (d[chave] !== undefined) dl[g.id] = Number(d[chave])
+        }
+        setDelays(dl)
+      }
+    } catch {}
+  }, [api])
+
+  useEffect(() => { carregar(); carregarDelays() }, [carregar, carregarDelays])
+
+  // Carrega blocos quando seleciona gatilho
+  useEffect(() => {
+    if (!selId) return
+    const cfg = configs[selId]
+    if (cfg?.blocos?.length) {
+      setBlocos(cfg.blocos)
+    } else {
+      // Aplica padrão se não tiver salvo
+      const pad = PADROES[selId]
+      if (pad) {
+        const bls = []
+        let id = 1
+        if (pad.cab) bls.push({ tipo:'cabecalho', conteudo:pad.cab, id:id++ })
+        if (pad.corpo) bls.push({ tipo:'texto', conteudo:pad.corpo, id:id++ })
+        if (pad.rod) bls.push({ tipo:'rodape', conteudo:pad.rod, id:id++ })
+        if (pad.bts) for (const bt of pad.bts) bls.push({ tipo:'botao', acao:bt.acao||'reply', texto:bt.texto||'', valor:bt.valor||'', id:id++ })
+        setBlocos(bls)
+      } else {
+        setBlocos([{ tipo:'texto', conteudo:'', id:1 }])
+      }
+    }
+    setDirty(false)
+    setErroIA('')
+    setResTeste(null)
+    setMetaSt(cfg?.meta_template_status || '')
+    setMetaErro('')
+    setAba('editor')
+  }, [selId, configs])
+
+  // Status Meta ao selecionar
+  useEffect(() => {
+    const cfg = configs[selId]
+    if (cfg?.id) {
+      fetch(`${api}/api/meta-templates/status/${cfg.id}`)
+        .then(r => r.json())
+        .then(d => { if(d.status) setMetaSt(d.status) })
+        .catch(() => {})
+    }
+  }, [selId, configs, api])
+
+  // ── Ações ──────────────────────────────────────────────────────────────────
+  const addBloco = (tipo) => {
+    setBlocos(p => [...p, { tipo, conteudo:'', url:'', texto:'', acao:'reply', valor:'', legenda:'', id:Date.now()+Math.random() }])
+    setDirty(true)
+  }
+
+  const updateBloco = (id, dados) => {
+    setBlocos(p => p.map(b => b.id === id ? {...b,...dados} : b))
+    setDirty(true)
+  }
+
+  const removeBloco = (id) => {
+    setBlocos(p => p.filter(b => b.id !== id))
+    setDirty(true)
+  }
+
+  const salvar = async () => {
+    if (!selId || !dirty) return
     setSalvando(true)
     try {
-      const id=form.id||form.label.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')
-      await fetch(`${api}/api/templates`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({gatilho:id,nome:form.label,blocos:[{tipo:'texto',conteudo:'',id:1}],ativo:false})})
-      onSave({id,label:form.label})
-    } catch(e){setErro(e.message)}
+      const c = configs[selId]
+      const g = GATILHOS.find(x => x.id === selId)
+      const body = { gatilho:selId, nome:g?.label||selId, blocos, ativo: c?.ativo ?? true }
+      const r = await fetch(
+        c ? `${api}/api/templates/${c.id}` : `${api}/api/templates`,
+        { method: c?'PATCH':'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }
+      )
+      if (r.ok) {
+        setSalvoOk(true); setDirty(false)
+        setTimeout(() => setSalvoOk(false), 2500)
+        await carregar()
+      }
+    } catch {}
     setSalvando(false)
   }
+
+  const toggleAtivo = async (id) => {
+    const c = configs[id]
+    if (!c) return
+    await fetch(`${api}/api/templates/${c.id}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ ativo: !c.ativo })
+    })
+    await carregar()
+  }
+
+  const salvarDelay = async (gId, min) => {
+    setDelays(p => ({...p,[gId]:min}))
+    await fetch(`${api}/api/ia/config`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ chave:`delay_${gId}`, valor:String(min) })
+    }).catch(() => {})
+  }
+
+  const gerarIA = async () => {
+    const g = GATILHOS.find(x => x.id === selId)
+    if (!g) return
+    setGerando(true); setErroIA('')
+    try {
+      const r = await fetch(`${api}/api/templates/gerar`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ nome:g.label, gatilho:g.id, descricao:g.desc })
+      })
+      const d = await r.json()
+      if (d.blocos) { setBlocos(d.blocos.map(b=>({...b,id:Date.now()+Math.random()}))); setDirty(true) }
+      else if (d.erro) setErroIA(d.erro)
+    } catch(e) { setErroIA(e.message) }
+    setGerando(false)
+  }
+
+  const enviarTeste = async () => {
+    if (!telTeste || !selId) return
+    setEnviandoT(true); setResTeste(null)
+    try {
+      const r = await fetch(`${api}/api/dashboard/mensagem`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ telefone:telTeste.replace(/\D/g,''), gatilho:selId, variaveis:EXEMPLOS })
+      })
+      const d = await r.json()
+      setResTeste(d.ok ? 'ok' : d.erro || 'erro')
+    } catch { setResTeste('erro') }
+    setEnviandoT(false)
+  }
+
+  const submeterMeta = async () => {
+    const c = configs[selId]
+    if (!c?.id) { alert('Salve o template primeiro'); return }
+    setSubmet(true); setMetaErro('')
+    try {
+      const r = await fetch(`${api}/api/meta-templates/submeter/${c.id}`, { method:'POST' })
+      const d = await r.json()
+      if (d.ok) {
+        setMetaSt(d.status || 'PENDING')
+      } else {
+        setMetaErro(d.erro || 'Erro desconhecido')
+      }
+    } catch { setMetaErro('Erro de conexão') }
+    setSubmet(false)
+  }
+
+  // ── Grupos filtrados ───────────────────────────────────────────────────────
+  const gruposFiltrados = GRUPOS_ORDEM.map(grupo => ({
+    nome: grupo,
+    itens: GATILHOS.filter(g =>
+      g.grupo === grupo &&
+      (!busca || g.label.toLowerCase().includes(busca.toLowerCase()))
+    )
+  })).filter(g => g.itens.length > 0)
+
+  // Abre o grupo do selecionado automaticamente
+  useEffect(() => {
+    if (selId) {
+      const g = GATILHOS.find(x => x.id === selId)
+      if (g) setGrupoAb(p => ({...p, [g.grupo]: true}))
+    }
+  }, [selId])
+
+  const totalAtivos = Object.values(configs).filter(c => c.ativo).length
+
+  // ── RENDER ─────────────────────────────────────────────────────────────────
   return (
-    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
-      <div className="w-full max-w-[380px] rounded-[18px] overflow-hidden" style={{background:'var(--bg-2)',border:'1px solid var(--sep)'}}>
-        <div className="flex items-center justify-between px-5 py-4" style={{borderBottom:'1px solid var(--sep)',background:'var(--bg-3)'}}>
-          <h3 className="text-[14px] font-bold" style={{color:'var(--label)'}}>{modo==='novo'?'Novo gatilho personalizado':'Editar gatilho'}</h3>
-          <button onClick={onClose} style={{color:'var(--label-3)'}}><X size={15}/></button>
-        </div>
-        <div className="p-5 space-y-3">
-          {[['label','Nome *','Ex: Produto em Trânsito',false],['string','String de ativação','Ex: #TRANSITO — cole nas Obs. Internas',true],['desc','Descrição','Para que serve este gatilho?',false]].map(([k,lb,ph,mono])=>(
-            <div key={k}>
-              <label className="text-[11px] font-medium block mb-1" style={{color:'var(--label-2)'}}>{lb}</label>
-              <input value={form[k]} onChange={e=>set(k,mono?e.target.value.toUpperCase():e.target.value)}
-                placeholder={ph} className="w-full px-3 py-2.5 rounded-[9px] text-[12px] outline-none"
-                style={{background:'var(--bg)',border:'1px solid var(--sep)',color:mono?'var(--accent)':'var(--label)',fontFamily:mono?'monospace':'inherit'}}/>
+    <div style={{display:'flex',flexDirection:'column',height:'100vh',background:'var(--bg)',color:'var(--label)',overflow:'hidden'}}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg) } }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+        .gat-item:hover { background: var(--fill) !important; }
+        .gat-item { transition: background .1s; }
+        .blk-add:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
+        .blk-add { transition: all .12s; }
+      `}</style>
+
+      {/* ── HEADER ─────────────────────────────────────────────────────────── */}
+      <div style={{flexShrink:0,background:'var(--bg-2)',borderBottom:'0.5px solid var(--sep)',padding:'14px 20px'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:16}}>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <div style={{width:38,height:38,borderRadius:10,background:'linear-gradient(135deg,rgba(37,211,102,.2),rgba(0,212,170,.15))',display:'flex',alignItems:'center',justifyContent:'center',border:'0.5px solid rgba(37,211,102,.3)',flexShrink:0}}>
+              <Zap size={18} style={{color:'#25D366'}}/>
             </div>
-          ))}
-          {erro&&<p className="text-[11px]" style={{color:'var(--red)'}}>{erro}</p>}
-          <div className="flex gap-3 pt-1">
-            <button onClick={onClose} className="flex-1 py-2.5 rounded-[10px] text-[12px]" style={{background:'var(--fill)',color:'var(--label-2)'}}>Cancelar</button>
-            <button onClick={salvar} disabled={salvando||!form.label.trim()} className="flex-1 py-2.5 rounded-[10px] text-[12px] font-semibold" style={{background:'var(--accent)',color:'#000',opacity:!form.label.trim()?0.5:1}}>
-              {salvando?'Salvando...':'Criar gatilho'}
+            <div>
+              <h1 style={{fontSize:16,fontWeight:600,color:'var(--label)',margin:0,letterSpacing:'-.3px',display:'flex',alignItems:'center',gap:8}}>
+                Central de Automações
+                <span style={{fontSize:11,padding:'1px 8px',borderRadius:99,background:'rgba(37,211,102,.1)',color:'#22c55e',border:'0.5px solid rgba(37,211,102,.25)',fontWeight:500}}>
+                  {totalAtivos} ativo{totalAtivos!==1?'s':''}
+                </span>
+              </h1>
+              <p style={{fontSize:11.5,color:'var(--label-4)',margin:0}}>Templates de mensagem — Bling HSM + Inteligência IA</p>
+            </div>
+          </div>
+          {/* Ações header */}
+          {selId && dirty && (
+            <button onClick={salvar} disabled={salvando} style={{display:'flex',alignItems:'center',gap:6,padding:'8px 16px',borderRadius:9,border:'0.5px solid rgba(37,211,102,.3)',background:'rgba(37,211,102,.08)',color:'#22c55e',cursor:'pointer',fontSize:13,fontWeight:600,flexShrink:0}}>
+              {salvando ? <><RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/> Salvando...</> : salvoOk ? <><Check size={13}/> Salvo!</> : <><Save size={13}/> Salvar</>}
             </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── LAYOUT 3 COLUNAS ───────────────────────────────────────────────── */}
+      <div style={{flex:1,display:'grid',gridTemplateColumns:'240px 1fr 360px',overflow:'hidden'}}>
+
+        {/* ── COLUNA 1: Lista de gatilhos ─────────────────────────────────── */}
+        <div style={{borderRight:'0.5px solid var(--sep)',display:'flex',flexDirection:'column',overflow:'hidden',background:'var(--bg-2)'}}>
+
+          {/* Busca */}
+          <div style={{padding:'10px 12px',borderBottom:'0.5px solid var(--sep)',flexShrink:0}}>
+            <div style={{display:'flex',alignItems:'center',gap:7,padding:'7px 10px',borderRadius:8,border:'0.5px solid var(--sep)',background:'var(--fill)'}}>
+              <Activity size={12} style={{color:'var(--label-4)',flexShrink:0}}/>
+              <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar gatilho..."
+                style={{flex:1,border:'none',background:'transparent',color:'var(--label)',fontSize:12,outline:'none'}}/>
+            </div>
+          </div>
+
+          {/* Lista agrupada */}
+          <div style={{flex:1,overflowY:'auto',padding:'6px 8px'}}>
+            {gruposFiltrados.map(grupo => (
+              <div key={grupo.nome} style={{marginBottom:3}}>
+                {/* Header do grupo */}
+                <button onClick={()=>setGrupoAb(p=>({...p,[grupo.nome]:!p[grupo.nome]}))}
+                  style={{width:'100%',display:'flex',alignItems:'center',gap:6,padding:'6px 8px',borderRadius:7,border:'none',background:'transparent',cursor:'pointer',textAlign:'left'}}>
+                  <span style={{fontSize:9.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',flex:1}}>{grupo.nome}</span>
+                  <span style={{fontSize:10,color:'var(--label-4)',background:'var(--fill)',padding:'0 5px',borderRadius:99,border:'0.5px solid var(--sep)'}}>{grupo.itens.length}</span>
+                  {grupoAberto[grupo.nome] ? <ChevronUp size={10} style={{color:'var(--label-4)'}}/> : <ChevronDown size={10} style={{color:'var(--label-4)'}}/>}
+                </button>
+
+                {/* Itens do grupo */}
+                {grupoAberto[grupo.nome] && grupo.itens.map(g => {
+                  const cfg = configs[g.id]
+                  const ativo = cfg?.ativo
+                  const temTemplate = !!cfg
+                  const Icon = g.icon
+                  const isSelected = selId === g.id
+                  return (
+                    <button key={g.id} onClick={()=>setSelId(g.id)} className="gat-item"
+                      style={{width:'100%',display:'flex',alignItems:'center',gap:8,padding:'7px 8px',borderRadius:8,border:`0.5px solid ${isSelected?g.cor+'40':'transparent'}`,background:isSelected?`${g.cor}08`:'transparent',cursor:'pointer',textAlign:'left',marginBottom:2}}>
+                      {/* Ícone */}
+                      <div style={{width:28,height:28,borderRadius:7,background:`${g.cor}15`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                        <Icon size={13} style={{color:g.cor}}/>
+                      </div>
+                      {/* Info */}
+                      <div style={{flex:1,minWidth:0}}>
+                        <p style={{fontSize:12,fontWeight:isSelected?600:400,color:isSelected?'var(--label)':'var(--label-2)',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{g.label}</p>
+                      </div>
+                      {/* Status */}
+                      <div style={{flexShrink:0,display:'flex',alignItems:'center',gap:3}}>
+                        {g.tipo==='ia' && <span style={{fontSize:9,padding:'1px 5px',borderRadius:99,background:'rgba(124,106,247,.12)',color:'#7c6af7',border:'0.5px solid rgba(124,106,247,.2)'}}>IA</span>}
+                        {temTemplate && (
+                          <div style={{width:6,height:6,borderRadius:'50%',background:ativo?'#22c55e':'var(--sep)'}}/>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            ))}
           </div>
         </div>
+
+        {/* ── COLUNA 2: Editor ────────────────────────────────────────────── */}
+        <div style={{display:'flex',flexDirection:'column',overflow:'hidden',borderRight:'0.5px solid var(--sep)'}}>
+          {!selId ? (
+            <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:12,color:'var(--label-4)',padding:32}}>
+              <div style={{width:56,height:56,borderRadius:16,background:'var(--fill)',border:'0.5px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <Zap size={24} style={{opacity:.3}}/>
+              </div>
+              <p style={{fontSize:14,margin:0,color:'var(--label-3)'}}>Selecione um gatilho para editar</p>
+              <p style={{fontSize:12,margin:0,opacity:.6,textAlign:'center'}}>Escolha na lista à esquerda</p>
+            </div>
+          ) : (
+            <>
+              {/* Header do editor */}
+              <div style={{flexShrink:0,padding:'12px 16px',borderBottom:'0.5px solid var(--sep)',background:'var(--bg-2)'}}>
+                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+                  <div style={{width:32,height:32,borderRadius:9,background:`${gatilho.cor}15`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    {gatilho.icon && <gatilho.icon size={15} style={{color:gatilho.cor}}/>}
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <p style={{fontSize:14,fontWeight:600,color:'var(--label)',margin:0}}>{gatilho.label}</p>
+                    <p style={{fontSize:11,color:'var(--label-4)',margin:0}}>{gatilho.desc}</p>
+                  </div>
+                  {/* Badge tipo */}
+                  <span style={{fontSize:10.5,padding:'2px 8px',borderRadius:99,background:isIA?'rgba(124,106,247,.1)':'rgba(37,211,102,.08)',color:isIA?'#7c6af7':'#22c55e',border:`0.5px solid ${isIA?'rgba(124,106,247,.25)':'rgba(37,211,102,.2)'}`,flexShrink:0}}>
+                    {isIA ? '✨ Inline IA' : '📋 HSM Meta'}
+                  </span>
+                </div>
+
+                {/* Tabs do editor */}
+                <div style={{display:'flex',gap:0}}>
+                  {[
+                    {id:'editor', label:'Editor'},
+                    {id:'config', label:'Configuração'},
+                    ...(!isIA ? [{id:'meta', label:'Aprovação Meta'}] : []),
+                  ].map(t => (
+                    <button key={t.id} onClick={()=>setAba(t.id)} style={{
+                      padding:'6px 14px',fontSize:12,border:'none',background:'transparent',cursor:'pointer',
+                      color: aba===t.id ? 'var(--accent)' : 'var(--label-4)',
+                      borderBottom: `2px solid ${aba===t.id?'var(--accent)':'transparent'}`,
+                      fontWeight: aba===t.id ? 600 : 400, transition:'color .1s',
+                    }}>
+                      {t.label}
+                      {t.id==='meta' && metaStatus && (
+                        <span style={{marginLeft:5,fontSize:9,padding:'1px 5px',borderRadius:99,
+                          background: metaStatus==='APPROVED'?'rgba(34,197,94,.12)':metaStatus==='REJECTED'?'rgba(239,68,68,.12)':'rgba(245,158,11,.12)',
+                          color:      metaStatus==='APPROVED'?'#22c55e':metaStatus==='REJECTED'?'#ef4444':'#f59e0b',
+                        }}>
+                          {metaStatus==='APPROVED'?'✓':metaStatus==='REJECTED'?'✗':'⏳'}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Conteúdo das abas */}
+              <div style={{flex:1,overflowY:'auto',padding:'14px 16px'}}>
+
+                {/* ── ABA EDITOR ─────────────────────────────────────────── */}
+                {aba === 'editor' && (
+                  <div>
+                    {/* Gerar com IA */}
+                    <div style={{display:'flex',gap:7,marginBottom:14,padding:'10px 12px',borderRadius:9,background:'rgba(124,106,247,.05)',border:'0.5px solid rgba(124,106,247,.2)'}}>
+                      <div style={{flex:1}}>
+                        <p style={{fontSize:12,fontWeight:600,color:'#7c6af7',margin:'0 0 2px',display:'flex',alignItems:'center',gap:5}}>
+                          <Sparkles size={12}/> Gerar com IA
+                        </p>
+                        <p style={{fontSize:11.5,color:'var(--label-4)',margin:0}}>A Bia cria o texto ideal para este gatilho automaticamente</p>
+                      </div>
+                      <button onClick={gerarIA} disabled={gerando} style={{display:'flex',alignItems:'center',gap:5,padding:'7px 12px',borderRadius:8,border:'0.5px solid rgba(124,106,247,.3)',background:'rgba(124,106,247,.1)',color:'#7c6af7',cursor:'pointer',fontSize:12,fontWeight:600,flexShrink:0,alignSelf:'center'}}>
+                        {gerando ? <><RefreshCw size={12} style={{animation:'spin 1s linear infinite'}}/> Gerando...</> : <><Sparkles size={12}/> Gerar</>}
+                      </button>
+                    </div>
+                    {erroIA && <p style={{fontSize:12,color:'#ef4444',marginBottom:10}}>{erroIA}</p>}
+
+                    {/* Blocos */}
+                    <div>
+                      {blocos.map((b, i) => (
+                        <div key={b.id} style={{animation:'fadeIn .2s ease both'}}>
+                          <BlocoEditor
+                            bloco={b}
+                            index={i}
+                            total={blocos.length}
+                            onChange={dados => updateBloco(b.id, dados)}
+                            onRemove={() => removeBloco(b.id)}
+                            variaveis={gatilho.variaveis || []}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Adicionar blocos */}
+                    <div style={{marginTop:10}}>
+                      <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--label-4)',marginBottom:8}}>Adicionar bloco</p>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                        {TIPOS_BLOCO.filter(t => {
+                          // Limita: máx 1 cab/rod/img, máx 3 botões
+                          if (t.tipo==='cabecalho' && blocos.find(b=>b.tipo==='cabecalho')) return false
+                          if (t.tipo==='rodape'    && blocos.find(b=>b.tipo==='rodape'))    return false
+                          if (t.tipo==='imagem'    && blocos.find(b=>b.tipo==='imagem'))    return false
+                          if (t.tipo==='botao'     && blocos.filter(b=>b.tipo==='botao').length >= 3) return false
+                          if (isIA && ['imagem','botao','link','ligar'].includes(t.tipo)) return false
+                          return true
+                        }).map(t => {
+                          const Icon = t.icon
+                          return (
+                            <button key={t.tipo} onClick={()=>addBloco(t.tipo)} className="blk-add"
+                              style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:7,border:'0.5px solid var(--sep)',background:'var(--fill)',color:'var(--label-4)',cursor:'pointer',fontSize:11.5}}>
+                              <Icon size={11} style={{color:t.cor}}/>{t.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Variáveis disponíveis */}
+                    {gatilho.variaveis?.length > 0 && (
+                      <div style={{marginTop:16,padding:'10px 12px',borderRadius:9,background:'var(--fill)',border:'0.5px solid var(--sep)'}}>
+                        <p style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--label-4)',marginBottom:7}}>Variáveis disponíveis</p>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                          {gatilho.variaveis.map(v => (
+                            <code key={v} style={{fontSize:10.5,padding:'2px 7px',borderRadius:5,background:'var(--bg)',border:'0.5px solid var(--sep)',color:'var(--label-3)',fontFamily:'monospace'}}>{v}</code>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── ABA CONFIGURAÇÃO ───────────────────────────────────── */}
+                {aba === 'config' && (
+                  <div style={{display:'flex',flexDirection:'column',gap:12}}>
+
+                    {/* Toggle ativo */}
+                    <div style={{padding:'12px 14px',borderRadius:10,border:'0.5px solid var(--sep)',background:'var(--bg-2)'}}>
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                        <div>
+                          <p style={{fontSize:13,fontWeight:600,color:'var(--label)',margin:'0 0 2px'}}>Status do gatilho</p>
+                          <p style={{fontSize:11.5,color:'var(--label-4)',margin:0}}>Ativa ou desativa o envio automático</p>
+                        </div>
+                        <button onClick={()=>config&&toggleAtivo(selId)} style={{display:'flex',alignItems:'center',gap:5,padding:'6px 12px',borderRadius:8,cursor:config?'pointer':'not-allowed',fontSize:12,fontWeight:600,
+                          background:config?.ativo?'rgba(34,197,94,.1)':'var(--fill)',
+                          color:config?.ativo?'#22c55e':'var(--label-4)',
+                          border:config?.ativo?'0.5px solid rgba(34,197,94,.3)':'0.5px solid var(--sep)',
+                          opacity:config?1:.5}}>
+                          {config?.ativo?<ToggleRight size={14}/>:<ToggleLeft size={14}/>}
+                          {config?.ativo?'Ativo':'Inativo'}
+                        </button>
+                      </div>
+                      <p style={{fontSize:11.5,color:'var(--label-4)',margin:0,padding:'8px 10px',borderRadius:7,background:'var(--fill)'}}>
+                        {config?.ativo ? '🟢 Enviando automaticamente quando o evento ocorre'
+                          : config ? '⚪ Salvo mas não ativo'
+                          : '⚫ Template ainda não salvo'}
+                      </p>
+                    </div>
+
+                    {/* Delay */}
+                    <div style={{padding:'12px 14px',borderRadius:10,border:'0.5px solid var(--sep)',background:'var(--bg-2)'}}>
+                      <p style={{fontSize:13,fontWeight:600,color:'var(--label)',margin:'0 0 4px'}}>Delay de envio</p>
+                      <p style={{fontSize:11.5,color:'var(--label-4)',margin:'0 0 10px'}}>Esperar X minutos após o evento antes de enviar</p>
+                      <div style={{display:'flex',gap:5}}>
+                        {[0,5,10,15,30,60].map(min => (
+                          <button key={min} onClick={()=>salvarDelay(selId,min)} style={{flex:1,padding:'6px 4px',borderRadius:7,border:`0.5px solid ${delays[selId]===min||(!delays[selId]&&min===0)?gatilho.cor+'60':'var(--sep)'}`,background:delays[selId]===min||(!delays[selId]&&min===0)?`${gatilho.cor}12`:'transparent',color:delays[selId]===min||(!delays[selId]&&min===0)?gatilho.cor:'var(--label-4)',cursor:'pointer',fontSize:11.5,fontWeight:delays[selId]===min||(!delays[selId]&&min===0)?700:400}}>
+                            {min===0?'Imediato':`${min}min`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Situação Bling */}
+                    {gatilho.situacao && (
+                      <div style={{padding:'12px 14px',borderRadius:10,border:'0.5px solid var(--sep)',background:'var(--bg-2)'}}>
+                        <p style={{fontSize:13,fontWeight:600,color:'var(--label)',margin:'0 0 4px'}}>Gatilho automático</p>
+                        <p style={{fontSize:11.5,color:'var(--label-4)',margin:0}}>
+                          {gatilho.situacao.startsWith('#')
+                            ? `Disparado quando as observações internas contêm: ${gatilho.situacao}`
+                            : gatilho.situacao === 'manual'
+                            ? 'Disparo manual — acionado pela equipe'
+                            : gatilho.situacao === 'auto-ia'
+                            ? 'Disparo automático pela Inteligência da Bia'
+                            : `Situação Bling: ${gatilho.situacao}`
+                          }
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Teste */}
+                    <div style={{padding:'12px 14px',borderRadius:10,border:'0.5px solid var(--sep)',background:'var(--bg-2)'}}>
+                      <p style={{fontSize:13,fontWeight:600,color:'var(--label)',margin:'0 0 4px'}}>Enviar teste</p>
+                      <p style={{fontSize:11.5,color:'var(--label-4)',margin:'0 0 8px'}}>Receba um preview real com dados de exemplo</p>
+                      <div style={{display:'flex',gap:7}}>
+                        <input value={telTeste} onChange={e=>setTelTeste(e.target.value)}
+                          placeholder="55119..." style={{flex:1,padding:'7px 10px',borderRadius:8,border:'0.5px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:12.5,outline:'none',fontFamily:'monospace'}}/>
+                        <button onClick={enviarTeste} disabled={enviandoT||!telTeste} style={{display:'flex',alignItems:'center',gap:5,padding:'7px 13px',borderRadius:8,border:'0.5px solid rgba(37,211,102,.3)',background:'rgba(37,211,102,.07)',color:'#25D366',cursor:'pointer',fontSize:12,fontWeight:600,opacity:!telTeste?.5:1}}>
+                          {enviandoT?<RefreshCw size={12} style={{animation:'spin 1s linear infinite'}}/>:<Send size={12}/>}
+                          {enviandoT?'Enviando...':'Testar'}
+                        </button>
+                      </div>
+                      {resTeste && (
+                        <p style={{fontSize:12,marginTop:7,color:resTeste==='ok'?'#22c55e':'#ef4444'}}>
+                          {resTeste==='ok' ? '✅ Enviado com sucesso!' : `❌ Erro: ${resTeste}`}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── ABA META (apenas HSM) ──────────────────────────────── */}
+                {aba === 'meta' && !isIA && (
+                  <div style={{display:'flex',flexDirection:'column',gap:12}}>
+
+                    {/* Status atual */}
+                    <div style={{padding:'12px 14px',borderRadius:10,border:`0.5px solid ${metaStatus==='APPROVED'?'rgba(34,197,94,.3)':metaStatus==='REJECTED'?'rgba(239,68,68,.3)':'var(--sep)'}`,background:metaStatus==='APPROVED'?'rgba(34,197,94,.05)':metaStatus==='REJECTED'?'rgba(239,68,68,.05)':'var(--bg-2)'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                        <div style={{width:8,height:8,borderRadius:'50%',background:metaStatus==='APPROVED'?'#22c55e':metaStatus==='REJECTED'?'#ef4444':metaStatus==='PENDING'?'#f59e0b':'var(--sep)'}}/>
+                        <span style={{fontSize:13,fontWeight:600,color:'var(--label)'}}>
+                          {metaStatus==='APPROVED'?'Aprovado pela Meta'
+                            :metaStatus==='REJECTED'?'Rejeitado — precisa revisar'
+                            :metaStatus==='PENDING'?'Em análise (até 24h)'
+                            :'Não submetido'}
+                        </span>
+                      </div>
+                      <p style={{fontSize:11.5,color:'var(--label-4)',margin:0}}>
+                        {metaStatus==='APPROVED'
+                          ? 'Este template pode ser enviado para qualquer número, mesmo fora da janela de 24h.'
+                          :metaStatus==='REJECTED'
+                          ? 'A Meta rejeitou o template. Revise o conteúdo, evite promoções agressivas e resubmeta.'
+                          :metaStatus==='PENDING'
+                          ? 'Template em análise. A Meta costuma aprovar em menos de 24h.'
+                          : 'Submeta para a Meta aprovar antes de usar como disparo automático.'}
+                      </p>
+                    </div>
+
+                    {/* Erro de submissão */}
+                    {metaErro && (
+                      <div style={{padding:'10px 12px',borderRadius:9,border:'0.5px solid rgba(239,68,68,.3)',background:'rgba(239,68,68,.05)'}}>
+                        <p style={{fontSize:12,color:'#ef4444',margin:'0 0 4px',fontWeight:600}}>Erro na submissão</p>
+                        <p style={{fontSize:11.5,color:'var(--label-3)',margin:0}}>{metaErro}</p>
+                        {metaErro.includes('WABA') && (
+                          <p style={{fontSize:11.5,color:'#f59e0b',margin:'6px 0 0',padding:'6px 8px',borderRadius:6,background:'rgba(245,158,11,.08)',border:'0.5px solid rgba(245,158,11,.25)'}}>
+                            💡 Configure WHATSAPP_WABA_ID nas variáveis de ambiente do Railway (diferente do Phone ID)
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Botão submeter */}
+                    <button onClick={submeterMeta} disabled={submetendo||!config}
+                      style={{display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'11px',borderRadius:10,border:'0.5px solid rgba(74,159,255,.3)',background:'rgba(74,159,255,.08)',color:'#4a9fff',cursor:config?'pointer':'not-allowed',fontSize:13,fontWeight:600,opacity:!config?.5:1}}>
+                      {submetendo?<><RefreshCw size={14} style={{animation:'spin 1s linear infinite'}}/> Submetendo...</>:<><ExternalLink size={14}/> {metaStatus?'Resubmeter para Meta':'Submeter para aprovação Meta'}</>}
+                    </button>
+                    {!config && <p style={{fontSize:11.5,color:'var(--label-4)',textAlign:'center',margin:0}}>Salve o template primeiro</p>}
+
+                    {/* Info sobre HSM */}
+                    <div style={{padding:'10px 12px',borderRadius:9,background:'var(--fill)',border:'0.5px solid var(--sep)'}}>
+                      <p style={{fontSize:11,color:'var(--label-4)',margin:0,lineHeight:1.6}}>
+                        <strong style={{color:'var(--label-3)'}}>O que é um template HSM?</strong><br/>
+                        Templates aprovados pela Meta permitem iniciar conversas com clientes mesmo sem janela aberta (fora das 24h). Necessário para todos os disparos automáticos do Bling.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ── COLUNA 3: Preview ────────────────────────────────────────────── */}
+        <div style={{display:'flex',flexDirection:'column',overflow:'hidden',background:'var(--fill)'}}>
+          {!selId ? (
+            <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--label-4)'}}>
+              <p style={{fontSize:12}}>Preview aparece aqui</p>
+            </div>
+          ) : (
+            <>
+              {/* Header preview */}
+              <div style={{flexShrink:0,padding:'10px 14px',borderBottom:'0.5px solid var(--sep)',background:'var(--bg-2)',display:'flex',alignItems:'center',gap:8}}>
+                <Eye size={13} style={{color:'var(--label-4)'}}/>
+                <span style={{fontSize:12,fontWeight:500,color:'var(--label-3)'}}>Preview WhatsApp</span>
+                <span style={{fontSize:10.5,color:'var(--label-4)',marginLeft:'auto'}}>com dados de exemplo</span>
+              </div>
+
+              {/* Preview */}
+              <div style={{flex:1,overflowY:'auto',padding:'20px 16px',background:'#e5ddd5'}}>
+                <div style={{backgroundImage:'url("data:image/svg+xml,%3Csvg width=\'200\' height=\'200\' viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'200\' height=\'200\' fill=\'%23e5ddd5\'/%3E%3C/svg%3E")'}}>
+                  <PreviewWA blocos={blocos} tipo={gatilho?.tipo}/>
+                </div>
+              </div>
+
+              {/* Barra de salvar */}
+              {dirty && (
+                <div style={{flexShrink:0,padding:'10px 14px',borderTop:'0.5px solid var(--sep)',background:'var(--bg-2)',display:'flex',gap:7}}>
+                  <button onClick={salvar} disabled={salvando} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'9px',borderRadius:9,border:'0.5px solid rgba(37,211,102,.3)',background:'rgba(37,211,102,.08)',color:'#22c55e',cursor:'pointer',fontSize:12.5,fontWeight:700}}>
+                    {salvando?<><RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/> Salvando...</>:salvoOk?<><Check size={13}/> Salvo!</>:<><Save size={13}/> Salvar alterações</>}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
       </div>
     </div>
   )
