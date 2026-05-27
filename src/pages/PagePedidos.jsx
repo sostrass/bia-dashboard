@@ -10,7 +10,7 @@ import {
   Package, Truck, FileText, MessageSquare, Star, Crown,
   AlertCircle, BarChart3, Activity, ChevronLeft, ChevronRight,
   Bell, Zap, Users, MapPin, CreditCard, Phone, ArrowUpRight,
-  ArrowDownRight, Eye, Circle, Navigation, Hash, Calendar, Copy,
+  ArrowDownRight, Eye, Circle, Navigation, Hash, Calendar,
   Info, DollarSign, Box, Layers, Timer, Award, Map,
   ShieldCheck, Building, Globe, Percent, Target,
 } from 'lucide-react'
@@ -1069,8 +1069,8 @@ export default function PagePedidos({api}) {
   const [loading,   setLoad]  = useState(true)
   const [loadMore,  setLM]    = useState(false)
   const [pgAPI,     setPgAPI] = useState(1)
-  const [temMais, 
-  const [totalBling,setTotalBling]=useState(0)  setTM]    = useState(true)
+  const [temMais,    setTM]     = useState(true)
+  const [totalBling, setTotalBling] = useState(0)
   const [busca,     setBusca] = useState('')
   const [filtroSit, setFS]    = useState('0')
   const [filtroC,   setFC]    = useState('todos')
