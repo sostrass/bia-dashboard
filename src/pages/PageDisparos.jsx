@@ -1,424 +1,616 @@
-import { useState, useEffect, useCallback } from 'react'
+/**
+ * PageDisparos.jsx — Bia v6 Enterprise
+ * Monitor de disparos automáticos e gatilhos WhatsApp
+ */
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Zap, Send, AlertCircle, Clock, CheckCircle, RefreshCw,
-  TrendingUp, Users, XCircle, BarChart3, Activity,
-  Filter, ChevronDown, ShoppingBag, Truck, CreditCard,
-  Bell, Star, FileText, Package, ToggleLeft, ToggleRight,
-  ArrowUpRight, ArrowDownRight, Minus
+  TrendingUp, Users, XCircle, BarChart3, Activity, Filter,
+  ShoppingBag, Truck, CreditCard, Bell, Star, FileText,
+  Package, ArrowUpRight, ArrowDownRight, Minus, Search,
+  RotateCcw, ChevronLeft, ChevronRight, Eye, X, Navigation,
+  Hash, Timer, AlertTriangle, ShieldCheck, ToggleLeft,
+  ToggleRight, Download, Info, MessageSquare, ExternalLink,
 } from 'lucide-react'
+import {
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, CartesianGrid, Cell, PieChart, Pie,
+} from 'recharts'
 
-const BASE = import.meta.env.VITE_API_URL || ''
+const BASE = import.meta.env?.VITE_API_URL || ''
 
+// ─── METADADOS DOS GATILHOS ───────────────────────────────────────────────────
 const GATILHO_META = {
-  pagamento_aprovado: { label:'Pagamento Aprovado', icon:CreditCard,  cor:'#4a9fff', emoji:'✅' },
-  pedido_enviado:     { label:'Pedido Enviado',     icon:Truck,        cor:'#a78bfa', emoji:'🚚' },
-  pedido_entregue:    { label:'Pedido Entregue',    icon:Package,      cor:'#22c55e', emoji:'📦' },
-  pedido_criado:      { label:'Pedido Criado',      icon:ShoppingBag,  cor:'#00d4aa', emoji:'🛒' },
-  nfe_emitida:        { label:'NF-e Emitida',       icon:FileText,     cor:'#f59e0b', emoji:'📄' },
-  avise_me:           { label:'Avise-me',           icon:Bell,         cor:'#fb923c', emoji:'🔔' },
-  em_separacao:       { label:'Em Separação',       icon:Activity,     cor:'#8b5cf6', emoji:'📋' },
-  produto_embalado:   { label:'Produto Embalado',   icon:Package,      cor:'#06b6d4', emoji:'📦' },
-  boas_vindas:        { label:'Boas-vindas',         icon:Star,         cor:'#e879f9', emoji:'👋' },
-  avaliar_pedido:     { label:'Avaliação',           icon:Star,         cor:'#f87171', emoji:'⭐' },
-  nao_entregue:       { label:'Não Entregue',        icon:XCircle,      cor:'#ef4444', emoji:'❌' },
+  pagamento_aprovado:       { label:'Pagamento Aprovado',       icon:CreditCard,    cor:'#4a9fff' },
+  pedido_criado:            { label:'Pedido Criado',            icon:ShoppingBag,   cor:'#00d4aa' },
+  pedido_aguardando_pagamento:{ label:'Aguardando Pagamento',   icon:Clock,         cor:'#f59e0b' },
+  em_separacao:             { label:'Em Separação',             icon:Activity,      cor:'#8b5cf6' },
+  produto_embalado:         { label:'Produto Embalado',         icon:Package,       cor:'#06b6d4' },
+  nfe_pendente:             { label:'NF-e Pendente',            icon:FileText,      cor:'#f97316' },
+  nfe_emitida:              { label:'NF-e Emitida',             icon:FileText,      cor:'#f59e0b' },
+  pedido_enviado:           { label:'Pedido Enviado',           icon:Truck,         cor:'#a78bfa' },
+  rastreio_em_transito:     { label:'Em Trânsito',              icon:Navigation,    cor:'#06b6d4' },
+  saiu_entrega:             { label:'Saiu p/ Entrega',          icon:Truck,         cor:'#22c55e' },
+  pedido_entregue:          { label:'Pedido Entregue',          icon:Package,       cor:'#22c55e' },
+  nao_entregue:             { label:'Não Entregue',             icon:XCircle,       cor:'#ef4444' },
+  cancelamento:             { label:'Cancelamento',             icon:XCircle,       cor:'#ef4444' },
+  devolucao:                { label:'Devolução',                icon:RotateCcw,     cor:'#f97316' },
+  avise_me:                 { label:'Avise-me',                 icon:Bell,          cor:'#fb923c' },
+  boas_vindas:              { label:'Boas-vindas',              icon:Star,          cor:'#e879f9' },
+  avaliar_pedido:           { label:'Avaliação',                icon:Star,          cor:'#f87171' },
+  estorno_realizado:        { label:'Estorno',                  icon:RotateCcw,     cor:'#f97316' },
+  pix_pendente:             { label:'PIX Pendente',             icon:CreditCard,    cor:'#22c55e' },
 }
 
 const STATUS_META = {
-  enviado:    { label:'Enviado',    cor:'#22c55e', bg:'rgba(34,197,94,0.1)',    icon:CheckCircle },
-  erro:       { label:'Erro',       cor:'#ef4444', bg:'rgba(239,68,68,0.1)',    icon:XCircle },
-  ignorado:   { label:'Ignorado',   cor:'#6b7280', bg:'rgba(107,114,128,0.1)', icon:Minus },
-  aguardando: { label:'Aguardando', cor:'#f59e0b', bg:'rgba(245,158,11,0.1)',  icon:Clock },
+  enviado:    { label:'Enviado',    cor:'#22c55e', bg:'rgba(34,197,94,.12)',    icon:CheckCircle },
+  erro:       { label:'Erro',       cor:'#ef4444', bg:'rgba(239,68,68,.12)',    icon:XCircle },
+  ignorado:   { label:'Ignorado',   cor:'#6b7280', bg:'rgba(107,114,128,.12)', icon:Minus },
+  aguardando: { label:'Aguardando', cor:'#f59e0b', bg:'rgba(245,158,11,.12)',  icon:Clock },
 }
 
 const PERIODOS = [
-  { id:'1d', label:'Hoje' },
-  { id:'7d', label:'7 dias' },
-  { id:'30d',label:'30 dias' },
-  { id:'90d',label:'90 dias' },
+  {id:'1d',label:'Hoje'},{id:'7d',label:'7 dias'},
+  {id:'30d',label:'30 dias'},{id:'90d',label:'90 dias'},
 ]
 
-// Mini sparkline SVG
-function Sparkline({ dados=[], cor='#00d4aa' }) {
-  if (!dados.length) return null
-  const vals  = dados.map(d => parseInt(d.enviados)||0)
-  const max   = Math.max(...vals, 1)
-  const w     = 80, h = 28, pad = 2
-  const pts   = vals.map((v,i) => {
-    const x = pad + (i / Math.max(vals.length-1,1)) * (w - pad*2)
-    const y = h - pad - ((v/max) * (h - pad*2))
-    return `${x},${y}`
-  }).join(' ')
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-      <polyline points={pts} fill="none" stroke={cor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  )
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+const fmtTel = t => {
+  const n=(t||'').replace(/\D/g,'').replace(/^55/,'')
+  return n.length===11?`(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`:t||''
 }
+const fmtDH = ts => ts ? new Date(ts).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—'
+const fmtD  = ts => ts ? new Date(ts).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : '—'
 
-// Card de métrica principal
-function MetricCard({ label, valor, sub, icon: Ic, cor, trend, sparkData }) {
-  const trendPos = trend > 0, trendNeg = trend < 0
+const TT = {contentStyle:{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:8,fontSize:11,color:'var(--label)'}}
+
+// ─── KPI CARD ─────────────────────────────────────────────────────────────────
+function KCard({icon:Ic, label, value, sub, cor='#7c6af7', trend, spark}) {
   return (
-    <div className="rounded-[16px] p-4 flex flex-col gap-3"
-      style={{ background:'var(--bg-2)', border:'1px solid var(--sep)' }}>
-      <div className="flex items-center justify-between">
-        <div className="w-8 h-8 rounded-[9px] flex items-center justify-center"
-          style={{ background:`${cor}18` }}>
-          <Ic size={15} style={{ color:cor }}/>
+    <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,
+      padding:'14px 16px',display:'flex',flexDirection:'column',gap:8,position:'relative',overflow:'hidden'}}>
+      <div style={{position:'absolute',top:0,right:0,width:70,height:70,
+        background:`radial-gradient(circle at 100% 0%,${cor}18 0%,transparent 70%)`,pointerEvents:'none'}}/>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+        <div style={{width:32,height:32,borderRadius:9,background:`${cor}18`,
+          display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <Ic size={15} style={{color:cor}}/>
         </div>
-        {trend !== undefined && (
-          <div className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full"
-            style={{
-              background: trendPos?'rgba(34,197,94,0.1)':trendNeg?'rgba(239,68,68,0.1)':'var(--fill)',
-              color: trendPos?'#22c55e':trendNeg?'#ef4444':'var(--label-3)'
-            }}>
-            {trendPos?<ArrowUpRight size={10}/>:trendNeg?<ArrowDownRight size={10}/>:<Minus size={10}/>}
-            {Math.abs(trend)}%
+        {trend!==undefined && (
+          <div style={{display:'flex',alignItems:'center',gap:3,fontSize:11,fontWeight:600,
+            color:trend>0?'#22c55e':trend<0?'#ef4444':'var(--label-4)'}}>
+            {trend>0?<ArrowUpRight size={11}/>:trend<0?<ArrowDownRight size={11}/>:<Minus size={11}/>}
+            {trend!==0&&`${Math.abs(trend)}%`}
           </div>
         )}
       </div>
       <div>
-        <div className="text-[26px] font-bold leading-none mb-1" style={{ color:'var(--label)' }}>
-          {valor ?? '—'}
-        </div>
-        <div className="text-[11px]" style={{ color:'var(--label-3)' }}>{label}</div>
-        {sub && <div className="text-[10px] mt-0.5" style={{ color:'var(--label-4)' }}>{sub}</div>}
+        <div style={{fontSize:24,fontWeight:700,color:'var(--label)',lineHeight:1.1}}>{value??'—'}</div>
+        <div style={{fontSize:11,color:'var(--label-4)',marginTop:2}}>{label}</div>
+        {sub && <div style={{fontSize:10,color:'var(--label-4)',marginTop:1}}>{sub}</div>}
       </div>
-      {sparkData && <Sparkline dados={sparkData} cor={cor}/>}
     </div>
   )
 }
 
-// Barra de progresso estilizada
-function BarraGatilho({ item, total }) {
-  const meta  = GATILHO_META[item.gatilho] || { label:item.gatilho, cor:'#6b7280', emoji:'⚡' }
-  const pct   = total > 0 ? Math.round((parseInt(item.total)||0) / total * 100) : 0
-  const taxa  = item.total > 0 ? Math.round((parseInt(item.enviados)||0) / item.total * 100) : 0
-  const Ic    = meta.icon || Zap
+// ─── LINHA DO LOG ─────────────────────────────────────────────────────────────
+function LinhaLog({row, onReenviar, onVerPedido}) {
+  const [expanded, setExpanded] = useState(false)
+  const [reenviando, setReenv]  = useState(false)
+  const [reenviado,  setReenvOk]= useState(false)
+
+  const meta  = GATILHO_META[row.gatilho] || {label:row.gatilho, icon:Zap, cor:'#6b7280'}
+  const smeta = STATUS_META[row.status]   || STATUS_META.ignorado
+  const Ic    = meta.icon
+  const SIc   = smeta.icon
+
+  const reenviar = async () => {
+    setReenv(true)
+    try {
+      await onReenviar(row.id)
+      setReenvOk(true); setTimeout(()=>setReenvOk(false),2500)
+    } catch {}
+    setReenv(false)
+  }
 
   return (
-    <div className="flex items-center gap-3 py-2.5"
-      style={{ borderBottom:'1px solid var(--sep)' }}>
-      <div className="w-7 h-7 rounded-[7px] flex items-center justify-center flex-shrink-0"
-        style={{ background:`${meta.cor}15` }}>
-        <Ic size={13} style={{ color:meta.cor }}/>
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[12px] font-medium truncate" style={{ color:'var(--label)' }}>
-            {meta.emoji} {meta.label}
-          </span>
-          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-            <span className="text-[11px] font-semibold" style={{ color:'var(--label)' }}>{item.total}</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full"
-              style={{ background: taxa>=90?'rgba(34,197,94,0.1)':taxa>=70?'rgba(245,158,11,0.1)':'rgba(239,68,68,0.1)',
-                       color: taxa>=90?'#22c55e':taxa>=70?'#f59e0b':'#ef4444' }}>
-              {taxa}%
-            </span>
+    <>
+      <div onClick={()=>setExpanded(v=>!v)} style={{
+        display:'grid',
+        gridTemplateColumns:'32px 1fr 110px 100px 90px 80px 44px',
+        gap:0,padding:'9px 12px',alignItems:'center',cursor:'pointer',
+        borderBottom:'1px solid var(--sep)',
+        background:row.status==='erro'?'rgba(239,68,68,.03)':expanded?'var(--fill)':'transparent',
+        transition:'background .1s',
+      }}
+        onMouseEnter={e=>!expanded&&(e.currentTarget.style.background='var(--bg-3)')}
+        onMouseLeave={e=>!expanded&&(e.currentTarget.style.background=row.status==='erro'?'rgba(239,68,68,.03)':'transparent')}
+      >
+        {/* Ícone gatilho */}
+        <div style={{width:24,height:24,borderRadius:7,background:`${meta.cor}18`,
+          display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+          <Ic size={11} style={{color:meta.cor}}/>
+        </div>
+        {/* Gatilho + cliente */}
+        <div style={{minWidth:0,padding:'0 8px'}}>
+          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
+            <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>{meta.label}</span>
+            {row.delay_min>0&&<span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
+              background:'rgba(245,158,11,.1)',color:'#f59e0b'}}>+{row.delay_min}min</span>}
+            {row.origem==='rastreio_job'&&<span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
+              background:'rgba(6,182,212,.1)',color:'#06b6d4'}}>job</span>}
+            {row.origem==='manual_reenvio'&&<span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
+              background:'rgba(167,139,250,.1)',color:'#a78bfa'}}>reenvio</span>}
+          </div>
+          <div style={{fontSize:10.5,color:'var(--label-4)',
+            overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+            {row.nome_cliente||'—'}
+            {row.numero_pedido&&<span style={{color:'var(--label-3)',marginLeft:4}}>· #{row.numero_pedido}</span>}
           </div>
         </div>
-        <div className="h-1.5 rounded-full overflow-hidden" style={{ background:'var(--fill)' }}>
-          <div className="h-full rounded-full transition-all duration-700"
-            style={{ width:`${pct}%`, background:meta.cor }}/>
+        {/* Telefone */}
+        <div style={{padding:'0 6px'}}>
+          <span style={{fontSize:11,color:'var(--label-4)',fontFamily:'monospace'}}>
+            {fmtTel(row.telefone)}
+          </span>
+        </div>
+        {/* Template */}
+        <div style={{padding:'0 6px',overflow:'hidden'}}>
+          <span style={{fontSize:10.5,color:'var(--label-3)',
+            overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'block'}}>
+            {row.template_nome||row.gatilho}
+          </span>
+        </div>
+        {/* Status */}
+        <div style={{padding:'0 6px'}}>
+          <div style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 8px',
+            borderRadius:99,background:smeta.bg}}>
+            <SIc size={9} style={{color:smeta.cor}}/>
+            <span style={{fontSize:10,fontWeight:600,color:smeta.cor}}>{smeta.label}</span>
+          </div>
+        </div>
+        {/* Hora */}
+        <div style={{padding:'0 6px'}}>
+          <span style={{fontSize:10,color:'var(--label-4)'}}>{fmtDH(row.criado_em)}</span>
+        </div>
+        {/* Expand */}
+        <div style={{display:'flex',justifyContent:'center'}}>
+          <Eye size={12} style={{color:'var(--label-4)'}}/>
         </div>
       </div>
-    </div>
+
+      {/* Linha expandida */}
+      {expanded && (
+        <div style={{
+          padding:'10px 16px 12px',borderBottom:'1px solid var(--sep)',
+          background:'var(--fill)',display:'flex',flexDirection:'column',gap:8,
+        }}>
+          {row.erro_msg && (
+            <div style={{display:'flex',alignItems:'flex-start',gap:8,padding:'8px 12px',
+              borderRadius:8,background:'rgba(239,68,68,.08)',border:'1px solid rgba(239,68,68,.2)'}}>
+              <AlertCircle size={12} style={{color:'#ef4444',flexShrink:0,marginTop:1}}/>
+              <span style={{fontSize:11.5,color:'#ef4444',lineHeight:1.5}}>{row.erro_msg}</span>
+            </div>
+          )}
+          <div style={{display:'flex',gap:24,flexWrap:'wrap'}}>
+            {[
+              ['ID',         `#${row.id}`],
+              ['Origem',     row.origem||'bling'],
+              ['Gatilho',    row.gatilho],
+              ['Pedido',     row.numero_pedido||'—'],
+              ['Data/hora',  new Date(row.criado_em).toLocaleString('pt-BR')],
+              ['Delay',      row.delay_min>0?`${row.delay_min} min`:'Imediato'],
+            ].map(([k,v])=>(
+              <div key={k} style={{minWidth:80}}>
+                <div style={{fontSize:9,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:2}}>{k}</div>
+                <div style={{fontSize:12,color:'var(--label)',fontWeight:500}}>{v}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{display:'flex',gap:8,marginTop:4}}>
+            {['erro','ignorado'].includes(row.status) && (
+              <button onClick={reenviar} disabled={reenviando||reenviado} style={{
+                display:'flex',alignItems:'center',gap:5,padding:'5px 12px',borderRadius:8,
+                border:'1px solid rgba(167,139,250,.3)',background:'rgba(167,139,250,.08)',
+                color:'#a78bfa',cursor:'pointer',fontSize:11,fontWeight:600}}>
+                <RotateCcw size={11}/>
+                {reenviando?'Reenviando...':reenviado?'Reenviado!':'Reenviar'}
+              </button>
+            )}
+            {row.numero_pedido && (
+              <button onClick={()=>onVerPedido?.(row.numero_pedido)} style={{
+                display:'flex',alignItems:'center',gap:5,padding:'5px 12px',borderRadius:8,
+                border:'1px solid var(--sep)',background:'var(--fill)',
+                color:'var(--label-3)',cursor:'pointer',fontSize:11}}>
+                <Package size={11}/>Ver pedido #{row.numero_pedido}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
-export default function PageDisparos({ api: apiProp }) {
+// ─── PÁGINA PRINCIPAL ─────────────────────────────────────────────────────────
+export default function PageDisparos({api: apiProp}) {
   const api = apiProp || BASE
-  const [stats,    setStats]    = useState(null)
-  const [loading,  setLoading]  = useState(true)
-  const [periodo,  setPeriodo]  = useState('7d')
-  const [filtroSt, setFiltroSt] = useState('todos')
-  const [filtroGat,setFiltroGat]= useState('todos')
-  const [autoRef,  setAutoRef]  = useState(true)
 
-  const carregar = useCallback(async () => {
-    const url = `${api}/bling-webhook/stats?periodo=${periodo}`
+  // Stats gerais
+  const [stats,   setStats]   = useState(null)
+  const [loadSt,  setLoadSt]  = useState(true)
+  const [periodo, setPeriodo] = useState('7d')
+
+  // Log paginado
+  const [log,       setLog]      = useState([])
+  const [logTotal,  setLogTotal] = useState(0)
+  const [logPgs,    setLogPgs]   = useState(1)
+  const [logPg,     setLogPg]    = useState(1)
+  const [loadLog,   setLoadLog]  = useState(false)
+  const [filtroSt,  setFiltroSt] = useState('todos')
+  const [filtroGat, setFiltroGat]= useState('todos')
+  const [busca,     setBusca]    = useState('')
+  const [buscaInput,setBuscaInput]=useState('')
+
+  // Auto-refresh
+  const [autoRef,  setAutoRef]  = useState(true)
+  const [lastUpd,  setLastUpd]  = useState(null)
+  const polRef = useRef(null)
+
+  // Carrega stats
+  const carregarStats = useCallback(async(sil=false)=>{
+    if(!sil) setLoadSt(true)
     try {
-      console.log('[PageDisparos] Buscando:', url)
-      const r = await fetch(url)
-      console.log('[PageDisparos] Status:', r.status, '| ok:', r.ok)
+      const r = await fetch(`${api}/api/dashboard/disparos-stats?periodo=${periodo}`)
+      if (r.ok) { const d=await r.json(); setStats(d); setLastUpd(new Date()) }
+    } catch {}
+    if(!sil) setLoadSt(false)
+  },[api,periodo])
+
+  // Carrega log
+  const carregarLog = useCallback(async(pg=1)=>{
+    setLoadLog(true)
+    try {
+      const params = new URLSearchParams({
+        periodo, pagina:pg, limite:50,
+        ...(filtroSt!=='todos'&&{status:filtroSt}),
+        ...(filtroGat!=='todos'&&{gatilho:filtroGat}),
+        ...(busca&&{busca}),
+      })
+      const r = await fetch(`${api}/api/dashboard/disparos-log?${params}`)
       if (r.ok) {
         const d = await r.json()
-        console.log('[PageDisparos] Dados recebidos:', JSON.stringify(d).slice(0,200))
-        setStats(d)
-      } else {
-        console.error('[PageDisparos] Erro HTTP:', r.status, url)
+        setLog(d.disparos||[])
+        setLogTotal(d.total||0)
+        setLogPgs(d.paginas||1)
+        setLogPg(pg)
       }
-    } catch(e) {
-      console.error('[PageDisparos] Erro fetch:', e.message, url)
-    }
-    setLoading(false)
-  }, [api, periodo])
+    } catch {}
+    setLoadLog(false)
+  },[api,periodo,filtroSt,filtroGat,busca])
 
-  useEffect(() => { setLoading(true); carregar() }, [carregar])
-  useEffect(() => {
-    if (!autoRef) return
-    const t = setInterval(carregar, 30000)
-    return () => clearInterval(t)
-  }, [carregar, autoRef])
+  useEffect(()=>{ carregarStats(); carregarLog(1) },[carregarStats])
+  useEffect(()=>{ carregarLog(1) },[filtroSt,filtroGat,busca,periodo])
 
-  const t = stats?.totais || {}
-  const total = parseInt(t.total)||0
-  const taxaSucesso = total > 0 ? Math.round(((parseInt(t.enviados)||0)/total)*100) : 0
+  // Auto-refresh
+  useEffect(()=>{
+    if(!autoRef) { clearInterval(polRef.current); return }
+    polRef.current = setInterval(()=>{ carregarStats(true); carregarLog(logPg) },15000)
+    return()=>clearInterval(polRef.current)
+  },[autoRef,carregarStats,carregarLog,logPg])
 
-  const recentes = (stats?.recentes || []).filter(r => {
-    if (filtroSt !== 'todos' && r.status !== filtroSt) return false
-    if (filtroGat !== 'todos' && r.gatilho !== filtroGat) return false
-    return true
-  })
+  const reenviar = async(id) => {
+    const r = await fetch(`${api}/api/dashboard/disparos-reenviar/${id}`,{method:'POST'})
+    if (!r.ok) throw new Error('Falha ao reenviar')
+    await carregarLog(logPg)
+  }
 
+  const exportarCSV = () => {
+    const rows = [
+      ['ID','Gatilho','Cliente','Telefone','Pedido','Template','Status','Origem','Data/Hora'],
+      ...log.map(r=>[r.id,r.gatilho,r.nome_cliente||'',r.telefone,r.numero_pedido||'',
+        r.template_nome||'',r.status,r.origem||'',r.criado_em])
+    ]
+    const csv = rows.map(r=>r.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n')
+    const a = document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}))
+    a.download=`disparos-${periodo}-${new Date().toISOString().slice(0,10)}.csv`; a.click()
+  }
+
+  // Dados derivados
+  const t          = stats?.totais||{}
+  const total      = parseInt(t.total)||0
+  const enviados   = parseInt(t.enviados)||0
+  const erros      = parseInt(t.erros)||0
+  const taxa       = total>0 ? Math.round(enviados/total*100) : 0
+  const porDiaChart= (stats?.porDia||[]).map(d=>({
+    d: fmtD(d.dia),
+    enviados: parseInt(d.enviados)||0,
+    erros:    parseInt(d.erros)||0,
+    total:    parseInt(d.total)||0,
+  }))
+  const porGatChart= (stats?.porGatilho||[]).map(g=>({
+    name:  GATILHO_META[g.gatilho]?.label||g.gatilho,
+    total: parseInt(g.total)||0,
+    enviados: parseInt(g.enviados)||0,
+    cor:   GATILHO_META[g.gatilho]?.cor||'#6b7280',
+  }))
   const gatilhosUsados = [...new Set((stats?.porGatilho||[]).map(g=>g.gatilho))]
 
   return (
-    <div className="h-full flex flex-col overflow-hidden" style={{ background:'var(--bg)' }}>
+    <div style={{height:'100%',display:'flex',flexDirection:'column',overflow:'hidden',background:'var(--bg)'}}>
 
-      {/* Header */}
-      <div className="px-6 py-4 flex-shrink-0 flex items-center justify-between"
-        style={{ borderBottom:'1px solid var(--sep)', background:'var(--bg-2)' }}>
+      {/* ── HEADER ── */}
+      <div style={{padding:'12px 20px',flexShrink:0,borderBottom:'1px solid var(--sep)',
+        background:'var(--bg-2)',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:10}}>
         <div>
-          <h2 className="text-[20px] font-bold" style={{ color:'var(--label)' }}>Disparos</h2>
-          <p className="text-[12px] mt-0.5" style={{ color:'var(--label-3)' }}>
-            Mensagens transacionais enviadas pelo sistema
-          </p>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <div style={{width:34,height:34,borderRadius:10,background:'rgba(124,106,247,.15)',
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <Zap size={17} style={{color:'#7c6af7'}}/>
+            </div>
+            <div>
+              <h2 style={{fontSize:18,fontWeight:700,color:'var(--label)',margin:0}}>Monitor de Disparos</h2>
+              <p style={{fontSize:11,color:'var(--label-4)',margin:0}}>
+                Gatilhos automáticos WhatsApp
+                {lastUpd&&<span style={{marginLeft:8}}>· atualizado {lastUpd.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>}
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
           {/* Auto-refresh */}
-          <button onClick={()=>setAutoRef(v=>!v)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] text-[11px] font-medium transition-all"
-            style={{ background:autoRef?'rgba(34,197,94,0.1)':'var(--fill)', color:autoRef?'#22c55e':'var(--label-3)', border:autoRef?'1px solid rgba(34,197,94,0.3)':'1px solid var(--sep)' }}>
-            {autoRef?<ToggleRight size={14} strokeWidth={2}/>:<ToggleLeft size={14}/>}
-            Auto-refresh
+          <button onClick={()=>setAutoRef(v=>!v)} style={{
+            display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:8,fontSize:11,
+            border:`1px solid ${autoRef?'rgba(34,197,94,.35)':'var(--sep)'}`,
+            background:autoRef?'rgba(34,197,94,.08)':'none',
+            color:autoRef?'#22c55e':'var(--label-4)',cursor:'pointer'}}>
+            {autoRef?<ToggleRight size={13}/>:<ToggleLeft size={13}/>}
+            Live {autoRef&&<span style={{width:6,height:6,borderRadius:'50%',background:'#22c55e',animation:'pulse 1.5s ease infinite'}}/>}
           </button>
           {/* Período */}
-          <div className="flex gap-1 p-1 rounded-[10px]" style={{ background:'var(--fill)' }}>
+          <div style={{display:'flex',gap:2,padding:'3px',borderRadius:10,background:'var(--fill)',border:'1px solid var(--sep)'}}>
             {PERIODOS.map(p=>(
-              <button key={p.id} onClick={()=>setPeriodo(p.id)}
-                className="px-3 py-1 rounded-[7px] text-[11px] font-medium transition-all"
-                style={{ background:periodo===p.id?'var(--bg-2)':'transparent', color:periodo===p.id?'var(--label)':'var(--label-3)', boxShadow:periodo===p.id?'0 1px 3px rgba(0,0,0,0.1)':'none' }}>
+              <button key={p.id} onClick={()=>setPeriodo(p.id)} style={{
+                padding:'4px 10px',borderRadius:7,border:'none',fontSize:11,cursor:'pointer',
+                background:periodo===p.id?'var(--bg-2)':'transparent',
+                color:periodo===p.id?'var(--label)':'var(--label-4)',
+                fontWeight:periodo===p.id?600:400}}>
                 {p.label}
               </button>
             ))}
           </div>
-          <button onClick={()=>{ setLoading(true); carregar() }}
-            className="p-2 rounded-[9px]" style={{ background:'var(--fill)', color:'var(--label-3)' }}>
-            <RefreshCw size={14} className={loading?'animate-spin':''}/>
+          <button onClick={()=>{carregarStats();carregarLog(1)}} style={{
+            width:32,height:32,borderRadius:8,border:'1px solid var(--sep)',
+            background:'none',color:'var(--label-4)',cursor:'pointer',
+            display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <RefreshCw size={13} style={loadSt?{animation:'spin 1s linear infinite'}:{}}/>
+          </button>
+          <button onClick={exportarCSV} style={{
+            display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:8,
+            border:'1px solid var(--sep)',background:'none',color:'var(--label-3)',cursor:'pointer',fontSize:11}}>
+            <Download size={12}/>CSV
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-5">
-        {loading && !stats && (
-          <div className="flex justify-center py-16">
-            <RefreshCw size={16} className="animate-spin" style={{ color:'var(--label-3)' }}/>
+      <div style={{flex:1,overflowY:'auto',padding:'16px 20px',display:'flex',flexDirection:'column',gap:16}}>
+
+        {/* ── KPIs ── */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:10}}>
+          <KCard icon={Send}      label="Total disparos"     value={total}     cor="#7c6af7" sub={`últimos ${stats?.dias||7} dias`}/>
+          <KCard icon={CheckCircle}label="Enviados"           value={enviados}  cor="#22c55e" sub={`taxa ${taxa}%`} trend={taxa>=90?5:taxa>=70?0:-5}/>
+          <KCard icon={XCircle}   label="Erros"              value={erros}     cor="#ef4444" trend={erros>0?-1:0}/>
+          <KCard icon={Users}     label="Clientes alcançados" value={parseInt(t.clientes_unicos)||0} cor="#4a9fff"/>
+          <KCard icon={Activity}  label="Últimas 24h"        value={parseInt(t.ultimas_24h)||0} cor="#a78bfa"/>
+          <KCard icon={Clock}     label="Aguardando"          value={parseInt(t.aguardando)||0} cor="#f59e0b"/>
+        </div>
+
+        {/* ── Taxa global ── */}
+        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+            <span style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7}}>
+              <ShieldCheck size={14} style={{color:'#22c55e'}}/>Taxa de sucesso global
+            </span>
+            <span style={{fontSize:24,fontWeight:800,color:taxa>=90?'#22c55e':taxa>=70?'#f59e0b':'#ef4444'}}>
+              {taxa}%
+            </span>
           </div>
-        )}
-
-        {stats && <>
-
-          {/* KPIs */}
-          <div className="grid grid-cols-4 gap-3">
-            <MetricCard label="Total de disparos" valor={total}
-              sub={`últimos ${stats.dias} dias`}
-              icon={Send} cor="#00d4aa" sparkData={stats.porDia}/>
-            <MetricCard label="Enviados com sucesso" valor={parseInt(t.enviados)||0}
-              sub={`taxa de ${taxaSucesso}%`}
-              icon={CheckCircle} cor="#22c55e"
-              trend={taxaSucesso >= 90 ? 5 : taxaSucesso >= 70 ? 0 : -5}/>
-            <MetricCard label="Clientes alcançados" valor={parseInt(t.clientes_unicos)||0}
-              sub="números únicos" icon={Users} cor="#4a9fff"/>
-            <MetricCard label="Últimas 24h" valor={parseInt(t.ultimas_24h)||0}
-              sub={`${parseInt(t.erros)||0} erros`}
-              icon={Activity} cor="#a78bfa"
-              trend={parseInt(t.erros)>0?-1:1}/>
+          <div style={{height:10,borderRadius:99,overflow:'hidden',background:'var(--fill)',marginBottom:10}}>
+            <div style={{height:'100%',borderRadius:99,transition:'width 1s',
+              width:`${taxa}%`,background:taxa>=90?'#22c55e':taxa>=70?'#f59e0b':'#ef4444'}}/>
           </div>
-
-          {/* Taxa de sucesso visual */}
-          <div className="rounded-[16px] p-4" style={{ background:'var(--bg-2)', border:'1px solid var(--sep)' }}>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[13px] font-semibold" style={{ color:'var(--label)' }}>Taxa de sucesso global</span>
-              <span className="text-[22px] font-bold" style={{ color: taxaSucesso>=90?'#22c55e':taxaSucesso>=70?'#f59e0b':'#ef4444' }}>
-                {taxaSucesso}%
-              </span>
-            </div>
-            <div className="h-3 rounded-full overflow-hidden" style={{ background:'var(--fill)' }}>
-              <div className="h-full rounded-full transition-all duration-1000"
-                style={{ width:`${taxaSucesso}%`, background: taxaSucesso>=90?'#22c55e':taxaSucesso>=70?'#f59e0b':'#ef4444' }}/>
-            </div>
-            <div className="flex justify-between mt-2">
-              <div className="flex items-center gap-4">
-                {[
-                  { l:'Enviados',  v:t.enviados,  c:'#22c55e' },
-                  { l:'Erros',     v:t.erros,     c:'#ef4444' },
-                  { l:'Ignorados', v:t.ignorados, c:'#6b7280' },
-                  { l:'Aguardando',v:t.aguardando,c:'#f59e0b' },
-                ].map(s=>(
-                  <div key={s.l} className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full" style={{ background:s.c }}/>
-                    <span className="text-[10px]" style={{ color:'var(--label-3)' }}>{s.l}: <strong style={{ color:'var(--label-2)' }}>{parseInt(s.v)||0}</strong></span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Gráfico de dias + Por gatilho */}
-          <div className="grid grid-cols-2 gap-4">
-
-            {/* Evolução diária */}
-            <div className="rounded-[16px] p-4" style={{ background:'var(--bg-2)', border:'1px solid var(--sep)' }}>
-              <h3 className="text-[13px] font-semibold mb-4" style={{ color:'var(--label)' }}>Evolução diária</h3>
-              {stats.porDia.length === 0
-                ? <p className="text-[12px] text-center py-4" style={{ color:'var(--label-4)' }}>Sem dados no período</p>
-                : <div className="space-y-1.5">
-                    {(() => {
-                      const maxDia = Math.max(...stats.porDia.map(d=>parseInt(d.total)||0),1)
-                      return stats.porDia.slice(-7).map((d,i)=>{
-                        const pct = Math.round(((parseInt(d.total)||0)/maxDia)*100)
-                        const errPct = d.total > 0 ? Math.round((parseInt(d.erros)||0)/parseInt(d.total)*100) : 0
-                        const dt = new Date(d.dia)
-                        const label = dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})
-                        return (
-                          <div key={i} className="flex items-center gap-2">
-                            <span className="text-[10px] w-12 flex-shrink-0" style={{ color:'var(--label-3)' }}>{label}</span>
-                            <div className="flex-1 h-5 rounded-full overflow-hidden" style={{ background:'var(--fill)' }}>
-                              <div className="h-full rounded-full transition-all duration-700 flex"
-                                style={{ width:`${pct}%` }}>
-                                <div className="flex-1" style={{ background:'#22c55e' }}/>
-                                {errPct > 0 && <div style={{ width:`${errPct}%`, background:'#ef4444', minWidth:4 }}/>}
-                              </div>
-                            </div>
-                            <span className="text-[10px] w-8 text-right flex-shrink-0 font-medium" style={{ color:'var(--label-2)' }}>
-                              {parseInt(d.total)||0}
-                            </span>
-                          </div>
-                        )
-                      })
-                    })()}
-                  </div>
-              }
-            </div>
-
-            {/* Por gatilho */}
-            <div className="rounded-[16px] p-4" style={{ background:'var(--bg-2)', border:'1px solid var(--sep)' }}>
-              <h3 className="text-[13px] font-semibold mb-1" style={{ color:'var(--label)' }}>Por gatilho</h3>
-              {stats.porGatilho.length === 0
-                ? <p className="text-[12px] text-center py-4" style={{ color:'var(--label-4)' }}>Nenhum disparo no período</p>
-                : <div>
-                    {stats.porGatilho.map((item,i)=>(
-                      <BarraGatilho key={i} item={item} total={total}/>
-                    ))}
-                  </div>
-              }
-            </div>
-          </div>
-
-          {/* Log de disparos */}
-          <div className="rounded-[16px] overflow-hidden" style={{ border:'1px solid var(--sep)', background:'var(--bg-2)' }}>
-            <div className="flex items-center justify-between px-4 py-3"
-              style={{ borderBottom:'1px solid var(--sep)', background:'var(--bg-3)' }}>
-              <h3 className="text-[13px] font-semibold" style={{ color:'var(--label)' }}>
-                Log de disparos
-                <span className="ml-2 text-[10px] font-normal px-2 py-0.5 rounded-full"
-                  style={{ background:'var(--fill)', color:'var(--label-3)' }}>
-                  {recentes.length}
+          <div style={{display:'flex',gap:20,flexWrap:'wrap'}}>
+            {[
+              {l:'Enviados',  v:t.enviados,  c:'#22c55e'},
+              {l:'Erros',     v:t.erros,     c:'#ef4444'},
+              {l:'Ignorados', v:t.ignorados, c:'#6b7280'},
+              {l:'Aguardando',v:t.aguardando,c:'#f59e0b'},
+            ].map(s=>(
+              <div key={s.l} style={{display:'flex',alignItems:'center',gap:6}}>
+                <div style={{width:8,height:8,borderRadius:'50%',background:s.c}}/>
+                <span style={{fontSize:11,color:'var(--label-3)'}}>
+                  {s.l}: <strong style={{color:'var(--label)'}}>{parseInt(s.v)||0}</strong>
                 </span>
-              </h3>
-              <div className="flex items-center gap-2">
-                {/* Filtro status */}
-                <select value={filtroSt} onChange={e=>setFiltroSt(e.target.value)}
-                  className="px-2 py-1.5 rounded-[8px] text-[11px] outline-none"
-                  style={{ background:'var(--fill)', border:'1px solid var(--sep)', color:'var(--label-2)' }}>
-                  <option value="todos">Todos status</option>
-                  {Object.entries(STATUS_META).map(([id,m])=>(
-                    <option key={id} value={id}>{m.label}</option>
-                  ))}
-                </select>
-                {/* Filtro gatilho */}
-                <select value={filtroGat} onChange={e=>setFiltroGat(e.target.value)}
-                  className="px-2 py-1.5 rounded-[8px] text-[11px] outline-none"
-                  style={{ background:'var(--fill)', border:'1px solid var(--sep)', color:'var(--label-2)' }}>
-                  <option value="todos">Todos gatilhos</option>
-                  {gatilhosUsados.map(g=>(
-                    <option key={g} value={g}>{GATILHO_META[g]?.emoji} {GATILHO_META[g]?.label||g}</option>
-                  ))}
-                </select>
               </div>
-            </div>
+            ))}
+          </div>
+        </div>
 
-            {recentes.length === 0 ? (
-              <div className="flex flex-col items-center py-12">
-                <Zap size={28} className="mb-3 opacity-15" style={{ color:'var(--label)' }}/>
-                <p className="text-[13px]" style={{ color:'var(--label-3)' }}>Nenhum disparo encontrado</p>
-              </div>
-            ) : (
-              <div>
-                {/* Cabeçalho */}
-                <div className="grid px-4 py-2"
-                  style={{ gridTemplateColumns:'1fr 120px 130px 90px 70px', borderBottom:'1px solid var(--sep)', background:'var(--bg-3)' }}>
-                  {['Gatilho / Cliente','Número','Template','Status','Horário'].map(h=>(
-                    <span key={h} className="text-[10px] font-semibold uppercase tracking-wider"
-                      style={{ color:'var(--label-4)' }}>{h}</span>
-                  ))}
-                </div>
-                {recentes.map((r,i)=>{
-                  const meta  = GATILHO_META[r.gatilho]  || { label:r.gatilho,  cor:'#6b7280', emoji:'⚡' }
-                  const smeta = STATUS_META[r.status] || STATUS_META.ignorado
-                  const Sic   = smeta.icon
-                  const hora  = new Date(r.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
-                  const data  = new Date(r.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})
-                  return (
-                    <div key={i} className="grid items-center px-4 py-2.5 transition-all"
-                      style={{ gridTemplateColumns:'1fr 120px 130px 90px 70px', borderBottom:i<recentes.length-1?'1px solid var(--sep)':'none', background: r.status==='erro'?'rgba(239,68,68,0.03)':'transparent' }}>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[11px]">{meta.emoji}</span>
-                          <span className="text-[12px] font-medium truncate" style={{ color:'var(--label)' }}>
-                            {meta.label}
-                          </span>
-                          {r.delay_min > 0 && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0"
-                              style={{ background:'rgba(245,158,11,0.1)', color:'#f59e0b' }}>
-                              +{r.delay_min}min
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[10px] truncate" style={{ color:'var(--label-3)' }}>
-                          {r.nome_cliente || r.telefone}
-                          {r.numero_pedido && ` · #${r.numero_pedido}`}
-                        </div>
-                        {r.erro_msg && (
-                          <div className="text-[9px] truncate" style={{ color:'#ef4444' }}>{r.erro_msg}</div>
-                        )}
-                      </div>
-                      <span className="text-[11px] font-mono truncate" style={{ color:'var(--label-3)' }}>
-                        {r.telefone.replace('55','').replace(/(\d{2})(\d{5})(\d{4})/,'($1) $2-$3')}
-                      </span>
-                      <span className="text-[10px] truncate" style={{ color:'var(--label-3)' }}>
-                        {r.template_nome || r.gatilho}
-                      </span>
-                      <div>
-                        <div className="flex items-center gap-1 px-2 py-1 rounded-full w-fit"
-                          style={{ background:smeta.bg }}>
-                          <Sic size={10} style={{ color:smeta.cor }}/>
-                          <span className="text-[10px] font-medium" style={{ color:smeta.cor }}>{smeta.label}</span>
-                        </div>
-                      </div>
-                      <span className="text-[10px]" style={{ color:'var(--label-4)' }}>
-                        {data} {hora}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+        {/* ── Charts ── */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+
+          {/* Evolução diária */}
+          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px'}}>
+            <div style={{fontSize:13,fontWeight:600,color:'var(--label)',marginBottom:14,
+              display:'flex',alignItems:'center',gap:7}}>
+              <BarChart3 size={13} style={{color:'#7c6af7'}}/>Evolução diária
+            </div>
+            {porDiaChart.length===0
+              ? <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:24,margin:0}}>Sem dados no período</p>
+              : <ResponsiveContainer width="100%" height={160}>
+                  <BarChart data={porDiaChart} barGap={2}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--sep)" vertical={false}/>
+                    <XAxis dataKey="d" tick={{fontSize:9,fill:'var(--label-4)'}} tickLine={false} axisLine={false}/>
+                    <YAxis tick={{fontSize:9,fill:'var(--label-4)'}} tickLine={false} axisLine={false}/>
+                    <Tooltip {...TT} formatter={(v,n)=>[v,n==='enviados'?'Enviados':'Erros']}/>
+                    <Bar dataKey="enviados" fill="#22c55e" radius={[3,3,0,0]} maxBarSize={20}/>
+                    <Bar dataKey="erros"    fill="#ef4444" radius={[3,3,0,0]} maxBarSize={20}/>
+                  </BarChart>
+                </ResponsiveContainer>
+            }
           </div>
 
-        </>}
+          {/* Por gatilho */}
+          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px'}}>
+            <div style={{fontSize:13,fontWeight:600,color:'var(--label)',marginBottom:10,
+              display:'flex',alignItems:'center',gap:7}}>
+              <Zap size={13} style={{color:'#f59e0b'}}/>Por gatilho
+            </div>
+            {porGatChart.length===0
+              ? <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:24,margin:0}}>Nenhum disparo no período</p>
+              : <div style={{display:'flex',flexDirection:'column',gap:0}}>
+                  {porGatChart.slice(0,8).map((g,i)=>{
+                    const maxG = Math.max(...porGatChart.map(x=>x.total),1)
+                    const pct  = Math.round(g.total/maxG*100)
+                    const taxa = g.total>0?Math.round(g.enviados/g.total*100):0
+                    return (
+                      <div key={i} style={{display:'flex',alignItems:'center',gap:8,
+                        padding:'6px 0',borderBottom:i<porGatChart.length-1?'1px solid var(--sep)':'none'}}>
+                        <div style={{width:20,height:20,borderRadius:5,background:`${g.cor}18`,
+                          display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                          {GATILHO_META[Object.keys(GATILHO_META).find(k=>GATILHO_META[k].label===g.name)]?.icon
+                            ? (() => { const IC=GATILHO_META[Object.keys(GATILHO_META).find(k=>GATILHO_META[k].label===g.name)]?.icon||Zap; return <IC size={10} style={{color:g.cor}}/>; })()
+                            : <Zap size={10} style={{color:g.cor}}/>
+                          }
+                        </div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                            <span style={{fontSize:11,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>{g.name}</span>
+                            <div style={{display:'flex',gap:6,flexShrink:0,alignItems:'center'}}>
+                              <span style={{fontSize:11,fontWeight:700,color:'var(--label)'}}>{g.total}</span>
+                              <span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
+                                color:taxa>=90?'#22c55e':taxa>=70?'#f59e0b':'#ef4444',
+                                background:taxa>=90?'rgba(34,197,94,.1)':taxa>=70?'rgba(245,158,11,.1)':'rgba(239,68,68,.1)'}}>
+                                {taxa}%
+                              </span>
+                            </div>
+                          </div>
+                          <div style={{height:4,borderRadius:99,background:'var(--fill)',overflow:'hidden'}}>
+                            <div style={{height:'100%',borderRadius:99,background:g.cor,width:`${pct}%`,transition:'width .5s'}}/>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+            }
+          </div>
+        </div>
+
+        {/* ── Log de disparos ── */}
+        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,overflow:'hidden'}}>
+
+          {/* Header do log */}
+          <div style={{padding:'12px 14px',borderBottom:'1px solid var(--sep)',
+            background:'var(--bg-3)',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8}}>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:6}}>
+                <FileText size={13}/>Log de disparos
+              </span>
+              <span style={{fontSize:10,padding:'1px 7px',borderRadius:99,
+                background:'var(--fill)',color:'var(--label-4)',border:'1px solid var(--sep)'}}>
+                {logTotal} total
+              </span>
+              {loadLog&&<RefreshCw size={11} style={{color:'var(--label-4)',animation:'spin 1s linear infinite'}}/>}
+            </div>
+            <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+              {/* Busca */}
+              <div style={{position:'relative'}}>
+                <Search size={11} style={{position:'absolute',left:8,top:'50%',transform:'translateY(-50%)',
+                  color:'var(--label-4)',pointerEvents:'none'}}/>
+                <input value={buscaInput} onChange={e=>setBuscaInput(e.target.value)}
+                  onKeyDown={e=>e.key==='Enter'&&setBusca(buscaInput)}
+                  placeholder="Nome, tel, pedido..." style={{
+                    padding:'5px 8px 5px 26px',borderRadius:8,border:'1px solid var(--sep)',
+                    background:'var(--fill)',color:'var(--label)',fontSize:11,width:160}}/>
+                {buscaInput&&<button onClick={()=>{setBuscaInput('');setBusca('')}} style={{
+                  position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',
+                  background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0}}>
+                  <X size={10}/>
+                </button>}
+              </div>
+              {/* Filtro status */}
+              <select value={filtroSt} onChange={e=>setFiltroSt(e.target.value)} style={{
+                fontSize:11,padding:'5px 8px',borderRadius:8,border:'1px solid var(--sep)',
+                background:'var(--fill)',color:'var(--label-3)',cursor:'pointer'}}>
+                <option value="todos">Todos status</option>
+                {Object.entries(STATUS_META).map(([id,m])=>(
+                  <option key={id} value={id}>{m.label}</option>
+                ))}
+              </select>
+              {/* Filtro gatilho */}
+              <select value={filtroGat} onChange={e=>setFiltroGat(e.target.value)} style={{
+                fontSize:11,padding:'5px 8px',borderRadius:8,border:'1px solid var(--sep)',
+                background:'var(--fill)',color:'var(--label-3)',cursor:'pointer'}}>
+                <option value="todos">Todos gatilhos</option>
+                {gatilhosUsados.map(g=>(
+                  <option key={g} value={g}>{GATILHO_META[g]?.label||g}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Cabeçalho tabela */}
+          <div style={{display:'grid',
+            gridTemplateColumns:'32px 1fr 110px 100px 90px 80px 44px',
+            padding:'6px 12px',borderBottom:'1px solid var(--sep)',background:'var(--bg-3)'}}>
+            {['','Gatilho / Cliente','Telefone','Template','Status','Data/Hora',''].map((h,i)=>(
+              <span key={i} style={{fontSize:10,fontWeight:700,textTransform:'uppercase',
+                letterSpacing:'.05em',color:'var(--label-4)',padding:'0 6px'}}>{h}</span>
+            ))}
+          </div>
+
+          {/* Linhas */}
+          {log.length===0&&!loadLog
+            ? <div style={{padding:48,textAlign:'center',color:'var(--label-4)'}}>
+                <Zap size={32} style={{opacity:.15,marginBottom:12}}/><br/>
+                <p style={{fontSize:13,margin:0}}>Nenhum disparo encontrado.</p>
+                <p style={{fontSize:11,margin:'6px 0 0'}}>Verifique os filtros ou aguarde novos eventos.</p>
+              </div>
+            : log.map((row,i)=>(
+                <LinhaLog key={row.id||i} row={row} onReenviar={reenviar}/>
+              ))
+          }
+
+          {/* Paginação */}
+          {logPgs>1&&(
+            <div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:8,
+              padding:'12px',borderTop:'1px solid var(--sep)'}}>
+              <button onClick={()=>carregarLog(logPg-1)} disabled={logPg===1} style={{
+                padding:'5px 10px',borderRadius:8,border:'1px solid var(--sep)',
+                background:'var(--fill)',cursor:logPg===1?'not-allowed':'pointer',
+                color:'var(--label-3)',opacity:logPg===1?.5:1}}>
+                <ChevronLeft size={14}/>
+              </button>
+              <span style={{fontSize:12,color:'var(--label-4)'}}>
+                {logPg} de {logPgs} · {logTotal} disparos
+              </span>
+              <button onClick={()=>carregarLog(logPg+1)} disabled={logPg===logPgs} style={{
+                padding:'5px 10px',borderRadius:8,border:'1px solid var(--sep)',
+                background:'var(--fill)',cursor:logPg===logPgs?'not-allowed':'pointer',
+                color:'var(--label-3)',opacity:logPg===logPgs?.5:1}}>
+                <ChevronRight size={14}/>
+              </button>
+            </div>
+          )}
+        </div>
+
       </div>
+
+      <style>{`
+        @keyframes spin  { to { transform: rotate(360deg) } }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+      `}</style>
     </div>
   )
 }
