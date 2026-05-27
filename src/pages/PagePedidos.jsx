@@ -1,1029 +1,1084 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+/**
+ * PagePedidos.jsx — Bia v6 Enterprise
+ * Central de Pedidos — Command Center para agente de atendimento
+ */
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
-  Search, RefreshCw, X, Package, ExternalLink, Truck, MoreHorizontal,
-  MapPin, Star, ChevronDown, ChevronUp, Calendar, SlidersHorizontal,
-  MessageSquare, CheckCircle, XCircle, Clock, Copy, Check, Hash,
-  ArrowUpDown, Phone, Mail, Tag, TrendingUp, TrendingDown, Minus,
-  DollarSign, ShoppingCart, Users, Activity, BarChart3, Banknote,
-  Package2, Wallet, Layers, Zap, FileText, ChevronRight,
-  AlertTriangle, Send, Eye, Home, CreditCard, Building2,
-  Navigation, Bell, Sparkles, Filter, LayoutGrid, List,
-  ArrowRight, Info, Globe, Receipt
+  ShoppingCart, Clock, CheckCircle, TrendingUp, TrendingDown,
+  AlertTriangle, Search, Filter, X, ChevronDown, ChevronUp,
+  RefreshCw, Download, Send, Copy, Check, ExternalLink,
+  Package, Truck, FileText, MessageSquare, Star, Crown,
+  AlertCircle, BarChart3, PieChart as PieIcon, Activity,
+  ChevronLeft, ChevronRight, Eye, Bell, Zap, Users,
+  MapPin, CreditCard, Phone, ArrowUpRight, ArrowDownRight,
+  MoreHorizontal, Circle, Navigation, Hash, Calendar,
+  Info, Flame, ShieldCheck, DollarSign, Box, Layers,
 } from 'lucide-react'
 import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell, PieChart, Pie
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MAPEAMENTO DEFINITIVO — debug 25/05/2026 confirmado
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── MAPAS DE DADOS ──────────────────────────────────────────────────────────
 const LOJA_ID = {
-  205946980: 'shopee',       // Shopee Xpress (DDMMYY prefix)
-  203414926: 'mercadolivre', // Melhor Envio
-  204884434: 'shein',        // Shein / GSH prefix — Logistica Shein confirmado
-  205916963: 'tiktokshop',   // TikTok LSV-Standard
-  205693668: 'nuvemshop',    // Nuvemshop SEDEX
-  0:         'loja',         // Loja própria / manual
+  205946980:'shopee', 203414926:'mercadolivre', 204884434:'shein',
+  205916963:'tiktokshop', 205693668:'nuvemshop', 0:'loja',
 }
-
-// Detecta transportadora pelo código de rastreio
-const detectTransp = cod => {
-  if (!cod) return null
-  if (/^[A-Z]{2}\d{9}BR$/.test(cod)) return 'correios'
-  if (cod.startsWith('MEL'))          return 'melhorenvio'
-  if (/^BR\d+Y$/.test(cod))          return 'shopee'
-  if (cod.startsWith('999'))          return 'tiktok'
-  return 'outro'
+const CANAL_CFG = {
+  shopee:       {label:'Shopee',       cor:'#f97316', bg:'rgba(249,115,22,.12)',  icon:'🛍️'},
+  mercadolivre: {label:'Mercado Livre',cor:'#eab308', bg:'rgba(234,179,8,.12)',   icon:'🛒'},
+  shein:        {label:'Shein',        cor:'#ec4899', bg:'rgba(236,72,153,.12)',  icon:'👗'},
+  tiktokshop:   {label:'TikTok',       cor:'#06b6d4', bg:'rgba(6,182,212,.12)',   icon:'🎵'},
+  nuvemshop:    {label:'Nuvemshop',    cor:'#a78bfa', bg:'rgba(167,139,250,.12)', icon:'☁️'},
+  loja:         {label:'Loja Própria', cor:'#22c55e', bg:'rgba(34,197,94,.12)',   icon:'🏪'},
+  bling:        {label:'Bling/Manual', cor:'#60a5fa', bg:'rgba(96,165,250,.12)',  icon:'📋'},
 }
-
-const linkRastreio = cod => {
-  if (!cod) return null
-  const t = detectTransp(cod)
-  if (t === 'correios')    return `https://rastreamento.correios.com.br/app/index.php?objetos=${cod}`
-  if (t === 'melhorenvio') return `https://melhorenvio.com.br/rastreamento/${cod}`
-  return `https://melhorrastreio.com.br/rastreio/${cod}`
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CANAIS — SVG com identidade visual real
-// ─────────────────────────────────────────────────────────────────────────────
-const CH = {
-  shopee: {
-    label:'Shopee', cor:'#EE4D2D', corBg:'#FFF0EE',
-    icon:({s=14})=><svg width={s} height={s} viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#EE4D2D"/><path d="M16 6c-2.76 0-5 2.24-5 5h10c0-2.76-2.24-5-5-5z" fill="rgba(255,255,255,.5)"/><rect x="6" y="12" width="20" height="14" rx="3" fill="rgba(255,255,255,.15)"/><text x="16" y="23.5" textAnchor="middle" fontSize="8.5" fontWeight="900" fill="white" fontFamily="Arial">SHOPEE</text></svg>
-  },
-  mercadolivre: {
-    label:'Mercado Livre', cor:'#F5A623', corBg:'#FFFBF0',
-    icon:({s=14})=><svg width={s} height={s} viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#FFF159"/><ellipse cx="16" cy="13" rx="8" ry="5.5" fill="#F5A623"/><text x="16" y="26" textAnchor="middle" fontSize="5" fontWeight="900" fill="#1a1a1a" fontFamily="Arial">MERCADO LIVRE</text></svg>
-  },
-  nuvemshop: {
-    label:'Nuvemshop', cor:'#1B96FF', corBg:'#EEF6FF',
-    icon:({s=14})=><svg width={s} height={s} viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#1B96FF"/><path d="M8 22a6 6 0 010-12 6.5 6.5 0 0111.5-1.5A5 5 0 0124 22H8z" fill="white" opacity=".95"/></svg>
-  },
-  tiktokshop: {
-    label:'TikTok Shop', cor:'#010101', corBg:'#F0F0F0',
-    icon:({s=14})=><svg width={s} height={s} viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#010101"/><path d="M19 7.5c1 1.3 2.7 2.1 4.3 2.1v3c-1.5 0-2.9-.5-4-1.3v6.2a5.5 5.5 0 11-5.5-5.5h.5v3.2h-.5a2.3 2.3 0 100 4.5 2.3 2.3 0 002.4-2.4V7.5H19z" fill="#69C9D0"/></svg>
-  },
-  shein: {
-    label:'Shein', cor:'#c0392b', corBg:'#FEF0EF',
-    icon:({s=14})=><svg width={s} height={s} viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#c0392b"/><text x="16" y="21" textAnchor="middle" fontSize="9" fontWeight="900" fill="white" fontFamily="Arial">SHEIN</text></svg>
-  },
-  loja: {
-    label:'Loja Própria', cor:'#10b981', corBg:'#ECFDF5',
-    icon:({s=14})=><svg width={s} height={s} viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#10b981"/><path d="M5 14l11-9 11 9v14a2 2 0 01-2 2H7a2 2 0 01-2-2V14z" fill="none" stroke="white" strokeWidth="2"/><path d="M12 28V19h8v9" stroke="white" strokeWidth="2"/></svg>
-  },
-  bling: {
-    label:'Bling/Manual', cor:'#1D9E75', corBg:'#ECFDF5',
-    icon:({s=14})=><svg width={s} height={s} viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#1D9E75"/><text x="16" y="22" textAnchor="middle" fontSize="14" fontWeight="900" fill="white" fontFamily="Arial">B</text></svg>
-  },
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// STATUS
-// ─────────────────────────────────────────────────────────────────────────────
 const SIT = {
-  6:  {label:'Em Aberto', cor:'#f59e0b', bg:'rgba(245,158,11,.12)', bdr:'rgba(245,158,11,.3)', ordem:0},
-  9:  {label:'Atendido',  cor:'#4a9fff', bg:'rgba(74,159,255,.12)', bdr:'rgba(74,159,255,.3)', ordem:2},
-  12: {label:'Cancelado', cor:'#ef4444', bg:'rgba(239,68,68,.12)',  bdr:'rgba(239,68,68,.3)',  ordem:-1},
-  15: {label:'Verificado',cor:'#22c55e', bg:'rgba(34,197,94,.12)',  bdr:'rgba(34,197,94,.3)',  ordem:3},
+  6:  {label:'Em Aberto',  cor:'#f59e0b', bg:'rgba(245,158,11,.12)', bdr:'rgba(245,158,11,.3)',  ordem:1},
+  9:  {label:'Atendido',   cor:'#4a9fff', bg:'rgba(74,159,255,.12)', bdr:'rgba(74,159,255,.3)',  ordem:3},
+  12: {label:'Cancelado',  cor:'#ef4444', bg:'rgba(239,68,68,.12)',  bdr:'rgba(239,68,68,.3)',   ordem:-1},
+  15: {label:'Verificado', cor:'#22c55e', bg:'rgba(34,197,94,.12)',  bdr:'rgba(34,197,94,.3)',   ordem:4},
 }
-
-// Etapas do gatilho (para automação futura)
-const ETAPAS_GATILHO = [
-  {id:'pedido_criado',       label:'Pedido Criado',         icone:'📦', cor:'#7c6af7'},
-  {id:'pgto_pendente',       label:'Pagamento Pendente',    icone:'⏳', cor:'#f59e0b'},
-  {id:'pgto_aprovado',       label:'Pagamento Aprovado',    icone:'✅', cor:'#22c55e'},
-  {id:'em_separacao',        label:'Em Separação',          icone:'📋', cor:'#00d4aa'},
-  {id:'embalado',            label:'Pedido Embalado',       icone:'📦', cor:'#4a9fff'},
-  {id:'aguard_retirada',     label:'Aguardando Retirada',   icone:'🏪', cor:'#e879f9'},
-  {id:'enviado',             label:'Pedido Enviado',        icone:'🚀', cor:'#0070f3'},
-  {id:'em_movimentacao',     label:'Rastreio em Movimento', icone:'🔄', cor:'#EE4D2D'},
-  {id:'saiu_entrega',        label:'Saiu Para Entrega',     icone:'🏠', cor:'#f97316'},
-  {id:'lembrete_rastreio',   label:'Lembrete de Rastreio',  icone:'📍', cor:'#a78bfa'},
-  {id:'nao_entregue',        label:'Pedido Não Entregue',   icone:'❌', cor:'#ef4444'},
-  {id:'entregue',            label:'Entrega Realizada',     icone:'🎉', cor:'#22c55e'},
-]
-
-// ─────────────────────────────────────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
-const R   = n => `R$ ${Number(n||0).toFixed(2).replace('.',',')}`
-const Rk  = n => n >= 1000 ? `R$ ${(n/1000).toFixed(1)}k` : R(n)
-const fmt = n => Number(n||0).toLocaleString('pt-BR')
-const fmtD  = d => { if(!d||d.startsWith('0000')) return '—'; const s=d.length===10?d+'T12:00:00':d; return new Date(s).toLocaleDateString('pt-BR') }
-const fmtDT = d => d ? new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—'
-const fmtCEP = c => (c||'').replace(/\D/g,'').replace(/(\d{5})(\d{3})/,'$1-$2')
+const RFM_BADGE = {
+  vip:      {label:'VIP',        icon:'👑', cor:'#f59e0b', bg:'rgba(245,158,11,.15)'},
+  fiel:     {label:'Fiel',       icon:'⭐', cor:'#22c55e', bg:'rgba(34,197,94,.15)'},
+  novo:     {label:'Novo',       icon:'🌱', cor:'#06b6d4', bg:'rgba(6,182,212,.15)'},
+  em_risco: {label:'Em Risco',   icon:'⚠️', cor:'#f97316', bg:'rgba(249,115,22,.15)'},
+  perdido:  {label:'Perdido',    icon:'💤', cor:'#6b7280', bg:'rgba(107,114,128,.15)'},
+}
 
 function getCanal(p) {
   const lid = p.lojaId ?? p.loja?.id ?? 0
   return LOJA_ID[lid] ?? (p.canal || 'bling')
 }
 function getSitId(p) {
-  return typeof p.situacao==='object' ? p.situacao?.id??p.situacao?.valor : p.situacaoId??p.situacao
+  return typeof p.situacao==='object'
+    ? p.situacao?.id ?? p.situacao?.valor
+    : p.situacaoId ?? p.situacao
+}
+function fmtMoeda(v) {
+  return Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})
+}
+function fmtData(d) {
+  if (!d) return '—'
+  return new Date(d).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})
+}
+function fmtDataHora(d) {
+  if (!d) return '—'
+  return new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+}
+function calcRFM(historico) {
+  if (!historico?.length) return 'novo'
+  const total = historico.reduce((s,p)=>s+parseFloat(p.total||0),0)
+  const ultima = new Date(historico[0]?.data||Date.now())
+  const diasSemCompra = (Date.now()-ultima.getTime())/(1000*60*60*24)
+  if (historico.length >= 5 && total >= 3000) return 'vip'
+  if (historico.length >= 3) return 'fiel'
+  if (diasSemCompra > 90) return historico.length >= 2 ? 'em_risco' : 'perdido'
+  return 'novo'
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ATOMS
-// ─────────────────────────────────────────────────────────────────────────────
-function StatusPill({sitId}) {
-  const s = SIT[sitId]||{label:String(sitId??'—'),cor:'#888',bg:'var(--fill)',bdr:'var(--sep)'}
-  return <span style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:11.5,fontWeight:700,padding:'3px 10px',borderRadius:99,background:s.bg,color:s.cor,border:`1px solid ${s.bdr}`,whiteSpace:'nowrap'}}>
-    <span style={{width:6,height:6,borderRadius:'50%',background:s.cor,display:'inline-block',flexShrink:0}}/>
-    {s.label}
-  </span>
+// ─── ATOMS ───────────────────────────────────────────────────────────────────
+function Pill({label, cor, bg, bdr, size=11}) {
+  return (
+    <span style={{
+      fontSize:size, fontWeight:700, padding:'2px 8px', borderRadius:99,
+      color:cor, background:bg, border:`1px solid ${bdr||cor+'33'}`,
+      whiteSpace:'nowrap', flexShrink:0,
+    }}>{label}</span>
+  )
 }
-
-function CanalBadge({canal,size=14,showLabel=true}) {
-  const c = CH[canal]||CH.bling
-  const I = c.icon
-  return <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:12,fontWeight:700,padding:'4px 10px',borderRadius:9,background:`${c.cor}15`,color:c.cor,border:`1px solid ${c.cor}28`,whiteSpace:'nowrap',lineHeight:1}}>
-    <I s={size}/>{showLabel&&c.label}
-  </span>
+function CanalBadge({canal, small}) {
+  const c = CANAL_CFG[canal] || CANAL_CFG.bling
+  return (
+    <span style={{
+      fontSize:small?9:10, fontWeight:700, padding:small?'1px 5px':'2px 8px',
+      borderRadius:99, color:c.cor, background:c.bg, whiteSpace:'nowrap', flexShrink:0,
+    }}>{c.icon} {c.label}</span>
+  )
 }
-
-function TraspBadge({codigo}) {
-  const t = detectTransp(codigo)
-  const labels = {correios:'🇧🇷 Correios',melhorenvio:'📦 Melhor Envio',shopee:'🛍️ Shopee Express',tiktok:'🎵 TikTok Logistics',outro:'📦 Transportadora'}
-  const cors   = {correios:'#f5a623',melhorenvio:'#00d4aa',shopee:'#EE4D2D',tiktok:'#69C9D0',outro:'#888'}
-  if (!t||!codigo) return null
-  return <span style={{fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:6,background:`${cors[t]||'#888'}15`,color:cors[t]||'#888',border:`1px solid ${cors[t]||'#888'}28`}}>
-    {labels[t]||'—'}
-  </span>
-}
-
-function Avatar({nome,size=32}) {
-  const init=(nome||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()
-  const pal=['#7c6af7','#00d4aa','#f59e0b','#22c55e','#4a9fff','#e879f9','#fb923c']
-  const c=pal[(nome||'?').charCodeAt(0)%pal.length]
-  return <div style={{width:size,height:size,borderRadius:'50%',background:`${c}20`,border:`1.5px solid ${c}50`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:size*.35,fontWeight:800,color:c,flexShrink:0}}>{init}</div>
-}
-
-function CopyBtn({value,small}) {
-  const [ok,setOk]=useState(false)
-  const cp=()=>{navigator.clipboard.writeText(String(value??''));setOk(true);setTimeout(()=>setOk(false),1800)}
-  return <button onClick={cp} style={{display:'inline-flex',alignItems:'center',gap:3,padding:small?'1px 5px':'2px 7px',borderRadius:5,border:'1px solid var(--sep)',background:'transparent',color:ok?'#22c55e':'var(--label-4)',cursor:'pointer',fontSize:small?9:10,flexShrink:0,whiteSpace:'nowrap'}}>
-    {ok?<><Check size={small?8:9}/> Ok</>:<><Copy size={small?8:9}/> Copiar</>}
-  </button>
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DATEPICKER
-// ─────────────────────────────────────────────────────────────────────────────
-function DateRange({value,onChange}) {
-  const [open,setOpen]=useState(false)
-  const ref=useRef()
-  useEffect(()=>{const fn=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false)};document.addEventListener('mousedown',fn);return()=>document.removeEventListener('mousedown',fn)},[])
-  const preset=days=>{const to=new Date().toISOString().split('T')[0];const from=days===0?to:new Date(Date.now()-days*86400000).toISOString().split('T')[0];onChange({from,to});setOpen(false)}
-  const lbl=value.from&&value.to?`${fmtD(value.from)} – ${fmtD(value.to)}`:value.from?`De ${fmtD(value.from)}`:'Período'
-  const has=value.from||value.to
-  return <div ref={ref} style={{position:'relative'}}>
-    <button onClick={()=>setOpen(v=>!v)} style={{display:'flex',alignItems:'center',gap:7,padding:'8px 12px',borderRadius:9,border:`1px solid ${has?'var(--accent)':'var(--sep)'}`,background:has?'var(--accent-dim)':'var(--bg-2)',color:has?'var(--accent)':'var(--label-3)',fontSize:12.5,fontWeight:500,cursor:'pointer',whiteSpace:'nowrap'}}>
-      <Calendar size={13}/>{lbl}
-      {has&&<button onClick={e=>{e.stopPropagation();onChange({from:'',to:''})}} style={{border:'none',background:'transparent',color:'inherit',cursor:'pointer',display:'flex',padding:0,marginLeft:2}}><X size={11}/></button>}
+function CopyBtn({val, label}) {
+  const [ok, setOk] = useState(false)
+  return (
+    <button onClick={()=>{navigator.clipboard?.writeText(val||'');setOk(true);setTimeout(()=>setOk(false),1500)}}
+      title="Copiar" style={{
+        display:'inline-flex',alignItems:'center',gap:4,
+        padding:'3px 8px',borderRadius:6,border:'1px solid var(--sep)',
+        background:'var(--fill)',color:'var(--label-3)',cursor:'pointer',fontSize:11,
+      }}>
+      {ok ? <Check size={11} style={{color:'#22c55e'}}/> : <Copy size={11}/>}
+      {label||'Copiar'}
     </button>
-    {open&&<div style={{position:'absolute',top:'calc(100% + 6px)',left:0,zIndex:300,background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:18,boxShadow:'0 16px 48px rgba(0,0,0,.35)',minWidth:320}}>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:14}}>
-        {[['Hoje',0],['7d',7],['30d',30],['90d',90]].map(([lb,d])=><button key={lb} onClick={()=>preset(d)} style={{padding:'6px',borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-3)',fontSize:12,cursor:'pointer',fontWeight:500}}>{lb}</button>)}
-      </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-        {[['De','from'],['Até','to']].map(([lb,k])=><div key={k}>
-          <label style={{display:'block',fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--label-4)',marginBottom:5}}>{lb}</label>
-          <input type="date" value={value[k]||''} onChange={e=>onChange({...value,[k]:e.target.value})} style={{width:'100%',padding:'7px 9px',borderRadius:8,border:'1px solid var(--sep)',background:'var(--bg)',color:'var(--label)',fontSize:12.5,outline:'none',boxSizing:'border-box'}}/>
-        </div>)}
-      </div>
-    </div>}
-  </div>
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PROGRESS STEPS (corrigido)
-// ─────────────────────────────────────────────────────────────────────────────
-function ProgressSteps({sitId,dataPedido,dataSaida}) {
-  const STEPS = [
-    {k:'criado',    lb:'Recebido',  sub:fmtD(dataPedido),                          done:true,                                cor:'#7c6af7'},
-    {k:'confirmado',lb:'Confirmado',sub:'Pagamento aprovado',                       done:[9,15].includes(sitId),             cor:'#22c55e'},
-    {k:'enviado',   lb:'Enviado',   sub:dataSaida&&!dataSaida.startsWith('0000')?`Saiu ${fmtD(dataSaida)}`:'Aguardando postagem', done:[9,15].includes(sitId)&&!!dataSaida&&!dataSaida.startsWith('0000'), cor:'#4a9fff'},
-    {k:'entregue',  lb:'Entregue',  sub:'Confirmado',                               done:sitId===15,                         cor:'#22c55e'},
-  ]
-  if(sitId===12) return <div style={{display:'flex',alignItems:'center',gap:10,padding:'12px 16px',borderRadius:12,background:'rgba(239,68,68,.06)',border:'1px solid rgba(239,68,68,.2)'}}>
-    <XCircle size={16} style={{color:'#ef4444',flexShrink:0}}/><div><p style={{fontSize:13,fontWeight:700,color:'#ef4444',margin:0}}>Pedido cancelado</p></div>
-  </div>
-  return <div style={{display:'flex',alignItems:'flex-start'}}>
-    {STEPS.map((s,i)=>(
-      <div key={s.k} style={{display:'flex',alignItems:'flex-start',flex:i<STEPS.length-1?1:'none'}}>
-        <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
-          <div style={{width:32,height:32,borderRadius:'50%',background:s.done?s.cor:'var(--bg)',border:`2px solid ${s.done?s.cor:'var(--sep)'}`,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:s.done&&i===STEPS.filter(x=>x.done).length-1?`0 0 0 5px ${s.cor}20, 0 0 0 9px ${s.cor}08`:'none',transition:'all .4s'}}>
-            {s.done?<Check size={14} style={{color:'#fff',strokeWidth:3}}/>:<span style={{width:8,height:8,borderRadius:'50%',background:'var(--sep)',display:'block'}}/>}
-          </div>
-          <div style={{textAlign:'center',marginTop:6,width:76}}>
-            <p style={{fontSize:11,fontWeight:s.done?700:400,color:s.done?s.cor:'var(--label-4)',margin:'0 0 2px',lineHeight:1.2}}>{s.lb}</p>
-            <p style={{fontSize:9.5,color:'var(--label-4)',margin:0,lineHeight:1.3}}>{s.sub}</p>
-          </div>
-        </div>
-        {i<STEPS.length-1&&<div style={{flex:1,height:2,marginTop:15,marginInline:4,background:STEPS[i+1]?.done?`linear-gradient(90deg,${s.cor},${STEPS[i+1].cor})`:'var(--sep)',borderRadius:99,transition:'background .4s'}}/>}
-      </div>
-    ))}
-  </div>
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// RASTREIO TIMELINE
-// ─────────────────────────────────────────────────────────────────────────────
-function TrackTimeline({codigo,api,linkExterno}) {
-  const [evs,setEvs]=useState([])
-  const [status,setStatus]=useState(null)
-  const [loading,setLoad]=useState(false)
-  const [err,setErr]=useState(null)
-  const [cp,setCp]=useState(false)
-
-  const buscar=useCallback(async()=>{
-    if(!codigo) return
-    setLoad(true);setErr(null)
-    try{
-      const r=await fetch(`${api}/api/dashboard/rastreio/${codigo}`)
-      if(r.ok){const d=await r.json();const r0=d.resultados?.[0];if(r0){setEvs(r0.eventos||[]);setStatus(r0.status||null)}}
-      else setErr('Erro ao consultar rastreio')
-    }catch(e){setErr(e.message)}
-    setLoad(false)
-  },[codigo,api])
-
-  useEffect(()=>{if(codigo)buscar()},[buscar])
-
-  const copy=()=>{navigator.clipboard.writeText(codigo);setCp(true);setTimeout(()=>setCp(false),2000)}
-
-  if(!codigo) return <div style={{padding:'32px',textAlign:'center',borderRadius:12,border:'1px dashed var(--sep)',color:'var(--label-4)'}}>
-    <Truck size={28} style={{display:'block',margin:'0 auto 10px',opacity:.2}}/>
-    <p style={{fontSize:13,margin:'0 0 4px'}}>Sem código de rastreio</p>
-    <p style={{fontSize:11,margin:0,opacity:.6}}>O código aparece após a postagem do objeto</p>
-  </div>
-
-  const link = linkExterno || linkRastreio(codigo)
-  const transp = detectTransp(codigo)
-
-  return <div>
-    {/* Header código */}
-    <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',borderRadius:11,background:'var(--bg)',border:'1px solid var(--sep)',marginBottom:10}}>
-      <Truck size={14} style={{color:'var(--accent)',flexShrink:0}}/>
-      <span style={{fontSize:13.5,fontFamily:'monospace',fontWeight:700,color:'var(--accent)',flex:1,letterSpacing:'.04em'}}>{codigo}</span>
-      <TraspBadge codigo={codigo}/>
-      <button onClick={copy} style={{display:'flex',alignItems:'center',gap:3,padding:'3px 8px',borderRadius:6,border:'1px solid var(--sep)',background:'transparent',color:cp?'#22c55e':'var(--label-4)',cursor:'pointer',fontSize:10}}>
-        {cp?<><Check size={9}/>Copiado</>:<><Copy size={9}/>Copiar</>}
-      </button>
-      {link&&<a href={link} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:4,padding:'3px 9px',borderRadius:6,border:'1px solid rgba(74,159,255,.3)',background:'rgba(74,159,255,.08)',color:'#4a9fff',textDecoration:'none',fontSize:11,fontWeight:600}}>
-        <ExternalLink size={10}/> Rastrear
-      </a>}
-      <button onClick={buscar} disabled={loading} style={{display:'flex',alignItems:'center',padding:'3px 8px',borderRadius:6,border:'1px solid var(--sep)',background:'transparent',color:'var(--label-4)',cursor:'pointer'}}>
-        <RefreshCw size={10} style={{animation:loading?'spin .8s linear infinite':undefined}}/>
-      </button>
-    </div>
-
-    {/* Status atual */}
-    {status&&<div style={{padding:'10px 14px',borderRadius:10,background:'rgba(0,212,170,.07)',border:'1px solid rgba(0,212,170,.2)',marginBottom:12}}>
-      <p style={{fontSize:13,fontWeight:700,color:'#00d4aa',margin:0}}>{status}</p>
-    </div>}
-
-    {err&&<div style={{padding:'8px 12px',borderRadius:9,background:'rgba(239,68,68,.07)',border:'1px solid rgba(239,68,68,.2)',marginBottom:10,fontSize:12,color:'#ef4444'}}>{err}</div>}
-
-    {/* Timeline */}
-    {evs.length>0?(
-      <div style={{position:'relative',paddingLeft:22}}>
-        <div style={{position:'absolute',left:9,top:8,bottom:8,width:2,background:'var(--sep)',borderRadius:99}}/>
-        {evs.map((ev,i)=><div key={i} style={{position:'relative',paddingLeft:20,paddingBottom:14}}>
-          <div style={{position:'absolute',left:-4,top:5,width:14,height:14,borderRadius:'50%',background:i===0?'var(--accent)':'var(--fill)',border:`2px solid ${i===0?'var(--accent)':'var(--sep)'}`,zIndex:1}}/>
-          <div style={{background:'var(--bg)',borderRadius:10,padding:'9px 12px',border:`1px solid ${i===0?'var(--accent)30':'var(--sep)'}`}}>
-            <p style={{fontSize:12.5,fontWeight:i===0?700:500,color:i===0?'var(--label)':'var(--label-3)',margin:'0 0 3px'}}>{ev.status}</p>
-            {ev.detalhe&&<p style={{fontSize:11,color:'var(--label-4)',margin:'0 0 2px'}}>{ev.detalhe}</p>}
-            {ev.local&&<p style={{fontSize:11,color:'var(--label-4)',margin:'0 0 2px',display:'flex',alignItems:'center',gap:4}}><MapPin size={9}/>{ev.local}</p>}
-            <p style={{fontSize:10.5,color:'var(--label-4)',margin:0,fontFamily:'monospace'}}>{ev.data?fmtDT(ev.data):ev.data}</p>
-          </div>
-        </div>)}
-      </div>
-    ):!loading&&<div style={{padding:'20px',textAlign:'center',color:'var(--label-4)',fontSize:12,borderRadius:10,border:'1px dashed var(--sep)'}}>
-      <Clock size={18} style={{display:'block',margin:'0 auto 8px',opacity:.3}}/>
-      Sem eventos de rastreio ainda
-    </div>}
-  </div>
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SHEET LATERAL — 5 abas
-// ─────────────────────────────────────────────────────────────────────────────
-// ── Helpers de estilo compartilhados ─────────────────────────────────────────
-const pill = (bg, color, border) => ({
-  display:'inline-flex', alignItems:'center', gap:5,
-  fontSize:11, fontWeight:500, padding:'2px 9px',
-  borderRadius:99, background:bg, color, border:`0.5px solid ${border}`,
-  whiteSpace:'nowrap',
-})
-
-const iconBtn = (extra={}) => ({
-  display:'flex', alignItems:'center', justifyContent:'center',
-  width:34, height:34, borderRadius:8,
-  border:'0.5px solid var(--sep)', background:'var(--fill)',
-  color:'var(--label-3)', cursor:'pointer', flexShrink:0, ...extra,
-})
-
-const qlink = (extra={}) => ({
-  display:'inline-flex', alignItems:'center', gap:4,
-  fontSize:11, color:'var(--label-3)', padding:'3px 8px',
-  borderRadius:6, border:'0.5px solid var(--sep)',
-  background:'var(--fill)', textDecoration:'none',
-  fontWeight:400, whiteSpace:'nowrap', ...extra,
-})
-
-// ── Canal SVGs corretos com identidade visual real ────────────────────────────
-// (Apenas o ícone pequeno para o badge — 16px max)
-const CANAL_ICON = {
-  shopee: () => (
-    <svg width="14" height="14" viewBox="0 0 14 14">
-      <rect width="14" height="14" rx="3" fill="#EE4D2D"/>
-      <path d="M7 2.5A2 2 0 015 4.5h4A2 2 0 007 2.5z" fill="rgba(255,255,255,.6)"/>
-      <rect x="2.5" y="5" width="9" height="6" rx="1.5" fill="rgba(255,255,255,.18)"/>
-      <text x="7" y="10" textAnchor="middle" fontSize="3.5" fontWeight="800" fill="white" fontFamily="sans-serif">SHOPEE</text>
-    </svg>
-  ),
-  mercadolivre: () => (
-    <svg width="14" height="14" viewBox="0 0 14 14">
-      <rect width="14" height="14" rx="3" fill="#FFF159"/>
-      <ellipse cx="7" cy="5.5" rx="3.5" ry="2.2" fill="#F5A623"/>
-      <text x="7" y="12" textAnchor="middle" fontSize="3" fontWeight="800" fill="#5c3d00" fontFamily="sans-serif">MERCADO</text>
-    </svg>
-  ),
-  nuvemshop: () => (
-    <svg width="14" height="14" viewBox="0 0 14 14">
-      <rect width="14" height="14" rx="3" fill="#1B96FF"/>
-      <path d="M3.5 10a2.5 2.5 0 010-5A2.8 2.8 0 018.8 4 2.2 2.2 0 0110.5 10H3.5z" fill="white"/>
-    </svg>
-  ),
-  shein: () => (
-    <svg width="14" height="14" viewBox="0 0 14 14">
-      <rect width="14" height="14" rx="3" fill="#c0392b"/>
-      <text x="7" y="9.5" textAnchor="middle" fontSize="4.5" fontWeight="800" fill="white" fontFamily="sans-serif">SHEIN</text>
-    </svg>
-  ),
-  tiktokshop: () => (
-    <svg width="14" height="14" viewBox="0 0 14 14">
-      <rect width="14" height="14" rx="3" fill="#010101"/>
-      <path d="M8.5 3.5c.4.55 1.1.9 1.8.9v1.2c-.6 0-1.2-.2-1.7-.55v2.6a2.3 2.3 0 11-2.3-2.3h.2v1.35h-.2a.95.95 0 100 1.9.95.95 0 001-1V3.5h1z" fill="#69C9D0"/>
-    </svg>
-  ),
-  loja: () => (
-    <svg width="14" height="14" viewBox="0 0 14 14">
-      <rect width="14" height="14" rx="3" fill="#10b981"/>
-      <path d="M2.5 6.5L7 2.5l4.5 4V12a.5.5 0 01-.5.5H3a.5.5 0 01-.5-.5V6.5z" fill="none" stroke="white" strokeWidth="1.1"/>
-      <path d="M5.5 12.5V9h3v3.5" stroke="white" strokeWidth="1.1"/>
-    </svg>
-  ),
-  bling: () => (
-    <svg width="14" height="14" viewBox="0 0 14 14">
-      <rect width="14" height="14" rx="3" fill="#1D9E75"/>
-      <text x="7" y="10" textAnchor="middle" fontSize="7" fontWeight="800" fill="white" fontFamily="sans-serif">B</text>
-    </svg>
-  ),
-}
-
-const CANAL_STYLE = {
-  shopee:       { label:'Shopee',       bg:'#FFF0EE', color:'#8B1A0A', border:'#F5A99A' },
-  mercadolivre: { label:'Mercado Livre',bg:'#FFFBEC', color:'#7A4500', border:'#EFD28A' },
-  nuvemshop:    { label:'Nuvemshop',    bg:'#EEF6FF', color:'#0C4D8A', border:'#85B7EB' },
-  shein:        { label:'Shein',        bg:'#FDEEEE', color:'#7A1A1A', border:'#F09595' },
-  tiktokshop:   { label:'TikTok Shop',  bg:'#F0F0F0', color:'#1a1a1a', border:'#C0C0C0' },
-  loja:         { label:'Loja Própria', bg:'#ECFDF5', color:'#065F46', border:'#5DCAA5' },
-  bling:        { label:'Manual',       bg:'#ECFDF5', color:'#065F46', border:'#5DCAA5' },
-}
-
-function CanalBadgeSmall({ canal }) {
-  const s = CANAL_STYLE[canal] || CANAL_STYLE.bling
-  const Icon = CANAL_ICON[canal] || CANAL_ICON.bling
-  return (
-    <span style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:11,fontWeight:500,padding:'2px 8px',borderRadius:6,background:s.bg,color:s.color,border:`0.5px solid ${s.border}`,whiteSpace:'nowrap'}}>
-      <Icon/>{s.label}
-    </span>
   )
 }
-
-// ── GatilhosPanel colapsável ──────────────────────────────────────────────────
-function GatilhosPanel() {
-  const [open, setOpen] = useState(false)
+function SparkBar({data=[], cor='#7c6af7'}) {
+  if (!data.length) return null
+  const max = Math.max(...data, 1)
   return (
-    <div style={{border:'0.5px solid var(--sep)',borderRadius:8,overflow:'hidden',marginBottom:14}}>
-      <button onClick={() => setOpen(v=>!v)} style={{width:'100%',display:'flex',alignItems:'center',gap:7,padding:'8px 12px',background:'var(--fill)',border:'none',cursor:'pointer',textAlign:'left'}}>
-        <Zap size={12} style={{color:'var(--label-4)',flexShrink:0}}/>
-        <span style={{fontSize:11,color:'var(--label-4)',flex:1,letterSpacing:'.02em'}}>Gatilhos de automação</span>
-        <span style={{fontSize:10,color:'var(--label-4)',background:'var(--bg)',border:'0.5px solid var(--sep)',padding:'0 6px',borderRadius:99}}>{ETAPAS_GATILHO.length}</span>
-        {open ? <ChevronUp size={11} style={{color:'var(--label-4)'}}/> : <ChevronDown size={11} style={{color:'var(--label-4)'}}/>}
-      </button>
-      {open && (
-        <div style={{padding:'8px 12px',display:'flex',flexWrap:'wrap',gap:5,borderTop:'0.5px solid var(--sep)'}}>
-          {ETAPAS_GATILHO.map(e => (
-            <span key={e.id} style={{fontSize:11,padding:'2px 8px',borderRadius:99,background:'var(--fill)',color:'var(--label-3)',border:'0.5px solid var(--sep)'}}>
-              {e.icone} {e.label}
-            </span>
-          ))}
-        </div>
-      )}
+    <div style={{display:'flex',alignItems:'flex-end',gap:2,height:28,flexShrink:0}}>
+      {data.map((v,i)=>(
+        <div key={i} style={{
+          width:4, borderRadius:2,
+          height:`${Math.max(4,(v/max)*28)}px`,
+          background:i===data.length-1?cor:`${cor}55`,
+          transition:'height .3s',
+        }}/>
+      ))}
     </div>
   )
 }
 
-// ── NotaPanel — nota interna com histórico ────────────────────────────────────
-function NotaPanel({ pedidoNumero }) {
-  const [texto, setTexto] = useState('')
-  const [notas, setNotas] = useState([])
-  const [saving, setSaving] = useState(false)
-
-  const salvar = () => {
-    if (!texto.trim()) return
-    setSaving(true)
-    const nova = { texto: texto.trim(), criado_em: new Date().toISOString(), autor: 'Você' }
-    setNotas(prev => [nova, ...prev])
-    setTexto('')
-    setSaving(false)
-  }
-
+// ─── KPI CARD ────────────────────────────────────────────────────────────────
+function KCard({icon:Ic, label, value, sub, cor='#7c6af7', trend, spark, alert, onClick}) {
   return (
-    <div>
-      {notas.map((n,i) => (
-        <div key={i} style={{display:'flex',gap:8,padding:'8px 0',borderBottom:'0.5px solid var(--sep)'}}>
-          <div style={{width:2,borderRadius:99,background:'var(--accent)',flexShrink:0,alignSelf:'stretch'}}/>
-          <div style={{flex:1}}>
-            <p style={{fontSize:12.5,color:'var(--label-2)',lineHeight:1.5,margin:'0 0 3px'}}>{n.texto}</p>
-            <p style={{fontSize:10.5,color:'var(--label-4)',margin:0,fontFamily:'monospace'}}>{n.autor} · {new Date(n.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</p>
+    <div onClick={onClick} style={{
+      background:'var(--bg-2)', border:`1px solid var(--sep)`, borderRadius:14,
+      padding:'14px 16px', display:'flex', flexDirection:'column', gap:8,
+      cursor:onClick?'pointer':'default', transition:'border-color .15s',
+      position:'relative', overflow:'hidden',
+    }}>
+      <div style={{position:'absolute',top:0,right:0,width:80,height:80,
+        background:`radial-gradient(circle at 100% 0%, ${cor}15 0%, transparent 70%)`,
+        pointerEvents:'none'}}/>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+        <div style={{width:32,height:32,borderRadius:9,background:`${cor}18`,
+          display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <Ic size={15} style={{color:cor}}/>
+        </div>
+        {trend !== undefined && (
+          <div style={{display:'flex',alignItems:'center',gap:3,fontSize:11,fontWeight:600,
+            color:trend>=0?'#22c55e':'#ef4444'}}>
+            {trend>=0?<ArrowUpRight size={12}/>:<ArrowDownRight size={12}/>}
+            {Math.abs(trend)}%
           </div>
+        )}
+        {alert && <Bell size={13} style={{color:'#f59e0b'}}/>}
+      </div>
+      <div>
+        <div style={{fontSize:22,fontWeight:700,color:'var(--label)',lineHeight:1.1}}>{value}</div>
+        <div style={{fontSize:11,color:'var(--label-4)',marginTop:2}}>{label}</div>
+        {sub && <div style={{fontSize:10,color:'var(--label-4)',marginTop:1}}>{sub}</div>}
+      </div>
+      {spark && <SparkBar data={spark} cor={cor}/>}
+    </div>
+  )
+}
+
+// ─── ALERT BAR ───────────────────────────────────────────────────────────────
+function AlertBar({pedidos, onFilter}) {
+  const alertas = useMemo(()=>{
+    const semEnvio = pedidos.filter(p=>{
+      const sit = getSitId(p)
+      const dias = (Date.now()-new Date(p.data||Date.now()).getTime())/(1000*60*60*24)
+      return sit===9 && dias>3 && !p.codigoRastreio && !p.transporte?.volumes?.[0]?.codigoRastreamento
+    })
+    const emTransito = pedidos.filter(p=>{
+      const sit = getSitId(p)
+      const dias = (Date.now()-new Date(p.dataSaida||p.data||Date.now()).getTime())/(1000*60*60*24)
+      return [27,33].includes(sit) && dias>15
+    })
+    const semNF = pedidos.filter(p=> getSitId(p)===9 && !p.notaFiscal?.id)
+    const list = []
+    if (semEnvio.length)   list.push({icon:Truck,    msg:`${semEnvio.length} pedido${semEnvio.length>1?'s':''} pagos há +3 dias sem envio`, cor:'#ef4444', key:'semEnvio'})
+    if (emTransito.length) list.push({icon:AlertTriangle, msg:`${emTransito.length} pedido${emTransito.length>1?'s':''} em trânsito há +15 dias`, cor:'#f59e0b', key:'transito'})
+    if (semNF.length)      list.push({icon:FileText,  msg:`${semNF.length} pedido${semNF.length>1?'s':''} atendidos sem NF emitida`, cor:'#f97316', key:'semNF'})
+    return list
+  },[pedidos])
+
+  if (!alertas.length) return null
+  return (
+    <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:16}}>
+      {alertas.map(a=>(
+        <div key={a.key} onClick={()=>onFilter?.(a.key)} style={{
+          display:'flex',alignItems:'center',gap:7,padding:'6px 12px',
+          borderRadius:99,background:`${a.cor}12`,border:`1px solid ${a.cor}30`,
+          cursor:'pointer',fontSize:11.5,fontWeight:500,color:a.cor,
+        }}>
+          <a.icon size={12}/>{a.msg}
         </div>
       ))}
-      <textarea
-        value={texto}
-        onChange={e => setTexto(e.target.value)}
-        onKeyDown={e => { if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)) salvar() }}
-        placeholder="Nota interna… (Cmd+Enter para salvar)"
-        rows={2}
-        style={{width:'100%',resize:'none',marginTop:10,border:'0.5px solid var(--sep)',borderRadius:8,padding:'8px 10px',fontSize:12.5,background:'var(--fill)',color:'var(--label)',fontFamily:'var(--font-sans)',outline:'none',lineHeight:1.5,boxSizing:'border-box'}}
-      />
-      {texto.trim() && (
-        <button onClick={salvar} disabled={saving} style={{marginTop:6,padding:'5px 14px',borderRadius:7,border:'0.5px solid var(--sep)',background:'var(--bg-2)',color:'var(--label-3)',cursor:'pointer',fontSize:12,fontWeight:500,display:'flex',alignItems:'center',gap:5}}>
-          <Check size={12}/> Salvar nota
-        </button>
-      )}
     </div>
   )
 }
 
-// ── OrderSheet ENTERPRISE ─────────────────────────────────────────────────────
-function OrderSheet({pedRow, onClose, api, allPedidos}) {
-  const [det,      setDet]   = useState(null)
-  const [load,     setLoad]  = useState(true)
-  const [tab,      setTab]   = useState('pedido')
-  const [sending,  setSend]  = useState(false)
-  const [sent,     setSent]  = useState(false)
-  const [cp,       setCp]    = useState('')
-  const [trackEvs, setTEvs]  = useState([])
-  const [trackSt,  setTSt]   = useState(null)
-  const [tLoad,    setTLoad] = useState(false)
-  const [pfp,      setPfp]   = useState(null) // foto de perfil WA
+// ─── ANALYTICS VIEW ──────────────────────────────────────────────────────────
+function AnalyticsView({pedidos}) {
+  const faturamentoDias = useMemo(()=>{
+    const mapa = {}
+    pedidos.forEach(p=>{
+      const d = fmtData(p.data)
+      if (!mapa[d]) mapa[d] = 0
+      mapa[d] += parseFloat(p.total||0)
+    })
+    return Object.entries(mapa).slice(-30).map(([d,v])=>({d,v:Math.round(v)}))
+  },[pedidos])
 
-  const canal = getCanal(pedRow)
-  const sitId = getSitId(pedRow)
-  const sit   = SIT[sitId] || {label:'—',cor:'#888',bg:'var(--fill)',bdr:'var(--sep)'}
-  const histLocal = allPedidos.filter(p => p.contato===pedRow.contato && p.numero!==pedRow.numero)
-  const nComp = histLocal.filter(p => p.numero<pedRow.numero).length+1
-  const isNew = nComp===1
-  const ltv   = histLocal.reduce((s,p)=>s+Number(p.total||0),0)+Number(pedRow.total||0)
+  const porCanal = useMemo(()=>{
+    const mapa = {}
+    pedidos.forEach(p=>{
+      const c = getCanal(p)
+      if (!mapa[c]) mapa[c] = {n:0,v:0}
+      mapa[c].n++
+      mapa[c].v += parseFloat(p.total||0)
+    })
+    return Object.entries(mapa).map(([k,v])=>({
+      name: CANAL_CFG[k]?.label||k,
+      value: v.n, valor: Math.round(v.v),
+      cor: CANAL_CFG[k]?.cor||'#888',
+    }))
+  },[pedidos])
 
-  const p  = det?.pedido     || {}
-  const c  = det?.contato    || {}
-  const t  = det?.transporte || {}
-  const r  = det?.rastreio   || {}
-  const hD = det?.historico  || {}
-  const ms = det?.mensagens  || {}
-  const end = t.etiqueta || c.enderecoGeral || c.enderecos?.[0] || null
-  const cod = r.codigo || null
-  const nf  = p.notaFiscal
-  const total = Number(pedRow.total||0)
-  const parcelas = det?.pedido?.parcelas || []
-  const forma = parcelas[0]?.formaPagamento?.descricao || p.formaPagamento || null
-  const isPix = parcelas[0]?.formaPagamento?.id === 1896170
-  const isCard = parcelas[0]?.formaPagamento?.id === 3938183
-  const nParcelas = parcelas.length > 0 ? parcelas.length : null
+  const horaCalor = useMemo(()=>{
+    const grid = Array(7).fill(null).map(()=>Array(24).fill(0))
+    pedidos.forEach(p=>{
+      const dt = new Date(p.data||0)
+      const dia = dt.getDay()
+      const hr  = dt.getHours()
+      grid[dia][hr]++
+    })
+    return grid
+  },[pedidos])
 
-  useEffect(() => {
-    if (!pedRow?.numero) return
-    setLoad(true); setDet(null); setTab('pedido'); setTEvs([]); setTSt(null); setPfp(null)
-    fetch(`${api}/api/dashboard/pedido-completo/${pedRow.numero}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { setDet(d); setLoad(false) })
-      .catch(() => setLoad(false))
-  }, [pedRow?.numero])
+  const maxCalor = Math.max(...horaCalor.flat(), 1)
+  const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
 
-  // Busca foto de perfil WA
-  useEffect(() => {
-    if (!det) return
-    const tel = (c.celular||c.telefone||'').replace(/\D/g,'')
-    if (!tel) return
-    fetch(`${api}/api/dashboard/foto-perfil/${tel}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if(d?.url) setPfp(d.url) })
-      .catch(() => {})
-  }, [det])
-
-  // Busca rastreio ao entrar na aba
-  useEffect(() => {
-    if (tab!=='rastreio'||!cod||trackEvs.length>0) return
-    setTLoad(true)
-    fetch(`${api}/api/dashboard/rastreio/${cod}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { const r0=d?.resultados?.[0]; if(r0){setTEvs(r0.eventos||[]);setTSt(r0.status||null)} setTLoad(false) })
-      .catch(() => setTLoad(false))
-  }, [tab, cod])
-
-  const copy = (v,k) => { navigator.clipboard.writeText(String(v??'')); setCp(k); setTimeout(()=>setCp(''),1800) }
-
-  const enviarWA = async () => {
-    if(!det) return; setSend(true)
-    const nome = (c.nome||pedRow.contato||'').split(' ')[0]
-    const itens = (p.itens||[]).map(i=>`• ${i.descricao?.slice(0,40)} (${i.quantidade}x) — ${R((i.valor||0)*(i.quantidade||1))}`).join('\n')
-    const msg = `✅ *Pedido #${pedRow.numero}*\n\nOlá, *${nome}*!\n\n${itens}\n\n💰 *Total: ${R(pedRow.total)}*\n📦 ${sit.label}\n\n_Só Strass 🥰_`
-    try {
-      const tel = (c.celular||c.telefone||'').replace(/\D/g,'')
-      if(tel) await fetch(`${api}/api/dashboard/manual/${tel}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:msg})})
-      setSent(true); setTimeout(()=>setSent(false),3000)
-    } catch {}
-    setSend(false)
+  const TOOLTIP_STYLE = {
+    background:'var(--bg-2)',border:'1px solid var(--sep)',
+    borderRadius:8,fontSize:12,color:'var(--label)',
   }
 
-  const enviarRastreioWA = async () => {
-    if(!cod) return
-    const tel = (c.celular||c.telefone||'').replace(/\D/g,'')
-    if(!tel) return
-    const link = linkRastreio(cod)
-    const msg = `📦 *Rastreio #${p.numero||pedRow.numero}*\n\n\`${cod}\`${trackSt?`\n*${trackSt}*`:''}\n\n${link}\n\n_Só Strass 🥰_`
-    try { await fetch(`${api}/api/dashboard/manual/${tel}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:msg})}) } catch {}
-  }
-
-  // ── Micro-componentes internos ─────────────────────────────────────────────
-  const SectionLabel = ({children}) => (
-    <p style={{fontSize:10,fontWeight:500,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',margin:'0 0 7px'}}>{children}</p>
-  )
-
-  const FinRow = ({icon:Ic, label, value, cor, badge}) => {
-    if(!value&&value!==0) return null
-    return (
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'7px 0',borderBottom:'0.5px solid var(--sep)'}}>
-        <span style={{display:'flex',alignItems:'center',gap:6,fontSize:12.5,color:'var(--label-3)'}}>
-          <Ic size={13} style={{color:'var(--label-4)',flexShrink:0}}/>{label}
-        </span>
-        {badge
-          ? <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:11.5,padding:'2px 9px',borderRadius:6,background:'var(--fill)',border:'0.5px solid var(--sep)',color:'var(--label-2)'}}>{badge}</span>
-          : <span style={{fontSize:12.5,color:cor||'var(--label)'}}>{value}</span>
-        }
-      </div>
-    )
-  }
-
-  const DataRow = ({label,value,mono,onCopy}) => {
-    if(!value) return null
-    return (
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'7px 0',borderBottom:'0.5px solid var(--sep)'}}>
-        <span style={{fontSize:12,color:'var(--label-4)',flexShrink:0,minWidth:110}}>{label}</span>
-        <div style={{display:'flex',alignItems:'center',gap:6,minWidth:0}}>
-          <span style={{fontSize:12.5,color:'var(--label)',fontFamily:mono?'monospace':'inherit',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{value}</span>
-          {onCopy && <button onClick={onCopy} style={{display:'flex',alignItems:'center',gap:3,padding:'1px 6px',borderRadius:4,border:'0.5px solid var(--sep)',background:'transparent',color:cp===label?'#22c55e':'var(--label-4)',cursor:'pointer',fontSize:10,flexShrink:0}}>
-            {cp===label?<><Check size={8}/>ok</>:<><Copy size={8}/>copiar</>}
-          </button>}
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:20}}>
+      {/* Faturamento */}
+      <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px'}}>
+        <div style={{fontSize:13,fontWeight:600,color:'var(--label)',marginBottom:16}}>
+          📈 Faturamento — últimos 30 dias
         </div>
-      </div>
-    )
-  }
-
-  // ── Skeleton ───────────────────────────────────────────────────────────────
-  if (load) return <>
-    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:40,backdropFilter:'blur(4px)'}}/>
-    <div style={{position:'fixed',top:0,right:0,bottom:0,width:480,zIndex:50,background:'var(--bg-2)',borderLeft:'0.5px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:12}}>
-      <div style={{width:36,height:36,borderRadius:'50%',border:`2px solid var(--sep)`,borderTopColor:sit.cor,animation:'spin 1s linear infinite'}}/>
-      <span style={{fontSize:12,color:'var(--label-4)'}}>#{pedRow.numero}</span>
-    </div>
-  </>
-
-  // ── Tabs config ────────────────────────────────────────────────────────────
-  const TABS = [
-    {id:'pedido',   label:'Pedido'},
-    {id:'cliente',  label:'Cliente'},
-    {id:'rastreio', label:'Rastreio'},
-    {id:'historico',label:`Histórico (${hD.total??histLocal.length})`},
-    {id:'conversa', label:'Conversa'},
-    {id:'nota',     label:'+ Nota'},
-  ]
-
-  return <>
-    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:40,backdropFilter:'blur(4px)'}}/>
-
-    <div style={{position:'fixed',top:0,right:0,bottom:0,width:480,zIndex:50,background:'var(--bg-2)',borderLeft:'0.5px solid var(--sep)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'-16px 0 48px rgba(0,0,0,.25)'}}>
-
-      {/* Accent stripe */}
-      <div style={{height:2,background:`linear-gradient(90deg,${sit.cor}99,${(CANAL_STYLE[canal]||CANAL_STYLE.bling).border})`,flexShrink:0}}/>
-
-      {/* ═══ HEADER ═══════════════════════════════════════════════════════════ */}
-      <div style={{padding:'13px 16px 0',flexShrink:0,borderBottom:'0.5px solid var(--sep)'}}>
-
-        {/* Linha 1 */}
-        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:9}}>
-          <span style={{fontSize:20,fontWeight:500,color:'var(--label)',letterSpacing:'-.5px',lineHeight:1}}>#{pedRow.numero}</span>
-          <span style={pill(sit.bg,sit.cor,sit.bdr)}>
-            <span style={{width:5,height:5,borderRadius:'50%',background:sit.cor,display:'inline-block'}}/>
-            {sit.label}
-          </span>
-          {isNew && <span style={pill('#FAEEDA','#633806','#EFD28A')}>⭐ 1ª compra</span>}
-          <div style={{flex:1}}/>
-          {/* Links rápidos — discretos */}
-          {p.linkBling && <a href={p.linkBling} target="_blank" rel="noreferrer" style={qlink()}>
-            <ExternalLink size={10}/> Bling
-          </a>}
-          {nf && <a href={`https://www.bling.com.br/notas-fiscais/${nf.id}`} target="_blank" rel="noreferrer" style={qlink({color:'#0F6E56',background:'#E1F5EE',border:'0.5px solid #5DCAA5'})}>
-            <FileText size={10}/> NF {nf.numero?`#${nf.numero}`:''}
-          </a>}
-          {c.linkBling && <a href={c.linkBling} target="_blank" rel="noreferrer" style={qlink()}>
-            <Users size={10}/> Cadastro
-          </a>}
-          <button onClick={onClose} style={iconBtn({width:28,height:28,borderRadius:7})}>
-            <X size={12}/>
-          </button>
-        </div>
-
-        {/* Linha 2: canal + data + rastreio + valor */}
-        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
-          <CanalBadgeSmall canal={canal}/>
-          <span style={{fontSize:11.5,color:'var(--label-4)'}}>{fmtDT(pedRow.data)}</span>
-          {cod && <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:10.5,padding:'1px 7px',borderRadius:5,background:'var(--fill)',border:'0.5px solid var(--sep)',color:'var(--label-4)',fontFamily:'monospace'}}>
-            <Truck size={10}/>{cod.slice(0,12)}…
-          </span>}
-          <div style={{flex:1}}/>
-          <span style={{fontSize:16,fontWeight:500,color:'var(--label)'}}>{R(total)}</span>
-        </div>
-
-        {/* Linha 3: métricas inline — sem cards */}
-        <div style={{display:'flex',alignItems:'center',gap:0,marginBottom:10,paddingTop:8,borderTop:'0.5px solid var(--sep)'}}>
-          {[
-            {l:'compra',       v:`${hD.nCompra??nComp}ª`,                                     c:isNew?'#854F0B':'var(--label-3)'},
-            {l:'pedidos',      v:fmt(hD.total??(histLocal.length+1)),                          c:'var(--label-3)'},
-            {l:'LTV',          v:R(hD.gasto??ltv),                                             c:'var(--label-3)'},
-            {l:'ticket médio', v:R((hD.gasto??ltv)/Math.max(hD.total??(histLocal.length+1),1)),c:'var(--label-4)'},
-          ].map((k,i,arr) => (
-            <div key={k.l} style={{flex:1,textAlign:'center',paddingRight:i<arr.length-1?8:0,marginRight:i<arr.length-1?8:0,borderRight:i<arr.length-1?'0.5px solid var(--sep)':'none'}}>
-              <div style={{fontSize:12.5,fontWeight:500,color:k.c,lineHeight:1}}>{k.v}</div>
-              <div style={{fontSize:9.5,color:'var(--label-4)',marginTop:2,textTransform:'uppercase',letterSpacing:'.06em'}}>{k.l}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Tabs */}
-        <div style={{display:'flex',gap:0,marginBottom:-1,overflowX:'auto'}}>
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{
-              padding:'7px 12px',fontSize:12,border:'none',background:'transparent',cursor:'pointer',
-              color: tab===t.id ? 'var(--accent)' : 'var(--label-4)',
-              borderBottom: `2px solid ${tab===t.id ? 'var(--accent)' : 'transparent'}`,
-              whiteSpace:'nowrap',flexShrink:0,fontWeight:tab===t.id?500:400,transition:'color .1s',
-              ...(t.id==='nota'?{marginLeft:'auto',color:'var(--label-4)'}:{}),
-            }}>
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <ResponsiveContainer width="100%" height={180}>
+          <AreaChart data={faturamentoDias}>
+            <defs>
+              <linearGradient id="gFat" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#7c6af7" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#7c6af7" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--sep)" vertical={false}/>
+            <XAxis dataKey="d" tick={{fontSize:9,fill:'var(--label-4)'}} tickLine={false} axisLine={false}/>
+            <YAxis tick={{fontSize:9,fill:'var(--label-4)'}} tickLine={false} axisLine={false}
+              tickFormatter={v=>v>=1000?`R$${(v/1000).toFixed(0)}k`:`R$${v}`}/>
+            <Tooltip contentStyle={TOOLTIP_STYLE}
+              formatter={v=>[fmtMoeda(v),'Faturamento']}/>
+            <Area type="monotone" dataKey="v" stroke="#7c6af7" strokeWidth={2}
+              fill="url(#gFat)" dot={false}/>
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
 
-      {/* ═══ CONTENT ══════════════════════════════════════════════════════════ */}
-      <div style={{flex:1,overflowY:'auto',padding:'14px 16px'}}>
-
-        {/* ── PEDIDO ──────────────────────────────────────────────────────── */}
-        {tab==='pedido' && <>
-          {/* Progress compacto */}
-          <div style={{display:'flex',alignItems:'flex-start',marginBottom:18}}>
-            {[
-              {l:'Recebido',   done:true,                                             data:fmtD(pedRow.data||p.data)},
-              {l:'Confirmado', done:[9,15].includes(sitId),                           data:'pagamento aprovado'},
-              {l:'Enviado',    done:[9,15].includes(sitId)&&!!p.dataSaida&&!p.dataSaida?.startsWith('0000'), data:p.dataSaida?fmtD(p.dataSaida):'aguardando'},
-              {l:'Entregue',   done:sitId===15,                                       data:'confirmado'},
-            ].map((s,i,arr) => (
-              <div key={s.l} style={{display:'flex',alignItems:'flex-start',flex:i<arr.length-1?1:'none'}}>
-                <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
-                  <div style={{width:22,height:22,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',background:s.done?sit.cor:'var(--fill)',border:`1.5px solid ${s.done?sit.cor:'var(--sep)'}`,transition:'all .3s'}}>
-                    {s.done?<Check size={11} style={{color:'white',strokeWidth:3}}/>:<span style={{width:6,height:6,borderRadius:'50%',background:'var(--sep)',display:'block'}}/>}
-                  </div>
-                  <p style={{fontSize:9.5,margin:'4px 0 0',color:s.done?sit.cor:'var(--label-4)',fontWeight:s.done?500:400,textAlign:'center',whiteSpace:'nowrap',lineHeight:1.2}}>{s.l}</p>
-                  <p style={{fontSize:9,margin:'2px 0 0',color:'var(--label-4)',textAlign:'center',whiteSpace:'nowrap'}}>{s.data}</p>
-                </div>
-                {i<arr.length-1 && <div style={{flex:1,height:1.5,marginTop:10,marginInline:4,background:arr[i+1]?.done?`${sit.cor}60`:'var(--sep)',transition:'background .3s'}}/>}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+        {/* Por canal */}
+        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px'}}>
+          <div style={{fontSize:13,fontWeight:600,color:'var(--label)',marginBottom:16}}>
+            🛍️ Pedidos por canal
+          </div>
+          <ResponsiveContainer width="100%" height={180}>
+            <PieChart>
+              <Pie data={porCanal} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
+                dataKey="value" nameKey="name" paddingAngle={3}>
+                {porCanal.map((e,i)=><Cell key={i} fill={e.cor}/>)}
+              </Pie>
+              <Tooltip contentStyle={TOOLTIP_STYLE}
+                formatter={(v,n,p)=>[`${v} pedidos · ${fmtMoeda(p.payload.valor)}`,n]}/>
+            </PieChart>
+          </ResponsiveContainer>
+          <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:8}}>
+            {porCanal.map(c=>(
+              <div key={c.name} style={{display:'flex',alignItems:'center',gap:8,fontSize:11}}>
+                <div style={{width:8,height:8,borderRadius:'50%',background:c.cor,flexShrink:0}}/>
+                <span style={{flex:1,color:'var(--label-3)'}}>{c.name}</span>
+                <span style={{color:'var(--label)',fontWeight:600}}>{c.value}</span>
               </div>
             ))}
           </div>
+        </div>
 
-          {/* Financeiro */}
-          <SectionLabel>Financeiro</SectionLabel>
-          <div style={{marginBottom:16}}>
-            <FinRow icon={CreditCard} label="Pagamento"
-              badge={
-                isPix ? '💰 PIX' :
-                isCard && nParcelas ? `💳 Cartão · ${nParcelas}× s/juros` :
-                isCard ? '💳 Cartão' :
-                forma && forma!=='—' ? forma : null
-              }
-            />
-            <FinRow icon={Truck}    label="Frete"      value={t.frete>0?R(t.frete):'Grátis'} cor={t.frete>0?'var(--label)':'#0F6E56'}/>
-            {p.totalDesconto>0 && <FinRow icon={Tag} label="Desconto" value={`− ${R(p.totalDesconto)}`} cor='#0F6E56'/>}
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',marginTop:2}}>
-              <span style={{fontSize:13,fontWeight:500,color:'var(--label)'}}>Total</span>
-              <span style={{fontSize:15,fontWeight:500,color:'var(--label)'}}>{R(total)}</span>
-            </div>
+        {/* Mapa de calor */}
+        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px'}}>
+          <div style={{fontSize:13,fontWeight:600,color:'var(--label)',marginBottom:12}}>
+            🌡️ Horários de pico
           </div>
-
-          {/* Itens */}
-          {(p.itens||[]).length>0 && <>
-            <SectionLabel>Itens ({p.itens.length})</SectionLabel>
-            <div style={{marginBottom:16}}>
-              {p.itens.map((item,i) => {
-                const imgArr = Array.isArray(item.imagens)?item.imagens:(typeof item.imagens==='string'?JSON.parse(item.imagens||'[]'):[])
-                const imgUrl = imgArr?.[0]?.link || imgArr?.[0] || null
-                return (
-                  <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:i<p.itens.length-1?'0.5px solid var(--sep)':'none'}}>
-                    <div style={{width:36,height:36,borderRadius:7,background:'var(--fill)',border:'0.5px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}>
-                      {imgUrl
-                        ? <img src={imgUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>e.target.style.display='none'}/>
-                        : <Package2 size={15} style={{color:'var(--label-4)'}}/>
-                      }
-                    </div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <p style={{fontSize:12.5,fontWeight:500,color:'var(--label)',margin:'0 0 2px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.descricao}</p>
-                      <p style={{fontSize:10.5,color:'var(--label-4)',margin:0,fontFamily:'monospace'}}>{item.codigo} · {item.quantidade}× · {R(item.valor)}/un</p>
-                    </div>
-                    <span style={{fontSize:13,fontWeight:500,color:'var(--label)',flexShrink:0}}>{R((item.valor||0)*(item.quantidade||1))}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </>}
-
-          {/* Automações */}
-          <GatilhosPanel/>
-
-          {/* Obs */}
-          {(p.observacoes||p.observacoesInt) && <>
-            <SectionLabel>Observações</SectionLabel>
-            {p.observacoes && <p style={{fontSize:12.5,color:'var(--label-2)',lineHeight:1.6,margin:'0 0 8px'}}>{p.observacoes}</p>}
-            {p.observacoesInt && <p style={{fontSize:12,color:'var(--label-4)',background:'var(--fill)',padding:'7px 10px',borderRadius:7,border:'0.5px solid var(--sep)',margin:0}}>🔒 {p.observacoesInt}</p>}
-          </>}
-        </>}
-
-        {/* ── CLIENTE ─────────────────────────────────────────────────────── */}
-        {tab==='cliente' && <>
-          {/* Perfil */}
-          <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16,padding:'12px',borderRadius:9,background:'var(--fill)',border:'0.5px solid var(--sep)'}}>
-            {/* Avatar — foto WA se disponível, senão iniciais */}
-            <div style={{width:46,height:46,borderRadius:'50%',background:'var(--bg)',border:'0.5px solid var(--sep)',overflow:'hidden',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
-              {pfp
-                ? <img src={pfp} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                : <span style={{fontSize:16,fontWeight:500,color:'var(--label-3)'}}>{(c.nome||pedRow.contato||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()}</span>
-              }
-            </div>
-            <div style={{flex:1,minWidth:0}}>
-              <p style={{fontSize:14,fontWeight:500,color:'var(--label)',margin:'0 0 3px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.nome||pedRow.contato||'—'}</p>
-              <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
-                {c.fantasia?.trim() && <span style={{fontSize:11,color:'var(--label-4)'}}>{c.fantasia.trim()}</span>}
-                <span style={{fontSize:11,color:'var(--label-4)'}}>{c.tipo==='J'?'Pessoa Jurídica':'Pessoa Física'}</span>
-                {isNew && <span style={{...pill('#FAEEDA','#633806','#EFD28A'),fontSize:10}}>1ª compra</span>}
-              </div>
-            </div>
-          </div>
-
-          <SectionLabel>Contato</SectionLabel>
-          <div style={{marginBottom:16}}>
-            <DataRow label="Celular"   value={c.celular||c.telefone} mono onCopy={()=>copy(c.celular||c.telefone,'Celular')}/>
-            <DataRow label="Email"     value={c.email}               mono onCopy={()=>copy(c.email,'Email')}/>
-            <DataRow label="CPF / CNPJ" value={c.cpfCnpj||c.numeroDocumento} mono onCopy={()=>copy(c.cpfCnpj||c.numeroDocumento,'CPF / CNPJ')}/>
-            {c.tipo==='J' && <DataRow label="IE" value={c.ie} mono/>}
-          </div>
-
-          {end && <>
-            <SectionLabel>Endereço de entrega</SectionLabel>
-            <div style={{marginBottom:16,fontSize:13,color:'var(--label)',lineHeight:1.9}}>
-              <div>{end.logradouro||end.endereco||'—'}, {end.numero||''}{end.complemento?` · ${end.complemento}`:''}</div>
-              <div style={{color:'var(--label-3)'}}>{end.bairro}{end.municipio?` · ${end.municipio}`:''}{end.uf?`/${end.uf}`:''}</div>
-              {end.cep && <div style={{display:'flex',alignItems:'center',gap:8,marginTop:4}}>
-                <span style={{fontSize:12,fontFamily:'monospace',color:'var(--label-3)'}}>{fmtCEP(end.cep)}</span>
-                <button onClick={()=>copy(`${end.logradouro||end.endereco}, ${end.numero} - ${end.bairro}, ${end.municipio}/${end.uf} - CEP ${fmtCEP(end.cep)}`,'end')} style={{display:'flex',alignItems:'center',gap:3,padding:'1px 7px',borderRadius:4,border:'0.5px solid var(--sep)',background:'transparent',color:cp==='end'?'#22c55e':'var(--label-4)',cursor:'pointer',fontSize:10}}>
-                  {cp==='end'?<><Check size={8}/> Copiado</>:<><Copy size={8}/> Copiar endereço</>}
-                </button>
-              </div>}
-            </div>
-          </>}
-
-          <SectionLabel>Histórico de compras</SectionLabel>
-          <div style={{display:'flex',padding:'10px 12px',borderRadius:8,background:'var(--fill)',border:'0.5px solid var(--sep)',gap:0}}>
-            {[
-              {l:'pedidos',      v:fmt(hD.total??(histLocal.length+1))},
-              {l:'LTV total',    v:R(hD.gasto??ltv)},
-              {l:'ticket médio', v:R((hD.gasto??ltv)/Math.max(hD.total??(histLocal.length+1),1))},
-              {l:'esta compra',  v:`${hD.nCompra??nComp}ª`, c:isNew?'#854F0B':'var(--label-3)'},
-            ].map((k,i,arr)=>(
-              <div key={k.l} style={{flex:1,textAlign:'center',paddingRight:i<arr.length-1?8:0,marginRight:i<arr.length-1?8:0,borderRight:i<arr.length-1?'0.5px solid var(--sep)':'none'}}>
-                <div style={{fontSize:13,fontWeight:500,color:k.c||'var(--label)',lineHeight:1}}>{k.v}</div>
-                <div style={{fontSize:9.5,color:'var(--label-4)',marginTop:3,textTransform:'uppercase',letterSpacing:'.06em'}}>{k.l}</div>
-              </div>
-            ))}
-          </div>
-        </>}
-
-        {/* ── RASTREIO ────────────────────────────────────────────────────── */}
-        {tab==='rastreio' && <>
-          {cod ? <>
-            <button onClick={enviarRastreioWA} style={{display:'flex',alignItems:'center',gap:7,width:'100%',padding:'9px 12px',borderRadius:8,border:'0.5px solid var(--sep)',background:'var(--fill)',color:'var(--label-3)',cursor:'pointer',fontSize:12,fontWeight:400,marginBottom:14,textAlign:'left'}}>
-              <MessageSquare size={13}/> Enviar código no WhatsApp
-              {r.msgEnviada && <span style={{marginLeft:'auto',fontSize:10.5,color:'var(--label-4)'}}>✓ enviado {r.qtdMsgRastreio}×</span>}
-            </button>
-
-            <div style={{display:'flex',alignItems:'center',gap:8,padding:'9px 12px',borderRadius:8,background:'var(--fill)',border:'0.5px solid var(--sep)',marginBottom:12}}>
-              <Truck size={13} style={{color:'var(--label-4)',flexShrink:0}}/>
-              <span style={{fontSize:12.5,fontFamily:'monospace',color:'var(--label)',flex:1,letterSpacing:'.04em'}}>{cod}</span>
-              <TraspBadge codigo={cod}/>
-              <button onClick={()=>copy(cod,'cod')} style={{display:'flex',alignItems:'center',gap:3,padding:'2px 7px',borderRadius:5,border:'0.5px solid var(--sep)',background:'transparent',color:cp==='cod'?'#22c55e':'var(--label-4)',cursor:'pointer',fontSize:10}}>
-                {cp==='cod'?<><Check size={8}/>ok</>:<><Copy size={8}/>copiar</>}
-              </button>
-              <a href={linkRastreio(cod)} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:3,padding:'2px 7px',borderRadius:5,border:'0.5px solid var(--sep)',background:'transparent',color:'var(--label-3)',textDecoration:'none',fontSize:10}}>
-                <ExternalLink size={9}/> ver
-              </a>
-            </div>
-
-            {(trackSt||r.status) && <div style={{padding:'7px 12px',borderRadius:7,background:'var(--fill)',border:'0.5px solid var(--sep)',marginBottom:12,display:'flex',alignItems:'center',gap:7}}>
-              <span style={{width:6,height:6,borderRadius:'50%',background:'#1D9E75',display:'inline-block',flexShrink:0}}/>
-              <span style={{fontSize:12.5,color:'var(--label)'}}>{trackSt||r.status}</span>
-            </div>}
-
-            {tLoad && <p style={{fontSize:12,color:'var(--label-4)',display:'flex',alignItems:'center',gap:7,padding:'12px 0'}}>
-              <RefreshCw size={12} style={{animation:'spin 1s linear infinite',color:'var(--label-4)'}}/> Consultando transportadora...
-            </p>}
-            {!tLoad && trackEvs.length===0 && <p style={{fontSize:12,color:'var(--label-4)',padding:'16px 0',textAlign:'center'}}>Sem movimentações registradas ainda.</p>}
-            {trackEvs.length>0 && <div style={{position:'relative',paddingLeft:16}}>
-              <div style={{position:'absolute',left:5,top:6,bottom:6,width:1,background:'var(--sep)',borderRadius:99}}/>
-              {trackEvs.map((ev,i)=>(
-                <div key={i} style={{position:'relative',paddingLeft:16,paddingBottom:i<trackEvs.length-1?12:0}}>
-                  <div style={{position:'absolute',left:-4,top:4,width:10,height:10,borderRadius:'50%',background:i===0?'#1D9E75':'var(--fill)',border:`1.5px solid ${i===0?'#1D9E75':'var(--sep)'}`,zIndex:1}}/>
-                  <p style={{fontSize:12.5,fontWeight:i===0?500:400,color:i===0?'var(--label)':'var(--label-3)',margin:'0 0 2px',lineHeight:1.3}}>{ev.status}</p>
-                  {ev.detalhe && <p style={{fontSize:11.5,color:'var(--label-4)',margin:'0 0 1px'}}>{ev.detalhe}</p>}
-                  {ev.local && <p style={{fontSize:11.5,color:'var(--label-4)',margin:'0 0 1px',display:'flex',alignItems:'center',gap:3}}><MapPin size={8}/>{ev.local}</p>}
-                  <p style={{fontSize:10.5,color:'var(--label-4)',margin:0,fontFamily:'monospace',opacity:.7}}>{ev.data?fmtDT(ev.data):''}</p>
-                </div>
+          <div style={{overflowX:'auto'}}>
+            <div style={{display:'grid',gridTemplateColumns:'28px repeat(24,1fr)',gap:2,minWidth:420}}>
+              <div/>
+              {Array(24).fill(0).map((_,h)=>(
+                <div key={h} style={{fontSize:7,color:'var(--label-4)',textAlign:'center'}}>{h}</div>
               ))}
-            </div>}
-          </> : (
-            <div style={{padding:'40px 0',textAlign:'center',color:'var(--label-4)'}}>
-              <Truck size={28} style={{display:'block',margin:'0 auto 10px',opacity:.2}}/>
-              <p style={{fontSize:13,margin:'0 0 4px',color:'var(--label-3)'}}>Sem código de rastreio</p>
-              <p style={{fontSize:11.5,margin:0,opacity:.7}}>Aparece após a postagem do objeto</p>
+              {horaCalor.map((row,d)=>(
+                <>
+                  <div key={`d${d}`} style={{fontSize:9,color:'var(--label-4)',display:'flex',alignItems:'center',justifyContent:'flex-end',paddingRight:4}}>
+                    {DIAS_SEMANA[d]}
+                  </div>
+                  {row.map((v,h)=>(
+                    <div key={h} title={`${DIAS_SEMANA[d]} ${h}h: ${v} pedidos`} style={{
+                      aspectRatio:'1',borderRadius:3,
+                      background:v===0?'var(--fill)':`rgba(124,106,247,${0.15+0.85*(v/maxCalor)})`,
+                      cursor:'default',
+                    }}/>
+                  ))}
+                </>
+              ))}
+            </div>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:6,marginTop:10,justifyContent:'flex-end'}}>
+            <span style={{fontSize:9,color:'var(--label-4)'}}>Menos</span>
+            {[0.15,0.35,0.55,0.75,1].map(o=>(
+              <div key={o} style={{width:10,height:10,borderRadius:2,background:`rgba(124,106,247,${o})`}}/>
+            ))}
+            <span style={{fontSize:9,color:'var(--label-4)'}}>Mais</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── KANBAN VIEW ─────────────────────────────────────────────────────────────
+function KanbanView({filtrados, onSelect}) {
+  const cols = useMemo(()=>{
+    const c = {}
+    Object.entries(SIT).forEach(([id,s])=>{
+      c[id] = {sit:s, items:[], total:0}
+    })
+    filtrados.forEach(p=>{
+      const sid = String(getSitId(p))
+      if (c[sid]) {
+        c[sid].items.push(p)
+        c[sid].total += parseFloat(p.total||0)
+      }
+    })
+    return c
+  },[filtrados])
+
+  return (
+    <div style={{display:'grid',gridTemplateColumns:`repeat(${Object.keys(cols).length},1fr)`,gap:12,alignItems:'start'}}>
+      {Object.entries(cols).map(([sid,col])=>(
+        <div key={sid} style={{display:'flex',flexDirection:'column',gap:8}}>
+          {/* Header coluna */}
+          <div style={{
+            display:'flex',alignItems:'center',justifyContent:'space-between',
+            padding:'8px 12px',borderRadius:10,
+            background:col.sit.bg, border:`1px solid ${col.sit.bdr}`,
+          }}>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:col.sit.cor}}>{col.sit.label}</div>
+              <div style={{fontSize:10,color:col.sit.cor+'aa'}}>{fmtMoeda(col.total)}</div>
+            </div>
+            <span style={{fontSize:18,fontWeight:800,color:col.sit.cor}}>{col.items.length}</span>
+          </div>
+          {/* Cards */}
+          {col.items.slice(0,20).map(p=>{
+            const canal = getCanal(p)
+            const cc    = CANAL_CFG[canal] || CANAL_CFG.bling
+            return (
+              <div key={p.numero} onClick={()=>onSelect(p)} style={{
+                background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:10,
+                padding:'10px 12px',cursor:'pointer',transition:'border-color .15s',
+              }}
+                onMouseEnter={e=>e.currentTarget.style.borderColor=col.sit.cor}
+                onMouseLeave={e=>e.currentTarget.style.borderColor='var(--sep)'}
+              >
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}}>
+                  <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}># {p.numero}</span>
+                  <span style={{fontSize:10,color:cc.cor}}>{cc.icon}</span>
+                </div>
+                <div style={{fontSize:11,color:'var(--label-3)',marginBottom:4,
+                  overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                  {p.contato||'—'}
+                </div>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <span style={{fontSize:11,fontWeight:700,color:'var(--label)'}}>{fmtMoeda(p.total)}</span>
+                  <span style={{fontSize:10,color:'var(--label-4)'}}>{fmtData(p.data)}</span>
+                </div>
+              </div>
+            )
+          })}
+          {col.items.length > 20 && (
+            <div style={{textAlign:'center',fontSize:11,color:'var(--label-4)',padding:'4px'}}>
+              +{col.items.length-20} mais
             </div>
           )}
-        </>}
+        </div>
+      ))}
+    </div>
+  )
+}
 
-        {/* ── HISTÓRICO ───────────────────────────────────────────────────── */}
-        {tab==='historico' && (
-          (hD.pedidos||histLocal).length>0 ? <>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-              <span style={{fontSize:12,color:'var(--label-4)'}}>{hD.total??histLocal.length} pedido{(hD.total??histLocal.length)!==1?'s':''} anteriores</span>
-              <span style={{fontSize:12,fontWeight:500,color:'var(--label)'}}>{R(hD.gasto??histLocal.reduce((s,p)=>s+Number(p.total||0),0))}</span>
-            </div>
-            {[...(hD.pedidos||histLocal)].sort((a,b)=>b.numero-a.numero).map((hp,i)=>{
-              const hSit=SIT[hp.situacaoId||getSitId(hp)]||{label:'—',cor:'#888',bg:'var(--fill)',bdr:'var(--sep)'}
-              return (
-                <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:'0.5px solid var(--sep)'}}>
-                  <span style={{fontSize:12,fontWeight:500,color:'var(--label-3)',fontFamily:'monospace',flexShrink:0,minWidth:64}}>#{hp.numero}</span>
-                  <span style={pill(hSit.bg,hSit.cor,hSit.bdr)}>
-                    <span style={{width:5,height:5,borderRadius:'50%',background:hSit.cor,display:'inline-block'}}/>{hSit.label}
-                  </span>
-                  <CanalBadgeSmall canal={hp.canal||getCanal(hp)}/>
-                  <span style={{fontSize:11.5,color:'var(--label-4)',flex:1}}>{fmtD(hp.data)}</span>
-                  <span style={{fontSize:12.5,fontWeight:500,color:'var(--label)',flexShrink:0}}>{R(hp.total)}</span>
+// ─── ORDER SHEET (MODAL) ──────────────────────────────────────────────────────
+function OrderSheet({pedRow, onClose, api, allPedidos}) {
+  const [det,       setDet]    = useState(null)
+  const [load,      setLoad]   = useState(true)
+  const [tab,       setTab]    = useState('geral')
+  const [trackEvs,  setTEvs]   = useState([])
+  const [trackSt,   setTSt]    = useState(null)
+  const [tLoad,     setTLoad]  = useState(false)
+  const [sending,   setSend]   = useState(false)
+  const [sent,      setSent]   = useState(false)
+  const [msgTxt,    setMsgTxt] = useState('')
+  const [sending2,  setSend2]  = useState(false)
+  const [ocors,     setOcors]  = useState([])
+  const [novaOc,    setNovaOc] = useState('')
+  const [savingOc,  setSavOc]  = useState(false)
+  const [cpOk,      setCpOk]   = useState('')
+
+  const canal    = getCanal(pedRow)
+  const sitId    = getSitId(pedRow)
+  const sit      = SIT[sitId] || {label:'—',cor:'#888',bg:'var(--fill)',bdr:'var(--sep)'}
+  const histCliente = allPedidos.filter(p=> p.contato===pedRow.contato && p.numero!==pedRow.numero)
+  const rfm      = calcRFM([pedRow,...histCliente])
+  const rfmCfg   = RFM_BADGE[rfm] || RFM_BADGE.novo
+  const totalCliente = [pedRow,...histCliente].reduce((s,p)=>s+parseFloat(p.total||0),0)
+
+  const cp = (val,key)=>{
+    navigator.clipboard?.writeText(String(val||''))
+    setCpOk(key); setTimeout(()=>setCpOk(''),1500)
+  }
+
+  // Carrega detalhes
+  useEffect(()=>{
+    setLoad(true)
+    fetch(`${api}/api/dashboard/pedido-completo/${pedRow.numero}`)
+      .then(r=>r.ok?r.json():null).then(d=>{ setDet(d); setLoad(false) }).catch(()=>setLoad(false))
+    // Carrega ocorrências
+    fetch(`${api}/api/dashboard/ocorrencias?telefone=${encodeURIComponent(pedRow.telefone||'')}`)
+      .then(r=>r.ok?r.json():null).then(d=>setOcors(d?.ocorrencias||[])).catch(()=>{})
+  },[pedRow.numero, api])
+
+  // Carrega rastreio
+  const carregarRastreio = useCallback(()=>{
+    const cod = det?.transporte?.volumes?.[0]?.codigoRastreamento || det?.codigoRastreio || ''
+    if (!cod) return
+    setTLoad(true)
+    fetch(`${api}/api/dashboard/rastreio/${cod}`)
+      .then(r=>r.ok?r.json():null).then(d=>{
+        if (d) { setTEvs(d.eventos||d.objetos?.[0]?.eventos||[]); setTSt(d.status||null) }
+        setTLoad(false)
+      }).catch(()=>setTLoad(false))
+  },[det, api])
+
+  useEffect(()=>{ if(tab==='rastreio') carregarRastreio() },[tab])
+
+  const cod = det?.transporte?.volumes?.[0]?.codigoRastreamento || det?.codigoRasteio || ''
+  const nfe = det?.notaFiscal
+  const linkNF = det?.notaFiscal?.linkDanfe || det?.notaFiscal?.linkPDF || ''
+
+  // Enviar NF para cliente
+  const enviarNF = async()=>{
+    if (!linkNF || !pedRow.telefone) return
+    setSend(true)
+    const msg = `📄 *Nota Fiscal — Pedido #${pedRow.numero}*\n\n🔗 Segue o link da sua NF-e:\n${linkNF}\n\n_Você pode baixar o PDF pelo link acima._ 😊`
+    await fetch(`${api}/api/dashboard/manual/${pedRow.telefone.replace(/\D/g,'')}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({mensagem:msg})
+    }).catch(()=>{})
+    setSend(false); setSent(true); setTimeout(()=>setSent(false),2000)
+  }
+
+  // Enviar mensagem manual
+  const enviarMensagem = async()=>{
+    if (!msgTxt.trim() || !pedRow.telefone) return
+    setSend2(true)
+    await fetch(`${api}/api/dashboard/manual/${pedRow.telefone.replace(/\D/g,'')}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({mensagem:msgTxt})
+    }).catch(()=>{})
+    setSend2(false); setMsgTxt('')
+  }
+
+  // Nova ocorrência
+  const criarOcorrencia = async()=>{
+    if (!novaOc.trim()) return
+    setSavOc(true)
+    await fetch(`${api}/api/dashboard/ocorrencias`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({telefone:pedRow.telefone,tipo:'suporte',descricao:novaOc,numeroPedido:pedRow.numero})
+    }).catch(()=>{})
+    setNovaOc(''); setSavOc(false)
+    fetch(`${api}/api/dashboard/ocorrencias?telefone=${encodeURIComponent(pedRow.telefone||'')}`)
+      .then(r=>r.ok?r.json():null).then(d=>setOcors(d?.ocorrencias||[])).catch(()=>{})
+  }
+
+  const TABS = [
+    {id:'geral',     label:'Visão Geral', icon:Info},
+    {id:'itens',     label:'Itens',       icon:Box},
+    {id:'rastreio',  label:'Rastreio',    icon:Navigation},
+    {id:'nfe',       label:'Nota Fiscal', icon:FileText},
+    {id:'historico', label:'Histórico',   icon:Layers},
+    {id:'ocorrencias',label:'Ocorrências',icon:AlertCircle},
+  ]
+
+  return (
+    <div style={{
+      position:'fixed',inset:0,zIndex:1000,display:'flex',
+      background:'rgba(0,0,0,.6)',backdropFilter:'blur(4px)',
+    }} onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
+      <div style={{
+        marginLeft:'auto',width:720,maxWidth:'100%',height:'100%',
+        background:'var(--bg)',borderLeft:'1px solid var(--sep)',
+        display:'flex',flexDirection:'column',overflow:'hidden',
+      }}>
+        {/* ── Header ── */}
+        <div style={{padding:'16px 20px',borderBottom:'1px solid var(--sep)',flexShrink:0}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <button onClick={onClose} style={{
+                background:'none',border:'none',cursor:'pointer',
+                color:'var(--label-4)',padding:4,display:'flex',
+              }}><X size={18}/></button>
+              <div>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:18,fontWeight:700,color:'var(--label)'}}>Pedido #{pedRow.numero}</span>
+                  <Pill label={sit.label} cor={sit.cor} bg={sit.bg} bdr={sit.bdr}/>
+                  <CanalBadge canal={canal}/>
                 </div>
-              )
-            })}
-          </> : (
-            <div style={{padding:'40px 0',textAlign:'center'}}>
-              <Star size={24} style={{display:'block',margin:'0 auto 10px',color:'#854F0B',opacity:.4}}/>
-              <p style={{fontSize:13,fontWeight:500,color:'var(--label)',margin:'0 0 4px'}}>Primeira compra</p>
-              <p style={{fontSize:12,color:'var(--label-4)',margin:0}}>Nenhum pedido anterior</p>
+                <div style={{fontSize:12,color:'var(--label-4)',marginTop:2}}>
+                  {fmtDataHora(pedRow.data)} · {pedRow.contato||'—'}
+                </div>
+              </div>
             </div>
-          )
-        )}
+            {/* RFM badge */}
+            <div style={{
+              display:'flex',alignItems:'center',gap:5,padding:'4px 10px',
+              borderRadius:99,background:rfmCfg.bg,border:`1px solid ${rfmCfg.cor}30`,
+              fontSize:11,fontWeight:700,color:rfmCfg.cor,flexShrink:0,
+            }}>
+              <span>{rfmCfg.icon}</span> {rfmCfg.label}
+              <span style={{fontSize:10,color:rfmCfg.cor+'aa',marginLeft:4}}>
+                · {[pedRow,...histCliente].length} pedidos · {fmtMoeda(totalCliente)}
+              </span>
+            </div>
+          </div>
 
-        {/* ── CONVERSA ────────────────────────────────────────────────────── */}
-        {tab==='conversa' && (
-          (ms.lista||[]).length>0 ? (
-            <div style={{display:'flex',flexDirection:'column',gap:6}}>
-              {ms.lista.slice(0,40).map((m,i)=>{
-                const entrada = m.direcao==='entrada'
-                return (
-                  <div key={i} style={{display:'flex',gap:8,alignItems:'flex-end',flexDirection:entrada?'row':'row-reverse'}}>
-                    <div style={{width:24,height:24,borderRadius:'50%',background:'var(--fill)',border:'0.5px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                      {entrada?<Users size={11} style={{color:'var(--label-4)'}}/>:<Zap size={11} style={{color:'var(--label-4)'}}/>}
+          {/* Ações rápidas */}
+          <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
+            {linkNF && (
+              <button onClick={enviarNF} disabled={sending||sent} style={{
+                display:'flex',alignItems:'center',gap:5,padding:'5px 11px',
+                borderRadius:8,border:'1px solid rgba(34,197,94,.4)',
+                background:sent?'rgba(34,197,94,.1)':'rgba(34,197,94,.08)',
+                color:'#22c55e',cursor:'pointer',fontSize:11,fontWeight:600,
+              }}>
+                <Send size={11}/> {sent?'Enviada!':'Enviar NF ao cliente'}
+              </button>
+            )}
+            {cod && (
+              <button onClick={()=>cp(cod,'rastreio')} style={{
+                display:'flex',alignItems:'center',gap:5,padding:'5px 11px',
+                borderRadius:8,border:'1px solid var(--sep)',
+                background:'var(--fill)',color:'var(--label-3)',cursor:'pointer',fontSize:11,
+              }}>
+                {cpOk==='rastreio'?<Check size={11} style={{color:'#22c55e'}}/>:<Copy size={11}/>}
+                Copiar rastreio
+              </button>
+            )}
+            {pedRow.telefone && (
+              <button onClick={()=>window.open(`https://wa.me/${pedRow.telefone.replace(/\D/g,'')}`,`_blank`)} style={{
+                display:'flex',alignItems:'center',gap:5,padding:'5px 11px',
+                borderRadius:8,border:'1px solid rgba(37,211,102,.4)',
+                background:'rgba(37,211,102,.08)',color:'#25d366',cursor:'pointer',fontSize:11,
+              }}>
+                <MessageSquare size={11}/> WhatsApp
+              </button>
+            )}
+            {linkNF && (
+              <a href={linkNF} target="_blank" rel="noreferrer" style={{
+                display:'flex',alignItems:'center',gap:5,padding:'5px 11px',
+                borderRadius:8,border:'1px solid var(--sep)',
+                background:'var(--fill)',color:'var(--label-3)',cursor:'pointer',fontSize:11,
+                textDecoration:'none',
+              }}>
+                <ExternalLink size={11}/> Abrir NF-e
+              </a>
+            )}
+          </div>
+        </div>
+
+        {/* ── Tabs ── */}
+        <div style={{display:'flex',borderBottom:'1px solid var(--sep)',flexShrink:0,overflowX:'auto'}}>
+          {TABS.map(t=>{
+            const Icon=t.icon; const active=tab===t.id
+            return (
+              <button key={t.id} onClick={()=>setTab(t.id)} style={{
+                display:'flex',alignItems:'center',gap:5,padding:'10px 14px',
+                border:'none',background:'none',cursor:'pointer',
+                fontSize:11.5,fontWeight:active?700:500,
+                color:active?'var(--accent)':'var(--label-4)',
+                borderBottom:active?'2px solid var(--accent)':'2px solid transparent',
+                whiteSpace:'nowrap',
+              }}>
+                <Icon size={12}/>{t.label}
+                {t.id==='ocorrencias' && ocors.length > 0 &&
+                  <span style={{
+                    fontSize:9,padding:'1px 5px',borderRadius:99,
+                    background:'rgba(239,68,68,.15)',color:'#ef4444',fontWeight:700,
+                  }}>{ocors.filter(o=>o.status!=='resolvido').length||''}</span>
+                }
+              </button>
+            )
+          })}
+        </div>
+
+        {/* ── Conteúdo ── */}
+        <div style={{flex:1,overflowY:'auto',padding:'16px 20px'}}>
+          {load ? (
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:200,
+              color:'var(--label-4)',gap:10,fontSize:13}}>
+              <RefreshCw size={16} style={{animation:'spin 1s linear infinite'}}/> Carregando...
+            </div>
+          ) : <>
+            {/* ── GERAL ── */}
+            {tab==='geral' && (
+              <div style={{display:'flex',flexDirection:'column',gap:14}}>
+                {/* Grid dados */}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                  {/* Cliente */}
+                  <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:12,padding:'12px 14px'}}>
+                    <div style={{fontSize:10,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>
+                      Cliente
                     </div>
-                    <div style={{maxWidth:'80%',background:entrada?'var(--bg)':'var(--fill)',borderRadius:entrada?'10px 10px 10px 3px':'10px 10px 3px 10px',padding:'8px 10px',border:'0.5px solid var(--sep)'}}>
-                      <div style={{display:'flex',justifyContent:entrada?'flex-start':'flex-end',marginBottom:3,gap:8}}>
-                        <span style={{fontSize:10.5,color:'var(--label-4)',fontWeight:500}}>{entrada?'Cliente':'Bia'}</span>
-                        <span style={{fontSize:10,color:'var(--label-4)',fontFamily:'monospace'}}>{fmtDT(m.criado_em)}</span>
+                    {[
+                      ['Nome', det?.contato?.nome || pedRow.contato],
+                      ['Telefone', det?.contato?.telefone || det?.contato?.celular || pedRow.telefone],
+                      ['Documento', det?.contato?.numeroDocumento],
+                      ['Email', det?.contato?.email],
+                    ].filter(([,v])=>v).map(([k,v])=>(
+                      <div key={k} style={{display:'flex',justifyContent:'space-between',marginBottom:5,fontSize:12}}>
+                        <span style={{color:'var(--label-4)'}}>{k}</span>
+                        <span style={{color:'var(--label)',fontWeight:500,textAlign:'right',maxWidth:220,
+                          overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{v}</span>
                       </div>
-                      <p style={{fontSize:12.5,color:'var(--label-2)',margin:0,lineHeight:1.5,whiteSpace:'pre-wrap',wordBreak:'break-word'}}>{(m.conteudo||'').slice(0,400)}</p>
-                    </div>
+                    ))}
                   </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div style={{padding:'40px 0',textAlign:'center',color:'var(--label-4)'}}>
-              <MessageSquare size={24} style={{display:'block',margin:'0 auto 10px',opacity:.2}}/>
-              <p style={{fontSize:13,margin:0,color:'var(--label-3)'}}>Sem mensagens</p>
-            </div>
-          )
-        )}
+                  {/* Endereço */}
+                  <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:12,padding:'12px 14px'}}>
+                    <div style={{fontSize:10,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>
+                      Endereço de entrega
+                    </div>
+                    {(()=>{
+                      const e = det?.transporte?.etiqueta || det?.enderecoEntrega
+                      if (!e) return <p style={{fontSize:12,color:'var(--label-4)',margin:0}}>Não informado</p>
+                      return (
+                        <div style={{fontSize:12,color:'var(--label)',lineHeight:1.7}}>
+                          <div>{e.endereco}{e.numero?`, ${e.numero}`:''}{e.complemento?` · ${e.complemento}`:''}</div>
+                          <div>{e.bairro && `${e.bairro} · `}{e.municipio}/{e.uf}</div>
+                          <div style={{color:'var(--label-4)'}}>CEP: {e.cep}</div>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                </div>
 
-        {/* ── NOTA ────────────────────────────────────────────────────────── */}
-        {tab==='nota' && (
-          <NotaPanel pedidoNumero={pedRow.numero}/>
-        )}
+                {/* Financeiro */}
+                <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:12,padding:'12px 14px'}}>
+                  <div style={{fontSize:10,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10}}>
+                    Resumo financeiro
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>
+                    {[
+                      ['Produtos', fmtMoeda(det?.totalProdutos||det?.totalVenda)],
+                      ['Frete',    fmtMoeda(det?.transporte?.frete)],
+                      ['Desconto', fmtMoeda(det?.desconto)],
+                      ['Total',    fmtMoeda(det?.total||pedRow.total)],
+                    ].map(([k,v])=>(
+                      <div key={k} style={{textAlign:'center'}}>
+                        <div style={{fontSize:10,color:'var(--label-4)',marginBottom:3}}>{k}</div>
+                        <div style={{fontSize:14,fontWeight:700,color:k==='Total'?'var(--accent)':'var(--label)'}}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {det?.parcelas?.[0] && (
+                    <div style={{marginTop:10,paddingTop:10,borderTop:'1px solid var(--sep)',fontSize:12,color:'var(--label-4)'}}>
+                      💳 {det.parcelas[0].formaPagamento?.descricao || 'Forma de pagamento'} 
+                      {det.parcelas[0].observacoes && ` · ${det.parcelas[0].observacoes.slice(0,50)}`}
+                    </div>
+                  )}
+                </div>
 
+                {/* Enviar mensagem manual */}
+                <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:12,padding:'12px 14px'}}>
+                  <div style={{fontSize:10,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>
+                    Enviar mensagem ao cliente
+                  </div>
+                  <div style={{display:'flex',gap:8}}>
+                    <input value={msgTxt} onChange={e=>setMsgTxt(e.target.value)}
+                      onKeyDown={e=>e.key==='Enter'&&!e.shiftKey&&enviarMensagem()}
+                      placeholder="Digite a mensagem..." style={{
+                        flex:1,padding:'8px 12px',borderRadius:8,
+                        border:'1px solid var(--sep)',background:'var(--fill)',
+                        color:'var(--label)',fontSize:12,
+                      }}/>
+                    <button onClick={enviarMensagem} disabled={sending2||!msgTxt.trim()} style={{
+                      padding:'8px 14px',borderRadius:8,border:'none',
+                      background:sending2?'var(--fill)':'var(--accent)',
+                      color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600,
+                      display:'flex',alignItems:'center',gap:5,
+                    }}>
+                      <Send size={12}/>{sending2?'...':'Enviar'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── ITENS ── */}
+            {tab==='itens' && (
+              <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                {(det?.itens||[]).length === 0
+                  ? <p style={{color:'var(--label-4)',fontSize:13}}>Sem itens disponíveis.</p>
+                  : (det?.itens||[]).map((item,i)=>(
+                    <div key={i} style={{
+                      display:'flex',alignItems:'center',gap:12,
+                      background:'var(--bg-2)',border:'1px solid var(--sep)',
+                      borderRadius:10,padding:'10px 12px',
+                    }}>
+                      <div style={{width:40,height:40,borderRadius:8,background:'var(--fill)',
+                        display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                        <Box size={16} style={{color:'var(--label-4)'}}/>
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:12.5,fontWeight:600,color:'var(--label)',
+                          overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                          {item.descricao || item.nome || '—'}
+                        </div>
+                        <div style={{fontSize:11,color:'var(--label-4)',marginTop:2}}>
+                          SKU: {item.codigo||'—'} · Unidade: {item.unidade||'UN'}
+                        </div>
+                      </div>
+                      <div style={{textAlign:'right',flexShrink:0}}>
+                        <div style={{fontSize:12,color:'var(--label-4)'}}>
+                          {item.quantidade}× {fmtMoeda(item.valor)}
+                        </div>
+                        <div style={{fontSize:13,fontWeight:700,color:'var(--label)'}}>
+                          {fmtMoeda(item.valorTotal||(item.valor*item.quantidade))}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                }
+              </div>
+            )}
+
+            {/* ── RASTREIO ── */}
+            {tab==='rastreio' && (
+              <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                {/* Info transportadora */}
+                <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:12,padding:'12px 14px'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                    <div style={{fontSize:10,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.06em'}}>
+                      Informações de envio
+                    </div>
+                    <button onClick={carregarRastreio} style={{
+                      display:'flex',alignItems:'center',gap:4,padding:'3px 8px',
+                      borderRadius:6,border:'1px solid var(--sep)',background:'var(--fill)',
+                      color:'var(--label-3)',cursor:'pointer',fontSize:11,
+                    }}>
+                      <RefreshCw size={10} style={tLoad?{animation:'spin 1s linear infinite'}:{}}/> Atualizar
+                    </button>
+                  </div>
+                  {[
+                    ['Transportadora', det?.transporte?.contato?.nome || det?.transporte?.transportadora?.nome],
+                    ['Serviço', det?.transporte?.volumes?.[0]?.servico],
+                    ['Código', cod],
+                    ['Data envio', fmtData(det?.dataSaida || det?.dataColeta)],
+                    ['Previsão', fmtData(det?.dataPrevista)],
+                  ].filter(([,v])=>v).map(([k,v])=>(
+                    <div key={k} style={{display:'flex',justifyContent:'space-between',marginBottom:6,fontSize:12}}>
+                      <span style={{color:'var(--label-4)'}}>{k}</span>
+                      <div style={{display:'flex',alignItems:'center',gap:6}}>
+                        {k==='Código' && <CopyBtn val={v} label="Copiar"/>}
+                        <span style={{color:'var(--label)',fontWeight:500}}>{v}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Timeline de rastreio */}
+                {tLoad ? (
+                  <div style={{textAlign:'center',padding:32,color:'var(--label-4)',fontSize:13}}>
+                    <RefreshCw size={16} style={{animation:'spin 1s linear infinite',marginBottom:8}}/><br/>
+                    Consultando transportadora...
+                  </div>
+                ) : trackEvs.length > 0 ? (
+                  <div style={{position:'relative'}}>
+                    <div style={{position:'absolute',left:16,top:20,bottom:20,width:2,background:'var(--sep)'}}/>
+                    {trackEvs.map((ev,i)=>(
+                      <div key={i} style={{display:'flex',gap:14,marginBottom:14,position:'relative'}}>
+                        <div style={{
+                          width:32,height:32,borderRadius:'50%',flexShrink:0,
+                          background:i===0?'var(--accent)':'var(--fill)',
+                          border:`2px solid ${i===0?'var(--accent)':'var(--sep)'}`,
+                          display:'flex',alignItems:'center',justifyContent:'center',
+                          zIndex:1,
+                        }}>
+                          <Circle size={8} style={{color:i===0?'#fff':'var(--label-4)'}} fill={i===0?'#fff':'var(--label-4)'}/>
+                        </div>
+                        <div style={{flex:1,paddingTop:6,minWidth:0}}>
+                          <div style={{fontSize:12,fontWeight:i===0?600:400,color:i===0?'var(--label)':'var(--label-3)'}}>
+                            {ev.descricao||ev.evento||ev.status||'—'}
+                          </div>
+                          <div style={{fontSize:10.5,color:'var(--label-4)',marginTop:2}}>
+                            {ev.data||ev.dtHrCriado||''} {ev.hora||''} · {ev.local||ev.unidade||ev.origem||''}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : !cod ? (
+                  <p style={{color:'var(--label-4)',fontSize:13,textAlign:'center',padding:32}}>
+                    Código de rastreio não disponível para este pedido.
+                  </p>
+                ) : (
+                  <p style={{color:'var(--label-4)',fontSize:13,textAlign:'center',padding:32}}>
+                    Nenhum evento de rastreio encontrado. Clique em Atualizar para tentar novamente.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* ── NOTA FISCAL ── */}
+            {tab==='nfe' && (
+              <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                {nfe ? (
+                  <>
+                    <div style={{background:'var(--bg-2)',border:`1px solid ${linkNF?'rgba(34,197,94,.3)':'var(--sep)'}`,borderRadius:12,padding:'16px 18px'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
+                        <div style={{width:36,height:36,borderRadius:10,
+                          background:linkNF?'rgba(34,197,94,.12)':'var(--fill)',
+                          display:'flex',alignItems:'center',justifyContent:'center'}}>
+                          <FileText size={16} style={{color:linkNF?'#22c55e':'var(--label-4)'}}/>
+                        </div>
+                        <div>
+                          <div style={{fontSize:14,fontWeight:700,color:'var(--label)'}}>
+                            NF-e #{nfe.numero||nfe.id}
+                          </div>
+                          <div style={{fontSize:11,color:'var(--label-4)'}}>
+                            {linkNF?'✅ Autorizada pela SEFAZ':'⏳ Em processamento'}
+                          </div>
+                        </div>
+                      </div>
+                      {[
+                        ['Número', nfe.numero||nfe.id],
+                        ['Data emissão', nfe.dataEmissao?fmtData(nfe.dataEmissao):'—'],
+                        ['Chave', nfe.chaveAcesso],
+                        ['Protocolo', nfe.numeroProtocolo],
+                      ].filter(([,v])=>v).map(([k,v])=>(
+                        <div key={k} style={{display:'flex',justifyContent:'space-between',marginBottom:8,fontSize:12}}>
+                          <span style={{color:'var(--label-4)'}}>{k}</span>
+                          <div style={{display:'flex',alignItems:'center',gap:6}}>
+                            {k==='Chave' && <CopyBtn val={v} label="Copiar"/>}
+                            <span style={{color:'var(--label)',fontWeight:500,
+                              overflow:'hidden',textOverflow:'ellipsis',maxWidth:280,
+                              textAlign:'right',fontFamily:k==='Chave'?'monospace':undefined,
+                              fontSize:k==='Chave'?10:12,
+                            }}>{v}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{display:'flex',gap:10}}>
+                      {linkNF && (
+                        <>
+                          <a href={linkNF} target="_blank" rel="noreferrer" style={{
+                            display:'flex',alignItems:'center',gap:6,padding:'9px 16px',
+                            borderRadius:9,border:'1px solid rgba(34,197,94,.4)',
+                            background:'rgba(34,197,94,.08)',color:'#22c55e',
+                            cursor:'pointer',fontSize:12,fontWeight:600,textDecoration:'none',
+                          }}>
+                            <ExternalLink size={13}/> Abrir PDF
+                          </a>
+                          <button onClick={enviarNF} disabled={sending||sent} style={{
+                            display:'flex',alignItems:'center',gap:6,padding:'9px 16px',
+                            borderRadius:9,border:'1px solid rgba(37,211,102,.4)',
+                            background:sent?'rgba(37,211,102,.15)':'rgba(37,211,102,.08)',
+                            color:'#25d366',cursor:'pointer',fontSize:12,fontWeight:600,
+                          }}>
+                            <Send size={13}/> {sent?'✅ Enviada!':'Enviar ao cliente (WA)'}
+                          </button>
+                          <CopyBtn val={linkNF} label="Copiar link"/>
+                        </>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{textAlign:'center',padding:40,color:'var(--label-4)'}}>
+                    <FileText size={32} style={{opacity:.2,marginBottom:12}}/>
+                    <p style={{fontSize:13,margin:'0 0 6px'}}>Nota fiscal não emitida para este pedido.</p>
+                    <p style={{fontSize:11,margin:0}}>
+                      Use a função de emissão automática pelo WhatsApp ou emita manualmente no Bling.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── HISTÓRICO ── */}
+            {tab==='historico' && (
+              <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                {/* Resumo LTV */}
+                <div style={{
+                  display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,
+                  background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:12,padding:'12px 14px',
+                }}>
+                  {[
+                    ['Total pedidos',  `${[pedRow,...histCliente].length}`],
+                    ['LTV total',       fmtMoeda(totalCliente)],
+                    ['Ticket médio',    fmtMoeda(totalCliente/Math.max([pedRow,...histCliente].length,1))],
+                  ].map(([k,v])=>(
+                    <div key={k} style={{textAlign:'center'}}>
+                      <div style={{fontSize:10,color:'var(--label-4)',marginBottom:3}}>{k}</div>
+                      <div style={{fontSize:16,fontWeight:700,color:'var(--label)'}}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+                {/* Gráfico LTV mensal */}
+                {[pedRow,...histCliente].length > 1 && (()=>{
+                  const mapa = {}
+                  ;[pedRow,...histCliente].forEach(p=>{
+                    const m = p.data ? new Date(p.data).toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}) : '—'
+                    mapa[m] = (mapa[m]||0) + parseFloat(p.total||0)
+                  })
+                  const dados = Object.entries(mapa).map(([m,v])=>({m, v:Math.round(v)}))
+                  return (
+                    <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:12,padding:'12px 14px'}}>
+                      <div style={{fontSize:11,fontWeight:600,color:'var(--label-4)',marginBottom:10}}>
+                        Compras por período
+                      </div>
+                      <ResponsiveContainer width="100%" height={120}>
+                        <BarChart data={dados}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--sep)" vertical={false}/>
+                          <XAxis dataKey="m" tick={{fontSize:9,fill:'var(--label-4)'}} tickLine={false} axisLine={false}/>
+                          <YAxis tick={{fontSize:9,fill:'var(--label-4)'}} tickLine={false} axisLine={false}
+                            tickFormatter={v=>`R$${(v/1000).toFixed(0)}k`}/>
+                          <Tooltip contentStyle={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:8,fontSize:11}}
+                            formatter={v=>[fmtMoeda(v)]}/>
+                          <Bar dataKey="v" fill="var(--accent)" radius={[4,4,0,0]}/>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )
+                })()}
+                {/* Lista pedidos */}
+                {histCliente.length === 0
+                  ? <p style={{color:'var(--label-4)',fontSize:12,textAlign:'center',padding:20}}>
+                      Este é o primeiro pedido do cliente.
+                    </p>
+                  : histCliente.map(p=>{
+                    const sid = getSitId(p); const s = SIT[sid]||{label:'—',cor:'#888'}
+                    return (
+                      <div key={p.numero} style={{
+                        background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:10,
+                        padding:'10px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',
+                      }}>
+                        <div>
+                          <div style={{fontSize:12.5,fontWeight:600,color:'var(--label)'}}># {p.numero}</div>
+                          <div style={{fontSize:11,color:'var(--label-4)'}}>{fmtData(p.data)}</div>
+                        </div>
+                        <div style={{textAlign:'right',display:'flex',alignItems:'center',gap:10}}>
+                          <Pill label={s.label} cor={s.cor} bg={s.bg} size={10}/>
+                          <span style={{fontSize:13,fontWeight:700,color:'var(--label)'}}>{fmtMoeda(p.total)}</span>
+                        </div>
+                      </div>
+                    )
+                  })
+                }
+              </div>
+            )}
+
+            {/* ── OCORRÊNCIAS ── */}
+            {tab==='ocorrencias' && (
+              <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                {/* Nova ocorrência */}
+                <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:12,padding:'12px 14px'}}>
+                  <div style={{fontSize:11,fontWeight:600,color:'var(--label)',marginBottom:8}}>
+                    Abrir nova ocorrência
+                  </div>
+                  <div style={{display:'flex',gap:8}}>
+                    <input value={novaOc} onChange={e=>setNovaOc(e.target.value)}
+                      placeholder="Descreva o problema..." style={{
+                        flex:1,padding:'7px 10px',borderRadius:8,
+                        border:'1px solid var(--sep)',background:'var(--fill)',
+                        color:'var(--label)',fontSize:12,
+                      }}/>
+                    <button onClick={criarOcorrencia} disabled={savingOc||!novaOc.trim()} style={{
+                      padding:'7px 14px',borderRadius:8,border:'none',
+                      background:'var(--accent)',color:'#fff',cursor:'pointer',fontSize:12,
+                    }}>
+                      {savingOc?'...':'Abrir'}
+                    </button>
+                  </div>
+                </div>
+                {/* Lista */}
+                {ocors.length===0
+                  ? <p style={{color:'var(--label-4)',fontSize:12,textAlign:'center',padding:24}}>
+                      Nenhuma ocorrência registrada para este cliente.
+                    </p>
+                  : ocors.map((oc,i)=>(
+                    <div key={i} style={{
+                      background:'var(--bg-2)',border:`1px solid ${oc.status==='resolvido'?'rgba(34,197,94,.2)':'var(--sep)'}`,
+                      borderRadius:10,padding:'10px 14px',
+                    }}>
+                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
+                        <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>{oc.tipo||'Suporte'}</span>
+                        <span style={{fontSize:10,color:'var(--label-4)'}}>{fmtDataHora(oc.criado_em)}</span>
+                      </div>
+                      <p style={{fontSize:12,color:'var(--label-3)',margin:0,lineHeight:1.5}}>{oc.descricao}</p>
+                      {oc.ticketId && (
+                        <div style={{fontSize:10,color:'var(--label-4)',marginTop:5}}>
+                          Protocolo: #{oc.ticketId}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                }
+              </div>
+            )}
+          </>}
+        </div>
       </div>
-
-      {/* ═══ FOOTER ══════════════════════════════════════════════════════════ */}
-      <div style={{flexShrink:0,borderTop:'0.5px solid var(--sep)',padding:'10px 16px',display:'flex',gap:7,background:'var(--bg-2)',alignItems:'center'}}>
-        <button onClick={enviarWA} disabled={sending||!det} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'9px',borderRadius:8,border:'0.5px solid var(--sep)',background:'var(--fill)',color:sent?'#0F6E56':'var(--label-3)',cursor:det?'pointer':'not-allowed',fontSize:12.5,fontWeight:400,opacity:!det?.5:1,transition:'color .2s'}}>
-          {sent?<><CheckCircle size={14}/> Enviado!</>:sending?<><RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/> Enviando...</>:<><MessageSquare size={14}/> Enviar mensagem</>}
-        </button>
-        {cod && <a href={linkRastreio(cod)} target="_blank" rel="noreferrer" style={iconBtn({textDecoration:'none'})} title="Rastrear envio">
-          <Truck size={14}/>
-        </a>}
-        {p.linkBling && <a href={p.linkBling} target="_blank" rel="noreferrer" style={iconBtn({textDecoration:'none'})} title="Abrir no Bling">
-          <ExternalLink size={14}/>
-        </a>}
-        <button style={iconBtn()} title="Mais ações">
-          <MoreHorizontal size={14}/>
-        </button>
-      </div>
-
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
-  </>
+  )
 }
 
-
-// ─────────────────────────────────────────────────────────────────────────────
-// KPI CARD
-// ─────────────────────────────────────────────────────────────────────────────
-function KCard({icon:Ic,label,value,sub,cor,trend,spark=[],destaque}) {
-  const max=Math.max(...spark,1)
-  const pts=spark.map((v,i)=>`${(i/(spark.length-1||1))*100},${100-(v/max)*80}`)
-  return <div style={{background:'var(--bg-2)',border:`1px solid ${destaque?`${cor}40`:'var(--sep)'}`,borderRadius:14,padding:'16px 18px',position:'relative',overflow:'hidden'}}>
-    {destaque&&<div style={{position:'absolute',top:0,left:0,right:0,height:3,background:cor,borderRadius:'14px 14px 0 0'}}/>}
-    {spark.length>1&&<svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{position:'absolute',bottom:0,left:0,right:0,height:48,opacity:.07,pointerEvents:'none'}}>
-      <polyline points={pts.join(' ')} fill="none" stroke={cor} strokeWidth="3"/>
-    </svg>}
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12,position:'relative'}}>
-      <div style={{width:34,height:34,borderRadius:9,background:`${cor}18`,display:'flex',alignItems:'center',justifyContent:'center'}}><Ic size={15} style={{color:cor}}/></div>
-      {trend!==undefined&&<div style={{display:'flex',alignItems:'center',gap:3,fontSize:11.5,fontWeight:700,padding:'2px 8px',borderRadius:99,background:trend>0?'rgba(34,197,94,.1)':trend<0?'rgba(239,68,68,.1)':'var(--fill)',color:trend>0?'#22c55e':trend<0?'#ef4444':'var(--label-4)'}}>
-        {trend>0?<TrendingUp size={11}/>:trend<0?<TrendingDown size={11}/>:<Minus size={11}/>}{trend>0?'+':''}{trend}%
-      </div>}
-    </div>
-    <div style={{fontSize:9.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--label-4)',marginBottom:6,position:'relative'}}>{label}</div>
-    <div style={{fontSize:24,fontWeight:800,color:cor,letterSpacing:'-.5px',lineHeight:1,marginBottom:4,position:'relative'}}>{value}</div>
-    {sub&&<div style={{fontSize:11.5,color:'var(--label-4)',position:'relative'}}>{sub}</div>}
-  </div>
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PÁGINA PRINCIPAL
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── PÁGINA PRINCIPAL ─────────────────────────────────────────────────────────
 export default function PagePedidos({api}) {
-  const [pedidos,    setPedidos]    = useState([])
-  const [loading,    setLoading]    = useState(true)
-  const [loadMore,   setLoadMore]   = useState(false)
-  const [pgAPI,      setPgAPI]      = useState(1)
-  const [temMais,    setTemMais]    = useState(true)
-  const [busca,      setBusca]      = useState('')
-  const [filtroSit,  setFiltroSit]  = useState('0')
-  const [filtroCanal,setFiltroCanal]= useState('todos')
-  const [dateRange,  setDateRange]  = useState({from:'',to:''})
-  const [sortCol,    setSortCol]    = useState('numero')
-  const [sortDir,    setSortDir]    = useState('desc')
-  const [pgUI,       setPgUI]       = useState(1)
-  const [sel,        setSel]        = useState(null)
-  const [view,       setView]       = useState('tabela')
-  const [showFilters,setShowF]      = useState(false)
-  const POR_PAG = 20
+  const [pedidos,      setPedidos]   = useState([])
+  const [loading,      setLoading]   = useState(true)
+  const [loadMore,     setLoadMore]  = useState(false)
+  const [pgAPI,        setPgAPI]     = useState(1)
+  const [temMais,      setTemMais]   = useState(true)
+  const [busca,        setBusca]     = useState('')
+  const [filtroSit,    setFiltroSit] = useState('0')
+  const [filtroCanal,  setFiltroC]   = useState('todos')
+  const [filtroValMin, setValMin]    = useState('')
+  const [filtroValMax, setValMax]    = useState('')
+  const [dateRange,    setDate]      = useState({from:'',to:''})
+  const [sortCol,      setSortCol]   = useState('numero')
+  const [sortDir,      setSortDir]   = useState('desc')
+  const [pgUI,         setPgUI]      = useState(1)
+  const [sel,          setSel]       = useState(null)
+  const [view,         setView]      = useState('lista')
+  const [showF,        setShowF]     = useState(false)
+  const [liveCount,    setLive]      = useState(0)
+  const buscaRef = useRef(null)
+  const POR_PAG  = 25
 
-  const SITS_LABEL = {0:'Todos',6:'Em Aberto',9:'Atendido',12:'Cancelado',15:'Verificado'}
-
-  const carregar=useCallback(async(pg=1,acum=false)=>{
+  const carregar = useCallback(async(pg=1,acum=false)=>{
     if(pg===1) setLoading(true); else setLoadMore(true)
     try{
       let url=`${api}/api/dashboard/pedidos?limite=100&pagina=${pg}`
       if(filtroSit!=='0') url+=`&situacao=${filtroSit}`
-      if(dateRange.from) url+=`&dataInicio=${dateRange.from}`
-      if(dateRange.to)   url+=`&dataFim=${dateRange.to}`
+      if(dateRange.from)  url+=`&dataInicio=${dateRange.from}`
+      if(dateRange.to)    url+=`&dataFim=${dateRange.to}`
       const r=await fetch(url)
       if(r.ok){
         const d=await r.json()
@@ -1038,301 +1093,438 @@ export default function PagePedidos({api}) {
 
   useEffect(()=>{carregar(1,false);setPgUI(1)},[carregar])
 
-  // Filtro local
-  const filtrados=pedidos.filter(p=>{
-    const c=getCanal(p)
-    return (filtroCanal==='todos'||c===filtroCanal)
-      &&(!busca||String(p.numero).includes(busca)||(p.contato||'').toLowerCase().includes(busca.toLowerCase()))
-  }).sort((a,b)=>{
-    let va=a[sortCol],vb=b[sortCol]
-    if(['total','numero'].includes(sortCol)){va=Number(va);vb=Number(vb)}
-    if(sortCol==='data'){va=new Date(va);vb=new Date(vb)}
-    return sortDir==='asc'?(va>vb?1:-1):(va<vb?1:-1)
-  })
+  // Live activity polling
+  useEffect(()=>{
+    const t = setInterval(async()=>{
+      try{
+        const r = await fetch(`${api}/api/dashboard/live-activity`)
+        if(r.ok){const d=await r.json();setLive(d.novos_10min||0)}
+      }catch{}
+    },30000)
+    return ()=>clearInterval(t)
+  },[api])
 
-  const total=filtrados.length
-  const inicio=(pgUI-1)*POR_PAG
-  const pgData=filtrados.slice(inicio,inicio+POR_PAG)
-  const totalPgs=Math.ceil(total/POR_PAG)
+  // Exportar CSV
+  const exportarCSV = ()=>{
+    const rows = [
+      ['Pedido','Data','Cliente','Telefone','Canal','Status','Total','Transportadora','Rastreio'],
+      ...filtrados.map(p=>[
+        p.numero, fmtData(p.data), p.contato||'', p.telefone||'',
+        CANAL_CFG[getCanal(p)]?.label||'', SIT[getSitId(p)]?.label||'',
+        parseFloat(p.total||0).toFixed(2),
+        p.transporte?.contato?.nome||'',
+        p.transporte?.volumes?.[0]?.codigoRastreamento||'',
+      ])
+    ]
+    const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'})
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href=url; a.download='pedidos.csv'; a.click()
+    URL.revokeObjectURL(url)
+  }
 
-  const toggleSort=col=>{setSortCol(col);setSortDir(d=>sortCol===col?(d==='asc'?'desc':'asc'):'desc')}
-  const SortIco=({col})=>sortCol===col?(sortDir==='asc'?<ChevronUp size={10}/>:<ChevronDown size={10}/>):<ArrowUpDown size={9} style={{opacity:.25}}/>
+  // Filtros locais
+  const filtrados = useMemo(()=>
+    pedidos.filter(p=>{
+      const c   = getCanal(p)
+      const tot = parseFloat(p.total||0)
+      const sit = getSitId(p)
+      const txt = busca.toLowerCase()
+      return (filtroCanal==='todos'||c===filtroCanal)
+        && (filtroSit==='0'||String(sit)===filtroSit)
+        && (!busca || String(p.numero).includes(busca)
+          || (p.contato||'').toLowerCase().includes(txt)
+          || (p.telefone||'').includes(busca))
+        && (!filtroValMin||tot>=parseFloat(filtroValMin))
+        && (!filtroValMax||tot<=parseFloat(filtroValMax))
+    }).sort((a,b)=>{
+      const mult = sortDir==='desc'?-1:1
+      if(sortCol==='numero') return (b.numero-a.numero)*mult
+      if(sortCol==='total')  return (parseFloat(b.total||0)-parseFloat(a.total||0))*mult
+      if(sortCol==='data')   return (new Date(b.data)-new Date(a.data))*mult
+      return 0
+    })
+  ,[pedidos,filtroCanal,filtroSit,busca,filtroValMin,filtroValMax,sortCol,sortDir])
 
-  // Métricas
-  const totalVal   =filtrados.reduce((s,p)=>s+Number(p.total||0),0)
-  const countSit   =pedidos.reduce((a,p)=>{const s=getSitId(p);a[s]=(a[s]||0)+1;return a},{})
-  const countCanal =pedidos.reduce((a,p)=>{const c=getCanal(p);a[c]=(a[c]||0)+1;return a},{})
-  const novos      =pedidos.filter(p=>pedidos.filter(x=>x.contato===p.contato&&x.numero<p.numero).length===0).length
-  const verificados=countSit[15]||0
-  const abertos    =countSit[6]||0
-  const taxaEntrega=pedidos.length>0?Math.round(verificados/pedidos.length*100):0
+  // KPIs
+  const kpis = useMemo(()=>{
+    const total = filtrados.length
+    const fat   = filtrados.reduce((s,p)=>s+parseFloat(p.total||0),0)
+    const abertos    = filtrados.filter(p=>getSitId(p)===6).length
+    const atendidos  = filtrados.filter(p=>getSitId(p)===9).length
+    const cancelados = filtrados.filter(p=>getSitId(p)===12).length
+    const ticket     = total>0 ? fat/total : 0
+    const taxaEntrega = total>0 ? Math.round(atendidos/total*100) : 0
+    // Sparkline dos últimos 14 dias de faturamento
+    const spark14 = Array(14).fill(0).map((_,i)=>{
+      const d = new Date(); d.setDate(d.getDate()-13+i)
+      const ds = fmtData(d)
+      return filtrados.filter(p=>fmtData(p.data)===ds).reduce((s,p)=>s+parseFloat(p.total||0),0)
+    }).map(v=>Math.round(v/1000))
+    return {total,fat,abertos,atendidos,cancelados,ticket,taxaEntrega,spark14}
+  },[filtrados])
 
-  // Sparkline 7 dias
-  const spark=Array.from({length:7},(_,i)=>{
-    const dia=new Date(Date.now()-(6-i)*86400000).toISOString().split('T')[0]
-    return {dia:dia.slice(5), v:pedidos.filter(p=>(p.data||'').startsWith(dia)).reduce((s,p)=>s+Number(p.total||0),0)}
-  })
+  const sort = (col)=>{
+    if(sortCol===col) setSortDir(d=>d==='desc'?'asc':'desc')
+    else {setSortCol(col);setSortDir('desc')}
+  }
+  const SortIcon = ({col})=>{
+    if(sortCol!==col) return <ChevronDown size={11} style={{opacity:.3}}/>
+    return sortDir==='desc' ? <ChevronDown size={11}/> : <ChevronUp size={11}/>
+  }
 
-  // Canal breakdown para o mini gráfico
-  const canalData=Object.entries(countCanal).map(([canal,count])=>({
-    canal, count, receita:pedidos.filter(p=>getCanal(p)===canal).reduce((s,p)=>s+Number(p.total||0),0),
-    cor:(CH[canal]||CH.bling).cor, label:(CH[canal]||CH.bling).label,
-  })).sort((a,b)=>b.receita-a.receita)
+  const paginados = filtrados.slice((pgUI-1)*POR_PAG, pgUI*POR_PAG)
+  const totalPgs  = Math.ceil(filtrados.length/POR_PAG)
 
-  const temFiltros=busca||filtroCanal!=='todos'||dateRange.from||dateRange.to
-  const limpar=()=>{setBusca('');setFiltroCanal('todos');setDateRange({from:'',to:''});setPgUI(1)}
+  return (
+    <div style={{display:'flex',height:'100%',overflow:'hidden'}}>
 
-  const KANBAN=[
-    {sitId:6,  label:'Em Aberto',  cor:SIT[6].cor,  Ic:Clock},
-    {sitId:9,  label:'Atendido',   cor:SIT[9].cor,  Ic:Truck},
-    {sitId:15, label:'Verificado', cor:SIT[15].cor, Ic:CheckCircle},
-    {sitId:12, label:'Cancelado',  cor:SIT[12].cor, Ic:XCircle},
-  ]
-
-  return <div style={{height:'100%',overflowY:'auto',background:'var(--bg)',padding:'24px 28px'}}>
-    <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
-
-    {/* ── HEADER ── */}
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',marginBottom:20}}>
-      <div>
-        <h1 style={{fontSize:26,fontWeight:800,color:'var(--label)',margin:0,letterSpacing:'-.5px'}}>Central de Vendas</h1>
-        <p style={{fontSize:12.5,color:'var(--label-4)',margin:'4px 0 0'}}>
-          {loading?'Carregando...':`${fmt(total)} resultado${total!==1?'s':''} · ${fmt(pedidos.length)} pedidos carregados`}
-          {temMais&&!loading&&<button onClick={()=>carregar(pgAPI+1,true)} disabled={loadMore} style={{marginLeft:8,fontSize:12,color:'var(--accent)',border:'none',background:'transparent',cursor:'pointer',fontWeight:600}}>{loadMore?'Carregando...':'+ Carregar mais'}</button>}
-        </p>
-      </div>
-      <div style={{display:'flex',gap:8,alignItems:'center'}}>
-        <div style={{display:'flex',borderRadius:10,border:'1px solid var(--sep)',overflow:'hidden'}}>
-          {[['tabela',List,'Tabela'],['kanban',LayoutGrid,'Kanban']].map(([v,Ic,lb])=><button key={v} onClick={()=>setView(v)} style={{display:'flex',alignItems:'center',gap:6,padding:'7px 14px',border:'none',background:view===v?'var(--accent-dim)':'transparent',color:view===v?'var(--accent)':'var(--label-3)',cursor:'pointer',fontSize:12.5,fontWeight:view===v?700:400}}><Ic size={14}/>{lb}</button>)}
+      {/* ── Sidebar Filtros ── */}
+      <div style={{
+        width:showF?240:0,flexShrink:0,overflow:'hidden',
+        transition:'width .2s cubic-bezier(.4,0,.2,1)',
+        borderRight:'1px solid var(--sep)',background:'var(--bg-2)',
+        display:'flex',flexDirection:'column',
+      }}>
+        <div style={{padding:'14px 16px',borderBottom:'1px solid var(--sep)',
+          display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
+          <span style={{fontSize:12,fontWeight:700,color:'var(--label)'}}>Filtros</span>
+          <button onClick={()=>setShowF(false)} style={{
+            background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:2,
+          }}><X size={14}/></button>
         </div>
-        <button onClick={()=>setShowF(v=>!v)} style={{display:'flex',alignItems:'center',gap:7,padding:'7px 14px',borderRadius:10,border:'1px solid var(--sep)',background:temFiltros||showFilters?'var(--accent-dim)':'var(--bg-2)',color:temFiltros||showFilters?'var(--accent)':'var(--label-3)',cursor:'pointer',fontSize:12.5,fontWeight:500}}>
-          <Filter size={14}/> Filtros {temFiltros&&<span style={{width:7,height:7,borderRadius:'50%',background:'var(--accent)',flexShrink:0}}/>}
-        </button>
-        <button onClick={()=>carregar(1,false)} style={{width:38,height:38,borderRadius:10,border:'1px solid var(--sep)',background:'var(--bg-2)',cursor:'pointer',color:'var(--label-3)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-          <RefreshCw size={15} style={{animation:loading?'spin 1s linear infinite':undefined}}/>
-        </button>
-      </div>
-    </div>
-
-    {/* ── KPIs 5 colunas ── */}
-    <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:12,marginBottom:18}}>
-      <KCard icon={ShoppingCart}   label="Total pedidos"    value={fmt(pedidos.length)}   cor="#7c6af7"  sub={`${fmt(total)} filtrados`}            spark={spark.map(v=>v.v>0?1:0)} destaque/>
-      <KCard icon={DollarSign}     label="Valor filtrado"   value={Rk(totalVal)}          cor="#00d4aa"  sub={`Ticket: ${Rk(totalVal/Math.max(total,1))}`} spark={spark.map(s=>s.v)}/>
-      <KCard icon={Clock}          label="Em aberto"        value={fmt(abertos)}           cor="#f59e0b"  sub="aguardando processamento"             trend={abertos>0?-5:5}/>
-      <KCard icon={Users}          label="Novas compras"    value={fmt(novos)}             cor="#e879f9"  sub={`${Math.round(novos/Math.max(pedidos.length,1)*100)}% do total`}/>
-      <KCard icon={CheckCircle}    label="Taxa entregues"   value={`${taxaEntrega}%`}      cor="#22c55e"  sub={`${fmt(verificados)} pedidos`}         trend={taxaEntrega>=80?8:-5}/>
-    </div>
-
-    {/* ── DASH: sparkline + canal breakdown ── */}
-    <div style={{display:'grid',gridTemplateColumns:'1.4fr 1fr',gap:14,marginBottom:18}}>
-      {/* Sparkline */}
-      <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 18px'}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-          <div style={{display:'flex',alignItems:'center',gap:7}}>
-            <BarChart3 size={13} style={{color:'var(--label-4)'}}/>
-            <span style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--label-4)'}}>Receita — últimos 7 dias</span>
-          </div>
-          <span style={{fontSize:13,fontWeight:700,color:'var(--accent)'}}>{Rk(spark.reduce((s,d)=>s+d.v,0))}</span>
-        </div>
-        <ResponsiveContainer width="100%" height={70}>
-          <AreaChart data={spark} margin={{top:4,right:0,left:0,bottom:0}}>
-            <defs><linearGradient id="gsp" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#00d4aa" stopOpacity={.35}/><stop offset="95%" stopColor="#00d4aa" stopOpacity={0}/></linearGradient></defs>
-            <XAxis dataKey="dia" tick={{fontSize:10,fill:'var(--label-4)'}} axisLine={false} tickLine={false}/>
-            <Tooltip contentStyle={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:9,fontSize:12}} formatter={v=>[`R$ ${Number(v).toFixed(0)}`,'Receita']}/>
-            <Area type="monotone" dataKey="v" stroke="#00d4aa" strokeWidth={2.5} fill="url(#gsp)"/>
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Canal breakdown */}
-      <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 18px'}}>
-        <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:12}}>
-          <Globe size={13} style={{color:'var(--label-4)'}}/>
-          <span style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--label-4)'}}>Receita por canal</span>
-        </div>
-        {canalData.slice(0,5).map(c=>{
-          const pct=totalVal>0?Math.round(c.receita/totalVal*100):0
-          return <div key={c.canal} style={{marginBottom:9}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
-              <div style={{display:'flex',alignItems:'center',gap:6}}>
-                {(CH[c.canal]||CH.bling).icon({s:12})}
-                <span style={{fontSize:12,fontWeight:500,color:'var(--label-2)'}}>{c.label}</span>
-              </div>
-              <div style={{display:'flex',gap:10}}>
-                <span style={{fontSize:11,color:'var(--label-4)'}}>{c.count} ped.</span>
-                <span style={{fontSize:12,fontWeight:700,color:c.cor,minWidth:36,textAlign:'right'}}>{pct}%</span>
-              </div>
+        <div style={{padding:'12px 14px',display:'flex',flexDirection:'column',gap:12,overflowY:'auto'}}>
+          {/* Período */}
+          <div>
+            <div style={{fontSize:10,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',
+              letterSpacing:'.06em',marginBottom:6}}>Período</div>
+            {[
+              ['hoje',  'Hoje'],
+              ['7d',   'Últimos 7 dias'],
+              ['30d',  'Últimos 30 dias'],
+              ['90d',  'Últimos 90 dias'],
+            ].map(([val,label])=>(
+              <button key={val} onClick={()=>{
+                const d=new Date()
+                if(val==='hoje') setDate({from:d.toISOString().split('T')[0],to:''})
+                else if(val==='7d'){const f=new Date(d);f.setDate(d.getDate()-7);setDate({from:f.toISOString().split('T')[0],to:''})}
+                else if(val==='30d'){const f=new Date(d);f.setDate(d.getDate()-30);setDate({from:f.toISOString().split('T')[0],to:''})}
+                else if(val==='90d'){const f=new Date(d);f.setDate(d.getDate()-90);setDate({from:f.toISOString().split('T')[0],to:''})}
+              }} style={{
+                display:'block',width:'100%',textAlign:'left',padding:'6px 8px',
+                borderRadius:7,border:'none',background:'none',cursor:'pointer',
+                fontSize:12,color:'var(--label-3)',marginBottom:2,
+              }}
+                onMouseEnter={e=>e.target.style.background='var(--fill)'}
+                onMouseLeave={e=>e.target.style.background='none'}
+              >{label}</button>
+            ))}
+            <div style={{display:'flex',gap:6,marginTop:4}}>
+              <input type="date" value={dateRange.from} onChange={e=>setDate(d=>({...d,from:e.target.value}))}
+                style={{flex:1,padding:'5px 7px',borderRadius:7,border:'1px solid var(--sep)',
+                  background:'var(--fill)',color:'var(--label)',fontSize:11}}/>
+              <input type="date" value={dateRange.to} onChange={e=>setDate(d=>({...d,to:e.target.value}))}
+                style={{flex:1,padding:'5px 7px',borderRadius:7,border:'1px solid var(--sep)',
+                  background:'var(--fill)',color:'var(--label)',fontSize:11}}/>
             </div>
-            <div style={{height:5,borderRadius:99,background:'var(--fill)',overflow:'hidden'}}>
-              <div style={{height:'100%',borderRadius:99,background:c.cor,width:`${pct}%`,transition:'width .8s'}}/>
+          </div>
+
+          {/* Canal */}
+          <div>
+            <div style={{fontSize:10,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',
+              letterSpacing:'.06em',marginBottom:6}}>Canal</div>
+            {[['todos','Todos'],...Object.entries(CANAL_CFG).map(([k,v])=>[k,v.label])].map(([val,label])=>(
+              <button key={val} onClick={()=>setFiltroC(val)} style={{
+                display:'flex',alignItems:'center',gap:7,width:'100%',textAlign:'left',
+                padding:'5px 8px',borderRadius:7,border:'none',
+                background:filtroCanal===val?'var(--fill)':'none',
+                cursor:'pointer',fontSize:12,
+                color:filtroCanal===val?'var(--label)':'var(--label-3)',marginBottom:2,
+              }}>
+                {val!=='todos'&&<span style={{fontSize:14}}>{CANAL_CFG[val]?.icon}</span>}
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Valor */}
+          <div>
+            <div style={{fontSize:10,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',
+              letterSpacing:'.06em',marginBottom:6}}>Faixa de valor</div>
+            <div style={{display:'flex',gap:6}}>
+              <input placeholder="Mín" value={filtroValMin} onChange={e=>setValMin(e.target.value)}
+                style={{flex:1,padding:'5px 7px',borderRadius:7,border:'1px solid var(--sep)',
+                  background:'var(--fill)',color:'var(--label)',fontSize:11}}/>
+              <input placeholder="Máx" value={filtroValMax} onChange={e=>setValMax(e.target.value)}
+                style={{flex:1,padding:'5px 7px',borderRadius:7,border:'1px solid var(--sep)',
+                  background:'var(--fill)',color:'var(--label)',fontSize:11}}/>
             </div>
           </div>
-        })}
-      </div>
-    </div>
 
-    {/* ── PIPELINE STATUS BAR ── */}
-    <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:12,padding:'12px 16px',marginBottom:16}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-        <span style={{fontSize:10.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--label-4)'}}>Pipeline operacional</span>
-        <div style={{display:'flex',gap:14,fontSize:11,color:'var(--label-4)'}}>
-          {[[6,'Em Aberto','#f59e0b'],[9,'Atendido','#4a9fff'],[15,'Verificado','#22c55e'],[12,'Cancelado','#ef4444']].map(([id,lb,cor])=>(countSit[id]||0)>0&&<span key={id} style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:7,height:7,borderRadius:'50%',background:cor,display:'inline-block'}}/>{lb}: <b style={{color:'var(--label)'}}>{countSit[id]}</b></span>)}
+          {/* Limpar */}
+          {(filtroCanal!=='todos'||filtroSit!=='0'||busca||filtroValMin||filtroValMax||dateRange.from) && (
+            <button onClick={()=>{setFiltroC('todos');setFiltroSit('0');setBusca('');setValMin('');setValMax('');setDate({from:'',to:''})}}
+              style={{
+                padding:'7px',borderRadius:8,border:'1px solid var(--sep)',
+                background:'none',color:'#ef4444',cursor:'pointer',fontSize:12,
+                display:'flex',alignItems:'center',justifyContent:'center',gap:6,
+              }}>
+              <X size={12}/> Limpar filtros
+            </button>
+          )}
         </div>
       </div>
-      <div style={{display:'flex',gap:2,height:8,borderRadius:99,overflow:'hidden'}}>
-        {[[6,'#f59e0b'],[9,'#4a9fff'],[15,'#22c55e'],[12,'#ef4444']].map(([id,cor])=>{
-          const pct=pedidos.length>0?(countSit[id]||0)/pedidos.length*100:0
-          return pct>0?<div key={id} style={{height:'100%',width:`${pct}%`,background:cor,borderRadius:2,transition:'width .6s'}}/>:null
-        })}
-      </div>
-    </div>
 
-    {/* ── FILTROS ── */}
-    {showFilters&&<div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 18px',marginBottom:16,display:'flex',gap:12,flexWrap:'wrap',alignItems:'flex-end'}}>
-      <div style={{flex:2,minWidth:220}}>
-        <label style={{display:'block',fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--label-4)',marginBottom:6}}>Buscar</label>
-        <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',borderRadius:10,border:'1px solid var(--sep)',background:'var(--bg)'}}>
-          <Search size={13} style={{color:'var(--label-4)',flexShrink:0}}/>
-          <input value={busca} onChange={e=>{setBusca(e.target.value);setPgUI(1)}} placeholder="Número ou nome do cliente..." style={{flex:1,border:'none',background:'transparent',outline:'none',fontSize:13,color:'var(--label)'}}/>
-          {busca&&<button onClick={()=>setBusca('')} style={{background:'transparent',border:'none',cursor:'pointer',color:'var(--label-4)',display:'flex'}}><X size={12}/></button>}
-        </div>
-      </div>
-      <div style={{flex:1,minWidth:150}}>
-        <label style={{display:'block',fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--label-4)',marginBottom:6}}>Status</label>
-        <select value={filtroSit} onChange={e=>{setFiltroSit(e.target.value);setPgUI(1)}} style={{width:'100%',padding:'8px 11px',borderRadius:10,border:'1px solid var(--sep)',background:'var(--bg)',color:'var(--label)',fontSize:13,cursor:'pointer',outline:'none'}}>
-          {Object.entries(SITS_LABEL).map(([id,nm])=><option key={id} value={id}>{nm}{countSit[id]?` (${countSit[id]})`:''}</option>)}
-        </select>
-      </div>
-      <div>
-        <label style={{display:'block',fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--label-4)',marginBottom:6}}>Período</label>
-        Change={v=>{setDateRange(v);setPgUI(1)}}/>
-      </div>
-      {temFiltros&&<button onClick={limpar} style={{display:'flex',alignItems:'center',gap:5,padding:'8px 14px',borderRadius:10,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-3)',cursor:'pointer',fontSize:12.5,alignSelf:'flex-end',whiteSpace:'nowrap'}}><X size={12}/> Limpar</button>}
-    </div>}
+      {/* ── Área principal ── */}
+      <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
 
-    {/* CANAL CHIPS */}
-    <div style={{display:'flex',gap:7,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
-      <span style={{fontSize:10.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--label-4)',marginRight:4}}>Canal:</span>
-      {[['todos','Todos',pedidos.length,null],
-        ...Object.entries(CH).filter(([k])=>(countCanal[k]||0)>0).map(([k,v])=>[k,v.label,countCanal[k]||0,v])
-      ].map(([key,label,count,chi])=>{
-        const ativo=filtroCanal===key
-        const cor=chi?.cor||'#888'
-        const Ic=chi?.icon
-        return <button key={key} onClick={()=>{setFiltroCanal(ativo&&key!=='todos'?'todos':key);setPgUI(1)}}
-          style={{display:'flex',alignItems:'center',gap:7,padding:'6px 14px',borderRadius:99,fontSize:12.5,fontWeight:ativo?700:500,cursor:'pointer',border:`1px solid ${ativo?cor:'var(--sep)'}`,background:ativo?`${cor}18`:'var(--bg-2)',color:ativo?cor:'var(--label-3)',transition:'all .1s'}}>
-          {Ic&&<Ic s={15}/>}{label}
-          {count>0&&<span style={{fontSize:11,fontWeight:700,padding:'0 5px',borderRadius:99,background:ativo?`${cor}28`:'var(--fill)',color:ativo?cor:'var(--label-4)',minWidth:18,textAlign:'center'}}>{count}</span>}
-        </button>
-      })}
-    </div>
+        {/* ── Topbar ── */}
+        <div style={{
+          padding:'12px 16px',borderBottom:'1px solid var(--sep)',
+          display:'flex',alignItems:'center',gap:10,flexShrink:0,flexWrap:'wrap',
+        }}>
+          <button onClick={()=>setShowF(f=>!f)} style={{
+            display:'flex',alignItems:'center',gap:5,padding:'6px 11px',
+            borderRadius:8,border:'1px solid var(--sep)',background:showF?'var(--fill)':'none',
+            color:'var(--label-3)',cursor:'pointer',fontSize:12,
+          }}>
+            <Filter size={13}/> Filtros
+            {(filtroCanal!=='todos'||filtroSit!=='0'||filtroValMin||filtroValMax||dateRange.from) &&
+              <span style={{width:6,height:6,borderRadius:'50%',background:'var(--accent)'}}/>
+            }
+          </button>
 
-    {/* KANBAN */}
-    {view==='kanban'&&<div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14,alignItems:'start'}}>
-      {KANBAN.map(col=>{
-        const colPeds=filtrados.filter(p=>getSitId(p)===col.sitId)
-        const colVal=colPeds.reduce((s,p)=>s+Number(p.total||0),0)
-        return <div key={col.sitId} style={{background:'var(--bg-2)',border:`1px solid ${col.cor}35`,borderRadius:14,overflow:'hidden'}}>
-          <div style={{padding:'14px 16px',borderBottom:'1px solid var(--sep)',background:`${col.cor}08`}}>
-            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
-              <col.Ic size={14} style={{color:col.cor}}/>
-              <span style={{fontSize:13,fontWeight:700,color:col.cor}}>{col.label}</span>
-              <span style={{marginLeft:'auto',fontSize:13,fontWeight:800,background:`${col.cor}20`,color:col.cor,padding:'2px 9px',borderRadius:99}}>{colPeds.length}</span>
-            </div>
-            {colVal>0&&<p style={{fontSize:13,fontWeight:700,color:col.cor,margin:0}}>{Rk(colVal)}</p>}
+          {/* Busca */}
+          <div style={{position:'relative',flex:'1 1 200px',maxWidth:320}}>
+            <Search size={13} style={{
+              position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',
+              color:'var(--label-4)',pointerEvents:'none',
+            }}/>
+            <input ref={buscaRef} value={busca} onChange={e=>{setBusca(e.target.value);setPgUI(1)}}
+              placeholder="Buscar por número, nome ou telefone..."
+              style={{
+                width:'100%',padding:'6px 10px 6px 30px',borderRadius:8,
+                border:'1px solid var(--sep)',background:'var(--fill)',
+                color:'var(--label)',fontSize:12,boxSizing:'border-box',
+              }}/>
+            {busca && <button onClick={()=>setBusca('')} style={{
+              position:'absolute',right:8,top:'50%',transform:'translateY(-50%)',
+              background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0,
+            }}><X size={12}/></button>}
           </div>
-          <div style={{padding:'10px',display:'flex',flexDirection:'column',gap:6,maxHeight:520,overflowY:'auto'}}>
-            {colPeds.slice(0,15).map((p,i)=><button key={i} onClick={()=>setSel(p)}
-              style={{display:'flex',alignItems:'flex-start',gap:9,padding:'9px 11px',borderRadius:10,background:'var(--bg)',border:'1px solid var(--sep)',cursor:'pointer',textAlign:'left',width:'100%',transition:'border .1s'}}
-              onMouseEnter={e=>e.currentTarget.style.border=`1px solid ${col.cor}50`}
-              onMouseLeave={e=>e.currentTarget.style.border='1px solid var(--sep)'}>
-              <Avatar nome={p.contato} size={26}/>
-              <div style={{flex:1,minWidth:0}}>
-                <p style={{fontSize:11.5,fontWeight:700,color:'var(--accent)',margin:'0 0 2px'}}>#{p.numero}</p>
-                <p style={{fontSize:11.5,color:'var(--label-2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',margin:'0 0 4px'}}>{p.contato||'—'}</p>
-                <CanalBadge canal={getCanal(p)} size={11}/>
+
+          {/* Filtro status rápido */}
+          <div style={{display:'flex',gap:4}}>
+            {[['0','Todos'],['6','Aberto'],['9','Atendido'],['12','Cancelado'],['15','Verificado']].map(([v,l])=>(
+              <button key={v} onClick={()=>{setFiltroSit(v);setPgUI(1)}} style={{
+                padding:'5px 10px',borderRadius:99,border:'1px solid var(--sep)',
+                background:filtroSit===v?(SIT[Number(v)]?.bg||'var(--accent-dim)'):'none',
+                color:filtroSit===v?(SIT[Number(v)]?.cor||'var(--accent)'):'var(--label-4)',
+                cursor:'pointer',fontSize:11,fontWeight:filtroSit===v?700:400,
+              }}>{l}</button>
+            ))}
+          </div>
+
+          <div style={{marginLeft:'auto',display:'flex',gap:7,alignItems:'center'}}>
+            {liveCount > 0 && (
+              <div style={{
+                display:'flex',alignItems:'center',gap:5,padding:'4px 10px',
+                borderRadius:99,background:'rgba(124,106,247,.12)',
+                border:'1px solid rgba(124,106,247,.3)',fontSize:11,color:'#7c6af7',
+              }}>
+                <span style={{width:6,height:6,borderRadius:'50%',background:'#7c6af7',
+                  animation:'pulse 1.5s ease infinite'}}/>
+                {liveCount} novos agora
               </div>
-              <p style={{fontSize:13,fontWeight:700,color:'var(--label)',whiteSpace:'nowrap',margin:0}}>{Rk(p.total)}</p>
-            </button>)}
-            {colPeds.length===0&&<div style={{padding:'24px',textAlign:'center',color:'var(--label-4)',fontSize:12}}>Nenhum pedido</div>}
-            {colPeds.length>15&&<div style={{padding:'10px',textAlign:'center',color:'var(--label-4)',fontSize:12}}>+{colPeds.length-15} mais</div>}
+            )}
+            {/* Views */}
+            {[
+              {id:'lista',     icon:Layers,   title:'Lista'},
+              {id:'kanban',    icon:BarChart3, title:'Kanban'},
+              {id:'analytics', icon:Activity,  title:'Analytics'},
+            ].map(v=>(
+              <button key={v.id} onClick={()=>setView(v.id)} title={v.title} style={{
+                display:'flex',alignItems:'center',justifyContent:'center',
+                width:32,height:32,borderRadius:8,
+                border:'1px solid var(--sep)',
+                background:view===v.id?'var(--fill)':'none',
+                color:view===v.id?'var(--accent)':'var(--label-4)',cursor:'pointer',
+              }}><v.icon size={15}/></button>
+            ))}
+            <button onClick={exportarCSV} title="Exportar CSV" style={{
+              display:'flex',alignItems:'center',gap:5,padding:'6px 11px',
+              borderRadius:8,border:'1px solid var(--sep)',background:'none',
+              color:'var(--label-3)',cursor:'pointer',fontSize:12,
+            }}>
+              <Download size={13}/> CSV
+            </button>
+            <button onClick={()=>carregar(1,false)} title="Recarregar" style={{
+              display:'flex',alignItems:'center',justifyContent:'center',
+              width:32,height:32,borderRadius:8,border:'1px solid var(--sep)',
+              background:'none',color:'var(--label-4)',cursor:'pointer',
+            }}>
+              <RefreshCw size={14} style={loading?{animation:'spin 1s linear infinite'}:{}}/>
+            </button>
           </div>
         </div>
-      })}
-    </div>}
 
-    {/* TABELA */}
-    {view==='tabela'&&<div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,overflow:'hidden'}}>
-      <div style={{overflowX:'auto'}}>
-        <table style={{width:'100%',borderCollapse:'collapse'}}>
-          <thead>
-            <tr style={{background:'var(--fill)'}}>
-              {[['numero','N',true,80],['contato','Cliente',true,210],['total','Total',true,120],['sit','Status',false,130],['canal','Canal',false,160],['compra','Compra',false,95],['data','Data',true,125]].map(([k,lb,sort,w])=>(
-                <th key={k} onClick={sort?()=>toggleSort(k):undefined} style={{textAlign:'left',padding:'11px 16px',fontSize:10.5,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--sep)',whiteSpace:'nowrap',cursor:sort?'pointer':'default',userSelect:'none',minWidth:w}}>
-                  <div style={{display:'flex',alignItems:'center',gap:4}}>{lb}{sort&&<SortIco col={k}/>}</div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading?(
-              <tr><td colSpan={7} style={{padding:56,textAlign:'center'}}>
-                <RefreshCw size={22} style={{color:'var(--accent)',animation:'spin 1s linear infinite',display:'block',margin:'0 auto 12px'}}/>
-                <span style={{fontSize:13,color:'var(--label-4)'}}>Carregando pedidos...</span>
-              </td></tr>
-            ):pgData.length===0?(
-              <tr><td colSpan={7} style={{padding:56,textAlign:'center'}}>
-                <Package size={32} style={{display:'block',margin:'0 auto 12px',opacity:.2}}/>
-                <span style={{fontSize:13,color:'var(--label-4)'}}>Nenhum pedido encontrado</span>
-              </td></tr>
-            ):pgData.map((p,i)=>{
-              const canal=getCanal(p)
-              const sitId=getSitId(p)
-              const nC=pedidos.filter(x=>x.contato===p.contato&&x.numero<p.numero).length+1
-              return <tr key={i} onClick={()=>setSel(p)}
-                onMouseEnter={e=>{e.currentTarget.style.background='var(--fill)'}}
-                onMouseLeave={e=>{e.currentTarget.style.background='transparent'}}
-                style={{borderTop:'1px solid var(--sep)',cursor:'pointer',transition:'background .08s'}}>
-                <td style={{padding:'12px 16px'}}><span style={{fontSize:14,fontWeight:800,color:'var(--accent)'}}>#{p.numero}</span></td>
-                <td style={{padding:'12px 16px'}}>
-                  <div style={{display:'flex',alignItems:'center',gap:10}}>
-                    <Avatar nome={p.contato} size={30}/>
-                    <span style={{fontSize:13,color:'var(--label-2)',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:170}}>{p.contato||'—'}</span>
+        {/* ── KPIs ── */}
+        <div style={{
+          display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',
+          gap:10,padding:'12px 16px',borderBottom:'1px solid var(--sep)',flexShrink:0,
+        }}>
+          <KCard icon={DollarSign}    label="Faturamento"    value={fmtMoeda(kpis.fat)}      cor="#7c6af7" spark={kpis.spark14}/>
+          <KCard icon={ShoppingCart}  label="Total pedidos"  value={kpis.total}               cor="#06b6d4"/>
+          <KCard icon={Clock}         label="Em aberto"      value={kpis.abertos}             cor="#f59e0b" alert={kpis.abertos>20}/>
+          <KCard icon={CheckCircle}   label="Atendidos"      value={kpis.atendidos}           cor="#22c55e" sub={`${kpis.taxaEntrega}% do total`}/>
+          <KCard icon={TrendingUp}    label="Ticket médio"   value={fmtMoeda(kpis.ticket)}    cor="#a78bfa"/>
+          <KCard icon={AlertCircle}   label="Cancelados"     value={kpis.cancelados}          cor="#ef4444"/>
+        </div>
+
+        {/* ── Alertas ── */}
+        <div style={{padding:'0 16px',flexShrink:0}}>
+          <AlertBar pedidos={pedidos} onFilter={()=>{}}/>
+        </div>
+
+        {/* ── Conteúdo views ── */}
+        <div style={{flex:1,overflowY:'auto',padding:'12px 16px'}}>
+          {loading ? (
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',
+              height:300,color:'var(--label-4)',gap:12,fontSize:14}}>
+              <RefreshCw size={20} style={{animation:'spin 1s linear infinite'}}/> Carregando pedidos...
+            </div>
+          ) : view==='analytics' ? (
+            <AnalyticsView pedidos={filtrados}/>
+          ) : view==='kanban' ? (
+            <KanbanView filtrados={filtrados} onSelect={setSel}/>
+          ) : (
+            <>
+              {/* Header tabela */}
+              <div style={{
+                display:'grid',
+                gridTemplateColumns:'90px 90px 1fr 110px 90px 100px 80px 56px',
+                gap:0,padding:'6px 10px',marginBottom:4,
+              }}>
+                {[
+                  {label:'Pedido',  col:'numero'},
+                  {label:'Data',    col:'data'},
+                  {label:'Cliente', col:'contato'},
+                  {label:'Canal',   col:null},
+                  {label:'Status',  col:null},
+                  {label:'Total',   col:'total'},
+                  {label:'Rastreio',col:null},
+                  {label:'',        col:null},
+                ].map((h,i)=>(
+                  <div key={i} onClick={h.col?()=>sort(h.col):undefined} style={{
+                    display:'flex',alignItems:'center',gap:3,
+                    fontSize:10,fontWeight:700,color:'var(--label-4)',
+                    textTransform:'uppercase',letterSpacing:'.05em',
+                    cursor:h.col?'pointer':'default',userSelect:'none',
+                    padding:'0 6px',
+                  }}>
+                    {h.label}
+                    {h.col && <SortIcon col={h.col}/>}
                   </div>
-                </td>
-                <td style={{padding:'12px 16px'}}><span style={{fontSize:14,fontWeight:700,color:'var(--label)'}}>R$ {Number(p.total||0).toFixed(2).replace('.',',')}</span></td>
-                <td style={{padding:'12px 16px'}}><StatusPill sitId={sitId}/></td>
-                <td style={{padding:'12px 16px'}}><CanalBadge canal={canal}/></td>
-                <td style={{padding:'12px 16px'}}>
-                  {nC===1
-                    ? <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:11,fontWeight:700,padding:'3px 9px',borderRadius:99,background:'rgba(245,158,11,.12)',color:'#f59e0b',border:'1px solid rgba(245,158,11,.3)'}}><Star size={9} style={{fill:'#f59e0b',strokeWidth:0}}/> 1</span>
-                    : <span style={{fontSize:12,color:'var(--label-4)',fontWeight:500}}>{nC}</span>}
-                </td>
-                <td style={{padding:'12px 16px',color:'var(--label-4)',fontSize:12.5,whiteSpace:'nowrap'}}>{fmtD(p.data)}</td>
-              </tr>
-            })}
-          </tbody>
-        </table>
+                ))}
+              </div>
+
+              {/* Linhas */}
+              {paginados.length===0 ? (
+                <div style={{textAlign:'center',padding:60,color:'var(--label-4)',fontSize:14}}>
+                  <Package size={36} style={{opacity:.15,marginBottom:12}}/><br/>
+                  Nenhum pedido encontrado com os filtros atuais.
+                </div>
+              ) : paginados.map(p=>{
+                const canal  = getCanal(p)
+                const sitId  = getSitId(p)
+                const s      = SIT[sitId] || {label:'—',cor:'#888',bg:'var(--fill)'}
+                const cc     = CANAL_CFG[canal] || CANAL_CFG.bling
+                const temRas = !!(p.transporte?.volumes?.[0]?.codigoRastreamento || p.codigoRastreio)
+                return (
+                  <div key={p.numero} onClick={()=>setSel(p)} style={{
+                    display:'grid',
+                    gridTemplateColumns:'90px 90px 1fr 110px 90px 100px 80px 56px',
+                    gap:0,padding:'9px 10px',marginBottom:3,
+                    background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:10,
+                    cursor:'pointer',transition:'border-color .12s',alignItems:'center',
+                  }}
+                    onMouseEnter={e=>e.currentTarget.style.borderColor=s.cor}
+                    onMouseLeave={e=>e.currentTarget.style.borderColor='var(--sep)'}
+                  >
+                    <div style={{padding:'0 6px'}}>
+                      <span style={{fontSize:12.5,fontWeight:700,color:'var(--label)'}}>{p.numero}</span>
+                    </div>
+                    <div style={{padding:'0 6px'}}>
+                      <span style={{fontSize:11,color:'var(--label-4)'}}>{fmtData(p.data)}</span>
+                    </div>
+                    <div style={{padding:'0 6px',overflow:'hidden'}}>
+                      <div style={{fontSize:12.5,fontWeight:500,color:'var(--label)',
+                        overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                        {p.contato||'—'}
+                      </div>
+                      {p.telefone&&<div style={{fontSize:10,color:'var(--label-4)'}}>{p.telefone}</div>}
+                    </div>
+                    <div style={{padding:'0 6px'}}><CanalBadge canal={canal} small/></div>
+                    <div style={{padding:'0 6px'}}>
+                      <Pill label={s.label} cor={s.cor} bg={s.bg} size={10}/>
+                    </div>
+                    <div style={{padding:'0 6px'}}>
+                      <span style={{fontSize:12.5,fontWeight:700,color:'var(--label)'}}>{fmtMoeda(p.total)}</span>
+                    </div>
+                    <div style={{padding:'0 6px',display:'flex',alignItems:'center'}}>
+                      {temRas
+                        ? <span style={{fontSize:10,color:'#22c55e',display:'flex',alignItems:'center',gap:3}}>
+                            <Truck size={11}/> Sim
+                          </span>
+                        : <span style={{fontSize:10,color:'var(--label-4)'}}>—</span>
+                      }
+                    </div>
+                    <div style={{padding:'0 6px',display:'flex',justifyContent:'flex-end'}}>
+                      <Eye size={14} style={{color:'var(--label-4)'}}/>
+                    </div>
+                  </div>
+                )
+              })}
+
+              {/* Paginação */}
+              {totalPgs > 1 && (
+                <div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:8,marginTop:14,paddingBottom:8}}>
+                  <button onClick={()=>setPgUI(p=>Math.max(1,p-1))} disabled={pgUI===1} style={{
+                    padding:'5px 10px',borderRadius:8,border:'1px solid var(--sep)',
+                    background:'var(--fill)',cursor:pgUI===1?'not-allowed':'pointer',
+                    color:'var(--label-3)',opacity:pgUI===1?0.5:1,
+                  }}><ChevronLeft size={14}/></button>
+                  <span style={{fontSize:12,color:'var(--label-4)'}}>
+                    {pgUI} de {totalPgs} · {filtrados.length} pedidos
+                  </span>
+                  <button onClick={()=>setPgUI(p=>Math.min(totalPgs,p+1))} disabled={pgUI===totalPgs} style={{
+                    padding:'5px 10px',borderRadius:8,border:'1px solid var(--sep)',
+                    background:'var(--fill)',cursor:pgUI===totalPgs?'not-allowed':'pointer',
+                    color:'var(--label-3)',opacity:pgUI===totalPgs?0.5:1,
+                  }}><ChevronRight size={14}/></button>
+                  {temMais && pgUI===totalPgs && (
+                    <button onClick={()=>carregar(pgAPI+1,true)} disabled={loadMore} style={{
+                      padding:'5px 12px',borderRadius:8,border:'1px solid var(--sep)',
+                      background:'var(--fill)',cursor:loadMore?'not-allowed':'pointer',
+                      color:'var(--label-3)',fontSize:12,
+                    }}>
+                      {loadMore?<RefreshCw size={12} style={{animation:'spin 1s linear infinite'}}/>:'Carregar mais'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
-      {total>0&&<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 16px',borderTop:'1px solid var(--sep)',fontSize:12.5,color:'var(--label-4)'}}>
-        <div style={{display:'flex',gap:10,alignItems:'center'}}>
-          <span style={{fontWeight:500}}>{inicio+1}&#8211;{Math.min(inicio+POR_PAG,total)} de {total}</span>
-          {temMais&&<button onClick={()=>carregar(pgAPI+1,true)} disabled={loadMore} style={{fontSize:12,color:'var(--accent)',border:'1px solid rgba(124,106,247,.3)',background:'rgba(124,106,247,.07)',borderRadius:8,padding:'4px 11px',cursor:'pointer',fontWeight:600}}>{loadMore?'..':'+ 100 pedidos'}</button>}
-        </div>
-        {totalPgs>1&&<div style={{display:'flex',gap:4,alignItems:'center'}}>
-          <button onClick={()=>setPgUI(1)} disabled={pgUI===1} style={{padding:'5px 10px',borderRadius:7,border:'1px solid var(--sep)',background:'transparent',cursor:pgUI===1?'default':'pointer',color:'var(--label-3)',opacity:pgUI===1?.35:1,fontSize:12}}>&#171;</button>
-          <button onClick={()=>setPgUI(p=>Math.max(1,p-1))} disabled={pgUI===1} style={{padding:'5px 10px',borderRadius:7,border:'1px solid var(--sep)',background:'transparent',cursor:pgUI===1?'default':'pointer',color:'var(--label-3)',opacity:pgUI===1?.35:1,fontSize:12}}>&#8249;</button>
-          {Array.from({length:Math.min(totalPgs,7)},(_,i)=>{
-            const pg=totalPgs<=7?i+1:pgUI<=4?i+1:pgUI>=(totalPgs-3)?totalPgs-6+i:pgUI-3+i
-            return <button key={pg} onClick={()=>setPgUI(pg)} style={{width:32,height:32,borderRadius:8,border:`1px solid ${pgUI===pg?'var(--accent)':'var(--sep)'}`,background:pgUI===pg?'var(--accent)':'transparent',color:pgUI===pg?'#000':'var(--label-3)',fontSize:12.5,cursor:'pointer',fontWeight:pgUI===pg?700:400}}>{pg}</button>
-          })}
-          <button onClick={()=>setPgUI(p=>Math.min(totalPgs,p+1))} disabled={pgUI===totalPgs} style={{padding:'5px 10px',borderRadius:7,border:'1px solid var(--sep)',background:'transparent',cursor:pgUI===totalPgs?'default':'pointer',color:'var(--label-3)',opacity:pgUI===totalPgs?.35:1,fontSize:12}}>&#8250;</button>
-          <button onClick={()=>setPgUI(totalPgs)} disabled={pgUI===totalPgs} style={{padding:'5px 10px',borderRadius:7,border:'1px solid var(--sep)',background:'transparent',cursor:pgUI===totalPgs?'default':'pointer',color:'var(--label-3)',opacity:pgUI===totalPgs?.35:1,fontSize:12}}>&#187;</button>
-        </div>}
-      </div>}
-    </div>}
+      {/* ── Modal ── */}
+      {sel && <OrderSheet pedRow={sel} onClose={()=>setSel(null)} api={api} allPedidos={pedidos}/>}
 
-    {sel&&<OrderSheet pedRow={sel} onClose={()=>setSel(null)} api={api} allPedidos={pedidos}/>}
-  </div>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg) } }
+        @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.4 } }
+      `}</style>
+    </div>
+  )
 }
