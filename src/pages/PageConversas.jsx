@@ -1,7 +1,7 @@
 // PageConversas.jsx — Bia v6 · Enterprise Command Center
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
 import {
-  Send, Smile, Image, Search, RefreshCw, User, Bot, Zap, X,
+  Send, Smile, Image, Video, Search, RefreshCw, User, Bot, Zap, X,
   MessageSquare, Package, ShoppingCart, Tag, Check, Truck,
   ChevronDown, ChevronUp, Star, FileText, Phone, Mail, MapPin,
   Sparkles, CheckCircle, CircleDot, XCircle, Clock, RotateCcw,
@@ -271,8 +271,11 @@ function BarraEnvio({telefone, api, modoManual, onEnviou, onAssumirModo, nomeIA}
   const [rrFiltro, setRRF]     = useState('')
   const [refining, setRef]     = useState(false)
   const [imgPrev,  setImgPrev] = useState(null)
+  const [vidPrev,  setVidPrev] = useState(null)
+  const [emojiOpen,setEmojiOpen]=useState(false)
   const inputRef = useRef(null)
   const imgRef   = useRef(null)
+  const vidRef   = useRef(null)
 
   // Sugestões da IA
   useEffect(()=>{
@@ -296,6 +299,23 @@ function BarraEnvio({telefone, api, modoManual, onEnviou, onAssumirModo, nomeIA}
       onEnviou?.()
     } catch {}
     setEnv(false); inputRef.current?.focus()
+  }
+
+  const enviarVideo = (file) => {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = async() => {
+      const base64=reader.result.split(',')[1]
+      try {
+        await fetch(`${api}/api/dashboard/mensagem`,{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({telefone,tipo:'video',midia_base64:base64,midia_nome:file.name})
+        })
+        onEnviou?.()
+      } catch {}
+      setVidPrev(null)
+    }
+    reader.readAsDataURL(file)
   }
 
   const enviarImagem = (file) => {
@@ -408,6 +428,20 @@ function BarraEnvio({telefone, api, modoManual, onEnviou, onAssumirModo, nomeIA}
           )})}
         </div>
       )}
+      {/* Preview vídeo */}
+      {vidPrev&&(
+        <div style={{padding:'8px 12px',display:'flex',alignItems:'center',gap:10,
+          background:'var(--fill)',borderBottom:'1px solid var(--sep)'}}>
+          <Video size={20} style={{color:'var(--label-4)',flexShrink:0}}/>
+          <span style={{fontSize:11,color:'var(--label-3)',flex:1}}>{vidPrev.nome}</span>
+          <button onClick={()=>setVidPrev(null)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)'}}><X size={14}/></button>
+          <button onClick={()=>enviarVideo(vidPrev.file)} style={{
+            padding:'5px 12px',borderRadius:8,border:'none',background:'var(--accent)',
+            color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600,display:'flex',alignItems:'center',gap:5}}>
+            <Send size={12}/>Enviar
+          </button>
+        </div>
+      )}
       {/* Preview imagem */}
       {imgPrev&&(
         <div style={{padding:'8px 12px',display:'flex',alignItems:'center',gap:10,
@@ -456,10 +490,40 @@ function BarraEnvio({telefone, api, modoManual, onEnviou, onAssumirModo, nomeIA}
         </div>
         {/* Ações extras */}
         <div style={{display:'flex',gap:6,alignItems:'center'}}>
+          {/* Emoji picker */}
+          <div style={{position:'relative'}}>
+            <button onClick={()=>setEmojiOpen(v=>!v)} title="Emoji" style={{
+              padding:'4px 8px',borderRadius:7,border:'1px solid var(--sep)',
+              background:emojiOpen?'var(--fill)':'none',color:emojiOpen?'var(--accent)':'var(--label-4)',
+              cursor:'pointer',display:'flex',alignItems:'center',gap:4,fontSize:11}}>
+              <Smile size={12}/>
+            </button>
+            {emojiOpen&&(
+              <div style={{position:'absolute',bottom:'100%',left:0,zIndex:100,
+                background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:10,
+                padding:'8px',display:'flex',flexWrap:'wrap',gap:4,width:200,
+                boxShadow:'0 -4px 16px rgba(0,0,0,.3)'}}>
+                {['😊','👍','🙏','❤️','✅','📦','💰','🚀','😅','🎉','😍','🔥','💬','⏳','👋','🎁','✨','💯'].map(e=>(
+                  <button key={e} onClick={()=>{
+                    setTexto(t=>t+e); setEmojiOpen(false); inputRef.current?.focus()
+                  }} style={{background:'none',border:'none',cursor:'pointer',fontSize:20,padding:2,borderRadius:5}}
+                    onMouseEnter={ev=>ev.target.style.background='var(--fill)'}
+                    onMouseLeave={ev=>ev.target.style.background='none'}>
+                    {e}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button onClick={()=>imgRef.current?.click()} title="Enviar imagem" style={{
             padding:'4px 8px',borderRadius:7,border:'1px solid var(--sep)',
             background:'none',color:'var(--label-4)',cursor:'pointer',display:'flex',alignItems:'center',gap:4,fontSize:11}}>
             <Image size={12}/>Imagem
+          </button>
+          <button onClick={()=>vidRef.current?.click()} title="Enviar vídeo" style={{
+            padding:'4px 8px',borderRadius:7,border:'1px solid var(--sep)',
+            background:'none',color:'var(--label-4)',cursor:'pointer',display:'flex',alignItems:'center',gap:4,fontSize:11}}>
+            <Video size={12}/>Vídeo
           </button>
           <button onClick={refinarIA} disabled={!texto.trim()||refining} title="Refinar com IA" style={{
             padding:'4px 8px',borderRadius:7,border:'1px solid rgba(167,139,250,.3)',
@@ -476,6 +540,8 @@ function BarraEnvio({telefone, api, modoManual, onEnviou, onAssumirModo, nomeIA}
           </button>
           <input ref={imgRef} type="file" accept="image/*" style={{display:'none'}}
             onChange={e=>{const f=e.target.files[0];if(f){setImgPrev({url:URL.createObjectURL(f),nome:f.name,file:f});e.target.value=''}}}/>
+          <input ref={vidRef} type="file" accept="video/*" style={{display:'none'}}
+            onChange={e=>{const f=e.target.files[0];if(f){setVidPrev({nome:f.name,file:f});e.target.value=''}}}/>
         </div>
       </div>
     </div>
@@ -526,8 +592,21 @@ function PainelLateral({conv, api, onClose, onAbrirPedido}) {
       .then(d=>{if(m)setPedidos(d?.pedidos||d||[])})
       .catch(()=>{}).finally(()=>{if(m)setLoadPed(false)})
     // Ocorrências
-    fetch(`${api}/api/ocorrencias?telefone=${tel.replace(/\D/g,'')}`)
-      .then(r=>r.ok?r.json():null).then(d=>{if(m)setOcors(d?.ocorrencias||[])}).catch(()=>{})
+    // Busca ocorrências tentando com e sem 55
+    const telNum = tel.replace(/\D/g,'')
+    const telSem55 = telNum.startsWith('55') ? telNum.slice(2) : telNum
+    const telCom55 = telNum.startsWith('55') ? telNum : '55'+telNum
+    Promise.allSettled([
+      fetch(`${api}/api/ocorrencias?telefone=${telSem55}`).then(r=>r.ok?r.json():null),
+      fetch(`${api}/api/ocorrencias?telefone=${telCom55}`).then(r=>r.ok?r.json():null),
+    ]).then(results=>{
+      if(!m) return
+      const todos = results.flatMap(r=>r.value?.ocorrencias||[])
+      // Deduplica por id
+      const uniq = [...new Map(todos.map(o=>[o.id,o])).values()]
+        .sort((a,b)=>new Date(b.criado_em)-new Date(a.criado_em))
+      setOcors(uniq)
+    }).catch(()=>{})
     // Avaliações
     fetch(`${api}/api/inteligencia/avaliacoes?telefone=${tel.replace(/\D/g,'')}`)
       .then(r=>r.ok?r.json():null).then(d=>{if(m)setAvals(d?.avaliacoes||[])}).catch(()=>{})
@@ -943,7 +1022,11 @@ function ChatArea({conv, api, statusAtend, onStatusChange, modoManual, onToggleM
         </button>
         {/* Resetar sessão */}
         <button onClick={async()=>{
-          await fetch(`${api}/api/dashboard/resetar-sessao/${tel}`,{method:'POST'}).catch(()=>{})
+          await fetch(`${api}/api/dashboard/resetar-sessao`,{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({telefone:tel})
+          }).catch(()=>{})
           carregar(0,false)
         }} title="Resetar sessão IA" style={{
           width:30,height:30,borderRadius:8,border:'1px solid var(--sep)',
@@ -1197,17 +1280,20 @@ export default function PageConversas({api: apiProp, onNavigate}) {
       </div>}
 
       {/* Tabs de status */}
-      <div style={{display:'flex',padding:'8px 10px',gap:4,flexWrap:'wrap',flexShrink:0}}>
+      <div style={{display:'flex',borderBottom:'1px solid var(--sep)',flexShrink:0,overflowX:'auto'}}>
         {Object.entries(STATUS_CFG).map(([k,s])=>{
           const on=statusSel===k; const cnt=contadores[k]||0
-          return <button key={k} onClick={()=>setSSel(k)} style={{
-            display:'flex',alignItems:'center',gap:4,padding:'4px 8px',borderRadius:99,
-            border:`1px solid ${on?s.bdr:'var(--sep)'}`,
-            background:on?s.bg:'none',cursor:'pointer',fontSize:10,fontWeight:on?700:400,
-            color:on?s.cor:'var(--label-4)'}}>
-            <s.Icon size={8}/>{s.label}
-            {cnt>0&&<span style={{fontSize:9,fontWeight:700,padding:'0 4px',borderRadius:99,
-              background:on?s.cor+'30':'var(--fill)',color:on?s.cor:'var(--label-4)'}}>{cnt}</span>}
+          return <button key={k} onClick={()=>setSSel(k)} title={s.label} style={{
+            display:'flex',alignItems:'center',justifyContent:'center',gap:4,
+            padding:'7px 0',flex:1,minWidth:0,
+            border:'none',background:'none',cursor:'pointer',
+            borderBottom:on?`2px solid ${s.cor}`:'2px solid transparent',
+            color:on?s.cor:'var(--label-4)',
+            transition:'all .12s',
+          }}>
+            <s.Icon size={13}/>
+            {cnt>0&&<span style={{fontSize:9,fontWeight:700,padding:'1px 4px',borderRadius:99,
+              background:on?s.cor+'25':'var(--fill)',color:on?s.cor:'var(--label-4)',minWidth:14,textAlign:'center'}}>{cnt}</span>}
           </button>
         })}
       </div>
