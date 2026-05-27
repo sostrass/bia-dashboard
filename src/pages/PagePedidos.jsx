@@ -10,7 +10,7 @@ import {
   Package, Truck, FileText, MessageSquare, Star, Crown,
   AlertCircle, BarChart3, Activity, ChevronLeft, ChevronRight,
   Bell, Zap, Users, MapPin, CreditCard, Phone, ArrowUpRight,
-  ArrowDownRight, Eye, Circle, Navigation, Hash, Calendar,
+  ArrowDownRight, Eye, Circle, Navigation, Hash, Calendar, Copy,
   Info, DollarSign, Box, Layers, Timer, Award, Map,
   ShieldCheck, Building, Globe, Percent, Target,
 } from 'lucide-react'
@@ -404,7 +404,7 @@ function OrderSheet({pedRow, onClose, api, allPedidos}) {
             .then(r=>r.ok?r.json():null).then(f=>f?.url&&setFoto(f.url)).catch(()=>{})
         }
         // Carrega NF se tiver id
-        const nfId = d?.pedido?.notaFiscal?.id
+        const nfId = (d?.pedido?.notaFiscal?.id && Number(d.pedido.notaFiscal.id)>0) ? d.pedido.notaFiscal.id : null
         if (nfId) {
           setNFL(true)
           fetch(`${api}/api/dashboard/nfe-link/${nfId}`)
@@ -822,11 +822,12 @@ function OrderSheet({pedRow, onClose, api, allPedidos}) {
                   </div>
                   <div style={{flex:1,paddingTop:5,minWidth:0}}>
                     <div style={{fontSize:12,fontWeight:i===0?600:400,color:i===0?'var(--label)':'var(--label-3)'}}>
-                      {ev.descricao||ev.evento||ev.status||'—'}
+                      {ev.status||ev.descricao||ev.evento||ev.raw||'—'}
                     </div>
                     <div style={{fontSize:10.5,color:'var(--label-4)',marginTop:2}}>
-                      {ev.data||ev.dtHrCriado||''} {ev.hora||''}
+                      {ev.data||ev.dtHrCriado||ev.happened_at||''}
                       {ev.local||ev.unidade||ev.origem ? ` · ${ev.local||ev.unidade||ev.origem}` : ''}
+                      {ev.detalhe ? ` · ${ev.detalhe}` : ''}
                     </div>
                   </div>
                 </div>)}
@@ -1068,7 +1069,8 @@ export default function PagePedidos({api}) {
   const [loading,   setLoad]  = useState(true)
   const [loadMore,  setLM]    = useState(false)
   const [pgAPI,     setPgAPI] = useState(1)
-  const [temMais,   setTM]    = useState(true)
+  const [temMais, 
+  const [totalBling,setTotalBling]=useState(0)  setTM]    = useState(true)
   const [busca,     setBusca] = useState('')
   const [filtroSit, setFS]    = useState('0')
   const [filtroC,   setFC]    = useState('todos')
@@ -1084,6 +1086,20 @@ export default function PagePedidos({api}) {
   const [live,      setLive]  = useState(0)
   const POR_PAG = 25
 
+  // Busca por número específico direto no backend
+  const buscarPorNumero = useCallback(async(num)=>{
+    setLoad(true)
+    try{
+      const r=await fetch(`${api}/api/dashboard/pedidos?numeroPedido=${num.replace(/\D/g,'')}&limite=1`)
+      if(r.ok){
+        const d=await r.json()
+        if(d.pedidos?.length) setPed(d.pedidos)
+        else setPed([])
+      }
+    }catch{}
+    setLoad(false)
+  },[api])
+
   const carregar = useCallback(async(pg=1,acum=false)=>{
     if(pg===1)setLoad(true);else setLM(true)
     try{
@@ -1092,7 +1108,14 @@ export default function PagePedidos({api}) {
       if(date.from) url+=`&dataInicio=${date.from}`
       if(date.to)   url+=`&dataFim=${date.to}`
       const r=await fetch(url)
-      if(r.ok){const d=await r.json();const n=d.pedidos||[];setPed(p=>acum?[...p,...n]:n);setTM(n.length>=100);setPgAPI(pg)}
+      if(r.ok){
+        const d=await r.json()
+        const n=d.pedidos||[]
+        setPed(p=>acum?[...p,...n]:n)
+        setTM(n.length>=100)
+        setPgAPI(pg)
+        if(d.total) setTotalBling(d.total)
+      }
     }catch{}
     if(pg===1)setLoad(false);else setLM(false)
   },[api,filtroSit,date])
@@ -1240,7 +1263,13 @@ export default function PagePedidos({api}) {
         <div style={{position:'relative',flex:'1 1 200px',maxWidth:300}}>
           <Search size={13} style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',
             color:'var(--label-4)',pointerEvents:'none'}}/>
-          <input value={busca} onChange={e=>{setBusca(e.target.value);setPgUI(1)}}
+          <input value={busca} onChange={e=>{
+          const v=e.target.value; setBusca(v); setPgUI(1)
+          // Se é número, busca direto no backend
+          const num=v.replace(/[^\d]/g,'')
+          if(num.length>=5) buscarPorNumero(num)
+          else if(!v) carregar(1,false)
+        }}
             placeholder="Buscar por número, nome, telefone..."
             style={{width:'100%',padding:'6px 10px 6px 30px',borderRadius:8,
               border:'1px solid var(--sep)',background:'var(--fill)',
@@ -1309,9 +1338,8 @@ export default function PagePedidos({api}) {
           : view==='kanban'    ? <KanbanView filtrados={filtrados} onSel={setSel}/>
           : <>
             {/* Header tabela */}
-            <div style={{display:'grid',gridTemplateColumns:'80px 80px 1fr 100px 85px 90px 70px 44px',
-              gap:0,padding:'5px 8px',marginBottom:4}}>
-              {[['Pedido','numero'],['Data','data'],['Cliente','contato'],[null,null],['Status',null],['Total','total'],['Rastreio',null],[null,null]].map(([h,col],i)=>(
+            <div className="grid gap-0 px-2 py-1.5 mb-1" style={{gridTemplateColumns:'80px 80px 1fr 100px 85px 90px 130px 36px'}}>
+              {[['Pedido','numero'],['Data','data'],['Cliente','contato'],['Canal',null],['Status',null],['Total','total'],['Transp / Rastreio',null],[null,null]].map(([h,col],i)=>(
                 <div key={i} onClick={col?()=>srt(col):undefined} style={{
                   display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:700,
                   color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.05em',
@@ -1329,8 +1357,8 @@ export default function PagePedidos({api}) {
                 const canal=getCanal(p),sid=getSitId(p),s=SIT[sid]||{label:'—',cor:'#888',bg:'var(--fill)'}
                 const temRas=!!(p.codigoRastreio||p.transporte?.volumes?.[0]?.codigoRastreamento)
                 const temNF=!!p.notaFiscal?.id
-                return <div key={p.numero} onClick={()=>setSel(p)} style={{
-                  display:'grid',gridTemplateColumns:'80px 80px 1fr 100px 85px 90px 70px 44px',
+                return <div key={p.numero} onClick={()=>setSel(p)} className="group" style={{
+                  display:'grid',gridTemplateColumns:'80px 80px 1fr 100px 85px 90px 130px 36px',
                   gap:0,padding:'9px 8px',marginBottom:3,background:'var(--bg-2)',
                   border:'1px solid var(--sep)',borderRadius:10,cursor:'pointer',
                   transition:'border-color .12s',alignItems:'center'}}
@@ -1346,10 +1374,32 @@ export default function PagePedidos({api}) {
                   <div style={{padding:'0 6px'}}><CanalBadge canal={canal} small/></div>
                   <div style={{padding:'0 6px'}}><Pill label={s.label} cor={s.cor} bg={s.bg} sz={10}/></div>
                   <div style={{padding:'0 6px'}}><span style={{fontSize:12.5,fontWeight:700,color:'var(--label)'}}>{fmt(p.total)}</span></div>
-                  <div style={{padding:'0 6px',display:'flex',alignItems:'center',gap:5}}>
-                    {temRas&&<Truck size={11} style={{color:'#22c55e'}}/>}
-                    {temNF&&<FileText size={11} style={{color:'#4a9fff'}}/>}
-                    {!temRas&&!temNF&&<span style={{fontSize:10,color:'var(--label-4)'}}>—</span>}
+                  <div className="flex flex-col gap-1 px-1.5 min-w-0">
+                    {p.codigoRastreio ? (
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Truck size={10} className="text-emerald-400 flex-shrink-0"/>
+                        <span className="text-[10px] font-mono text-[var(--label-3)] truncate max-w-[90px]"
+                          title={p.codigoRastreio}>{p.codigoRastreio}</span>
+                        <button onClick={e=>{e.stopPropagation();navigator.clipboard?.writeText(p.codigoRastreio)}}
+                          className="flex-shrink-0 opacity-0 group-hover:opacity-100 hover:text-[var(--accent)] text-[var(--label-4)] transition-opacity"
+                          title="Copiar código">
+                          <Copy size={9}/>
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-[var(--label-4)]">—</span>
+                    )}
+                    {p.transportadora && (
+                      <span className="text-[9px] text-[var(--label-4)] truncate max-w-[110px]" title={p.transportadora}>
+                        {p.transportadora}
+                      </span>
+                    )}
+                    {p.notaFiscal?.id>0 && !p.codigoRastreio && (
+                      <div className="flex items-center gap-1">
+                        <FileText size={9} className="text-blue-400 flex-shrink-0"/>
+                        <span className="text-[9px] text-blue-400">NF</span>
+                      </div>
+                    )}
                   </div>
                   <div style={{padding:'0 4px',display:'flex',justifyContent:'center'}}>
                     <Eye size={13} style={{color:'var(--label-4)'}}/>
@@ -1358,23 +1408,25 @@ export default function PagePedidos({api}) {
               })
             }
             {/* Paginação */}
-            {totalPgs>1&&<div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:8,marginTop:14,paddingBottom:8}}>
+            {totalPgs>1&&<div className="flex justify-center items-center gap-2 mt-4 pb-3">
               <button onClick={()=>setPgUI(p=>Math.max(1,p-1))} disabled={pgUI===1}
-                style={{padding:'5px 10px',borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',
-                  cursor:pgUI===1?'not-allowed':'pointer',color:'var(--label-3)',opacity:pgUI===1?0.5:1}}>
+                className={`flex items-center justify-center w-8 h-8 rounded-lg border border-[var(--sep)] bg-[var(--fill)] text-[var(--label-3)] ${pgUI===1?'opacity-40 cursor-not-allowed':'hover:bg-[var(--bg-3)] cursor-pointer'}`}>
                 <ChevronLeft size={14}/>
               </button>
-              <span style={{fontSize:12,color:'var(--label-4)'}}>{pgUI} de {totalPgs} · {filtrados.length} pedidos</span>
+              <span className="text-[11px] text-[var(--label-4)] select-none">
+                {pgUI}/{totalPgs} · <strong className="text-[var(--label)]">{filtrados.length}</strong> pedidos
+                {totalBling>0&&<span className="ml-1 opacity-60">de {totalBling} no Bling</span>}
+              </span>
               <button onClick={()=>setPgUI(p=>Math.min(totalPgs,p+1))} disabled={pgUI===totalPgs}
-                style={{padding:'5px 10px',borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',
-                  cursor:pgUI===totalPgs?'not-allowed':'pointer',color:'var(--label-3)',opacity:pgUI===totalPgs?0.5:1}}>
+                className={`flex items-center justify-center w-8 h-8 rounded-lg border border-[var(--sep)] bg-[var(--fill)] text-[var(--label-3)] ${pgUI===totalPgs?'opacity-40 cursor-not-allowed':'hover:bg-[var(--bg-3)] cursor-pointer'}`}>
                 <ChevronRight size={14}/>
               </button>
-              {temMais&&pgUI===totalPgs&&<button onClick={()=>carregar(pgAPI+1,true)} disabled={loadMore}
-                style={{padding:'5px 12px',borderRadius:8,border:'1px solid var(--sep)',
-                  background:'var(--fill)',cursor:loadMore?'not-allowed':'pointer',color:'var(--label-3)',fontSize:12}}>
-                {loadMore?<RefreshCw size={12} style={{animation:'spin 1s linear infinite'}}/>:'Carregar mais'}
-              </button>}
+              {temMais&&pgUI===totalPgs&&(
+                <button onClick={()=>carregar(pgAPI+1,true)} disabled={loadMore}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--sep)] bg-[var(--fill)] text-[var(--label-3)] text-[11px] ${loadMore?'opacity-50 cursor-not-allowed':'hover:bg-[var(--bg-3)] cursor-pointer'}`}>
+                  {loadMore ? <><RefreshCw size={11} className="animate-spin"/>Carregando...</> : <>+ Carregar 100</>}
+                </button>
+              )}
             </div>}
           </>
         }
