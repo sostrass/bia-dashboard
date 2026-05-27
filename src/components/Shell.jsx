@@ -162,6 +162,8 @@ export default function Shell() {
     <>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <div style={{ display:'flex', flexDirection:'column', height:'100%' }}>
+        {/* Live Activity Bar — cabeçalho fixo */}
+        <LiveActivityBar api={API} onNavigate={setPage}/>
         <div style={{ display:'flex', flex:1, overflow:'hidden' }}>
 
         {/* Sidebar */}
@@ -245,8 +247,6 @@ export default function Shell() {
 
         </div>
       </div>
-      {/* Live Activity Bar — sempre visível na base */}
-      <LiveActivityBar api={API} onNavigate={setPage}/>
 
       {/* Command Palette */}
       {cmdOpen && (
