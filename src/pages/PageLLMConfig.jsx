@@ -6,7 +6,7 @@ import {
   Shield, ShoppingCart, Truck, CreditCard, Eye, EyeOff, TrendingUp,
   Wifi, WifiOff, Hash, Clock, Circle, Lock, Info, X, Edit3,
   ChevronLeft, PanelLeftClose, PanelLeftOpen, Package, Layers,
-  AlertCircle, ExternalLink, BarChart2, Percent, FileText
+  AlertCircle, ExternalLink, BarChart2, Percent, FileText, Star
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -51,6 +51,12 @@ const MSGS = [
   { cat:'Nota Fiscal', campo:'msgNotaFiscalProcessando', titulo:'NF em processamento (>30s)',     pad:'📄 *Nota Fiscal em Processamento*\n\nA nota foi gerada e enviada para a SEFAZ.\nA autorização pode levar alguns minutos.\n\nAssim que for autorizada, enviaremos o link aqui automaticamente. 😊', vars:null },
   { cat:'Nota Fiscal', campo:'msgNotaFiscalSucesso',   titulo:'NF autorizada após emissão',       pad:'✅ *Nota Fiscal Emitida!*\n\nSua NF-e foi autorizada pela SEFAZ agora mesmo.\n\n🔗 *Download da NF-e:*\n{link_nfe}\n\n📋 NF-e nº {numero_nfe}\n\n_Disponível para download ou envio à contabilidade._', vars:['{link_nfe}','{numero_nfe}'] },
   { cat:'Nota Fiscal', campo:'msgNotaFiscalFalha',     titulo:'NF com erro — abre ocorrência',    pad:'⚠️ *Não foi possível emitir a nota fiscal automaticamente.*\n\nNossa equipe foi notificada e entrará em contato em breve para resolver.\n\nProtocolo: #{ticket_id}', vars:['{ticket_id}'] },
+  { cat:'Histórico',   campo:'msgHistoricoPedidos',   titulo:'Histórico de pedidos — destaque do mais recente', pad:'Encontrei seus pedidos! 📦\n\n*Pedido mais recente:* #{ultimo_pedido}\n📅 {data_ultimo} — {valor_ultimo}\n\nTemos outros {outros_pedidos} pedidos no seu histórico.\n\nQual pedido você precisa?', vars:['{nome_cliente}','{ultimo_pedido}','{data_ultimo}','{valor_ultimo}','{total_pedidos}','{outros_pedidos}'] },
+  { cat:'Avaliação',   campo:'msgAvaliacaoEstrelas',  titulo:'Pergunta a nota (estrelas)',       pad:'Como você avalia sua experiência com o pedido *#{numero_pedido}*? 😊', vars:['{numero_pedido}'] },
+  { cat:'Avaliação',   campo:'msgAvaliacaoComentario',titulo:'Pergunta se quer comentar',        pad:'Obrigada pela nota! 😊\n\nGostaria de deixar um comentário sobre sua experiência?', vars:null },
+  { cat:'Avaliação',   campo:'msgAvaliacaoObrigada',  titulo:'Confirmação positiva (4-5★)',      pad:'Muito obrigada, {nome_cliente}! Seu feedback nos deixa muito felizes. 🥰', vars:['{nome_cliente}','{estrelas}'] },
+  { cat:'Avaliação',   campo:'msgAvaliacaoNeutra',    titulo:'Confirmação neutra (3★)',           pad:'Obrigada pelo feedback, {nome_cliente}! Vamos continuar melhorando. 😊', vars:['{nome_cliente}','{estrelas}'] },
+  { cat:'Avaliação',   campo:'msgAvaliacaoNegativa',  titulo:'Confirmação negativa (1-2★) + ocorrência', pad:'Obrigada pelo retorno, {nome_cliente}. Lamentamos a experiência — nossa equipe entrará em contato em breve. 🙏', vars:['{nome_cliente}','{estrelas}'] },
 ]
 
 // ── Bypasses com fluxo explicado ─────────────────────────────────────────────
@@ -105,9 +111,41 @@ const BYPASSES = [
       'Sem polling, sem emissão — só consulta'
     ]
   },
+  { cat:'Histórico', icon:Package, cor:'#06b6d4',
+    titulo:'Nota fiscal #N / Rastreio #N',
+    desc:'Botões gerados dinamicamente com o número do pedido embutido. Interceptados no Node.js antes do Gemini.',
+    fluxo:[
+      'buscar_pedidos_cliente retorna botões [Nota fiscal #228434 | Rastreio #228434 | Ver outros pedidos]',
+      '"Nota fiscal #228434" → regex extrai número → emitir_nota_fiscal() em background → msgNotaFiscalAguardando imediato',
+      '"Rastreio #228434" → regex extrai número → instrui Gemini: consultar_pedido(228434)',
+      '"Ver outros pedidos" → usa CPF do ctx → buscar_pedidos_cliente()'
+    ]
+  },
+  { cat:'Avaliação', icon:Star, cor:'#f59e0b',
+    titulo:'Avaliar compra',
+    desc:'Botão "Avaliar compra" no pedido entregue inicia o fluxo de estrelas direto no Node.js, sem passar pelo Gemini.',
+    fluxo:[
+      'Cliente clica "Avaliar compra" → sistema envia msgAvaliacaoEstrelas com botões ⭐ a ⭐⭐⭐⭐⭐',
+      'Cliente escolhe estrelas → nota registrada no banco + envia msgAvaliacaoComentario',
+      'Cliente clica "Sim, quero comentar" → aguarda texto livre',
+      'Texto recebido → UPDATE na avaliação com comentário',
+      'Resposta final: msgAvaliacaoObrigada / msgAvaliacaoNeutra / msgAvaliacaoNegativa',
+      '1-2★ → abre ocorrência automática para a equipe'
+    ]
+  },
+  { cat:'Avaliação', icon:Star, cor:'#22c55e',
+    titulo:'Sim, quero comentar',
+    desc:'Após escolher as estrelas, cliente confirma que quer deixar comentário. Sistema aguarda texto livre.',
+    fluxo:[
+      'ctx._aguardandoComentario está ativo com { numPed, estrelas }',
+      'Qualquer texto livre → UPDATE avaliacoes SET comentario',
+      '"Não, obrigada" → registra sem comentário',
+      'Envia mensagem de confirmação conforme a nota dada'
+    ]
+  },
 ]
 
-const CAT_CORES = { Checkout:'#22c55e', Carrinho:'#00d4aa', Pagamento:'#f59e0b', Endereço:'#a78bfa', Fotos:'#fb923c', 'Nota Fiscal':'#f59e0b' }
+const CAT_CORES = { Checkout:'#22c55e', Carrinho:'#00d4aa', Pagamento:'#f59e0b', Endereço:'#a78bfa', Fotos:'#fb923c', 'Nota Fiscal':'#f59e0b', 'Histórico':'#06b6d4', 'Avaliação':'#f59e0b' }
 
 // ── Componentes ───────────────────────────────────────────────────────────────
 function Sidebar({ active, setActive, collapsed, setCollapsed }) {
