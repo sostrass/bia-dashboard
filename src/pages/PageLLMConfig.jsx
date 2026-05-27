@@ -45,6 +45,12 @@ const MSGS = [
   { cat:'Carrinho',  campo:'msgAdicionarItem',     titulo:'"Adicionar item" — pede produto',pad:'Qual produto você está procurando?', vars:null },
   { cat:'Carrinho',  campo:'msgNovaBusca',         titulo:'Nova busca após limpar',        pad:'O que você está procurando?', vars:null },
   { cat:'Fotos',     campo:'msgTodasFotos',        titulo:'Todas as fotos enviadas',       pad:'Essas são todas as {n} fotos disponíveis para este produto.', vars:['{n}'] },
+  { cat:'Nota Fiscal', campo:'msgNotaFiscalPendente',  titulo:'NF não emitida — botão Emitir',   pad:'📄 *Nota Fiscal — Pedido #{numero_pedido}*\n\nOlá, {nome_cliente}! A nota fiscal deste pedido ainda não foi emitida.\n\n📦 Status do pedido: ✅ Pagamento confirmado\n\nPosso emitir agora para você!', vars:['{nome_cliente}','{numero_pedido}'] },
+  { cat:'Nota Fiscal', campo:'msgNotaFiscalEmitida',   titulo:'NF autorizada — envia link',       pad:'📄 *Nota Fiscal — Pedido #{numero_pedido}*\n\nOlá, {nome_cliente}! Aqui está o documento fiscal da sua compra.\n\n🔗 *Download da NF-e:*\n{link_nfe}\n\n📋 NF-e nº {numero_nfe}\n\n_Você pode baixar o PDF ou encaminhar para sua contabilidade._', vars:['{nome_cliente}','{numero_pedido}','{numero_nfe}','{link_nfe}'] },
+  { cat:'Nota Fiscal', campo:'msgNotaFiscalAguardando', titulo:'NF enviada — aguardando SEFAZ',   pad:'⏳ *Emitindo sua Nota Fiscal...*\n\nEnviamos para a Secretaria da Fazenda e estamos aguardando a autorização.\nIsso pode levar alguns instantes.\n\nAssim que for autorizada, você receberá o link aqui mesmo. 📄', vars:null },
+  { cat:'Nota Fiscal', campo:'msgNotaFiscalProcessando', titulo:'NF em processamento (>30s)',     pad:'📄 *Nota Fiscal em Processamento*\n\nA nota foi gerada e enviada para a SEFAZ.\nA autorização pode levar alguns minutos.\n\nAssim que for autorizada, enviaremos o link aqui automaticamente. 😊', vars:null },
+  { cat:'Nota Fiscal', campo:'msgNotaFiscalSucesso',   titulo:'NF autorizada após emissão',       pad:'✅ *Nota Fiscal Emitida!*\n\nSua NF-e foi autorizada pela SEFAZ agora mesmo.\n\n🔗 *Download da NF-e:*\n{link_nfe}\n\n📋 NF-e nº {numero_nfe}\n\n_Disponível para download ou envio à contabilidade._', vars:['{link_nfe}','{numero_nfe}'] },
+  { cat:'Nota Fiscal', campo:'msgNotaFiscalFalha',     titulo:'NF com erro — abre ocorrência',    pad:'⚠️ *Não foi possível emitir a nota fiscal automaticamente.*\n\nNossa equipe foi notificada e entrará em contato em breve para resolver.\n\nProtocolo: #{ticket_id}', vars:['{ticket_id}'] },
 ]
 
 // ── Bypasses com fluxo explicado ─────────────────────────────────────────────
@@ -79,7 +85,7 @@ const BYPASSES = [
     fluxo:['Editar carrinho → lista numerada de itens direto ao WA','Remover: seleciona número → bypassFerramenta("remover_item")','Ver foto: bypass direto com bling_id real → enviar_foto_produto()'] },
 ]
 
-const CAT_CORES = { Checkout:'#22c55e', Carrinho:'#00d4aa', Pagamento:'#f59e0b', Endereço:'#a78bfa', Fotos:'#fb923c' }
+const CAT_CORES = { Checkout:'#22c55e', Carrinho:'#00d4aa', Pagamento:'#f59e0b', Endereço:'#a78bfa', Fotos:'#fb923c', 'Nota Fiscal':'#f59e0b' }
 
 // ── Componentes ───────────────────────────────────────────────────────────────
 function Sidebar({ active, setActive, collapsed, setCollapsed }) {
