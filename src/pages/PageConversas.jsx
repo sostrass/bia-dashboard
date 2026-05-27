@@ -1,1389 +1,1330 @@
-// PageConversas.jsx — Bia v6 · Enterprise · Multi-Column Shell
+// PageConversas.jsx — Bia v6 · Enterprise Command Center
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
 import {
-  Send, Smile, Image, Video, Mic, Search, RefreshCw,
-  User, Bot, Zap, X, Lock, MessageSquare, Package,
-  ShoppingCart, Tag, Check, Truck, AlertTriangle,
-  ChevronDown, ChevronUp, Star, FileText, Phone, Mail,
-  MapPin, Paperclip, Sparkles, CheckCircle, CircleDot,
-  XCircle, History, RotateCcw, Clock, Circle,
-  ArrowRight, AlertOctagon, Filter
+  Send, Smile, Image, Search, RefreshCw, User, Bot, Zap, X,
+  MessageSquare, Package, ShoppingCart, Tag, Check, Truck,
+  ChevronDown, ChevronUp, Star, FileText, Phone, Mail, MapPin,
+  Sparkles, CheckCircle, CircleDot, XCircle, Clock, RotateCcw,
+  AlertTriangle, Filter, Crown, AlertCircle, DollarSign, Bell,
+  Hash, Layers, PenLine, Trash2, ChevronRight, Copy, Info,
+  Timer, TrendingUp, ArrowUpRight, Eye, EyeOff, Plus,
 } from 'lucide-react'
 
-const BASE = import.meta.env.VITE_API_URL || ''
+const BASE = import.meta.env?.VITE_API_URL || ''
 
-// ── Constantes ────────────────────────────────────────────────────────────────
+// ─── CONSTANTES ───────────────────────────────────────────────────────────────
 const REACOES = ['👍','❤️','😂','😮','😢','🙏']
-const EMOJIS  = ['😊','👍','🙏','❤️','✅','📦','💰','🚀','😅','🎉','💬','⏳']
-
-// ── Status config — Tailwind classes para dark mode perfeito ─────────────────
 const STATUS_CFG = {
-  pendente:     { label:'Pendente',     icon:CircleDot,    tw:'text-amber-400',   bg:'bg-amber-400/10',   border:'border-amber-400/30',   dot:'bg-amber-400'   },
-  em_andamento: { label:'Andamento',    icon:RefreshCw,    tw:'text-blue-400',    bg:'bg-blue-400/10',    border:'border-blue-400/30',    dot:'bg-blue-400'    },
-  resolvido:    { label:'Resolvido',    icon:CheckCircle,  tw:'text-emerald-400', bg:'bg-emerald-400/10', border:'border-emerald-400/30', dot:'bg-emerald-400' },
-  aguardando:   { label:'Aguardando',   icon:Clock,        tw:'text-purple-400',  bg:'bg-purple-400/10',  border:'border-purple-400/30',  dot:'bg-purple-400'  },
-  encerrado:    { label:'Encerrado',    icon:XCircle,      tw:'text-slate-400',   bg:'bg-slate-400/10',   border:'border-slate-400/30',   dot:'bg-slate-400'   },
+  pendente:     {label:'Pendente',   Icon:CircleDot,   cor:'#f59e0b', bg:'rgba(245,158,11,.12)', bdr:'rgba(245,158,11,.3)'},
+  em_andamento: {label:'Andamento',  Icon:RefreshCw,   cor:'#3b82f6', bg:'rgba(59,130,246,.12)', bdr:'rgba(59,130,246,.3)'},
+  resolvido:    {label:'Resolvido',  Icon:CheckCircle, cor:'#10b981', bg:'rgba(16,185,129,.12)', bdr:'rgba(16,185,129,.3)'},
+  aguardando:   {label:'Aguardando', Icon:Clock,       cor:'#8b5cf6', bg:'rgba(139,92,246,.12)', bdr:'rgba(139,92,246,.3)'},
+  encerrado:    {label:'Encerrado',  Icon:XCircle,     cor:'#64748b', bg:'rgba(100,116,139,.12)',bdr:'rgba(100,116,139,.3)'},
 }
+const RFM_CFG = {
+  vip:      {label:'VIP',      Icon:Crown,         cor:'#f59e0b'},
+  fiel:     {label:'Fiel',     Icon:Star,          cor:'#22c55e'},
+  novo:     {label:'Novo',     Icon:Zap,           cor:'#06b6d4'},
+  em_risco: {label:'Em Risco', Icon:AlertTriangle, cor:'#f97316'},
+  perdido:  {label:'Perdido',  Icon:Clock,         cor:'#6b7280'},
+}
+const RESPOSTAS_RAPIDAS = [
+  {atalho:'/oi',       titulo:'Saudação',         texto:'Olá! Bem-vindo(a) à Só Strass. Como posso te ajudar hoje? 😊'},
+  {atalho:'/nf',       titulo:'Nota Fiscal',       texto:'Para solicitar a nota fiscal, me informe o número do pedido ou seu CPF/CNPJ.'},
+  {atalho:'/rastreio', titulo:'Rastreio',          texto:'Para consultar o rastreio, me informe o número do pedido ou seu CPF/CNPJ.'},
+  {atalho:'/prazo',    titulo:'Prazo entrega',     texto:'O prazo de entrega varia conforme sua região e a modalidade de frete escolhida. Posso calcular para o seu CEP!'},
+  {atalho:'/pix',      titulo:'Chave PIX',         texto:'Nossa chave PIX está disponível no momento do checkout. Finalize seu pedido e o código será gerado automaticamente.'},
+  {atalho:'/horario',  titulo:'Horário',           texto:'Nosso atendimento é de segunda a sexta, das 8h às 18h, e aos sábados das 9h às 13h.'},
+  {atalho:'/aguarda',  titulo:'Aguardar',          texto:'Só um momento, estou verificando as informações do seu pedido. 🙏'},
+  {atalho:'/obrigada', titulo:'Agradecimento',     texto:'Muito obrigada pelo contato! Fico à disposição para qualquer dúvida. Tenha um ótimo dia! 😊'},
+]
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const fmtR   = n => `R$ ${Number(n||0).toFixed(2).replace('.',',')}`
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+const fmtR   = n => `R$ ${Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`
 const fmtTel = t => { const n=(t||'').replace(/\D/g,'').replace(/^55/,''); return n.length===11?`(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`:t||'' }
-const fmtRel = ts => { if(!ts) return ''; const m=Math.floor((Date.now()-new Date(ts))/60000); if(m<1)return 'agora'; if(m<60)return `${m}min`; if(m<1440)return `${Math.floor(m/60)}h`; return `${Math.floor(m/1440)}d` }
-const fmtHora = ts => ts ? new Date(ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : ''
-const initials = s => (s||'?').trim().split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase()
-const mapSit = s => { const id=typeof s==='object'?s?.id||s?.valor:s; return {6:'Aberto',9:'Atendido',12:'Cancelado',14:'Faturado',15:'Verificado',24:'NF emitida',27:'Em andamento',30:'Entregue',33:'Não entregue'}[id]||String(id||'—') }
+const fmtRel = ts => { if(!ts)return ''; const m=Math.floor((Date.now()-new Date(ts))/60000); if(m<1)return 'agora'; if(m<60)return `${m}min`; if(m<1440)return `${Math.floor(m/60)}h`; return `${Math.floor(m/1440)}d` }
+const fmtHora= ts => ts?new Date(ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):''
+const fmtDH  = ts => ts?new Date(ts).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''
+const fmtData= ts => ts?new Date(ts).toLocaleDateString('pt-BR'):''
+const initials=s=>(s||'?').trim().split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase()
+const slaColor=min=>min<5?'#22c55e':min<15?'#f59e0b':'#ef4444'
+const slaLabel=min=>min<1?'<1min':`${Math.round(min)}min`
 
-// ── Avatar ────────────────────────────────────────────────────────────────────
-const AV_PAL = [['#1e3a5f','#60a5fa'],['#2d1b69','#a78bfa'],['#064e3b','#34d399'],['#78350f','#fbbf24'],['#500724','#f472b6'],['#134e4a','#2dd4bf']]
-const avCol = s => AV_PAL[(s||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0)%AV_PAL.length]
-function Av({ nome, foto, size=32 }) {
-  const [bg,fg] = avCol(nome)
-  if (foto) return <img src={foto} alt={nome||''} style={{width:size,height:size,borderRadius:'50%',flexShrink:0,objectFit:'cover'}} onError={e=>e.target.style.display='none'}/>
-  return <div style={{width:size,height:size,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:size*.37,fontWeight:700,background:bg,color:fg}}>{initials(nome)}</div>
+// ─── AVATAR ───────────────────────────────────────────────────────────────────
+const AV_PAL=[['#1e3a5f','#60a5fa'],['#2d1b69','#a78bfa'],['#064e3b','#34d399'],['#78350f','#fbbf24'],['#500724','#f472b6'],['#134e4a','#2dd4bf']]
+const avCol=s=>AV_PAL[(s||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0)%AV_PAL.length]
+function Av({nome,foto,size=32,pulse}) {
+  const [bg,fg]=avCol(nome)
+  return <div style={{position:'relative',flexShrink:0}}>
+    {foto
+      ? <img src={foto} alt={nome||''} style={{width:size,height:size,borderRadius:'50%',objectFit:'cover'}} onError={e=>e.target.style.display='none'}/>
+      : <div style={{width:size,height:size,borderRadius:'50%',background:bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:size*0.35,fontWeight:700,color:fg,flexShrink:0}}>
+          {initials(nome)}
+        </div>
+    }
+    {pulse&&<div style={{position:'absolute',bottom:0,right:0,width:10,height:10,borderRadius:'50%',
+      background:'#22c55e',border:'2px solid var(--bg)',animation:'pulse 1.5s ease infinite'}}/>}
+  </div>
 }
 
-// ── ConvCard ──────────────────────────────────────────────────────────────────
-const ConvCard = memo(function ConvCard({ conv, sel, statusAtend, nomeIA, onClick }) {
-  const S   = STATUS_CFG[statusAtend] || STATUS_CFG.pendente
-  const SIc = S.icon
-  const man = conv.agente==='humano' || conv.modo_manual
-  return (
-    <div onClick={onClick}
-      className={`flex gap-2.5 px-3 py-2.5 cursor-pointer border-l-2 border-b border-b-[var(--sep)] transition-colors ${
-        sel ? 'bg-[var(--accent-dim)] border-l-[var(--accent)]' : 'border-l-transparent hover:bg-[var(--bg-3)]'
-      }`}>
-      <Av nome={conv.nome||conv.telefone} foto={conv.foto_url||conv.fotoUrl} size={34}/>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline justify-between mb-0.5">
-          <span className={`text-[12px] font-semibold truncate mr-1 ${sel?'text-[var(--accent)]':'text-[var(--label)]'}`}
-            style={{maxWidth:120}}>{conv.nome||fmtTel(conv.telefone)}</span>
-          <span className="text-[9px] text-[var(--label-4)] flex-shrink-0">{fmtRel(conv.ultima_atividade||conv.hora)}</span>
-        </div>
-        <p className="text-[10.5px] text-[var(--label-3)] truncate mb-1.5" style={{maxWidth:180}}>{conv.ultima_mensagem||conv.ultima_msg||'—'}</p>
-        <div className="flex gap-1.5 flex-wrap">
-          <span className={`inline-flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full border ${S.tw} ${S.bg} ${S.border}`}>
-            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${S.dot}`}/>
-            {S.label}
-          </span>
-          <span className={`inline-flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full border ${
-            man ? 'text-blue-400 bg-blue-400/10 border-blue-400/25' : 'text-violet-400 bg-violet-400/10 border-violet-400/25'
-          }`}>
-            {man ? <User size={8}/> : <Bot size={8}/>}
-            {man ? 'Atendente' : nomeIA}
-          </span>
-          {parseInt(conv.itens_carrinho||0)>0 && (
-            <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full border text-amber-400 bg-amber-400/10 border-amber-400/25">
-              🛒 {conv.itens_carrinho}
-            </span>
-          )}
+// ─── SLA BADGE ────────────────────────────────────────────────────────────────
+function SlaBadge({ultimaAtividade}) {
+  const [min, setMin] = useState(0)
+  useEffect(()=>{
+    const calc=()=>setMin((Date.now()-new Date(ultimaAtividade||Date.now()).getTime())/60000)
+    calc(); const t=setInterval(calc,10000); return()=>clearInterval(t)
+  },[ultimaAtividade])
+  const cor = slaColor(min)
+  return <span style={{fontSize:9,fontWeight:700,padding:'1px 5px',borderRadius:99,
+    color:cor,background:`${cor}18`,border:`1px solid ${cor}30`,
+    animation:min>15?'pulse 1.5s ease infinite':'none',flexShrink:0}}>
+    <Timer size={7} style={{display:'inline',marginRight:2}}/>{slaLabel(min)}
+  </span>
+}
+
+// ─── CONV CARD ────────────────────────────────────────────────────────────────
+const ConvCard = memo(function ConvCard({conv, sel, statusAtend, nomeIA, rfmMap, onClick}) {
+  const S    = STATUS_CFG[statusAtend] || STATUS_CFG.pendente
+  const SIc  = S.Icon
+  const man  = conv.agente==='humano' || conv.modo_ia==='manual' || conv.modo_manual
+  const cart = parseInt(conv.itens_carrinho||0)
+  const rfm  = rfmMap?.[conv.telefone]
+  const rfmC = rfm ? (RFM_CFG[rfm.score]||RFM_CFG.novo) : null
+  const unread = parseInt(conv.msgs_nao_lidas||0)
+
+  return <div onClick={onClick} style={{
+    display:'flex',gap:10,padding:'10px 12px',cursor:'pointer',
+    borderLeft:`2px solid ${sel?'var(--accent)':'transparent'}`,
+    borderBottom:'1px solid var(--sep)',
+    background:sel?'var(--accent-dim)':'transparent',
+    transition:'background .1s',
+  }}
+    onMouseEnter={e=>!sel&&(e.currentTarget.style.background='var(--bg-3)')}
+    onMouseLeave={e=>!sel&&(e.currentTarget.style.background='transparent')}
+  >
+    <Av nome={conv.nome||conv.telefone} foto={conv.foto_url||conv.fotoUrl} size={36} pulse={conv.ativo_agora}/>
+    <div style={{flex:1,minWidth:0}}>
+      <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:2}}>
+        <span style={{fontSize:12.5,fontWeight:600,color:sel?'var(--accent)':'var(--label)',
+          overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:130}}>
+          {conv.nome||fmtTel(conv.telefone)}
+        </span>
+        <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
+          {unread>0&&<span style={{fontSize:9,fontWeight:700,padding:'1px 5px',borderRadius:99,
+            background:'var(--accent)',color:'#fff',minWidth:16,textAlign:'center'}}>{unread}</span>}
+          <span style={{fontSize:9,color:'var(--label-4)'}}>{fmtRel(conv.ultima_atividade)}</span>
         </div>
       </div>
+      <p style={{fontSize:10.5,color:'var(--label-3)',overflow:'hidden',textOverflow:'ellipsis',
+        whiteSpace:'nowrap',marginBottom:5,maxWidth:180}}>
+        {conv.ultima_mensagem||'—'}
+      </p>
+      <div style={{display:'flex',gap:4,flexWrap:'wrap',alignItems:'center'}}>
+        {/* Status */}
+        <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:9,fontWeight:700,
+          padding:'1px 6px',borderRadius:99,color:S.cor,background:S.bg,border:`1px solid ${S.bdr}`}}>
+          <SIc size={7}/>{S.label}
+        </span>
+        {/* IA/Manual */}
+        <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:9,fontWeight:700,
+          padding:'1px 6px',borderRadius:99,
+          color:man?'#3b82f6':'#a78bfa',
+          background:man?'rgba(59,130,246,.1)':'rgba(167,139,250,.1)',
+          border:`1px solid ${man?'rgba(59,130,246,.25)':'rgba(167,139,250,.25)'}`}}>
+          {man?<User size={7}/>:<Bot size={7}/>}
+          {man?'Atendente':nomeIA}
+        </span>
+        {/* Carrinho */}
+        {cart>0&&<span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:9,fontWeight:700,
+          padding:'1px 6px',borderRadius:99,color:'#f59e0b',
+          background:'rgba(245,158,11,.12)',border:'1px solid rgba(245,158,11,.3)',
+          animation:'pulse 2s ease infinite'}}>
+          <ShoppingCart size={7}/>{cart} {cart===1?'item':'itens'}
+        </span>}
+        {/* RFM */}
+        {rfmC&&<span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:9,fontWeight:700,
+          padding:'1px 6px',borderRadius:99,color:rfmC.cor,background:`${rfmC.cor}18`,border:`1px solid ${rfmC.cor}30`}}>
+          <rfmC.Icon size={7}/>{rfmC.label}
+        </span>}
+        {/* SLA */}
+        <SlaBadge ultimaAtividade={conv.ultima_atividade}/>
+      </div>
     </div>
-  )
+  </div>
 })
 
-// ── Bolha — SEM hover state que cause tremor ──────────────────────────────────
-// O tremor vinha de onMouseEnter/Leave no container do flex que muda tamanho
-// Solução: usar CSS :hover via className estática, sem state React
-const Bolha = memo(function Bolha({ msg, nomeIA, mostrarGatilho }) {
+// ─── BOLHA ────────────────────────────────────────────────────────────────────
+const Bolha = memo(function Bolha({msg, nomeIA}) {
   const [reacao, setReacao] = useState(null)
   const [picker, setPicker] = useState(false)
-
-  const entrada   = msg.direcao === 'entrada'
-  const isGatilho = msg.modo === 'transacional'
-  const isManual  = msg.modo === 'manual'
+  const entrada   = msg.direcao==='entrada'
+  const isGatilho = msg.modo==='transacional'
+  const isManual  = msg.modo==='manual' || msg.modo==='humano'
+  const isNota    = msg.modo==='nota'
   const texto     = (msg.conteudo||'').replace(/\[ENVIAR_IMAGEM:[^\]]*\]/g,'').trim()
   if (!texto) return null
-
-  // Gatilhos ficam separados como notas — colapsável
-  if (isGatilho && !mostrarGatilho) return null
-
   if (isGatilho) return (
-    <div className="flex justify-center my-1">
-      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/8 border border-violet-500/15 text-[9px] text-violet-400/70 max-w-[85%]">
-        <Zap size={8} className="flex-shrink-0"/>
-        <span className="truncate font-medium">{texto.slice(0,80)}{texto.length>80?'...':''}</span>
+    <div style={{display:'flex',justifyContent:'center',margin:'4px 0'}}>
+      <div style={{display:'flex',alignItems:'center',gap:5,padding:'3px 10px',borderRadius:99,
+        background:'rgba(167,139,250,.08)',border:'1px solid rgba(167,139,250,.15)',
+        fontSize:9,color:'rgba(167,139,250,.7)',maxWidth:'85%'}}>
+        <Zap size={8} style={{flexShrink:0}}/><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{texto.slice(0,80)}</span>
       </div>
     </div>
   )
-
-  const labelTxt  = entrada ? null : isManual ? 'Atendente' : nomeIA
-  const labelCls  = isManual ? 'text-blue-400' : 'text-emerald-400'
-
-  const bubbleCls = entrada
-    ? 'bg-[var(--bg-3)] border border-[var(--sep)] rounded-tl-sm'
+  if (isNota) return (
+    <div style={{display:'flex',justifyContent:'center',margin:'4px 0'}}>
+      <div style={{display:'flex',alignItems:'center',gap:5,padding:'4px 12px',borderRadius:8,
+        background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.2)',
+        fontSize:11,color:'#f59e0b',maxWidth:'85%',fontStyle:'italic'}}>
+        <PenLine size={9} style={{flexShrink:0}}/>Nota: {texto}
+      </div>
+    </div>
+  )
+  const bgBolha = entrada
+    ? 'var(--bg-3)'
     : isManual
-      ? 'bg-blue-500/10 border border-blue-500/20 rounded-tr-sm'
-      : 'bg-emerald-500/10 border border-emerald-500/20 rounded-tr-sm'
+      ? 'rgba(59,130,246,.1)'
+      : 'rgba(167,139,250,.12)'
+  const borderBolha = entrada
+    ? '1px solid var(--sep)'
+    : isManual
+      ? '1px solid rgba(59,130,246,.2)'
+      : '1px solid rgba(167,139,250,.2)'
+  const labelTxt = entrada ? null : isManual ? 'Atendente' : nomeIA
+  const labelCor = isManual ? '#3b82f6' : '#10b981'
 
-  return (
-    <div className={`flex flex-col mb-2 ${entrada?'items-start':'items-end'} group`}>
-      {labelTxt && (
-        <span className={`text-[9px] font-semibold mb-0.5 px-0.5 flex items-center gap-1 ${labelCls}`}>
-          {isManual?<User size={8}/>:<Bot size={8}/>}{labelTxt}
-        </span>
-      )}
-      <div className={`flex items-end gap-1.5 ${entrada?'flex-row':'flex-row-reverse'}`}>
-        {entrada && (
-          <div className="w-5 h-5 rounded-full bg-[var(--bg-4,#2a3549)] flex items-center justify-center text-[8px] text-[var(--label-4)] font-bold flex-shrink-0">
-            {initials(msg.nome||'')||'C'}
-          </div>
+  return <div style={{display:'flex',flexDirection:'column',marginBottom:8,alignItems:entrada?'flex-start':'flex-end'}}
+    className="group">
+    {labelTxt&&<span style={{fontSize:9,fontWeight:700,marginBottom:2,paddingLeft:4,
+      color:labelCor,display:'flex',alignItems:'center',gap:4}}>
+      {isManual?<User size={8}/>:<Bot size={8}/>}{labelTxt}
+    </span>}
+    <div style={{display:'flex',alignItems:'flex-end',gap:6,flexDirection:entrada?'row':'row-reverse'}}>
+      {entrada&&<div style={{width:20,height:20,borderRadius:'50%',background:'var(--fill)',
+        display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,
+        color:'var(--label-4)',fontWeight:700,flexShrink:0}}>
+        {initials(msg.nome||'')||'C'}
+      </div>}
+      <div style={{maxWidth:'74%',borderRadius:entrada?'4px 16px 16px 16px':'16px 4px 16px 16px',
+        padding:'8px 12px',background:bgBolha,border:borderBolha,position:'relative'}}>
+        {msg.midia_tipo==='image'&&msg.midia_url&&(
+          <img src={msg.midia_url} alt="" style={{width:'100%',borderRadius:8,marginBottom:4,maxHeight:160,objectFit:'cover'}}
+            onError={e=>e.target.style.display='none'}/>
         )}
-        <div className={`max-w-[74%] rounded-2xl px-3 py-2 relative ${bubbleCls}`}>
-          {msg.midia_tipo==='image'&&msg.midia_url&&(
-            <img src={msg.midia_url} alt="" className="w-full rounded-lg mb-1 max-h-36 object-cover" onError={e=>e.target.style.display='none'}/>
-          )}
-          <p className="text-[12.5px] leading-relaxed text-[var(--label)] whitespace-pre-wrap break-words">{texto}</p>
-          <div className={`flex items-center gap-1 mt-0.5 ${entrada?'justify-start':'justify-end'}`}>
-            <span className="text-[9px] text-[var(--label-4)]">{fmtHora(msg.criado_em)}</span>
-            {!entrada && <span className="text-[9px] text-blue-400">✓✓</span>}
-          </div>
-          {reacao && (
-            <button onClick={()=>setReacao(null)}
-              className="absolute -bottom-2 right-2 text-[13px] bg-[var(--bg-2)] border border-[var(--sep)] rounded-full px-1.5 leading-none">
-              {reacao}
-            </button>
-          )}
+        <p style={{fontSize:12.5,lineHeight:1.55,color:'var(--label)',whiteSpace:'pre-wrap',
+          wordBreak:'break-words',margin:0}}>{texto}</p>
+        <div style={{display:'flex',alignItems:'center',gap:4,marginTop:3,
+          justifyContent:entrada?'flex-start':'flex-end'}}>
+          <span style={{fontSize:9,color:'var(--label-4)'}}>{fmtHora(msg.criado_em)}</span>
+          {!entrada&&<Check size={9} style={{color:'#3b82f6'}}/>}
         </div>
-        {/* Picker — visível apenas no hover via CSS group */}
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 relative">
-          <button onClick={()=>setPicker(v=>!v)}
-            className="w-5 h-5 rounded-full border border-[var(--sep)] bg-[var(--bg-3)] flex items-center justify-center cursor-pointer hover:bg-[var(--bg-4)]">
-            <Smile size={10} className="text-[var(--label-4)]"/>
+        {reacao&&<button onClick={()=>setReacao(null)} style={{
+          position:'absolute',bottom:-10,right:8,fontSize:13,background:'var(--bg-2)',
+          border:'1px solid var(--sep)',borderRadius:99,padding:'0 5px',
+          lineHeight:'18px',cursor:'pointer'}}>{reacao}</button>}
+      </div>
+      {/* Emoji picker on hover */}
+      <div style={{opacity:0,transition:'opacity .15s',flexShrink:0}} className="group-hover:opacity-100">
+        <div style={{position:'relative'}}>
+          <button onClick={()=>setPicker(v=>!v)} style={{
+            width:20,height:20,borderRadius:'50%',border:'1px solid var(--sep)',
+            background:'var(--bg-3)',display:'flex',alignItems:'center',
+            justifyContent:'center',cursor:'pointer'}}>
+            <Smile size={10} style={{color:'var(--label-4)'}}/>
           </button>
-          {picker && (
-            <div className={`absolute bottom-6 ${entrada?'left-0':'right-0'} flex gap-1 bg-[var(--bg-2)] border border-[var(--sep)] rounded-2xl px-2 py-1.5 shadow-2xl z-50 whitespace-nowrap`}>
-              {REACOES.map(r=>(
-                <button key={r} onClick={()=>{setReacao(r);setPicker(false)}}
-                  className="text-base hover:scale-125 transition-transform cursor-pointer">{r}</button>
-              ))}
-            </div>
-          )}
+          {picker&&<div style={{
+            position:'absolute',bottom:24,[entrada?'left':'right']:0,
+            display:'flex',gap:4,background:'var(--bg-2)',border:'1px solid var(--sep)',
+            borderRadius:99,padding:'6px 8px',boxShadow:'0 8px 24px rgba(0,0,0,.3)',
+            zIndex:50,whiteSpace:'nowrap'}}>
+            {REACOES.map(r=><button key={r} onClick={()=>{setReacao(r);setPicker(false)}}
+              style={{fontSize:16,background:'none',border:'none',cursor:'pointer',
+                transition:'transform .1s',padding:0}}
+              onMouseEnter={e=>e.target.style.transform='scale(1.3)'}
+              onMouseLeave={e=>e.target.style.transform='scale(1)'}>{r}</button>)}
+          </div>}
         </div>
       </div>
     </div>
-  )
+  </div>
 })
 
-// ── DateSep ───────────────────────────────────────────────────────────────────
-function DateSep({ ts }) {
-  const d=new Date(ts), hoje=new Date(); hoje.setHours(0,0,0,0)
-  const dia=new Date(d); dia.setHours(0,0,0,0)
-  const diff=Math.round((hoje-dia)/86400000)
-  const label=diff===0?'Hoje':diff===1?'Ontem':d.toLocaleDateString('pt-BR',{day:'2-digit',month:'long'})
-  return (
-    <div className="flex items-center gap-2 my-4">
-      <div className="flex-1 h-px bg-[var(--sep)]"/>
-      <span className="text-[9px] font-semibold text-[var(--label-4)] bg-[var(--bg-3)] px-3 py-0.5 rounded-full border border-[var(--sep)] whitespace-nowrap">{label}</span>
-      <div className="flex-1 h-px bg-[var(--sep)]"/>
-    </div>
-  )
+// ─── DATE SEP ─────────────────────────────────────────────────────────────────
+function DateSep({date}) {
+  return <div style={{display:'flex',alignItems:'center',gap:10,margin:'12px 0',padding:'0 4px'}}>
+    <div style={{flex:1,height:1,background:'var(--sep)'}}/>
+    <span style={{fontSize:10,fontWeight:600,color:'var(--label-4)',padding:'2px 10px',
+      borderRadius:99,background:'var(--fill)',border:'1px solid var(--sep)'}}>{date}</span>
+    <div style={{flex:1,height:1,background:'var(--sep)'}}/>
+  </div>
 }
 
-// ── StatusDropdown ─────────────────────────────────────────────────────────────
-function StatusDropdown({ statusAtend, modoManual, onStatusChange, onToggleModo, onReset, nomeIA }) {
-  const [open, setOpen] = useState(false)
-  const S   = STATUS_CFG[statusAtend] || STATUS_CFG.pendente
-  const SIc = S.icon
-  const ref = useRef(null)
-
-  useEffect(()=>{
-    const fn = e => { if(ref.current && !ref.current.contains(e.target)) setOpen(false) }
-    document.addEventListener('mousedown', fn); return ()=>document.removeEventListener('mousedown', fn)
-  }, [])
-
-  return (
-    <div ref={ref} className="relative flex-shrink-0">
-      <button onClick={()=>setOpen(v=>!v)}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all ${S.tw} ${S.bg} ${S.border}`}>
-        <SIc size={12}/>
-        {S.label}
-        <ChevronDown size={11} className={`transition-transform ${open?'rotate-180':''}`}/>
-      </button>
-      {open && (
-        <div className="absolute top-full right-0 mt-1.5 w-52 bg-[var(--bg-2)] border border-[var(--sep)] rounded-xl shadow-2xl z-50 overflow-hidden py-1.5">
-          {/* Status items */}
-          {Object.entries(STATUS_CFG).map(([key,s])=>{
-            const Ic=s.icon; const on=statusAtend===key
-            return (
-              <button key={key} onClick={()=>{ onStatusChange(key); setOpen(false) }}
-                className="w-full flex items-center gap-2.5 px-4 py-2 text-[12px] text-left transition-colors hover:bg-[var(--bg-3)]"
-                style={{opacity: on ? .45 : 1, cursor: on ? 'default' : 'pointer'}}>
-                <Ic size={13} className={s.tw}/>
-                <span className={s.tw}>{s.label}</span>
-                {on && <Check size={10} className="ml-auto text-[var(--label-4)]"/>}
-              </button>
-            )
-          })}
-          <div className="my-1 h-px bg-[var(--sep)] mx-3"/>
-          {/* Assumir / Devolver */}
-          <button onClick={()=>{ onToggleModo(); setOpen(false) }}
-            className="w-full flex items-center gap-2.5 px-4 py-2 text-[12px] text-left transition-colors hover:bg-[var(--bg-3)] cursor-pointer">
-            <User size={13} className={modoManual?'text-blue-400':'text-[var(--label-3)]'}/>
-            <span className={modoManual?'text-blue-400':'text-[var(--label-3)]'}>
-              {modoManual ? `Devolver à ${nomeIA}` : 'Assumir conversa'}
-            </span>
-          </button>
-          {/* Resetar sessão */}
-          <button onClick={()=>{ onReset(); setOpen(false) }}
-            className="w-full flex items-center gap-2.5 px-4 py-2 text-[12px] text-left transition-colors hover:bg-red-500/10 cursor-pointer">
-            <RotateCcw size={13} className="text-red-400"/>
-            <span className="text-red-400">Resetar sessão</span>
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── CatOverlay ─────────────────────────────────────────────────────────────────
-function CatOverlay({ telefone, api, onClose }) {
-  const [busca, setBusca]    = useState('')
-  const [prods, setProds]    = useState([])
-  const [load,  setLoad]     = useState(false)
-  const [env,   setEnv]      = useState(null)
-  const ref = useRef(null)
-  useEffect(()=>{ ref.current?.focus() }, [])
-
-  const buscar = async () => {
-    if (!busca.trim()) return
-    setLoad(true); setProds([])
-    try {
-      const r = await fetch(`${api}/api/dashboard/catalogo?q=${encodeURIComponent(busca)}`)
-      if (r.ok) { const d=await r.json(); setProds(d.produtos||[]) }
-    } catch {}
-    setLoad(false)
-  }
-
-  const enviar = async p => {
-    setEnv(p.id||p.nome)
-    const n    = parseFloat(p.preco||p.precoVenda||0)
-    const nome = p.nome||p.descricao||'Produto'
-    const vars = {
-      nome_produto:      nome,
-      preco_cartao:      fmtR(n),
-      preco_pix:         fmtR(n*.9),
-      foto_produto:      (Array.isArray(p.imagens)?p.imagens[0]:p.imagens)||'',
-      descricao_produto:       p.descricao||p.descricao_curta||'',
-      descricao_complementar:  p.descricaoComp||p.descricao_complementar||'',
-      codigo_produto:          p.sku||p.codigo||'',
-    }
-    try {
-      // 1. Tenta disparar via template editável
-      const rT = await fetch(`${api}/api/templates/disparar-gatilho`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ gatilho:'catalogo_produto', telefone, variaveis:vars })
-      })
-      const dT = await rT.json()
-      if (dT.ok) {
-        // Salva produto no ctx da IA
-        await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({ telefone, mensagem:'_ctx_only_', produto_ctx:{
-            bling_id:p.bling_id, nome, preco:n, pix:n*.9,
-            unidade:p.unidade||'UN', codigo:p.sku||p.codigo||'',
-            descricao:vars.descricao_produto,
-          }})
-        }).catch(()=>{})
-      }
-      if (!dT.ok) {
-        // 2. Fallback com botões interativos
-        const bodyRaw = `✨ *${nome}*\n\n💳 Cartão: *${fmtR(n)}* | 💰 PIX: *${fmtR(n*.9)}*${vars.descricao_produto?'\n\n'+vars.descricao_produto.slice(0,200):''}\n\nEscolha uma opção 👇`
-        const bodyText = bodyRaw.slice(0, 1000) || `${nome} disponível. Escolha uma opção 👇`
-        const interactive = {
-          type:'button',
-          body:{ text: bodyText },
-          action:{ buttons:[
-            { type:'reply', reply:{ id:'btn_carrinho', title:'Adicionar carrinho' } },
-            { type:'reply', reply:{ id:'btn_foto',     title:'Ver foto'             } },
-            { type:'reply', reply:{ id:'btn_duvidas',  title:'Tirar duvida'        } },
-          ]},
-        }
-        if (vars.foto_produto) interactive.header = { type:'image', image:{ link:vars.foto_produto } }
-        interactive.footer = { text:'Só Strass — Atendimento ao Cliente' }
-        await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone,interactive})})
-      }
-    } catch {}
-    setEnv(null); onClose()
-  }
-
-  const avisar = async p => {
-    setEnv('aviso_'+(p.id||p.nome))
-    try {
-      await fetch(`${api}/api/avise-me`,{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ telefone, produto_nome:p.nome||p.descricao, bling_id:p.bling_id||p.id })
-      })
-      const msg = `⏰ *Produto cadastrado na lista de espera!*\n\n*${p.nome||p.descricao}*\n\nAssim que este produto chegar ao estoque, você será avisado automaticamente. 😊\n\n_Só Strass — Atendimento ao Cliente_`
-      await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone,mensagem:msg})})
-    } catch {}
-    setEnv(null); onClose()
-  }
-
-  return (
-    <div className="absolute bottom-full left-0 right-0 mb-1 bg-[var(--bg-2)] border border-[var(--sep)] rounded-xl shadow-2xl z-50 overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[var(--sep)]">
-        <ShoppingCart size={13} className="text-emerald-400 flex-shrink-0"/>
-        <input ref={ref} value={busca} onChange={e=>setBusca(e.target.value)} onKeyDown={e=>e.key==='Enter'&&buscar()}
-          placeholder="Buscar produto para enviar ao cliente..."
-          className="flex-1 bg-transparent border-none outline-none text-[12.5px] text-[var(--label)] placeholder:text-[var(--label-4)]"/>
-        {busca && <button onClick={()=>{setBusca('');setProds([])}} className="text-[var(--label-4)] hover:text-[var(--label-3)]"><X size={13}/></button>}
-        <button onClick={buscar}
-          className="px-3 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-semibold hover:bg-emerald-500/25 transition-colors flex-shrink-0 flex items-center gap-1.5">
-          {load ? <RefreshCw size={11} className="animate-spin"/> : 'Buscar'}
-        </button>
-        <button onClick={onClose} className="text-[var(--label-4)] hover:text-[var(--label-3)]"><X size={14}/></button>
-      </div>
-      <div className="max-h-60 overflow-y-auto">
-        {prods.length===0 && busca && !load && (
-          <p className="px-4 py-3 text-[11px] text-[var(--label-4)] text-center">Nenhum produto encontrado</p>
-        )}
-        {prods.slice(0,12).map((p,i)=>{
-          const disp = parseInt(p.estoque||0) > 0 || (p.disponivel === true && p.estoque === undefined)
-          return (
-            <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-b border-[var(--sep)] hover:bg-[var(--bg-3)] transition-colors">
-              <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-medium text-[var(--label)] truncate">{p.nome||p.descricao}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <p className="text-[10px] font-semibold text-emerald-400">{fmtR(p.preco||p.precoVenda||0)}</p>
-                  <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${disp?'text-emerald-400 bg-emerald-400/10':'text-red-400 bg-red-400/10'}`}>
-                    {disp ? (p.estoque!==undefined ? `✓ Est: ${parseInt(p.estoque||0)}` : '✓ Disponível') : '✗ Sem estoque'}
-                  </span>
-                </div>
-              </div>
-              {disp
-                ? <button onClick={()=>enviar(p)} disabled={env===(p.id||p.nome)}
-                    className="px-3 py-1 rounded-lg border border-emerald-500/30 text-emerald-400 text-[10px] font-semibold hover:bg-emerald-500/20 transition-colors flex-shrink-0 disabled:opacity-50">
-                    {env===(p.id||p.nome)?'Enviando...':'Enviar'}
-                  </button>
-                : <button onClick={()=>avisar(p)} disabled={env===('aviso_'+(p.id||p.nome))}
-                    className="px-3 py-1 rounded-lg border border-amber-500/30 text-amber-400 text-[10px] font-semibold hover:bg-amber-500/15 transition-colors flex-shrink-0 disabled:opacity-50 flex items-center gap-1">
-                    ⏰ Avise-me
-                  </button>
-              }
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ── BarraEnvio ────────────────────────────────────────────────────────────────
-function BarraEnvio({ telefone, api, modoManual, onEnviou, onAssumirModo, nomeIA }) {
-  const [texto,     setTexto]     = useState('')
-  const [enviando,  setEnviando]  = useState(false)
-  const [anotacao,  setAnotacao]  = useState(false)
-  const [sugestoes, setSugestoes] = useState([])
-  const [loadSug,   setLoadSug]   = useState(false)
-  const [emojiOpen, setEmojiOpen] = useState(false)
-  const [catOpen,   setCatOpen]   = useState(false)
-  const [refining,  setRefining]  = useState(false)
+// ─── BARRA DE ENVIO ───────────────────────────────────────────────────────────
+function BarraEnvio({telefone, api, modoManual, onEnviou, onAssumirModo, nomeIA}) {
+  const [texto,    setTexto]   = useState('')
+  const [enviando, setEnv]     = useState(false)
+  const [anotacao, setAnot]    = useState(false)
+  const [sugest,   setSugest]  = useState([])
+  const [loadSug,  setLSug]    = useState(false)
+  const [rrOpen,   setRROpen]  = useState(false)
+  const [rrFiltro, setRRF]     = useState('')
+  const [refining, setRef]     = useState(false)
+  const [imgPrev,  setImgPrev] = useState(null)
   const inputRef = useRef(null)
   const imgRef   = useRef(null)
-  const vidRef   = useRef(null)
 
-  const buscarSugestoes = useCallback(async () => {
-    if (!telefone) return
-    setLoadSug(true)
-    try {
-      const r = await fetch(`${api}/api/sugestoes/${telefone}`)
-      if (r.ok) { const d=await r.json(); setSugestoes((d.sugestoes||d||[]).slice(0,3)) }
-    } catch {}
-    setLoadSug(false)
-  }, [api, telefone])
+  // Sugestões da IA
+  useEffect(()=>{
+    if (!telefone||!modoManual) return
+    setLSug(true)
+    fetch(`${api}/api/sugestoes/${telefone}`)
+      .then(r=>r.ok?r.json():null).then(d=>setSugest((d?.sugestoes||d||[]).slice(0,3))).catch(()=>{})
+      .finally(()=>setLSug(false))
+  },[telefone,modoManual])
 
-  useEffect(()=>{ if(telefone) buscarSugestoes() }, [telefone])
-
-  const enviar = async (msg) => {
+  const enviar = async(msg) => {
     const txt=(msg||texto).trim()
     if (!txt||enviando) return
-    setTexto(''); setSugestoes([])
-    setEnviando(true)
+    setTexto(''); setSugest([]); setAnot(false); setRROpen(false)
+    setEnv(true)
     try {
-      await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone,mensagem:txt,anotacao})})
+      await fetch(`${api}/api/dashboard/mensagem`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({telefone,mensagem:txt,anotacao})
+      })
       onEnviou?.()
     } catch {}
-    setEnviando(false); inputRef.current?.focus()
+    setEnv(false); inputRef.current?.focus()
   }
 
-  const enviarArquivo = (file, tipo) => {
+  const enviarImagem = (file) => {
     if (!file) return
     const reader = new FileReader()
-    reader.onload = async () => {
-      const base64 = reader.result.split(',')[1]
+    reader.onload = async() => {
+      const base64=reader.result.split(',')[1]
       try {
-        await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone,tipo,midia_base64:base64,midia_nome:file.name})})
+        await fetch(`${api}/api/dashboard/mensagem`,{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({telefone,tipo:'image',midia_base64:base64,midia_nome:file.name})
+        })
         onEnviou?.()
       } catch {}
+      setImgPrev(null)
     }
     reader.readAsDataURL(file)
   }
 
-  const refinarIA = async () => {
+  const refinarIA = async() => {
     if (!texto.trim()||refining) return
-    setRefining(true)
+    setRef(true)
     try {
-      const r = await fetch(`${api}/api/ia/melhorar-texto`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({texto,contexto:`Atendimento WhatsApp ${fmtTel(telefone)}`})})
-      if (r.ok) { const d=await r.json(); if(d.texto) setTexto(d.texto) }
+      const r=await fetch(`${api}/api/ia/melhorar-texto`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({texto,contexto:'Atendimento WhatsApp'})
+      })
+      if(r.ok){const d=await r.json();if(d.texto)setTexto(d.texto)}
     } catch {}
-    setRefining(false)
+    setRef(false)
   }
 
-  // ── Modo IA: barra read-only com sugestão e ações ──────────────────────────
+  // Detecta "/" para respostas rápidas
+  const onKeyDown = e => {
+    if (e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviar()}
+    if (e.key==='Escape'){setRROpen(false);setImgPrev(null)}
+  }
+  const onChange = e => {
+    const v=e.target.value
+    setTexto(v)
+    if (v.startsWith('/')) { setRROpen(true); setRRF(v.slice(1).toLowerCase()) }
+    else setRROpen(false)
+  }
+
+  const rrFiltradas = RESPOSTAS_RAPIDAS.filter(r=>
+    !rrFiltro||r.atalho.slice(1).includes(rrFiltro)||r.titulo.toLowerCase().includes(rrFiltro)
+  )
+
+  // Modo IA — read-only com sugestões
   if (!modoManual) return (
-    <div className="border-t border-[var(--sep)] bg-[var(--bg-2)] flex-shrink-0">
-      {sugestoes.length > 0 && (
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-amber-500/15 bg-amber-500/5">
-          <Zap size={11} className="text-amber-400 flex-shrink-0"/>
-          <div className="flex-1 min-w-0">
-            <p className="text-[9px] font-bold text-amber-400 leading-none mb-0.5">Sugestão da IA</p>
-            <p className="text-[11.5px] text-[var(--label)] truncate">{typeof sugestoes[0]==='string'?sugestoes[0]:sugestoes[0]?.texto||''}</p>
-          </div>
-          <button onClick={()=>{ onAssumirModo?.(); setTimeout(()=>{ setTexto(typeof sugestoes[0]==='string'?sugestoes[0]:sugestoes[0]?.texto||'') }, 100) }}
-            className="px-3 py-1 rounded-lg border border-amber-400/30 text-amber-400 text-[10px] font-bold hover:bg-amber-400/15 transition-colors flex-shrink-0">Usar</button>
-          <button onClick={()=>setSugestoes([])} className="text-[var(--label-4)] hover:text-[var(--label-3)]"><X size={11}/></button>
+    <div style={{borderTop:'1px solid var(--sep)',background:'var(--bg-2)',flexShrink:0}}>
+      {sugest.length>0&&(
+        <div style={{padding:'8px 12px',display:'flex',gap:6,flexWrap:'wrap',borderBottom:'1px solid var(--sep)'}}>
+          <span style={{fontSize:10,color:'var(--label-4)',alignSelf:'center',flexShrink:0}}>Sugestões IA:</span>
+          {sugest.map((s,i)=><button key={i} onClick={()=>enviar(typeof s==='string'?s:s.mensagem||s.texto)}
+            style={{fontSize:11,padding:'3px 10px',borderRadius:99,border:'1px solid rgba(167,139,250,.3)',
+              background:'rgba(167,139,250,.08)',color:'#a78bfa',cursor:'pointer'}}>
+            {(typeof s==='string'?s:s.mensagem||s.texto||'').slice(0,40)}
+          </button>)}
         </div>
       )}
-      <div className="flex items-center gap-2 px-4 py-2.5">
-        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"/>
-        <p className="text-[11px] text-[var(--label-4)] flex-1">IA ativa — assuma para responder</p>
-        <button onClick={buscarSugestoes} disabled={loadSug}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-amber-400/30 text-amber-400 bg-amber-400/5 text-[10px] font-semibold hover:bg-amber-400/15 transition-colors disabled:opacity-50">
-          <Sparkles size={10} className={loadSug?'animate-spin':''}/> Sugerir IA
+      <div style={{padding:'12px',display:'flex',alignItems:'center',gap:10}}>
+        <Bot size={16} style={{color:'#a78bfa',flexShrink:0}}/>
+        <span style={{fontSize:12,color:'var(--label-4)',flex:1}}>
+          {nomeIA} está gerenciando este atendimento.
+        </span>
+        <button onClick={onAssumirModo} style={{
+          display:'flex',alignItems:'center',gap:5,padding:'6px 12px',borderRadius:8,
+          border:'1px solid rgba(59,130,246,.35)',background:'rgba(59,130,246,.08)',
+          color:'#3b82f6',cursor:'pointer',fontSize:12,fontWeight:600}}>
+          <User size={12}/>Assumir atendimento
         </button>
-      </div>
-      <div className="flex items-center gap-2 px-4 pb-3">
-        {[
-          { label:'Catálogo', icon:ShoppingCart, onClick:()=>setCatOpen(v=>!v), emerald:true },
-          { label:'Imagem',   icon:Image,        onClick:()=>imgRef.current?.click() },
-          { label:'Vídeo',    icon:Video,        onClick:()=>vidRef.current?.click() },
-        ].map(({label,icon:Ic,onClick,emerald})=>(
-          <button key={label} onClick={onClick}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold border transition-all ${
-              emerald ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/15'
-                      : 'border-[var(--sep)] text-[var(--label-3)] hover:bg-[var(--bg-3)]'
-            }`}>
-            <Ic size={12}/>{label}
-          </button>
-        ))}
-        <input ref={imgRef} type="file" accept="image/*" className="hidden" onChange={e=>{if(e.target.files[0])enviarArquivo(e.target.files[0],'image');e.target.value=''}}/>
-        <input ref={vidRef} type="file" accept="video/*" className="hidden" onChange={e=>{if(e.target.files[0])enviarArquivo(e.target.files[0],'video');e.target.value=''}}/>
       </div>
     </div>
   )
 
-  // ── Modo manual: composer completo ─────────────────────────────────────────
   return (
-    <div className="border-t border-[var(--sep)] bg-[var(--bg-2)] flex-shrink-0 relative">
-
-      {catOpen && <CatOverlay telefone={telefone} api={api} onClose={()=>setCatOpen(false)}/>}
-
-      {/* Sugestão IA banner */}
-      {sugestoes.length > 0 && (
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-amber-500/15 bg-amber-500/5">
-          <Zap size={11} className="text-amber-400 flex-shrink-0"/>
-          <div className="flex-1 min-w-0">
-            <p className="text-[9px] font-bold text-amber-400 leading-none mb-0.5">Sugestão da IA</p>
-            <p className="text-[11.5px] text-[var(--label)] truncate">{typeof sugestoes[0]==='string'?sugestoes[0]:sugestoes[0]?.texto||''}</p>
-          </div>
-          <button onClick={()=>{ const s=sugestoes[0]; setTexto(typeof s==='string'?s:s?.texto||''); setSugestoes([]); inputRef.current?.focus() }}
-            className="px-3 py-1 rounded-lg border border-amber-400/30 text-amber-400 text-[10px] font-bold hover:bg-amber-400/15 transition-colors flex-shrink-0">Usar</button>
-          <button onClick={()=>setSugestoes([])} className="text-[var(--label-4)] hover:text-[var(--label-3)]"><X size={11}/></button>
+    <div style={{borderTop:'1px solid var(--sep)',background:'var(--bg-2)',flexShrink:0}}>
+      {/* Respostas rápidas */}
+      {rrOpen&&rrFiltradas.length>0&&(
+        <div style={{borderBottom:'1px solid var(--sep)',maxHeight:180,overflowY:'auto'}}>
+          {rrFiltradas.map((r,i)=><button key={i} onClick={()=>{setTexto(r.texto);setRROpen(false);inputRef.current?.focus()}}
+            style={{display:'flex',alignItems:'flex-start',gap:10,width:'100%',textAlign:'left',
+              padding:'8px 14px',background:'none',border:'none',cursor:'pointer',
+              borderBottom:'1px solid var(--sep)'}}
+            onMouseEnter={e=>e.currentTarget.style.background='var(--fill)'}
+            onMouseLeave={e=>e.currentTarget.style.background='none'}>
+            <code style={{fontSize:10,color:'var(--accent)',background:'var(--fill)',
+              padding:'1px 6px',borderRadius:4,flexShrink:0,marginTop:1}}>{r.atalho}</code>
+            <div>
+              <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:2}}>{r.titulo}</div>
+              <div style={{fontSize:11,color:'var(--label-4)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:340}}>{r.texto}</div>
+            </div>
+          </button>)}
         </div>
       )}
-
-      {/* Tabs */}
-      <div className="flex border-b border-[var(--sep)]">
-        {[{id:false,label:'Resposta pública',Ic:MessageSquare},{id:true,label:'Anotação interna',Ic:Lock}].map(a=>{
-          const on=anotacao===a.id; const Ic=a.Ic
-          const col = on ? (a.id ? 'text-amber-400 border-amber-400' : 'text-[var(--accent)] border-[var(--accent)]') : 'text-[var(--label-4)] border-transparent'
-          return (
-            <button key={String(a.id)} onClick={()=>setAnotacao(a.id)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-[11px] font-semibold border-b-2 transition-colors ${col}`}>
-              <Ic size={12}/>{a.label}
+      {/* Sugestões IA */}
+      {sugest.length>0&&(
+        <div style={{padding:'6px 12px',display:'flex',gap:6,flexWrap:'wrap',borderBottom:'1px solid var(--sep)'}}>
+          <span style={{fontSize:10,color:'var(--label-4)',alignSelf:'center',flexShrink:0,display:'flex',alignItems:'center',gap:4}}>
+            <Bot size={10} style={{color:'#a78bfa'}}/>Sugestões:
+          </span>
+          {sugest.map((s,i)=>{const txt=typeof s==='string'?s:s.mensagem||s.texto||''; return(
+            <button key={i} onClick={()=>setTexto(txt)}
+              style={{fontSize:11,padding:'3px 10px',borderRadius:99,border:'1px solid rgba(167,139,250,.3)',
+                background:'rgba(167,139,250,.08)',color:'#a78bfa',cursor:'pointer',maxWidth:200,
+                overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+              {txt.slice(0,35)}{txt.length>35?'...':''}
             </button>
-          )
-        })}
-      </div>
-
-      {/* Nota badge */}
-      {anotacao && (
-        <div className="flex items-center gap-1.5 mx-4 mt-2 px-2.5 py-1 bg-amber-500/10 border border-amber-500/25 rounded-lg text-[10px] text-amber-400 font-semibold w-fit">
-          <Lock size={9}/>Anotação interna — não enviada ao cliente
+          )})}
         </div>
       )}
-
-      {/* Emoji picker */}
-      {emojiOpen && (
-        <div className="px-4 pt-2 pb-1 border-b border-[var(--sep)] flex gap-2 flex-wrap">
-          {EMOJIS.map(e=>(
-            <button key={e} onClick={()=>{setTexto(t=>t+e);setEmojiOpen(false);inputRef.current?.focus()}}
-              className="text-lg hover:scale-125 transition-transform cursor-pointer">{e}</button>
-          ))}
+      {/* Preview imagem */}
+      {imgPrev&&(
+        <div style={{padding:'8px 12px',display:'flex',alignItems:'center',gap:10,
+          background:'var(--fill)',borderBottom:'1px solid var(--sep)'}}>
+          <img src={imgPrev.url} alt="" style={{height:48,borderRadius:6,objectFit:'cover'}}/>
+          <span style={{fontSize:11,color:'var(--label-3)',flex:1}}>{imgPrev.nome}</span>
+          <button onClick={()=>setImgPrev(null)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)'}}><X size={14}/></button>
+          <button onClick={()=>enviarImagem(imgPrev.file)} style={{
+            padding:'5px 12px',borderRadius:8,border:'none',background:'var(--accent)',
+            color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600,display:'flex',alignItems:'center',gap:5}}>
+            <Send size={12}/>Enviar
+          </button>
         </div>
       )}
-
-      {/* Textarea */}
-      <div className="px-4 pt-2 pb-1">
-        <textarea ref={inputRef} value={texto} onChange={e=>setTexto(e.target.value)}
-          onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviar()}}}
-          rows={2} placeholder={anotacao?'Anotação interna...':'Escrever mensagem...'}
-          className="w-full bg-transparent border-none outline-none text-[13px] text-[var(--label)] placeholder:text-[var(--label-4)] resize-none leading-relaxed font-sans"
-          style={{maxHeight:120,overflow:'auto'}}/>
-      </div>
-
-      {/* Toolbar */}
-      <div className="flex items-center gap-1.5 px-4 pb-3 pt-0.5">
-        <button onClick={()=>{setCatOpen(v=>!v);setEmojiOpen(false)}}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold border transition-all ${
-            catOpen?'border-emerald-500/40 text-emerald-400 bg-emerald-500/15':'border-[var(--sep)] text-[var(--label-3)] hover:bg-[var(--bg-3)]'
-          }`}><ShoppingCart size={12}/>Catálogo</button>
-
-        <label className="w-7 h-7 rounded-lg border border-[var(--sep)] flex items-center justify-center cursor-pointer text-[var(--label-3)] hover:bg-[var(--bg-3)] transition-colors" title="Enviar imagem">
-          <Image size={14}/><input ref={imgRef} type="file" accept="image/*" className="hidden" onChange={e=>{if(e.target.files[0])enviarArquivo(e.target.files[0],'image');e.target.value=''}}/>
-        </label>
-        <label className="w-7 h-7 rounded-lg border border-[var(--sep)] flex items-center justify-center cursor-pointer text-[var(--label-3)] hover:bg-[var(--bg-3)] transition-colors" title="Enviar vídeo">
-          <Video size={14}/><input ref={vidRef} type="file" accept="video/*" className="hidden" onChange={e=>{if(e.target.files[0])enviarArquivo(e.target.files[0],'video');e.target.value=''}}/>
-        </label>
-        <button className="w-7 h-7 rounded-lg border border-[var(--sep)] flex items-center justify-center text-[var(--label-3)] hover:bg-[var(--bg-3)] transition-colors" title="Áudio"><Mic size={14}/></button>
-        <button onClick={()=>{setEmojiOpen(v=>!v);setCatOpen(false)}} title="Emoji"
-          className={`w-7 h-7 rounded-lg border flex items-center justify-center transition-all ${emojiOpen?'border-amber-400/40 text-amber-400 bg-amber-400/10':'border-[var(--sep)] text-[var(--label-3)] hover:bg-[var(--bg-3)]'}`}>
-          <Smile size={14}/>
-        </button>
-        <button className="w-7 h-7 rounded-lg border border-[var(--sep)] flex items-center justify-center text-[var(--label-3)] hover:bg-[var(--bg-3)] transition-colors" title="Anexar"><Paperclip size={14}/></button>
-        <button onClick={refinarIA} disabled={!texto.trim()||refining}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-violet-500/30 text-violet-400 bg-violet-500/5 text-[10px] font-semibold hover:bg-violet-500/15 transition-colors disabled:opacity-40">
-          <Sparkles size={11} className={refining?'animate-spin':''}/>{refining?'Refinando...':nomeIA+' IA'}
-        </button>
-        <div className="flex-1"/>
-        <button onClick={()=>enviar()} disabled={!texto.trim()||enviando}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-bold transition-all ${
-            texto.trim()&&!enviando?'bg-[var(--accent)] text-white hover:opacity-90':'bg-[var(--bg-3)] text-[var(--label-4)]'
-          }`}>
-          <Send size={13}/>{enviando?'Enviando...':'Enviar'}
-        </button>
+      {/* Barra principal */}
+      <div style={{padding:'10px 12px',display:'flex',flexDirection:'column',gap:8}}>
+        {/* Toggle anotação */}
+        <div style={{display:'flex',gap:6,alignItems:'center'}}>
+          <button onClick={()=>setAnot(v=>!v)} style={{
+            display:'flex',alignItems:'center',gap:4,fontSize:10,padding:'2px 8px',borderRadius:99,
+            border:`1px solid ${anotacao?'rgba(245,158,11,.4)':'var(--sep)'}`,
+            background:anotacao?'rgba(245,158,11,.08)':'none',
+            color:anotacao?'#f59e0b':'var(--label-4)',cursor:'pointer'}}>
+            <PenLine size={9}/>Nota interna
+          </button>
+          <span style={{fontSize:10,color:'var(--label-4)'}}>· Ctrl+Enter envia · / para atalhos</span>
+        </div>
+        <div style={{display:'flex',gap:8,alignItems:'flex-end'}}>
+          <textarea value={texto} onChange={onChange} onKeyDown={onKeyDown} ref={inputRef}
+            placeholder={anotacao?'Anotação interna (não enviada ao cliente)...':'Digite a mensagem...'}
+            rows={texto.split('\n').length>2?3:2}
+            style={{flex:1,padding:'8px 12px',borderRadius:10,resize:'none',
+              border:`1px solid ${anotacao?'rgba(245,158,11,.4)':'var(--sep)'}`,
+              background:anotacao?'rgba(245,158,11,.04)':'var(--fill)',
+              color:'var(--label)',fontSize:12.5,lineHeight:1.5,fontFamily:'inherit'}}/>
+          <div style={{display:'flex',flexDirection:'column',gap:5,flexShrink:0}}>
+            {/* Enviar */}
+            <button onClick={()=>enviar()} disabled={enviando||!texto.trim()} style={{
+              width:36,height:36,borderRadius:10,border:'none',
+              background:texto.trim()?'var(--accent)':'var(--fill)',
+              color:texto.trim()?'#fff':'var(--label-4)',cursor:texto.trim()?'pointer':'not-allowed',
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <Send size={15}/>
+            </button>
+          </div>
+        </div>
+        {/* Ações extras */}
+        <div style={{display:'flex',gap:6,alignItems:'center'}}>
+          <button onClick={()=>imgRef.current?.click()} title="Enviar imagem" style={{
+            padding:'4px 8px',borderRadius:7,border:'1px solid var(--sep)',
+            background:'none',color:'var(--label-4)',cursor:'pointer',display:'flex',alignItems:'center',gap:4,fontSize:11}}>
+            <Image size={12}/>Imagem
+          </button>
+          <button onClick={refinarIA} disabled={!texto.trim()||refining} title="Refinar com IA" style={{
+            padding:'4px 8px',borderRadius:7,border:'1px solid rgba(167,139,250,.3)',
+            background:'rgba(167,139,250,.06)',color:'#a78bfa',cursor:'pointer',
+            display:'flex',alignItems:'center',gap:4,fontSize:11,
+            opacity:texto.trim()?1:0.4}}>
+            <Sparkles size={12}/>{refining?'Refinando...':'Refinar IA'}
+          </button>
+          <button onClick={onAssumirModo} style={{
+            marginLeft:'auto',padding:'4px 8px',borderRadius:7,
+            border:'1px solid rgba(239,68,68,.3)',background:'rgba(239,68,68,.06)',
+            color:'#ef4444',cursor:'pointer',display:'flex',alignItems:'center',gap:4,fontSize:11}}>
+            <Bot size={12}/>Devolver para IA
+          </button>
+          <input ref={imgRef} type="file" accept="image/*" style={{display:'none'}}
+            onChange={e=>{const f=e.target.files[0];if(f){setImgPrev({url:URL.createObjectURL(f),nome:f.name,file:f});e.target.value=''}}}/>
+        </div>
       </div>
     </div>
   )
 }
 
-// ── PainelInfo ─────────────────────────────────────────────────────────────────
-function PainelInfo({ conv, api }) {
-  const [aba,     setAba]    = useState('perfil')
+// ─── PAINEL LATERAL ────────────────────────────────────────────────────────────
+function PainelLateral({conv, api, onClose, onAbrirPedido}) {
+  const [aba,     setAba]    = useState('resumo')
   const [perfil,  setPerfil] = useState(null)
   const [pedidos, setPedidos]= useState([])
   const [loadPed, setLoadPed]= useState(false)
-  const [pedAb,   setPedAb]  = useState({})
-  const [catBusca,setCatBusca]=useState('')
+  const [ocors,   setOcors]  = useState([])
+  const [novaOc,  setNovaOc] = useState('')
+  const [savOc,   setSavOc]  = useState(false)
+  const [avals,   setAvals]  = useState([])
+  const [notas,   setNotas]  = useState([])
+  const [novaNota,setNovaNota]=useState('')
+  const [savNota, setSavNota]=useState(false)
+  const [custo,   setCusto]  = useState(null)
+  const [catQ,    setCatQ]   = useState('')
   const [catProds,setCatProds]=useState([])
-  const [catLoad, setCatLoad] = useState(false)
-  const [errPerfil, setErrPerfil] = useState(false)
+  const [catLoad, setCatLoad]=useState(false)
+  const [catEnv,  setCatEnv] = useState(null)
 
-  useEffect(()=>{
-    if (!conv?.telefone) return
-    let m=true; setPerfil(null); setPedidos([]); setErrPerfil(false)
-
-    // 1. Carrinho + modo via /historico (igual PageAtendimento, sem depender do Bling)
-    fetch(`${api}/api/dashboard/historico/${conv.telefone}?limit=1`)
-      .then(r=>r.ok?r.json():null)
-      .then(d=>{ if(m && d) setPerfil(prev=>({...(prev||{}), carrinho: d.carrinho||[], modo: d.modo||'ia'})) })
-      .catch(()=>{})
-
-    // 2. Pedidos via /financeiro filtrado por nome/tel (igual PageAtendimento, sem Bling direto)
-    setLoadPed(true)
-    fetch(`${api}/api/dashboard/financeiro`)
-      .then(r=>r.ok?r.json():null)
-      .then(d=>{
-        if(!m || !d) return
-        const nome = (conv.nome||'').toLowerCase()
-        const tel  = (conv.telefone||'').replace(/\D/g,'').slice(-8)
-        const peds = (d.pedidos_recentes||[]).filter(p=>{
-          const cn = (p.contato||'').toLowerCase()
-          return (nome && nome.split(' ')[0].length>2 && cn.includes(nome.split(' ')[0])) || cn.includes(tel)
-        })
-        setPedidos(peds.slice(0,8))
-      })
-      .catch(()=>{}).finally(()=>{ if(m) setLoadPed(false) })
-
-    // 3. Dados cadastrais do Bling (enriquece quando token disponível)
-    fetch(`${api}/api/contatos/${conv.telefone}`)
-      .then(r=>r.ok?r.json():null)
-      .then(d=>{ if(m && d && (d.cpf||d.email||d.cidade)) setPerfil(prev=>({...(prev||{}), ...Object.fromEntries(Object.entries(d).filter(([,v])=>v!=null))})) })
-      .catch(()=>{})
-
-    return ()=>{m=false}
-  }, [conv?.telefone, api])
-
-  const buscarCat = async () => {
-    if (!catBusca.trim()) return
-    setCatLoad(true); setCatProds([])
-    try {
-      const r = await fetch(`${api}/api/dashboard/catalogo?q=${encodeURIComponent(catBusca)}`)
-      if (r.ok) { const d=await r.json(); setCatProds(d.produtos||[]) }
-    } catch {}
-    setCatLoad(false)
-  }
-
-  const enviarProd = async p => {
-    if (!conv?.telefone) return
-    const n    = parseFloat(p.preco||p.precoVenda||0)
-    const nome = p.nome||p.descricao||'Produto'
-    const vars = {
-      nome_produto:      nome,
-      preco_cartao:      fmtR(n),
-      preco_pix:         fmtR(n*.9),
-      foto_produto:      (Array.isArray(p.imagens)?p.imagens[0]:p.imagens)||'',
-      descricao_produto:       p.descricao||p.descricao_curta||'',
-      descricao_complementar:  p.descricaoComp||p.descricao_complementar||'',
-      codigo_produto:          p.sku||p.codigo||'',
-    }
-    try {
-      // 1. Tenta disparar via template editável (Gatilhos → Produto do Catálogo)
-      const rTmpl = await fetch(`${api}/api/templates/disparar-gatilho`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ gatilho:'catalogo_produto', telefone:conv.telefone, variaveis:vars })
-      })
-      const dTmpl = await rTmpl.json()
-      if (dTmpl.ok) {
-        // Salva produto no ctx da IA para que botões funcionem
-        await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({ telefone:conv.telefone, mensagem:'_ctx_only_', produto_ctx:{
-            bling_id:p.bling_id, nome, preco:n, pix:n*.9,
-            unidade:p.unidade||'UN', codigo:p.sku||p.codigo||'',
-            descricao:vars.descricao_produto,
-          }})
-        }).catch(()=>{})
-        return
-      }
-
-      // 2. Fallback: envia mensagem interativa com botões hardcoded
-      const bodyRaw = `✨ *${nome}*\n\n💳 Cartão: *${fmtR(n)}* | 💰 PIX: *${fmtR(n*.9)}*${vars.descricao_produto ? '\n\n'+vars.descricao_produto.slice(0,200) : ''}\n\nEscolha uma opção 👇`
-      const bodyText = bodyRaw.slice(0, 1000) || `${nome} disponível. Escolha uma opção 👇`
-      const interactive = {
-        type:'button',
-        body:{ text: bodyText },
-        action:{ buttons:[
-          { type:'reply', reply:{ id:'btn_carrinho', title:'Adicionar carrinho' } },
-          { type:'reply', reply:{ id:'btn_foto',     title:'Ver foto'              } },
-          { type:'reply', reply:{ id:'btn_duvidas',  title:'Tirar dúvida'          } },
-        ]},
-      }
-      if (vars.foto_produto) {
-        interactive.header = { type:'image', image:{ link: vars.foto_produto } }
-      }
-      interactive.footer = { text:'Só Strass — Atendimento ao Cliente' }
-      await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ telefone:conv.telefone, interactive, produto_ctx:{
-          bling_id:p.bling_id, nome, preco:n, pix:n*.9,
-          unidade:p.unidade||'UN', codigo:p.sku||p.codigo||'',
-          descricao:vars.descricao_produto,
-        }})
-      })
-    } catch {}
-  }
-
-  const avisarQuandoChegar = async p => {
-    if (!conv?.telefone) return
-    try {
-      // Registra na lista "Avise-me" do backend
-      await fetch(`${api}/api/avise-me`,{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ telefone:conv.telefone, produto_nome:p.nome||p.descricao, bling_id:p.bling_id||p.id })
-      })
-      // Informa o cliente via WhatsApp
-      const msg = `⏰ *Produto cadastrado na lista de espera!*\n\n*${p.nome||p.descricao}*\n\nAssim que este produto chegar ao estoque, você será avisado automaticamente. 😊\n\n_Só Strass — Atendimento ao Cliente_`
-      await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone:conv.telefone,mensagem:msg})})
-    } catch {}
-  }
-
-  const totalGasto = useMemo(()=>{
-    if (!pedidos.length) return null
-    const t=pedidos.reduce((a,p)=>a+parseFloat(p.total||p.valor||0),0)
-    return t>0 ? fmtR(t) : null
-  }, [pedidos])
-
-  if (!conv) return <div className="w-56 flex-shrink-0 border-l border-[var(--sep)] bg-[var(--bg-2)]"/>
-
-  // Mescla dados do conv (sempre disponíveis) com dados do perfil (Bling, quando carregado)
-  // Mescla: dados do conv sempre disponíveis, perfil do Bling enriquece (ignora nulls)
-  const dadosPerfil = {
-    nome:     conv.nome,
-    telefone: conv.telefone,
-    // Só sobrescreve com dados do Bling se não forem null/undefined
-    ...(perfil ? Object.fromEntries(Object.entries(perfil).filter(([,v])=>v!=null)) : {})
-  }
-  const carrinh = dadosPerfil.carrinho || []
-  const totalCarr = carrinh.reduce((s,i)=>s+(parseFloat(i.preco||0)*parseInt(i.quantidade||1)),0)
-  const fmtR2 = n=>`R$ ${Number(n||0).toFixed(2).replace('.',',')}`
-
-  const campoPerfil = [
-    {l:'Nome',        v:dadosPerfil.nome},
-    {l:'Telefone',    v:fmtTel(dadosPerfil.telefone)},
-    {l:'CPF/CNPJ',    v:dadosPerfil.cpf||dadosPerfil.cnpj},
-    {l:'E-mail',      v:dadosPerfil.email},
-    {l:'Endereço',    v:[dadosPerfil.logradouro,dadosPerfil.numero].filter(Boolean).join(', ')||null},
-    {l:'Complemento', v:dadosPerfil.complemento},
-    {l:'Bairro',      v:dadosPerfil.bairro},
-    {l:'Cidade/UF',   v:[dadosPerfil.cidade,dadosPerfil.uf].filter(Boolean).join(' · ')||null},
-    {l:'CEP',         v:dadosPerfil.cep},
-    {l:'Total gasto', v:totalGasto, accent:true},
-  ].filter(c=>c.v)
-
-  const sitCls = s => ({Aberto:'text-amber-400 bg-amber-400/10',Atendido:'text-emerald-400 bg-emerald-400/10',Verificado:'text-emerald-400 bg-emerald-400/10',Faturado:'text-blue-400 bg-blue-400/10',Cancelado:'text-red-400 bg-red-400/10',Entregue:'text-emerald-400 bg-emerald-400/10'}[s]||'text-slate-400 bg-slate-400/10')
-
-  // Ações rápidas — com navegação real
-  const acoesRapidas = [
-    {
-      l:'Abrir ocorrência', ic:AlertTriangle,
-      action:()=>{
-        if (onNavigate) {
-          onNavigate('ocorrencias', { novaOcorrencia: true, tel: conv.telefone, nome: conv.nome })
-        } else {
-          // fallback: CustomEvent para o Shell
-          window.dispatchEvent(new CustomEvent('bia:navigate', { detail:{ page:'ocorrencias', tel:conv.telefone } }))
-        }
-      }
-    },
-    { l:'Ver catálogo', ic:ShoppingCart, action:()=>setAba('catalogo') },
-    {
-      l:'Ver rastreio', ic:Truck,
-      action:()=>{
-        const ped = pedidos[0]
-        const cod = ped?.rastreio && ped.rastreio!=='—' ? ped.rastreio : ''
-        const url = cod
-          ? `https://www.linketrack.com/trace/busca?user=linketrack&token=1abcd&codigo=${cod}`
-          : 'https://www.linketrack.com'
-        window.open(url, '_blank')
-      }
-    },
-    {
-      l:'Enviar CSAT', ic:Star,
-      action:async ()=>{
-        if (!conv?.telefone) return
-        try {
-          // Busca a ocorrência mais recente deste telefone e dispara CSAT
-          const r = await fetch(`${api}/api/ocorrencias?telefone=${conv.telefone}&limit=1`)
-          if (r.ok) {
-            const d = await r.json()
-            const oc = (d.ocorrencias||[])[0]
-            if (oc) {
-              const rc = await fetch(`${api}/api/ocorrencias/${oc.id}/csat`, { method:'POST' })
-              if (rc.ok) alert('✅ Pesquisa CSAT enviada para ' + (conv.nome||conv.telefone))
-              else alert('⚠️ Abra uma ocorrência primeiro para enviar o CSAT.')
-            } else {
-              alert('⚠️ Nenhuma ocorrência encontrada. Abra um chamado primeiro.')
-            }
-          }
-        } catch { alert('Erro ao enviar CSAT') }
-      }
-    },
-  ]
-
-  return (
-    <div className="w-56 flex-shrink-0 flex flex-col overflow-hidden border-l border-[var(--sep)] bg-[var(--bg-2)]">
-      {/* Mini header */}
-      <div className="px-3 py-2.5 border-b border-[var(--sep)] flex items-center gap-2 flex-shrink-0">
-        <Av nome={conv.nome||conv.telefone} foto={conv.foto_url||conv.fotoUrl} size={30}/>
-        <div className="flex-1 min-w-0">
-          <p className="text-[12px] font-semibold text-[var(--label)] truncate">{conv.nome||fmtTel(conv.telefone)}</p>
-          <p className="text-[9px] text-[var(--label-4)]">{fmtTel(conv.telefone)}</p>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex border-b border-[var(--sep)] flex-shrink-0">
-        {[['perfil','Perfil'],['pedidos','Pedidos'],['catalogo','Catálogo']].map(([id,lbl])=>(
-          <button key={id} onClick={()=>setAba(id)}
-            className={`flex-1 py-2 text-[10px] font-semibold border-b-2 transition-colors ${
-              aba===id?'text-[var(--accent)] border-[var(--accent)]':'text-[var(--label-4)] border-transparent hover:text-[var(--label-3)]'
-            }`}>{lbl}</button>
-        ))}
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
-
-        {/* ── PERFIL ── */}
-        {aba==='perfil' && (
-          <div className="px-3 py-3 space-y-3">
-
-            {/* ── Card avatar + nome + telefone ── */}
-            <div className="rounded-xl border border-[var(--sep)] bg-[var(--bg)] p-3 text-center">
-              <Av nome={conv.nome||conv.telefone} foto={conv.foto_url||conv.fotoUrl} size={36} className="mx-auto mb-2"/>
-              <p className="text-[13px] font-semibold text-[var(--label)] mb-0.5">{dadosPerfil.nome||fmtTel(conv.telefone)}</p>
-              <p className="text-[11px] text-[var(--label-4)]">{fmtTel(dadosPerfil.telefone||conv.telefone)}</p>
-            </div>
-
-            {/* ── Carrinho ativo ── */}
-            {carrinh.length>0 && (
-              <div className="rounded-xl border border-amber-400/25 bg-amber-400/8 p-3">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--label-4)] mb-2">Carrinho ({carrinh.length})</p>
-                {carrinh.map((item,i)=>(
-                  <div key={i} className="flex justify-between text-[11px] py-1 border-b border-[var(--sep)] last:border-0">
-                    <span className="flex-1 truncate text-[var(--label-3)] mr-2">{item.quantidade}× {(item.nome||'').slice(0,20)}</span>
-                    <span className="flex-shrink-0 font-medium text-amber-400">{fmtR2(parseFloat(item.preco||0)*item.quantidade)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between text-[12px] font-semibold text-[var(--label)] mt-2 pt-1.5 border-t border-[var(--sep)]">
-                  <span>Total</span><span className="text-amber-400">{fmtR2(totalCarr)}</span>
-                </div>
-              </div>
-            )}
-
-            {/* ── Dados do cliente ── */}
-            <div>
-              <p className="text-[8px] font-bold uppercase tracking-widest text-[var(--label-4)] mb-1.5">Dados do cliente</p>
-              {errPerfil ? (
-                <div className="flex items-center gap-1.5 text-[10px] text-[var(--label-4)] py-2">
-                  <AlertTriangle size={11}/> Não encontrado no Bling
-                </div>
-              ) : !perfil ? (
-                <div className="flex items-center gap-1.5 text-[10px] text-[var(--label-4)] py-2">
-                  <RefreshCw size={10} className="animate-spin"/> Carregando...
-                </div>
-              ) : campoPerfil.length===0 ? (
-                <p className="text-[10px] text-[var(--label-4)]">Sem dados cadastrados</p>
-              ) : (
-                <div className="space-y-0">
-                  {campoPerfil.map(({l,v,accent})=>(
-                    <div key={l} className="flex justify-between gap-1 py-1 border-b border-[var(--sep)] last:border-0">
-                      <span className="text-[9px] text-[var(--label-4)] whitespace-nowrap flex-shrink-0">{l}</span>
-                      <span className={`text-[10px] font-medium text-right break-all leading-snug ${accent?'text-emerald-400':'text-[var(--label)]'}`}>{v}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Banner carrinho ativo — igual PageAtendimento */}
-            {carrinh.length>0 && (
-              <div style={{marginTop:8,padding:'8px 10px',borderRadius:8,background:'rgba(239,159,39,0.08)',border:'1px solid rgba(239,159,39,0.2)'}}>
-                <div style={{fontSize:10,fontWeight:700,color:'#EF9F27',marginBottom:4}}>
-                  🛒 {carrinh.length} item{carrinh.length>1?'s':''} no carrinho · {fmtR2(totalCarr)}
-                </div>
-                {carrinh.slice(0,3).map((item,i)=>(
-                  <div key={i} style={{fontSize:10,color:'var(--label-3)',display:'flex',justifyContent:'space-between'}}>
-                    <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1,marginRight:4}}>{item.quantidade}× {(item.nome||'').slice(0,22)}</span>
-                    <span style={{flexShrink:0,color:'#EF9F27',fontWeight:500}}>{fmtR2(parseFloat(item.preco||0)*item.quantidade)}</span>
-                  </div>
-                ))}
-                {carrinh.length>3 && <div style={{fontSize:9,color:'var(--label-4)',marginTop:2}}>+{carrinh.length-3} item(s)...</div>}
-              </div>
-            )}
-
-            {/* Pedido recente */}
-            {pedidos.length>0 && (
-              <div>
-                <p className="text-[8px] font-bold uppercase tracking-widest text-[var(--label-4)] mb-1.5">Pedido recente</p>
-                {(()=>{const p=pedidos[0];const sit=mapSit(p.situacao);return(
-                  <div className="border border-[var(--sep)] rounded-lg overflow-hidden">
-                    <div className="flex items-center justify-between px-2 py-1.5 bg-[var(--bg-3)]">
-                      <span className="text-[11px] font-bold text-[var(--label)]">#{p.numero||p.id}</span>
-                      <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${sitCls(sit)}`}>{sit}</span>
-                    </div>
-                    {p.rastreio&&p.rastreio!=='—'&&(
-                      <div className="px-2 py-1 flex items-center gap-1 text-[9px] text-blue-400 font-medium bg-blue-400/5 border-b border-[var(--sep)]">
-                        <Truck size={8}/>{p.rastreio}
-                      </div>
-                    )}
-                    <div className="flex justify-between px-2 py-1.5 text-[10px]">
-                      <span className="text-[var(--label-4)]">{p.data||'—'}</span>
-                      <span className="font-bold text-[var(--label)]">{fmtR(p.total||p.valor)}</span>
-                    </div>
-                  </div>
-                )})()}
-              </div>
-            )}
-
-            {/* Ações rápidas — interativas */}
-            <div>
-              <p className="text-[8px] font-bold uppercase tracking-widest text-[var(--label-4)] mb-1.5">Ações rápidas</p>
-              <div className="grid grid-cols-2 gap-1">
-                {acoesRapidas.map(({l,ic:Ic,action})=>(
-                  <button key={l} onClick={action}
-                    className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[9px] font-semibold border border-[var(--sep)] text-[var(--label-3)] hover:bg-[var(--bg-3)] hover:text-[var(--label)] hover:border-[var(--sep2)] transition-all cursor-pointer text-left active:scale-95">
-                    <Ic size={10} className="flex-shrink-0"/>{l}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── PEDIDOS ── */}
-        {aba==='pedidos' && (
-          <div className="px-3 py-3">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[8px] font-bold uppercase tracking-widest text-[var(--label-4)]">Pedidos</p>
-              {totalGasto && <span className="text-[9px] font-bold text-emerald-400">{totalGasto}</span>}
-            </div>
-            {loadPed ? (
-              <div className="flex justify-center py-6"><RefreshCw size={14} className="animate-spin text-[var(--label-4)]"/></div>
-            ) : pedidos.length===0 ? (
-              <p className="text-[10px] text-[var(--label-4)] text-center py-6">Nenhum pedido encontrado</p>
-            ) : pedidos.map((p,i)=>{
-              const sit=mapSit(p.situacao); const open=pedAb[i]
-              return (
-                <div key={i} className="border border-[var(--sep)] rounded-lg overflow-hidden mb-2">
-                  <div className="flex items-center justify-between px-2.5 py-2 bg-[var(--bg-3)] cursor-pointer hover:bg-[var(--bg-4)] transition-colors"
-                    onClick={()=>setPedAb(v=>({...v,[i]:!v[i]}))}>
-                    <div>
-                      <span className="text-[11px] font-bold text-[var(--label)]">#{p.numero||p.id}</span>
-                      <span className="text-[9px] text-[var(--label-4)] ml-1.5">{p.data||'—'}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {sit==='Verificado'&&<span className="text-[8px] font-bold text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-full">✓</span>}
-                      <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${sitCls(sit)}`}>{sit}</span>
-                      {open?<ChevronUp size={10} className="text-[var(--label-4)]"/>:<ChevronDown size={10} className="text-[var(--label-4)]"/>}
-                    </div>
-                  </div>
-                  {open&&(
-                    <div className="px-2.5 pb-2 pt-1.5 border-t border-[var(--sep)]">
-                      {p.rastreio&&p.rastreio!=='—'&&<div className="text-[9px] text-blue-400 flex items-center gap-1 mb-1 font-medium"><Truck size={9}/>{p.rastreio}</div>}
-                      {(p.itens||[]).map((it,j)=>(
-                        <div key={j} className="flex justify-between text-[9px] py-0.5 border-b border-[var(--sep)] last:border-0">
-                          <span className="text-[var(--label-3)] truncate flex-1">{it.nome||it.descricao}</span>
-                          <span className="text-[var(--label-4)] ml-1 flex-shrink-0">{it.quantidade}x</span>
-                        </div>
-                      ))}
-                      <div className="flex justify-between text-[10px] font-bold mt-1.5 pt-1 border-t border-[var(--sep)]">
-                        <span className="text-[var(--label-4)]">Total</span>
-                        <span className="text-[var(--label)]">{fmtR(p.total||p.valor)}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        {/* ── CATÁLOGO ── */}
-        {aba==='catalogo' && (
-          <div className="px-3 py-3">
-            <p className="text-[8px] font-bold uppercase tracking-widest text-[var(--label-4)] mb-2">Enviar produto</p>
-            <div className="flex gap-1.5 mb-3">
-              <div className="flex-1 flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-[var(--sep)] bg-[var(--bg-3)]">
-                <Search size={11} className="text-[var(--label-4)] flex-shrink-0"/>
-                <input value={catBusca} onChange={e=>setCatBusca(e.target.value)} onKeyDown={e=>e.key==='Enter'&&buscarCat()}
-                  placeholder="Buscar produto..." className="flex-1 bg-transparent border-none outline-none text-[11px] text-[var(--label)] placeholder:text-[var(--label-4)]"/>
-              </div>
-              <button onClick={buscarCat} className="px-2.5 py-1.5 rounded-lg bg-[var(--accent)] text-white text-[10px] font-bold flex-shrink-0 hover:opacity-90 transition-opacity">
-                {catLoad?<RefreshCw size={10} className="animate-spin"/>:'OK'}
-              </button>
-            </div>
-            {catProds.map((p,i)=>{
-              const estoque = parseInt(p.estoque||0)
-              const disp    = estoque > 0 || (p.disponivel === true && p.estoque === undefined)
-              return (
-                <div key={i} className="border border-[var(--sep)] rounded-lg overflow-hidden mb-2">
-                  <div className="px-2.5 py-2 bg-[var(--bg-3)]">
-                    <p className="text-[11px] font-medium text-[var(--label)] truncate">{p.nome||p.descricao}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <p className="text-[10px] font-bold text-emerald-400">{fmtR(p.preco||p.precoVenda||0)}</p>
-                      <span className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full ${disp?'text-emerald-400 bg-emerald-400/10':'text-red-400 bg-red-400/10'}`}>
-                        {disp ? (p.estoque!==undefined ? `✓ Est: ${estoque}` : '✓ Disponível') : '✗ Sem estoque'}
-                      </span>
-                    </div>
-                  </div>
-                  {disp
-                    ? <button onClick={()=>enviarProd(p)} className="w-full py-1.5 bg-[var(--accent)] text-white text-[10px] font-bold hover:opacity-90 transition-opacity">Enviar ao cliente</button>
-                    : <button onClick={()=>avisarQuandoChegar(p)} className="w-full py-1.5 bg-amber-500/15 text-amber-400 text-[10px] font-bold hover:bg-amber-500/25 transition-colors border-t border-amber-500/20 flex items-center justify-center gap-1">
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v4l2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><circle cx="5" cy="5" r="4.2" stroke="currentColor" strokeWidth="1.3"/></svg>
-                        Avise-me quando chegar
-                      </button>
-                  }
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ── ChatArea ──────────────────────────────────────────────────────────────────
-function ChatArea({ conv, api, statusAtend, onStatusChange, modoManual, onToggleModo, nomeIA, listMode, onToggleList }) {
-  const [msgs,          setMsgs]         = useState([])
-  const [loading,       setLoading]      = useState(true)
-  const [hasMore,       setHasMore]      = useState(false)
-  const [offset,        setOffset]       = useState(0)
-  const [mostrarGatilho,setMostrarGat]   = useState(false)
-  const bottomRef  = useRef(null)
-  const fetching   = useRef(false)
-  const pollingRef = useRef(null)
   const tel = conv?.telefone
-
-  const carregar = useCallback(async (off=0, sil=false) => {
-    if (!tel||fetching.current) return
-    fetching.current=true
-    if (!sil) setLoading(true)
-    try {
-      const r = await fetch(`${api}/api/dashboard/historico/${tel}?limit=60&offset=${off}`)
-      if (r.ok) {
-        const d=await r.json(); const novas=d.mensagens||[]
-        if (off===0) setMsgs(novas); else setMsgs(p=>[...novas,...p])
-        setHasMore(d.hasMore||false)
-        setOffset(off===0?novas.length:off+novas.length)
-      }
-    } catch {}
-    fetching.current=false; setLoading(false)
-  }, [tel, api])
 
   useEffect(()=>{
     if (!tel) return
-    setMsgs([]); setOffset(0); setLoading(true); setHasMore(false)
-    carregar(0)
-    pollingRef.current = setInterval(()=>{ if(document.visibilityState!=='hidden') carregar(0,true) }, 4000)
-    return ()=>clearInterval(pollingRef.current)
-  }, [tel, carregar])
+    let m=true
+    // Perfil + sessão
+    fetch(`${api}/api/dashboard/historico/${tel}?limit=1`)
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{if(m&&d)setPerfil(p=>({...(p||{}),carrinho:d.carrinho||[],modo:d.modo||'ia'}))})
+      .catch(()=>{})
+    // Dados do Bling
+    fetch(`${api}/api/contatos/${tel}`)
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{if(m&&d)setPerfil(p=>({...(p||{}), ...Object.fromEntries(Object.entries(d).filter(([,v])=>v!=null))}))})
+      .catch(()=>{})
+    // Custo IA
+    fetch(`${api}/api/ia-custo/${tel.replace(/\D/g,'')}`)
+      .then(r=>r.ok?r.json():null).then(d=>{if(m)setCusto(d)}).catch(()=>{})
+    // Pedidos
+    setLoadPed(true)
+    fetch(`${api}/api/contatos/${tel}/pedidos`)
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{if(m)setPedidos(d?.pedidos||d||[])})
+      .catch(()=>{}).finally(()=>{if(m)setLoadPed(false)})
+    // Ocorrências
+    fetch(`${api}/api/ocorrencias?telefone=${tel.replace(/\D/g,'')}`)
+      .then(r=>r.ok?r.json():null).then(d=>{if(m)setOcors(d?.ocorrencias||[])}).catch(()=>{})
+    // Avaliações
+    fetch(`${api}/api/inteligencia/avaliacoes?telefone=${tel.replace(/\D/g,'')}`)
+      .then(r=>r.ok?r.json():null).then(d=>{if(m)setAvals(d?.avaliacoes||[])}).catch(()=>{})
+    // Notas internas
+    fetch(`${api}/api/notas-internas/${tel.replace(/\D/g,'')}`)
+      .then(r=>r.ok?r.json():null).then(d=>{if(m)setNotas(d?.notas||[])}).catch(()=>{})
+    return()=>{m=false}
+  },[tel, api])
 
-  useEffect(()=>{ if(msgs.length>0) bottomRef.current?.scrollIntoView({behavior:'smooth'}) }, [msgs.length])
-
-  const resetarSessao = async () => {
-    if (!confirm(`Resetar sessão de ${conv.nome||fmtTel(tel)}? O carrinho será limpo.`)) return
-    try {
-      await fetch(`${api}/api/dashboard/resetar-sessao`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone:tel})})
-      carregar(0)
-    } catch {}
+  const criarOc = async() => {
+    if (!novaOc.trim()) return
+    setSavOc(true)
+    await fetch(`${api}/api/ocorrencias`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({telefone:tel,tipo:'suporte',descricao:novaOc})
+    }).catch(()=>{})
+    setNovaOc(''); setSavOc(false)
+    fetch(`${api}/api/ocorrencias?telefone=${tel.replace(/\D/g,'')}`)
+      .then(r=>r.ok?r.json():null).then(d=>setOcors(d?.ocorrencias||[])).catch(()=>{})
   }
 
-  const grouped = useMemo(()=>{
-    if (!msgs.length) return []
-    const out=[]; let lastDay=null
-    msgs.forEach(m=>{
-      const day=m.criado_em?new Date(m.criado_em).toDateString():null
-      if(day&&day!==lastDay){out.push({type:'sep',ts:m.criado_em});lastDay=day}
-      out.push({type:'msg',msg:m})
-    })
-    return out
-  }, [msgs])
+  const criarNota = async() => {
+    if (!novaNota.trim()) return
+    setSavNota(true)
+    await fetch(`${api}/api/notas-internas/${tel.replace(/\D/g,'')}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({conteudo:novaNota})
+    }).catch(()=>{})
+    setNovaNota(''); setSavNota(false)
+    fetch(`${api}/api/notas-internas/${tel.replace(/\D/g,'')}`)
+      .then(r=>r.ok?r.json():null).then(d=>setNotas(d?.notas||[])).catch(()=>{})
+  }
 
-  // Conta gatilhos nas mensagens visíveis
-  const nGatilhos = useMemo(()=>msgs.filter(m=>m.modo==='transacional').length, [msgs])
+  const buscarCatalogo = async() => {
+    if (!catQ.trim()) return
+    setCatLoad(true); setCatProds([])
+    fetch(`${api}/api/dashboard/catalogo?q=${encodeURIComponent(catQ)}`)
+      .then(r=>r.ok?r.json():null).then(d=>setCatProds(d?.produtos||[])).catch(()=>{})
+      .finally(()=>setCatLoad(false))
+  }
 
-  if (!conv) return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-[var(--bg)]">
-      <MessageSquare size={32} className="text-[var(--label-4)] opacity-20"/>
-      <p className="text-[13px] text-[var(--label-4)]">Selecione uma conversa</p>
+  const enviarProduto = async(p) => {
+    if (!tel) return
+    setCatEnv(p.id||p.bling_id)
+    const nome=p.nome||p.descricao||'Produto'
+    const n=parseFloat(p.preco||p.precoVenda||0)
+    const msg=`*${nome}*\n\nPIX: ${fmtR(n*.9)} _(10% off)_\nCartão: ${fmtR(n)}`
+    await fetch(`${api}/api/dashboard/mensagem`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({telefone:tel,mensagem:msg})
+    }).catch(()=>{})
+    setTimeout(()=>setCatEnv(null),2000)
+  }
+
+  const ABAS = [
+    {id:'resumo',     label:'Resumo',     Icon:Info},
+    {id:'pedidos',    label:'Pedidos',    Icon:Package},
+    {id:'catalogo',   label:'Catálogo',   Icon:Tag},
+    {id:'ocorrencias',label:'Ocorrências',Icon:AlertCircle},
+    {id:'avaliacoes', label:'Avaliações', Icon:Star},
+    {id:'notas',      label:'Notas',      Icon:PenLine},
+  ]
+  const ocAbertos = ocors.filter(o=>o.status!=='resolvido').length
+  const mediaAval = avals.length ? (avals.reduce((s,a)=>s+a.estrelas,0)/avals.length).toFixed(1) : null
+  const cart = perfil?.carrinho||[]
+  const ltvTotal = pedidos.reduce((s,p)=>s+parseFloat(p.total||0),0)
+
+  return <div style={{width:300,flexShrink:0,display:'flex',flexDirection:'column',
+    borderLeft:'1px solid var(--sep)',background:'var(--bg-2)',overflow:'hidden'}}>
+    {/* Header painel */}
+    <div style={{padding:'10px 14px',borderBottom:'1px solid var(--sep)',
+      display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+      <span style={{fontSize:12,fontWeight:700,color:'var(--label)',display:'flex',alignItems:'center',gap:6}}>
+        <Av nome={conv?.nome||conv?.telefone} foto={conv?.foto_url} size={22}/>
+        <div style={{minWidth:0}}>
+          <div style={{fontSize:11.5,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>{conv?.nome||fmtTel(conv?.telefone)}</div>
+          <div style={{fontSize:9.5,color:'var(--label-4)'}}>{fmtTel(conv?.telefone)}</div>
+        </div>
+      </span>
+      <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:2}}><X size={14}/></button>
     </div>
-  )
 
-  return (
-    <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+    {/* Abas */}
+    <div style={{display:'flex',borderBottom:'1px solid var(--sep)',overflowX:'auto',flexShrink:0}}>
+      {ABAS.map(t=>{const Ic=t.Icon;const active=aba===t.id; return(
+        <button key={t.id} onClick={()=>setAba(t.id)} title={t.label} style={{
+          display:'flex',alignItems:'center',gap:4,padding:'7px 10px',border:'none',
+          background:'none',cursor:'pointer',fontSize:10,fontWeight:active?700:400,
+          color:active?'var(--accent)':'var(--label-4)',whiteSpace:'nowrap',
+          borderBottom:active?'2px solid var(--accent)':'2px solid transparent',
+          position:'relative'}}>
+          <Ic size={11}/>{t.label}
+          {t.id==='ocorrencias'&&ocAbertos>0&&<span style={{position:'absolute',top:4,right:2,
+            width:8,height:8,borderRadius:'50%',background:'#ef4444'}}/>}
+          {t.id==='avaliacoes'&&mediaAval&&<span style={{fontSize:8,color:'#f59e0b',marginLeft:2}}>{mediaAval}</span>}
+        </button>
+      )})}
+    </div>
 
-      {/* ── Header ── */}
-      <div className="flex items-center gap-3 px-4 h-14 border-b border-[var(--sep)] bg-[var(--bg-2)] flex-shrink-0">
+    {/* Conteúdo */}
+    <div style={{flex:1,overflowY:'auto',padding:'12px 14px'}}>
 
-        <Av nome={conv.nome||tel} foto={conv.foto_url||conv.fotoUrl} size={30}/>
-        <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-[var(--label)] leading-none mb-0.5 truncate" style={{maxWidth:200}}>{conv.nome||fmtTel(tel)}</p>
-          <p className="text-[10px] text-[var(--label-4)]">{fmtTel(tel)} · {conv.total_msgs||0} msgs</p>
-        </div>
-
-        {/* Gatilhos toggle */}
-        {nGatilhos > 0 && (
-          <button onClick={()=>setMostrarGat(v=>!v)}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[9px] font-semibold border transition-all ${
-              mostrarGatilho?'border-violet-400/40 text-violet-400 bg-violet-400/10':'border-[var(--sep)] text-[var(--label-4)] hover:bg-[var(--bg-3)]'
-            }`}>
-            <Zap size={10}/>{mostrarGatilho?'Ocultar':'Gatilhos'} ({nGatilhos})
-          </button>
-        )}
-
-        <div className="flex items-center gap-2 ml-auto">
-          <StatusDropdown
-            statusAtend={statusAtend}
-            modoManual={modoManual}
-            onStatusChange={onStatusChange}
-            onToggleModo={onToggleModo}
-            onReset={resetarSessao}
-            nomeIA={nomeIA}/>
-          <button onClick={()=>carregar(0)} title="Atualizar"
-            className="w-8 h-8 rounded-lg border border-[var(--sep)] flex items-center justify-center text-[var(--label-4)] hover:bg-[var(--bg-3)] transition-colors">
-            <RefreshCw size={13}/>
-          </button>
-        </div>
-      </div>
-
-      {/* ── Banner carrinho ativo — igual PageAtendimento ── */}
-      {parseInt(conv.itens_carrinho||0)>0 && (
-        <div className="flex items-center gap-2 px-4 py-2 bg-amber-400/8 border-b border-amber-400/20 flex-shrink-0">
-          <span className="text-amber-400 text-[11px] font-semibold">🛒 {conv.itens_carrinho} item{parseInt(conv.itens_carrinho)>1?'s':''} no carrinho</span>
-          <span className="text-[var(--label-4)] text-[10px]">· cliente realizando pedido</span>
-        </div>
-      )}
-
-      {/* ── Mensagens ── */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 bg-[var(--bg)]">
-        {hasMore && (
-          <div className="text-center mb-4">
-            <button onClick={()=>carregar(offset)}
-              className="px-4 py-1.5 rounded-full text-[10px] font-semibold border border-[var(--sep)] text-[var(--label-4)] hover:bg-[var(--bg-3)] transition-colors">
-              <History size={10} className="inline mr-1"/>Carregar anteriores
-            </button>
+      {/* RESUMO */}
+      {aba==='resumo'&&<div style={{display:'flex',flexDirection:'column',gap:10}}>
+        {/* Dados do cliente */}
+        {[
+          ['Tel',   conv?.telefone ? fmtTel(conv.telefone) : null, Phone],
+          ['Email', perfil?.email, Mail],
+          ['CPF',   perfil?.cpf||perfil?.cpfCnpj, Hash],
+          ['Cidade',perfil?.cidade, MapPin],
+        ].filter(([,v])=>v).map(([k,v,Ic])=>(
+          <div key={k} style={{display:'flex',alignItems:'center',gap:8,fontSize:11.5}}>
+            <Ic size={11} style={{color:'var(--label-4)',flexShrink:0}}/>
+            <span style={{color:'var(--label-4)',width:36,flexShrink:0}}>{k}:</span>
+            <span style={{color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{v}</span>
           </div>
-        )}
-        {loading&&msgs.length===0 ? (
-          <div className="flex justify-center pt-12"><RefreshCw size={16} className="animate-spin text-[var(--label-4)]"/></div>
-        ) : grouped.map((item,i)=>(
-          item.type==='sep'
-            ? <DateSep key={`sep-${i}`} ts={item.ts}/>
-            : <Bolha key={item.msg.id||i} msg={item.msg} nomeIA={nomeIA} mostrarGatilho={mostrarGatilho}/>
         ))}
-        <div ref={bottomRef}/>
-      </div>
+        {/* LTV */}
+        {pedidos.length>0&&<div style={{background:'var(--fill)',borderRadius:10,padding:'10px',marginTop:4}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            {[
+              ['Pedidos',      pedidos.length],
+              ['LTV',          fmtR(ltvTotal)],
+              ['Ticket médio', fmtR(ltvTotal/Math.max(pedidos.length,1))],
+              ['Último pedido',pedidos[0]?.data?fmtData(pedidos[0].data):'—'],
+            ].map(([k,v])=><div key={k} style={{textAlign:'center'}}>
+              <div style={{fontSize:9,color:'var(--label-4)',marginBottom:2}}>{k}</div>
+              <div style={{fontSize:13,fontWeight:700,color:'var(--label)'}}>{v}</div>
+            </div>)}
+          </div>
+        </div>}
+        {/* Carrinho ativo */}
+        {cart.length>0&&<div style={{background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.25)',
+          borderRadius:10,padding:'10px'}}>
+          <div style={{fontSize:11,fontWeight:700,color:'#f59e0b',marginBottom:8,
+            display:'flex',alignItems:'center',gap:5}}>
+            <ShoppingCart size={12}/>Carrinho ativo ({cart.length} {cart.length===1?'item':'itens'})
+          </div>
+          {cart.map((item,i)=><div key={i} style={{display:'flex',justifyContent:'space-between',
+            fontSize:11,color:'var(--label-3)',marginBottom:4}}>
+            <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>{item.nome}</span>
+            <span style={{color:'var(--label)',fontWeight:600,flexShrink:0}}>{item.quantidade}x</span>
+          </div>)}
+          <div style={{borderTop:'1px solid rgba(245,158,11,.2)',paddingTop:6,marginTop:4,
+            display:'flex',justifyContent:'space-between',fontSize:11.5,fontWeight:700}}>
+            <span style={{color:'#f59e0b'}}>Total PIX:</span>
+            <span style={{color:'#f59e0b'}}>{fmtR(cart.reduce((s,i)=>s+parseFloat(i.preco||0)*i.quantidade,0)*.9)}</span>
+          </div>
+        </div>}
+        {/* Custo IA */}
+        {custo&&(parseFloat(custo.custo_usd)>0)&&<div style={{
+          background:'var(--fill)',borderRadius:10,padding:'8px 10px',
+          display:'flex',alignItems:'center',gap:8,fontSize:11}}>
+          <DollarSign size={12} style={{color:'var(--label-4)',flexShrink:0}}/>
+          <div>
+            <span style={{color:'var(--label-4)'}}>Custo IA (24h): </span>
+            <span style={{color:'var(--label)',fontWeight:600}}>R$ {custo.custo_brl}</span>
+            <span style={{color:'var(--label-4)',marginLeft:6}}>{custo.chamadas} chamadas</span>
+          </div>
+        </div>}
+      </div>}
 
-      {/* ── Barra de envio ── */}
-      <BarraEnvio telefone={tel} api={api} modoManual={modoManual}
-        onEnviou={()=>carregar(0,true)} nomeIA={nomeIA}
-        onAssumirModo={onToggleModo}/>
+      {/* PEDIDOS */}
+      {aba==='pedidos'&&<div style={{display:'flex',flexDirection:'column',gap:8}}>
+        {loadPed ? <div style={{textAlign:'center',padding:24,color:'var(--label-4)',fontSize:12}}>
+          <RefreshCw size={14} style={{animation:'spin 1s linear infinite'}}/> Carregando...
+        </div> : pedidos.length===0 ? <p style={{color:'var(--label-4)',fontSize:12,textAlign:'center',padding:20}}>
+          Nenhum pedido encontrado.
+        </p> : pedidos.map((p,i)=>{
+          const sit=p.situacaoLabel||p.situacao_label||String(p.situacaoId||'')
+          return <div key={i} onClick={()=>onAbrirPedido?.(p)} style={{
+            background:'var(--bg)',border:'1px solid var(--sep)',borderRadius:10,padding:'10px 12px',
+            cursor:onAbrirPedido?'pointer':'default'}}
+            onMouseEnter={e=>onAbrirPedido&&(e.currentTarget.style.borderColor='var(--accent)')}
+            onMouseLeave={e=>e.currentTarget.style.borderColor='var(--sep)'}>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+              <span style={{fontSize:12,fontWeight:700,color:'var(--label)'}}>#{p.numero}</span>
+              <span style={{fontSize:11,fontWeight:700,color:'var(--accent)'}}>{fmtR(p.total)}</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:10.5}}>
+              <span style={{color:'var(--label-4)'}}>{fmtData(p.data)}</span>
+              <span style={{color:'var(--label-3)'}}>{sit}</span>
+            </div>
+          </div>
+        })}
+      </div>}
+
+      {/* CATÁLOGO */}
+      {aba==='catalogo'&&<div style={{display:'flex',flexDirection:'column',gap:10}}>
+        <div style={{display:'flex',gap:6}}>
+          <input value={catQ} onChange={e=>setCatQ(e.target.value)}
+            onKeyDown={e=>e.key==='Enter'&&buscarCatalogo()}
+            placeholder="Buscar produto..." style={{flex:1,padding:'7px 10px',borderRadius:8,
+              border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:12}}/>
+          <button onClick={buscarCatalogo} disabled={catLoad} style={{
+            padding:'7px 12px',borderRadius:8,border:'none',background:'var(--accent)',
+            color:'#fff',cursor:'pointer',fontSize:12,display:'flex',alignItems:'center',gap:4}}>
+            <Search size={12}/>{catLoad?'...':'Buscar'}
+          </button>
+        </div>
+        {catProds.map((p,i)=>{
+          const n=parseFloat(p.preco||p.precoVenda||0)
+          const enviado=catEnv===(p.id||p.bling_id)
+          return <div key={i} style={{background:'var(--bg)',border:'1px solid var(--sep)',
+            borderRadius:10,padding:'9px 11px'}}>
+            <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:3,
+              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.nome||p.descricao}</div>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div>
+                <span style={{fontSize:11,color:'#22c55e',fontWeight:700}}>PIX {fmtR(n*.9)}</span>
+                <span style={{fontSize:10,color:'var(--label-4)',marginLeft:6}}>Cartão {fmtR(n)}</span>
+              </div>
+              <button onClick={()=>enviarProduto(p)} style={{
+                padding:'4px 10px',borderRadius:7,border:'none',fontSize:11,fontWeight:600,
+                background:enviado?'rgba(34,197,94,.15)':'var(--accent)',
+                color:enviado?'#22c55e':'#fff',cursor:'pointer',
+                display:'flex',alignItems:'center',gap:4}}>
+                {enviado?<Check size={11}/>:<Send size={11}/>}{enviado?'Enviado!':'Enviar'}
+              </button>
+            </div>
+          </div>
+        })}
+      </div>}
+
+      {/* OCORRÊNCIAS */}
+      {aba==='ocorrencias'&&<div style={{display:'flex',flexDirection:'column',gap:10}}>
+        <div style={{display:'flex',gap:6}}>
+          <input value={novaOc} onChange={e=>setNovaOc(e.target.value)}
+            onKeyDown={e=>e.key==='Enter'&&criarOc()}
+            placeholder="Descrever ocorrência..." style={{flex:1,padding:'7px 10px',borderRadius:8,
+              border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:12}}/>
+          <button onClick={criarOc} disabled={savOc||!novaOc.trim()} style={{
+            padding:'7px 11px',borderRadius:8,border:'none',background:'var(--accent)',
+            color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600}}>
+            {savOc?'...':'Abrir'}
+          </button>
+        </div>
+        {ocors.length===0
+          ? <p style={{color:'var(--label-4)',fontSize:12,textAlign:'center',padding:16}}>Nenhuma ocorrência.</p>
+          : ocors.map((oc,i)=><div key={i} style={{
+              background:'var(--bg)',border:`1px solid ${oc.status==='resolvido'?'rgba(34,197,94,.2)':'var(--sep)'}`,
+              borderRadius:10,padding:'9px 11px'}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>{oc.tipo||'Suporte'}</span>
+                <span style={{fontSize:9,padding:'1px 6px',borderRadius:99,
+                  color:oc.status==='resolvido'?'#22c55e':'#f59e0b',
+                  background:oc.status==='resolvido'?'rgba(34,197,94,.1)':'rgba(245,158,11,.1)'}}>{oc.status||'aberto'}</span>
+              </div>
+              <p style={{fontSize:11.5,color:'var(--label-3)',margin:0,lineHeight:1.5}}>{oc.descricao}</p>
+              <div style={{fontSize:9,color:'var(--label-4)',marginTop:4}}>{fmtDH(oc.criado_em)}</div>
+            </div>)
+        }
+      </div>}
+
+      {/* AVALIAÇÕES */}
+      {aba==='avaliacoes'&&<div style={{display:'flex',flexDirection:'column',gap:8}}>
+        {avals.length>0&&<div style={{background:'var(--fill)',borderRadius:10,padding:'10px',
+          textAlign:'center',marginBottom:4}}>
+          <div style={{fontSize:28,fontWeight:700,color:'var(--label)'}}>{mediaAval}</div>
+          <div style={{fontSize:16,margin:'4px 0'}}>{'⭐'.repeat(Math.round(parseFloat(mediaAval||0)))}</div>
+          <div style={{fontSize:10,color:'var(--label-4)'}}>{avals.length} avaliação{avals.length!==1?'ões':''}</div>
+        </div>}
+        {avals.length===0
+          ? <p style={{color:'var(--label-4)',fontSize:12,textAlign:'center',padding:16}}>Nenhuma avaliação.</p>
+          : avals.map((av,i)=><div key={i} style={{
+              background:'var(--bg)',border:'1px solid var(--sep)',borderRadius:10,padding:'9px 11px'}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                <span style={{fontSize:14}}>{'⭐'.repeat(av.estrelas)}</span>
+                <span style={{fontSize:9,color:'var(--label-4)'}}>{fmtData(av.criado_em)}</span>
+              </div>
+              {av.comentario&&<p style={{fontSize:11.5,color:'var(--label-3)',margin:0,
+                fontStyle:'italic',lineHeight:1.5}}>"{av.comentario}"</p>}
+            </div>)
+        }
+      </div>}
+
+      {/* NOTAS INTERNAS */}
+      {aba==='notas'&&<div style={{display:'flex',flexDirection:'column',gap:10}}>
+        <div style={{display:'flex',flexDirection:'column',gap:6}}>
+          <textarea value={novaNota} onChange={e=>setNovaNota(e.target.value)}
+            placeholder="Anotação interna (visível apenas para agentes)..."
+            rows={3} style={{padding:'8px 10px',borderRadius:8,resize:'none',
+              border:'1px solid rgba(245,158,11,.3)',background:'rgba(245,158,11,.04)',
+              color:'var(--label)',fontSize:12,fontFamily:'inherit'}}/>
+          <button onClick={criarNota} disabled={savNota||!novaNota.trim()} style={{
+            padding:'6px',borderRadius:8,border:'none',background:'var(--accent)',
+            color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600,
+            display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
+            <Plus size={12}/>{savNota?'Salvando...':'Salvar nota'}
+          </button>
+        </div>
+        {notas.length===0
+          ? <p style={{color:'var(--label-4)',fontSize:12,textAlign:'center',padding:8}}>Nenhuma nota registrada.</p>
+          : notas.map((n,i)=><div key={i} style={{
+              background:'rgba(245,158,11,.06)',border:'1px solid rgba(245,158,11,.2)',
+              borderRadius:10,padding:'9px 11px'}}>
+              <p style={{fontSize:12,color:'var(--label)',margin:'0 0 5px',lineHeight:1.5}}>{n.conteudo}</p>
+              <div style={{fontSize:9,color:'var(--label-4)',display:'flex',alignItems:'center',gap:5}}>
+                <PenLine size={8}/>{n.agente||'atendente'} · {fmtDH(n.criado_em)}
+              </div>
+            </div>)
+        }
+      </div>}
+
     </div>
-  )
+  </div>
 }
 
-// ── Página principal ──────────────────────────────────────────────────────────
-export default function PageConversas({ api: apiProp, onNavigate }) {
-  const api = apiProp || BASE
-  const [convs,     setConvs]     = useState([])
-  const [selTel,    setSelTel]    = useState(null)
-  const [statusSel, setStatusSel] = useState(()=>sessionStorage.getItem('bia_conv_status')||'pendente')
-  const [statusMap, setStatusMap] = useState({})
-  const [modoMap,   setModoMap]   = useState({})
-  const [busca,     setBusca]     = useState('')
-  const [loading,   setLoading]   = useState(true)
-  const [nomeIA,    setNomeIA]    = useState('Molise')
-  const [listMode,  setListMode]  = useState('open') // 'open' | 'collapsed'
-  const pollingRef = useRef(null)
+// ─── CHAT AREA ────────────────────────────────────────────────────────────────
+function ChatArea({conv, api, statusAtend, onStatusChange, modoManual, onToggleModo, nomeIA, onAbrirPainel}) {
+  const [msgs,    setMsgs]   = useState([])
+  const [loading, setLoad]   = useState(true)
+  const [hasMore, setHasMore]= useState(false)
+  const [offset,  setOffset] = useState(0)
+  const [busca,   setBusca]  = useState('')
+  const [searchOn,setSearchOn]=useState(false)
+  const bottomRef = useRef(null)
+  const fetching  = useRef(false)
+  const polRef    = useRef(null)
+  const atBottom  = useRef(true)
+  const tel = conv?.telefone
 
-  useEffect(()=>{ sessionStorage.setItem('bia_conv_status',statusSel) }, [statusSel])
-
-  useEffect(()=>{
-    fetch(`${api}/api/ia/config`).then(r=>r.ok?r.json():null).then(d=>{
-      if (!d) return
-      if (d.nome_ia) { setNomeIA(d.nome_ia); return }
-      const m=(d.persona||'').match(/[Vv]oc[eê] [eé] (\w+)/)
-      if (m?.[1]) setNomeIA(m[1])
-    }).catch(()=>{})
-  }, [api])
-
-  const getStatus = tel => statusMap[tel] || 'pendente'
-  const getModo   = tel => modoMap[tel]   || false
-
-  const carregar = useCallback(async (sil=false)=>{
-    if (!sil) setLoading(true)
+  const carregar = useCallback(async(off=0, sil=false) => {
+    if (!tel||fetching.current) return
+    fetching.current=true
+    if (!sil) setLoad(true)
     try {
-      const r = await fetch(`${api}/api/dashboard/conversas?aba=todas`)
+      const r=await fetch(`${api}/api/dashboard/historico/${tel}?limit=60&offset=${off}`)
       if (r.ok) {
-        const d=await r.json(); const novas=d.conversas||[]
-        setConvs(prev=>{ const map=new Map(prev.map(c=>[c.telefone,c])); return novas.map(c=>({...map.get(c.telefone)||{},...c})) })
-        setStatusMap(prev=>{ const n={...prev}; novas.forEach(c=>{ if(c.status_atendimento&&!n[c.telefone]) n[c.telefone]=c.status_atendimento }); return n })
-        setModoMap(prev=>{ const n={...prev}; novas.forEach(c=>{ if(c.modo_manual!==undefined&&n[c.telefone]===undefined) n[c.telefone]=c.modo_manual }); return n })
+        const d=await r.json(); const novas=d.mensagens||[]
+        if (off===0) setMsgs(novas); else setMsgs(p=>[...novas,...p])
+        setHasMore(d.hasMore||false); setOffset(off)
       }
     } catch {}
-    setLoading(false)
-  }, [api])
+    fetching.current=false
+    if (!sil) setLoad(false)
+  },[tel,api])
 
   useEffect(()=>{
-    carregar()
-    pollingRef.current = setInterval(()=>{ if(document.visibilityState!=='hidden') carregar(true) }, 6000)
-    return ()=>clearInterval(pollingRef.current)
-  }, [carregar])
+    if (!tel) return
+    setMsgs([]); setOffset(0); setLoad(true); atBottom.current=true
+    carregar(0,false)
+    clearInterval(polRef.current)
+    polRef.current=setInterval(()=>carregar(0,true),6000)
+    return()=>clearInterval(polRef.current)
+  },[carregar])
+
+  useEffect(()=>{
+    if (atBottom.current) bottomRef.current?.scrollIntoView({behavior:'smooth'})
+  },[msgs])
+
+  // Detecta se está no fim
+  const onScroll = e => {
+    const el=e.currentTarget
+    atBottom.current=(el.scrollHeight-el.scrollTop-el.clientHeight)<80
+  }
+
+  // Agrupa mensagens por data
+  const msgsComData = useMemo(()=>{
+    const result=[]; let lastDate=''
+    const filtradas = busca ? msgs.filter(m=>(m.conteudo||'').toLowerCase().includes(busca.toLowerCase())) : msgs
+    filtradas.forEach(m=>{
+      const d=new Date(m.criado_em).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})
+      if (d!==lastDate){result.push({type:'sep',date:d});lastDate=d}
+      result.push({type:'msg',msg:m})
+    })
+    return result
+  },[msgs,busca])
+
+  const S = STATUS_CFG[statusAtend]||STATUS_CFG.pendente
+
+  return <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+    {/* Header chat */}
+    <div style={{padding:'10px 16px',borderBottom:'1px solid var(--sep)',flexShrink:0,
+      display:'flex',alignItems:'center',gap:10}}>
+      <Av nome={conv?.nome||tel} foto={conv?.foto_url} size={34}/>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:13.5,fontWeight:700,color:'var(--label)',
+          overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+          {conv?.nome||fmtTel(tel)}
+        </div>
+        <div style={{fontSize:10.5,color:'var(--label-4)'}}>{fmtTel(tel)}</div>
+      </div>
+      <div style={{display:'flex',gap:6,alignItems:'center',flexShrink:0}}>
+        {/* Status dropdown */}
+        <select value={statusAtend} onChange={e=>onStatusChange(tel,e.target.value)}
+          style={{fontSize:11,padding:'4px 8px',borderRadius:8,
+            border:`1px solid ${S.bdr}`,background:S.bg,color:S.cor,cursor:'pointer'}}>
+          {Object.entries(STATUS_CFG).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+        </select>
+        {/* IA/Manual toggle */}
+        <button onClick={()=>onToggleModo(tel)} style={{
+          display:'flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:8,
+          border:`1px solid ${modoManual?'rgba(59,130,246,.3)':'rgba(167,139,250,.3)'}`,
+          background:modoManual?'rgba(59,130,246,.08)':'rgba(167,139,250,.08)',
+          color:modoManual?'#3b82f6':'#a78bfa',cursor:'pointer',fontSize:11,fontWeight:600}}>
+          {modoManual?<User size={12}/>:<Bot size={12}/>}
+          {modoManual?'Manual':'IA'}
+        </button>
+        {/* Busca */}
+        <button onClick={()=>{setSearchOn(v=>!v);if(searchOn)setBusca('')}} style={{
+          width:30,height:30,borderRadius:8,border:'1px solid var(--sep)',
+          background:searchOn?'var(--fill)':'none',color:searchOn?'var(--accent)':'var(--label-4)',
+          cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <Search size={13}/>
+        </button>
+        {/* Painel info */}
+        <button onClick={onAbrirPainel} style={{
+          width:30,height:30,borderRadius:8,border:'1px solid var(--sep)',
+          background:'none',color:'var(--label-4)',cursor:'pointer',
+          display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <Info size={13}/>
+        </button>
+        {/* Resetar sessão */}
+        <button onClick={async()=>{
+          await fetch(`${api}/api/dashboard/resetar-sessao/${tel}`,{method:'POST'}).catch(()=>{})
+          carregar(0,false)
+        }} title="Resetar sessão IA" style={{
+          width:30,height:30,borderRadius:8,border:'1px solid var(--sep)',
+          background:'none',color:'var(--label-4)',cursor:'pointer',
+          display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <RotateCcw size={13}/>
+        </button>
+      </div>
+    </div>
+    {/* Barra de busca no chat */}
+    {searchOn&&<div style={{padding:'8px 16px',borderBottom:'1px solid var(--sep)',flexShrink:0}}>
+      <div style={{position:'relative'}}>
+        <Search size={12} style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--label-4)'}}/>
+        <input value={busca} onChange={e=>setBusca(e.target.value)} autoFocus
+          placeholder="Buscar nesta conversa..." style={{width:'100%',padding:'6px 10px 6px 28px',
+            borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',
+            color:'var(--label)',fontSize:12,boxSizing:'border-box'}}/>
+        {busca&&<span style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',
+          fontSize:10,color:'var(--label-4)'}}>
+          {msgs.filter(m=>(m.conteudo||'').toLowerCase().includes(busca.toLowerCase())).length} resultado{msgs.filter(m=>(m.conteudo||'').toLowerCase().includes(busca.toLowerCase())).length!==1?'s':''}
+        </span>}
+      </div>
+    </div>}
+    {/* Mensagens */}
+    <div onScroll={onScroll} style={{flex:1,overflowY:'auto',padding:'12px 16px',display:'flex',flexDirection:'column'}}>
+      {loading ? (
+        <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',
+          color:'var(--label-4)',gap:10,fontSize:13}}>
+          <RefreshCw size={16} style={{animation:'spin 1s linear infinite'}}/>Carregando...
+        </div>
+      ) : !tel ? (
+        <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',
+          justifyContent:'center',color:'var(--label-4)',gap:12}}>
+          <MessageSquare size={40} style={{opacity:.15}}/>
+          <p style={{fontSize:14,margin:0}}>Selecione uma conversa</p>
+        </div>
+      ) : <>
+        {hasMore&&<button onClick={()=>carregar(offset+60,false)} style={{
+          display:'block',margin:'0 auto 12px',padding:'5px 14px',borderRadius:99,
+          border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-3)',
+          cursor:'pointer',fontSize:11}}>
+          Carregar mensagens anteriores
+        </button>}
+        {msgsComData.map((item,i)=>
+          item.type==='sep'
+            ? <DateSep key={`sep-${i}`} date={item.date}/>
+            : <Bolha key={item.msg.id||i} msg={item.msg} nomeIA={nomeIA}/>
+        )}
+        {msgs.length===0&&!loading&&<div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',
+          color:'var(--label-4)',fontSize:13}}>Nenhuma mensagem nesta conversa.</div>}
+        <div ref={bottomRef}/>
+      </>}
+    </div>
+    {/* Barra de envio */}
+    {tel&&<BarraEnvio
+      telefone={tel} api={api} modoManual={modoManual}
+      onEnviou={()=>carregar(0,true)}
+      onAssumirModo={()=>onToggleModo(tel)}
+      nomeIA={nomeIA}
+    />}
+  </div>
+}
+
+// ─── PÁGINA PRINCIPAL ─────────────────────────────────────────────────────────
+export default function PageConversas({api: apiProp, onNavigate}) {
+  const api = apiProp || BASE
+  const [convs,    setConvs]  = useState([])
+  const [selTel,   setSel]    = useState(null)
+  const [statusMap,setStMap]  = useState({})
+  const [modoMap,  setModoMap]= useState({})
+  const [statusSel,setSSel]   = useState(()=>sessionStorage.getItem('bia_cs_status')||'pendente')
+  const [busca,    setBusca]  = useState('')
+  const [loading,  setLoad]   = useState(true)
+  const [nomeIA,   setNomeIA] = useState('Bia')
+  const [fila,     setFila]   = useState([])
+  const [rfmMap,   setRfmMap] = useState({})
+  const [painelOp, setPainel] = useState(true)
+  const [buscaGlobal,setBG]   = useState('')
+  const [bgResults, setBGR]   = useState([])
+  const [bgLoad,    setBGL]   = useState(false)
+  const [bgOpen,    setBGO]   = useState(false)
+  const polRef = useRef(null)
+
+  useEffect(()=>{ sessionStorage.setItem('bia_cs_status',statusSel) },[statusSel])
+
+  // Carrega nome da IA
+  useEffect(()=>{
+    fetch(`${api}/api/ia/config`).then(r=>r.ok?r.json():null)
+      .then(d=>{if(d?.config?.nomeIA)setNomeIA(d.config.nomeIA)}).catch(()=>{})
+  },[api])
+
+  // Carrega conversas + fila + RFM
+  const carregar = useCallback(async(sil=false)=>{
+    if (!sil) setLoad(true)
+    try {
+      const [rc, rf] = await Promise.allSettled([
+        fetch(`${api}/api/dashboard/conversas?aba=todas`).then(r=>r.ok?r.json():null),
+        fetch(`${api}/api/fila`).then(r=>r.ok?r.json():null),
+      ])
+      if (rc.status==='fulfilled'&&rc.value) {
+        const novas=rc.value.conversas||[]
+        setConvs(prev=>{
+          const map=new Map(prev.map(c=>[c.telefone,c]))
+          novas.forEach(c=>map.set(c.telefone,{...map.get(c.telefone)||{},...c}))
+          return [...map.values()].sort((a,b)=>new Date(b.ultima_atividade)-new Date(a.ultima_atividade))
+        })
+      }
+      if (rf.status==='fulfilled'&&rf.value) setFila(rf.value.fila||[])
+    } catch {}
+    if (!sil) setLoad(false)
+  },[api])
+
+  useEffect(()=>{
+    carregar(false)
+    polRef.current=setInterval(()=>carregar(true),8000)
+    return()=>clearInterval(polRef.current)
+  },[carregar])
+
+  // RFM em segundo plano
+  useEffect(()=>{
+    fetch(`${api}/api/clientes-rfm`)
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{
+        if (!d?.clientes) return
+        const m={}; d.clientes.forEach(c=>{if(c.telefone)m[c.telefone]={score:c.rfm||c.score||'novo',ltv:c.ltv||0}})
+        setRfmMap(m)
+      }).catch(()=>{})
+  },[api])
+
+  // Busca global
+  const buscarGlobal = useCallback(async(q)=>{
+    if (!q||q.length<2) { setBGR([]); return }
+    setBGL(true)
+    fetch(`${api}/api/busca-conversas?q=${encodeURIComponent(q)}`)
+      .then(r=>r.ok?r.json():null).then(d=>setBGR(d?.resultados||[])).catch(()=>{})
+      .finally(()=>setBGL(false))
+  },[api])
+
+  useEffect(()=>{
+    const t=setTimeout(()=>buscarGlobal(buscaGlobal),400)
+    return()=>clearTimeout(t)
+  },[buscaGlobal,buscarGlobal])
+
+  const getStatus = tel => statusMap[tel] || convs.find(c=>c.telefone===tel)?.status_atendimento || 'pendente'
+  const getModo   = tel => modoMap[tel]!==undefined ? modoMap[tel] : convs.find(c=>c.telefone===tel)?.modo_ia==='manual'
 
   const updateStatus = useCallback((tel,st)=>{
-    setStatusMap(p=>({...p,[tel]:st}))
+    setStMap(p=>({...p,[tel]:st}))
     fetch(`${api}/api/dashboard/status/${tel}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:st})}).catch(()=>{})
-    fetch(`${api}/api/contatos/${tel}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:st})}).catch(()=>{})
-  }, [api])
+  },[api])
 
   const toggleModo = useCallback(tel=>{
     const novo=!getModo(tel)
     setModoMap(p=>({...p,[tel]:novo}))
     fetch(`${api}/api/dashboard/manual/${tel}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ativo:novo})}).catch(()=>{})
-  }, [api, modoMap])
+  },[api,modoMap])
 
+  // Contadores
   const contadores = useMemo(()=>{
     const c={pendente:0,em_andamento:0,resolvido:0,aguardando:0,encerrado:0}
-    convs.forEach(cv=>{ const s=getStatus(cv.telefone); if(c[s]!==undefined) c[s]++ }); return c
-  }, [convs, statusMap])
+    convs.forEach(cv=>{const s=getStatus(cv.telefone);if(c[s]!==undefined)c[s]++})
+    return c
+  },[convs,statusMap])
 
+  // Filtro + agrupamento por data
   const filtradas = useMemo(()=>convs.filter(c=>{
     if (getStatus(c.telefone)!==statusSel) return false
     if (!busca) return true
     const b=busca.toLowerCase()
-    return (c.nome||'').toLowerCase().includes(b)||(c.telefone||'').includes(busca)||(c.ultima_mensagem||c.ultima_msg||'').toLowerCase().includes(b)
-  }), [convs, statusSel, busca, statusMap])
+    return (c.nome||'').toLowerCase().includes(b)||(c.telefone||'').includes(busca)||(c.ultima_mensagem||'').toLowerCase().includes(b)
+  }),[convs,statusSel,busca,statusMap])
+
+  const gruposPorData = useMemo(()=>{
+    const hoje = new Date().toLocaleDateString('pt-BR')
+    const ontem = new Date(Date.now()-86400000).toLocaleDateString('pt-BR')
+    const grupos = {'Hoje':[],'Ontem':[],'Esta semana':[],'Mais antigas':[]}
+    filtradas.forEach(c=>{
+      const d=new Date(c.ultima_atividade||0)
+      const ds=d.toLocaleDateString('pt-BR')
+      const dias=(Date.now()-d.getTime())/86400000
+      if (ds===hoje) grupos['Hoje'].push(c)
+      else if (ds===ontem) grupos['Ontem'].push(c)
+      else if (dias<=7) grupos['Esta semana'].push(c)
+      else grupos['Mais antigas'].push(c)
+    })
+    return Object.entries(grupos).filter(([,v])=>v.length>0)
+  },[filtradas])
 
   const convSel = convs.find(c=>c.telefone===selTel)||null
+  const filaUrgente = fila.filter(f=>parseFloat(f.minutos_espera||0)>15)
 
-  return (
-    <div className="flex h-full overflow-hidden bg-[var(--bg)]">
+  // Atalhos de teclado
+  useEffect(()=>{
+    const handler = e => {
+      if (e.key==='Escape') setBGO(false)
+      if ((e.ctrlKey||e.metaKey)&&e.key==='k') { e.preventDefault(); setBGO(v=>!v) }
+    }
+    window.addEventListener('keydown',handler)
+    return()=>window.removeEventListener('keydown',handler)
+  },[])
 
-      {/* ── SIDEBAR — multi-coluna: ícones fixos (48px) + lista retrátil ── */}
-      <div style={{display:'flex',flexShrink:0,borderRight:'1px solid var(--sep)'}}>
+  return <div style={{display:'flex',height:'100%',overflow:'hidden',background:'var(--bg)'}}>
 
-        {/* Coluna de ícones — SEMPRE visível */}
-        <div style={{
-          width:48, flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center',
-          borderRight:'1px solid var(--sep)', background:'var(--bg-2)', paddingTop:8, gap:2, paddingBottom:8
-        }}>
-          {/* Botão toggle da lista */}
-          <button onClick={()=>setListMode(m=>m==='open'?'collapsed':'open')}
-            title={listMode==='open'?'Recolher lista':'Expandir lista'}
-            style={{
-              width:32, height:32, borderRadius:8, display:'flex', alignItems:'center',
-              justifyContent:'center', background:'transparent', border:'1px solid var(--sep)',
-              cursor:'pointer', color:'var(--label-4)', marginBottom:8, flexShrink:0
-            }}>
-            {listMode==='open'
-              ? <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M8.5 2L5.5 6.5L8.5 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              : <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M4.5 2L7.5 6.5L4.5 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            }
-          </button>
+    {/* ── SIDEBAR CONVERSAS ── */}
+    <div style={{width:280,flexShrink:0,display:'flex',flexDirection:'column',
+      borderRight:'1px solid var(--sep)',background:'var(--bg-2)',overflow:'hidden'}}>
 
-          {/* Ícones de status — clique seleciona filtro + abre lista */}
-          {[
-            {key:'pendente',     Ic:CircleDot,   color:'#f59e0b'},
-            {key:'em_andamento', Ic:RefreshCw,   color:'#3b82f6'},
-            {key:'resolvido',    Ic:CheckCircle, color:'#10b981'},
-            {key:'aguardando',   Ic:Clock,       color:'#8b5cf6'},
-            {key:'encerrado',    Ic:XCircle,     color:'#94a3b8'},
-          ].map(({key,Ic,color})=>{
-            const on = statusSel===key
-            const cnt = contadores[key]||0
-            return (
-              <button key={key}
-                onClick={()=>{ setStatusSel(key); setListMode('open') }}
-                title={STATUS_CFG[key]?.label + (cnt ? ` (${cnt})` : '')}
-                style={{
-                  position:'relative', width:32, height:32, borderRadius:8,
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  background: on ? color+'22' : 'transparent',
-                  border: on ? `1px solid ${color}44` : '1px solid transparent',
-                  cursor:'pointer', marginBottom:2, flexShrink:0, transition:'all .15s'
-                }}>
-                <Ic size={15} style={{color: on ? color : 'var(--label-4)', transition:'color .15s'}}/>
-                {cnt > 0 && (
-                  <span style={{
-                    position:'absolute', top:-1, right:-1, minWidth:14, height:14,
-                    borderRadius:7, background: on ? color : '#6b7280',
-                    color:'#fff', fontSize:8, fontWeight:700, display:'flex',
-                    alignItems:'center', justifyContent:'center', padding:'0 3px',
-                    lineHeight:1, border:'1.5px solid var(--bg-2)'
-                  }}>{cnt>9?'9+':cnt}</span>
-                )}
-              </button>
-            )
-          })}
-
-          {/* Spacer + Refresh */}
-          <div style={{flex:1}}/>
-          <button onClick={()=>carregar()} title="Atualizar conversas"
-            style={{
-              width:32, height:32, borderRadius:8, display:'flex', alignItems:'center',
-              justifyContent:'center', background:'transparent',
-              border:'1px solid var(--sep)', cursor:'pointer', color:'var(--label-4)'
-            }}>
-            <RefreshCw size={12} style={{animation: loading ? 'spin 1s linear infinite' : 'none'}}/>
+      {/* Header */}
+      <div style={{padding:'12px 14px',borderBottom:'1px solid var(--sep)',flexShrink:0}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+          <span style={{fontSize:14,fontWeight:700,color:'var(--label)',display:'flex',alignItems:'center',gap:7}}>
+            <MessageSquare size={15} style={{color:'var(--accent)'}}/>Conversas
+          </span>
+          <button onClick={()=>carregar(false)} style={{background:'none',border:'none',cursor:'pointer',
+            color:'var(--label-4)',padding:4,display:'flex'}}>
+            <RefreshCw size={13} style={loading?{animation:'spin 1s linear infinite'}:{}}/>
           </button>
         </div>
-
-        {/* Painel de lista — retrátil (212px ↔ 0) */}
-        <div style={{
-          width: listMode==='open' ? 212 : 0,
-          minWidth: listMode==='open' ? 212 : 0,
-          overflow:'hidden',
-          display:'flex', flexDirection:'column',
-          background:'var(--bg-2)',
-          transition:'width 220ms cubic-bezier(0.4,0,0.2,1), min-width 220ms cubic-bezier(0.4,0,0.2,1)',
-        }}>
-
-          {/* Header da lista */}
-          <div style={{
-            display:'flex', alignItems:'center', justifyContent:'space-between',
-            padding:'10px 12px 6px', borderBottom:'1px solid var(--sep)', flexShrink:0
-          }}>
-            <span style={{
-              fontSize:12, fontWeight:700, color:'var(--label)', whiteSpace:'nowrap',
-              display:'flex', alignItems:'center', gap:6
-            }}>
-              {STATUS_CFG[statusSel]?.label}
-              <span style={{
-                padding:'1px 7px', borderRadius:99, fontSize:9, fontWeight:700,
-                background: STATUS_CFG[statusSel]?.bg || 'var(--bg-3)',
-                color: STATUS_CFG[statusSel]?.tw ? undefined : 'var(--label-4)',
-              }} className={STATUS_CFG[statusSel]?.tw}>
-                {filtradas.length}
-              </span>
-            </span>
-          </div>
-
-          {/* Status pills compactas */}
-          <div style={{padding:'5px 8px', borderBottom:'1px solid var(--sep)', flexShrink:0, display:'flex', flexDirection:'column', gap:1}}>
-            {Object.entries(STATUS_CFG).map(([key,s])=>{
-              const on=statusSel===key; const cnt=contadores[key]||0; const Ic=s.icon
-              return (
-                <button key={key} onClick={()=>setStatusSel(key)}
-                  style={{
-                    display:'flex', alignItems:'center', gap:6, padding:'4px 7px',
-                    borderRadius:6, border:`1px solid ${on?s.bg:'transparent'}`,
-                    background:on?s.bg:'transparent', cursor:'pointer', textAlign:'left',
-                    transition:'all .12s', whiteSpace:'nowrap'
-                  }}>
-                  <Ic size={11} style={{color:on?undefined:'var(--label-4)',flexShrink:0}}
-                    className={on?s.tw:''}/>
-                  <span style={{flex:1, fontSize:11, fontWeight:on?600:400, color:on?undefined:'var(--label-4)'}}
-                    className={on?s.tw:''}>
-                    {s.label}
-                  </span>
-                  {cnt>0 && (
-                    <span style={{
-                      padding:'0 5px', borderRadius:99, fontSize:9, fontWeight:700,
-                      background:on?'rgba(255,255,255,0.15)':'var(--bg-3)',
-                      color:on?'currentColor':'var(--label-4)'
-                    }} className={on?s.tw:''}>{cnt}</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Busca */}
-          <div style={{padding:'6px 8px', borderBottom:'1px solid var(--sep)', flexShrink:0}}>
-            <div style={{display:'flex',alignItems:'center',gap:6,padding:'4px 8px',borderRadius:7,border:'1px solid var(--sep)',background:'var(--bg-3)'}}>
-              <Search size={11} style={{color:'var(--label-4)',flexShrink:0}}/>
-              <input value={busca} onChange={e=>setBusca(e.target.value)}
-                placeholder="Buscar..." style={{flex:1,background:'transparent',border:'none',outline:'none',fontSize:11,color:'var(--label)'}}/>
-              {busca && <button onClick={()=>setBusca('')} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',display:'flex',padding:0}}><X size={10}/></button>}
-            </div>
-          </div>
-
-          {/* Lista de conversas */}
-          <div style={{flex:1,overflowY:'auto'}}>
-            {filtradas.length===0 ? (
-              <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:120,gap:6}}>
-                <MessageSquare size={16} style={{color:'var(--label-4)',opacity:.2}}/>
-                <p style={{fontSize:10.5,color:'var(--label-4)',textAlign:'center'}}>{loading?'Carregando...':'Nenhuma conversa'}</p>
-              </div>
-            ) : filtradas.map(conv=>(
-              <ConvCard key={conv.telefone} conv={conv} sel={selTel===conv.telefone}
-                statusAtend={getStatus(conv.telefone)} nomeIA={nomeIA}
-                onClick={()=>{ setSelTel(conv.telefone) }}/>
-            ))}
-          </div>
+        {/* Busca */}
+        <div style={{position:'relative',marginBottom:8}}>
+          <Search size={12} style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',
+            color:'var(--label-4)',pointerEvents:'none'}}/>
+          <input value={busca} onChange={e=>setBusca(e.target.value)}
+            placeholder="Buscar conversa..." style={{width:'100%',padding:'6px 10px 6px 28px',
+              borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',
+              color:'var(--label)',fontSize:12,boxSizing:'border-box'}}/>
+          {busca&&<button onClick={()=>setBusca('')} style={{position:'absolute',right:8,top:'50%',
+            transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',
+            color:'var(--label-4)',padding:0}}><X size={11}/></button>}
         </div>
+        {/* Busca global Ctrl+K */}
+        <button onClick={()=>setBGO(true)} style={{
+          width:'100%',padding:'5px 10px',borderRadius:8,border:'1px solid var(--sep)',
+          background:'var(--fill)',color:'var(--label-4)',cursor:'pointer',fontSize:11,
+          display:'flex',alignItems:'center',gap:6,justifyContent:'space-between'}}>
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+            <Search size={11}/>Busca global em mensagens...
+          </div>
+          <kbd style={{fontSize:9,padding:'1px 5px',borderRadius:4,border:'1px solid var(--sep)',
+            background:'var(--bg)',color:'var(--label-4)'}}>⌘K</kbd>
+        </button>
       </div>
 
-      {/* ── CHAT (centro) ── */}
-      <ChatArea conv={convSel} api={api}
-        statusAtend={convSel?getStatus(convSel.telefone):'pendente'}
-        onStatusChange={st=>convSel&&updateStatus(convSel.telefone,st)}
-        modoManual={convSel?getModo(convSel.telefone):false}
-        onToggleModo={()=>convSel&&toggleModo(convSel.telefone)}
-        nomeIA={nomeIA}
-        listMode={listMode}
-        onToggleList={()=>setListMode(m=>m==='open'?'collapsed':'open')}/>
+      {/* Alerta fila urgente */}
+      {filaUrgente.length>0&&<div style={{
+        margin:'8px 10px 0',padding:'7px 10px',borderRadius:8,
+        background:'rgba(239,68,68,.08)',border:'1px solid rgba(239,68,68,.25)',
+        display:'flex',alignItems:'center',gap:7,fontSize:11,color:'#ef4444',flexShrink:0}}>
+        <Bell size={11} style={{animation:'pulse 1.5s ease infinite',flexShrink:0}}/>
+        {filaUrgente.length} aguardando +15min
+      </div>}
 
-      {/* ── PAINEL DIREITO ── */}
-      <PainelInfo conv={convSel} api={api}/>
+      {/* Tabs de status */}
+      <div style={{display:'flex',padding:'8px 10px',gap:4,flexWrap:'wrap',flexShrink:0}}>
+        {Object.entries(STATUS_CFG).map(([k,s])=>{
+          const on=statusSel===k; const cnt=contadores[k]||0
+          return <button key={k} onClick={()=>setSSel(k)} style={{
+            display:'flex',alignItems:'center',gap:4,padding:'4px 8px',borderRadius:99,
+            border:`1px solid ${on?s.bdr:'var(--sep)'}`,
+            background:on?s.bg:'none',cursor:'pointer',fontSize:10,fontWeight:on?700:400,
+            color:on?s.cor:'var(--label-4)'}}>
+            <s.Icon size={8}/>{s.label}
+            {cnt>0&&<span style={{fontSize:9,fontWeight:700,padding:'0 4px',borderRadius:99,
+              background:on?s.cor+'30':'var(--fill)',color:on?s.cor:'var(--label-4)'}}>{cnt}</span>}
+          </button>
+        })}
+      </div>
+
+      {/* Lista com grupos de data */}
+      <div style={{flex:1,overflowY:'auto'}}>
+        {loading&&convs.length===0
+          ? <div style={{padding:32,textAlign:'center',color:'var(--label-4)',fontSize:12}}>
+              <RefreshCw size={16} style={{animation:'spin 1s linear infinite',marginBottom:8}}/><br/>Carregando...
+            </div>
+          : gruposPorData.length===0
+          ? <div style={{padding:32,textAlign:'center',color:'var(--label-4)',fontSize:12}}>
+              Nenhuma conversa em "{STATUS_CFG[statusSel]?.label}".
+            </div>
+          : gruposPorData.map(([grupo,convLista])=><div key={grupo}>
+              <div style={{padding:'6px 14px 4px',fontSize:9.5,fontWeight:700,
+                color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.06em',
+                background:'var(--bg-2)',position:'sticky',top:0,zIndex:1,
+                borderBottom:'1px solid var(--sep)',display:'flex',justifyContent:'space-between'}}>
+                <span>{grupo}</span>
+                <span>{convLista.length}</span>
+              </div>
+              {convLista.map(c=><ConvCard key={c.telefone}
+                conv={c} sel={selTel===c.telefone}
+                statusAtend={getStatus(c.telefone)}
+                nomeIA={nomeIA} rfmMap={rfmMap}
+                onClick={()=>setSel(c.telefone)}
+              />)}
+            </div>)
+        }
+      </div>
     </div>
-  )
+
+    {/* ── ÁREA CHAT ── */}
+    {convSel
+      ? <ChatArea
+          conv={convSel} api={api}
+          statusAtend={getStatus(selTel)}
+          onStatusChange={updateStatus}
+          modoManual={getModo(selTel)}
+          onToggleModo={toggleModo}
+          nomeIA={nomeIA}
+          onAbrirPainel={()=>setPainel(v=>!v)}
+        />
+      : <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',
+          justifyContent:'center',color:'var(--label-4)',gap:16}}>
+          <MessageSquare size={56} style={{opacity:.1}}/>
+          <div style={{textAlign:'center'}}>
+            <p style={{fontSize:15,fontWeight:600,color:'var(--label)',margin:'0 0 6px'}}>Central de Atendimento</p>
+            <p style={{fontSize:13,margin:0}}>Selecione uma conversa para começar</p>
+          </div>
+          <div style={{display:'flex',gap:20,marginTop:8}}>
+            {Object.entries(contadores).filter(([,v])=>v>0).map(([k,v])=>{
+              const s=STATUS_CFG[k]; return(
+              <div key={k} style={{textAlign:'center'}}>
+                <div style={{fontSize:24,fontWeight:700,color:s.cor}}>{v}</div>
+                <div style={{fontSize:11,color:'var(--label-4)'}}>{s.label}</div>
+              </div>
+            )})}
+          </div>
+        </div>
+    }
+
+    {/* ── PAINEL LATERAL ── */}
+    {convSel&&painelOp&&<PainelLateral
+      conv={convSel} api={api}
+      onClose={()=>setPainel(false)}
+      onAbrirPedido={()=>{}}
+    />}
+
+    {/* ── BUSCA GLOBAL MODAL ── */}
+    {bgOpen&&<div style={{position:'fixed',inset:0,zIndex:2000,
+      background:'rgba(0,0,0,.7)',backdropFilter:'blur(4px)',
+      display:'flex',alignItems:'flex-start',justifyContent:'center',paddingTop:80}}
+      onClick={e=>{if(e.target===e.currentTarget)setBGO(false)}}>
+      <div style={{width:600,background:'var(--bg-2)',borderRadius:16,
+        border:'1px solid var(--sep)',overflow:'hidden',boxShadow:'0 24px 64px rgba(0,0,0,.5)'}}>
+        <div style={{padding:'14px 16px',borderBottom:'1px solid var(--sep)',display:'flex',alignItems:'center',gap:10}}>
+          <Search size={16} style={{color:'var(--label-4)',flexShrink:0}}/>
+          <input value={buscaGlobal} onChange={e=>setBG(e.target.value)} autoFocus
+            placeholder="Buscar em todas as mensagens..." style={{
+              flex:1,background:'none',border:'none',color:'var(--label)',fontSize:14,outline:'none'}}/>
+          {bgLoad&&<RefreshCw size={14} style={{color:'var(--label-4)',animation:'spin 1s linear infinite',flexShrink:0}}/>}
+          <button onClick={()=>setBGO(false)} style={{background:'none',border:'none',cursor:'pointer',
+            color:'var(--label-4)',padding:2}}><X size={16}/></button>
+        </div>
+        <div style={{maxHeight:400,overflowY:'auto'}}>
+          {bgResults.length===0&&buscaGlobal.length>=2&&!bgLoad&&(
+            <p style={{padding:24,textAlign:'center',color:'var(--label-4)',fontSize:13,margin:0}}>
+              Nenhuma mensagem encontrada para "{buscaGlobal}".
+            </p>
+          )}
+          {bgResults.map((r,i)=><div key={i} onClick={()=>{setSel(r.telefone);setBGO(false)}}
+            style={{padding:'12px 16px',borderBottom:'1px solid var(--sep)',cursor:'pointer'}}
+            onMouseEnter={e=>e.currentTarget.style.background='var(--fill)'}
+            onMouseLeave={e=>e.currentTarget.style.background='none'}>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+              <span style={{fontSize:12.5,fontWeight:600,color:'var(--label)'}}>{r.nome||fmtTel(r.telefone)}</span>
+              <span style={{fontSize:10,color:'var(--label-4)'}}>{fmtDH(r.criado_em)}</span>
+            </div>
+            <p style={{fontSize:12,color:'var(--label-3)',margin:0,
+              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+              {r.direcao==='saida'?`${nomeIA}: `:'Cliente: '}{r.mensagem_match}
+            </p>
+          </div>)}
+        </div>
+        {buscaGlobal.length<2&&<p style={{padding:16,textAlign:'center',color:'var(--label-4)',fontSize:12,margin:0}}>
+          Digite pelo menos 2 caracteres para buscar · <kbd style={{fontSize:10,padding:'1px 5px',borderRadius:4,
+            border:'1px solid var(--sep)',background:'var(--bg)'}}>Esc</kbd> para fechar
+        </p>}
+      </div>
+    </div>}
+
+    <style>{`
+      @keyframes spin  { to { transform: rotate(360deg) } }
+      @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.4 } }
+      .group-hover\\:opacity-100:hover > * { opacity: 1 !important; }
+    `}</style>
+  </div>
 }
