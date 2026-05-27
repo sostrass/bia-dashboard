@@ -6,7 +6,7 @@ import {
   Shield, ShoppingCart, Truck, CreditCard, Eye, EyeOff, TrendingUp,
   Wifi, WifiOff, Hash, Clock, Circle, Lock, Info, X, Edit3,
   ChevronLeft, PanelLeftClose, PanelLeftOpen, Package, Layers,
-  AlertCircle, ExternalLink, BarChart2, Percent
+  AlertCircle, ExternalLink, BarChart2, Percent, FileText
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -83,6 +83,28 @@ const BYPASSES = [
     titulo:'Remover / Alterar / Ver foto',
     desc:'Lista numerada enviada direto ao WA. Foto usa bling_id real do ctx.produtoSelecionado — sem o Gemini inventar IDs.',
     fluxo:['Editar carrinho → lista numerada de itens direto ao WA','Remover: seleciona número → bypassFerramenta("remover_item")','Ver foto: bypass direto com bling_id real → enviar_foto_produto()'] },
+  { cat:'Nota Fiscal', icon:FileText, cor:'#f59e0b',
+    titulo:'Emitir Nota Fiscal',
+    desc:'Botão "Emitir Nota Fiscal" dispara emitir_nota_fiscal() direto, sem consultar IA. Mensagem de aguardando é enviada imediatamente; autorização ocorre em background.',
+    fluxo:[
+      'consultar_pedido retorna NF pendente → botões [Emitir Nota Fiscal | Ver pedido completo]',
+      'Cliente clica "Emitir Nota Fiscal" → sistema envia msgNotaFiscalAguardando imediatamente',
+      'Background: POST /nfe (cria) → POST /nfe/:id/enviar (SEFAZ)',
+      'Polling a cada 3s até 30s → se autorizada → envia msgNotaFiscalSucesso com link',
+      'Se > 30s sem resposta → envia msgNotaFiscalProcessando ("aguarde alguns minutos")',
+      'Se erro SEFAZ → abre ocorrência + envia msgNotaFiscalFalha com protocolo'
+    ]
+  },
+  { cat:'Nota Fiscal', icon:FileText, cor:'#22c55e',
+    titulo:'NF já autorizada',
+    desc:'Se pedido já tem NF autorizada no Bling, retorna o link diretamente sem emitir novamente.',
+    fluxo:[
+      'consultar_pedido detecta pedido.notaFiscal.id',
+      'GET /nfe/:id → situacao = Autorizada + linkDanfe disponível',
+      'Retorna msgNotaFiscalEmitida com link diretamente',
+      'Sem polling, sem emissão — só consulta'
+    ]
+  },
 ]
 
 const CAT_CORES = { Checkout:'#22c55e', Carrinho:'#00d4aa', Pagamento:'#f59e0b', Endereço:'#a78bfa', Fotos:'#fb923c', 'Nota Fiscal':'#f59e0b' }
