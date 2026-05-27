@@ -243,10 +243,10 @@ export default function Shell() {
           {conteudo()}
         </main>
 
-      </div>
         </div>
-        {/* Live Activity Bar — sempre visível na base */}
-        <LiveActivityBar api={API} onNavigate={setPage}/>
+      </div>
+      {/* Live Activity Bar — sempre visível na base */}
+      <LiveActivityBar api={API} onNavigate={setPage}/>
 
       {/* Command Palette */}
       {cmdOpen && (
