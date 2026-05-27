@@ -435,7 +435,11 @@ function OrderSheet({pedRow, onClose, api, allPedidos}) {
   const rfmCfg    = RFM[rfmScore]||RFM.novo
   const RFMIcon   = rfmCfg.icon
   const ltvTotal  = [pedRow,...hist].reduce((s,p)=>s+parseFloat(p.total||0),0)
-  const codRas    = rastreio?.codigo || transporte?.volumes?.[0]?.codigo || ''
+  const codRas    = rastreio?.codigo 
+                    || transporte?.volumes?.[0]?.codigo 
+                    || transporte?.volumes?.[0]?.codigoRastreamento
+                    || pedRow?.codigoRastreio
+                    || ''
   const linkRas   = rastreio?.linkCorreios || rastreio?.linkMelhorRastreio || ''
 
   const cp = (v,k)=>{ navigator.clipboard?.writeText(String(v||'')); setCpOk(k); setTimeout(()=>setCpOk(''),1500) }
@@ -835,13 +839,39 @@ function OrderSheet({pedRow, onClose, api, allPedidos}) {
             ) : !codRas ? (
               <div style={{textAlign:'center',padding:40,color:'var(--label-4)'}}>
                 <Navigation size={32} style={{opacity:.15,marginBottom:12}}/><br/>
-                <p style={{fontSize:13,margin:0}}>Código de rastreio não disponível para este pedido.</p>
+                <p style={{fontSize:13,margin:0}}>Código de rastreio não disponível.</p>
+                <p style={{fontSize:11,margin:'6px 0 0',color:'var(--label-4)'}}>
+                  Este pedido ainda não possui código de rastreio no Bling.
+                </p>
               </div>
             ) : (
-              <div style={{textAlign:'center',padding:40,color:'var(--label-4)'}}>
-                <Navigation size={32} style={{opacity:.15,marginBottom:12}}/><br/>
-                <p style={{fontSize:13,margin:'0 0 4px'}}>Aguardando eventos de rastreio.</p>
-                <p style={{fontSize:11,margin:0}}>Código: <strong>{codRas}</strong></p>
+              <div style={{padding:24,background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:12}}>
+                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+                  <Navigation size={18} style={{color:'#f59e0b',flexShrink:0}}/>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:600,color:'var(--label)'}}>Aguardando movimentação</div>
+                    <div style={{fontSize:11,color:'var(--label-4)',marginTop:2}}>
+                      O pacote foi postado mas ainda sem eventos registrados.
+                    </div>
+                  </div>
+                </div>
+                <div style={{display:'flex',alignItems:'center',gap:8,
+                  padding:'8px 12px',background:'var(--fill)',borderRadius:8}}>
+                  <span style={{fontSize:11,color:'var(--label-4)'}}>Código:</span>
+                  <span style={{fontSize:12,fontFamily:'monospace',fontWeight:600,color:'var(--label)'}}>{codRas}</span>
+                  <button onClick={()=>cp(codRas,'codras')} style={{
+                    marginLeft:'auto',background:'none',border:'none',cursor:'pointer',
+                    color:'var(--label-4)',display:'flex',alignItems:'center'}}>
+                    {cpOk==='codras'?<Check size={12} style={{color:'#22c55e'}}/>:<Copy size={12}/>}
+                  </button>
+                </div>
+                {linkRas&&<a href={linkRas} target="_blank" rel="noreferrer"
+                  style={{display:'flex',alignItems:'center',gap:5,marginTop:10,
+                    padding:'7px 12px',borderRadius:8,border:'1px solid rgba(6,182,212,.3)',
+                    background:'rgba(6,182,212,.06)',color:'#06b6d4',fontSize:12,textDecoration:'none',
+                    justifyContent:'center'}}>
+                  <ExternalLink size={12}/>Rastrear no site da transportadora
+                </a>}
               </div>
             )}
           </div>}
@@ -1090,11 +1120,21 @@ export default function PagePedidos({api}) {
   const buscarPorNumero = useCallback(async(num)=>{
     setLoad(true)
     try{
-      const r=await fetch(`${api}/api/dashboard/pedidos?numeroPedido=${num.replace(/\D/g,'')}&limite=1`)
+      // Busca sem filtro de situação para achar qualquer pedido
+      const numLimpo = num.replace(/\D/g,'')
+      const r=await fetch(`${api}/api/dashboard/pedidos?numeroPedido=${numLimpo}&limite=5`)
       if(r.ok){
         const d=await r.json()
-        if(d.pedidos?.length) setPed(d.pedidos)
-        else setPed([])
+        const lista = d.pedidos||[]
+        if(lista.length){
+          setPed(lista)
+          setFS('0') // reset filtro status para mostrar o resultado
+          setBusca(numLimpo)
+        } else {
+          // Fallback: tenta como id do pedido no Bling
+          const r2=await fetch(`${api}/api/dashboard/pedidos?numeroPedido=${numLimpo}&situacao=todos&limite=5`)
+          if(r2.ok){const d2=await r2.json(); if(d2.pedidos?.length)setPed(d2.pedidos)}
+        }
       }
     }catch{}
     setLoad(false)
@@ -1338,7 +1378,8 @@ export default function PagePedidos({api}) {
           : view==='kanban'    ? <KanbanView filtrados={filtrados} onSel={setSel}/>
           : <>
             {/* Header tabela */}
-            <div className="grid gap-0 px-2 py-1.5 mb-1" style={{gridTemplateColumns:'80px 80px 1fr 100px 85px 90px 130px 36px'}}>
+            <div style={{display:'grid',gridTemplateColumns:'80px 80px 1fr 100px 85px 90px 130px 36px',
+              gap:0,padding:'5px 8px',marginBottom:4}}>
               {[['Pedido','numero'],['Data','data'],['Cliente','contato'],['Canal',null],['Status',null],['Total','total'],['Transp / Rastreio',null],[null,null]].map(([h,col],i)=>(
                 <div key={i} onClick={col?()=>srt(col):undefined} style={{
                   display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:700,
@@ -1357,7 +1398,7 @@ export default function PagePedidos({api}) {
                 const canal=getCanal(p),sid=getSitId(p),s=SIT[sid]||{label:'—',cor:'#888',bg:'var(--fill)'}
                 const temRas=!!(p.codigoRastreio||p.transporte?.volumes?.[0]?.codigoRastreamento)
                 const temNF=!!p.notaFiscal?.id
-                return <div key={p.numero} onClick={()=>setSel(p)} className="group" style={{
+                return <div key={p.numero} onClick={()=>setSel(p)} style={{
                   display:'grid',gridTemplateColumns:'80px 80px 1fr 100px 85px 90px 130px 36px',
                   gap:0,padding:'9px 8px',marginBottom:3,background:'var(--bg-2)',
                   border:'1px solid var(--sep)',borderRadius:10,cursor:'pointer',
@@ -1374,30 +1415,31 @@ export default function PagePedidos({api}) {
                   <div style={{padding:'0 6px'}}><CanalBadge canal={canal} small/></div>
                   <div style={{padding:'0 6px'}}><Pill label={s.label} cor={s.cor} bg={s.bg} sz={10}/></div>
                   <div style={{padding:'0 6px'}}><span style={{fontSize:12.5,fontWeight:700,color:'var(--label)'}}>{fmt(p.total)}</span></div>
-                  <div className="flex flex-col gap-1 px-1.5 min-w-0">
+                  <div style={{display:'flex',flexDirection:'column',gap:3,padding:'0 6px',minWidth:0}}>
                     {p.codigoRastreio ? (
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <Truck size={10} className="text-emerald-400 flex-shrink-0"/>
-                        <span className="text-[10px] font-mono text-[var(--label-3)] truncate max-w-[90px]"
+                      <div style={{display:'flex',alignItems:'center',gap:4,minWidth:0}}>
+                        <Truck size={10} style={{color:'#22c55e',flexShrink:0}}/>
+                        <span style={{fontSize:9.5,fontFamily:'monospace',color:'var(--label-3)',
+                          overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:88}}
                           title={p.codigoRastreio}>{p.codigoRastreio}</span>
                         <button onClick={e=>{e.stopPropagation();navigator.clipboard?.writeText(p.codigoRastreio)}}
-                          className="flex-shrink-0 opacity-0 group-hover:opacity-100 hover:text-[var(--accent)] text-[var(--label-4)] transition-opacity"
-                          title="Copiar código">
+                          title="Copiar" style={{flexShrink:0,background:'none',border:'none',
+                            cursor:'pointer',color:'var(--label-4)',padding:0,display:'flex',alignItems:'center'}}>
                           <Copy size={9}/>
                         </button>
                       </div>
                     ) : (
-                      <span className="text-[10px] text-[var(--label-4)]">—</span>
+                      <span style={{fontSize:10,color:'var(--label-4)'}}>—</span>
                     )}
-                    {p.transportadora && (
-                      <span className="text-[9px] text-[var(--label-4)] truncate max-w-[110px]" title={p.transportadora}>
-                        {p.transportadora}
-                      </span>
+                    {p.transportadora&&(
+                      <span style={{fontSize:9,color:'var(--label-4)',overflow:'hidden',
+                        textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:120}}
+                        title={p.transportadora}>{p.transportadora}</span>
                     )}
-                    {p.notaFiscal?.id>0 && !p.codigoRastreio && (
-                      <div className="flex items-center gap-1">
-                        <FileText size={9} className="text-blue-400 flex-shrink-0"/>
-                        <span className="text-[9px] text-blue-400">NF</span>
+                    {p.notaFiscal?.id>0&&!p.codigoRastreio&&(
+                      <div style={{display:'flex',alignItems:'center',gap:3}}>
+                        <FileText size={9} style={{color:'#4a9fff',flexShrink:0}}/>
+                        <span style={{fontSize:9,color:'#4a9fff'}}>NF</span>
                       </div>
                     )}
                   </div>
@@ -1408,23 +1450,30 @@ export default function PagePedidos({api}) {
               })
             }
             {/* Paginação */}
-            {totalPgs>1&&<div className="flex justify-center items-center gap-2 mt-4 pb-3">
+            {totalPgs>1&&<div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:8,marginTop:14,paddingBottom:8}}>
               <button onClick={()=>setPgUI(p=>Math.max(1,p-1))} disabled={pgUI===1}
-                className={`flex items-center justify-center w-8 h-8 rounded-lg border border-[var(--sep)] bg-[var(--fill)] text-[var(--label-3)] ${pgUI===1?'opacity-40 cursor-not-allowed':'hover:bg-[var(--bg-3)] cursor-pointer'}`}>
+                style={{padding:'5px 10px',borderRadius:8,border:'1px solid var(--sep)',
+                  background:'var(--fill)',cursor:pgUI===1?'not-allowed':'pointer',
+                  color:'var(--label-3)',opacity:pgUI===1?0.5:1,display:'flex',alignItems:'center'}}>
                 <ChevronLeft size={14}/>
               </button>
-              <span className="text-[11px] text-[var(--label-4)] select-none">
-                {pgUI}/{totalPgs} · <strong className="text-[var(--label)]">{filtrados.length}</strong> pedidos
-                {totalBling>0&&<span className="ml-1 opacity-60">de {totalBling} no Bling</span>}
+              <span style={{fontSize:11,color:'var(--label-4)',userSelect:'none'}}>
+                {pgUI}/{totalPgs} · <strong style={{color:'var(--label)'}}>{filtrados.length}</strong> pedidos
+                {totalBling>0&&<span style={{marginLeft:4,opacity:.6}}>de {totalBling} no Bling</span>}
               </span>
               <button onClick={()=>setPgUI(p=>Math.min(totalPgs,p+1))} disabled={pgUI===totalPgs}
-                className={`flex items-center justify-center w-8 h-8 rounded-lg border border-[var(--sep)] bg-[var(--fill)] text-[var(--label-3)] ${pgUI===totalPgs?'opacity-40 cursor-not-allowed':'hover:bg-[var(--bg-3)] cursor-pointer'}`}>
+                style={{padding:'5px 10px',borderRadius:8,border:'1px solid var(--sep)',
+                  background:'var(--fill)',cursor:pgUI===totalPgs?'not-allowed':'pointer',
+                  color:'var(--label-3)',opacity:pgUI===totalPgs?0.5:1,display:'flex',alignItems:'center'}}>
                 <ChevronRight size={14}/>
               </button>
               {temMais&&pgUI===totalPgs&&(
                 <button onClick={()=>carregar(pgAPI+1,true)} disabled={loadMore}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--sep)] bg-[var(--fill)] text-[var(--label-3)] text-[11px] ${loadMore?'opacity-50 cursor-not-allowed':'hover:bg-[var(--bg-3)] cursor-pointer'}`}>
-                  {loadMore ? <><RefreshCw size={11} className="animate-spin"/>Carregando...</> : <>+ Carregar 100</>}
+                  style={{padding:'5px 12px',borderRadius:8,border:'1px solid var(--sep)',
+                    background:'var(--fill)',cursor:loadMore?'not-allowed':'pointer',
+                    color:'var(--label-3)',fontSize:11,display:'flex',alignItems:'center',gap:5,
+                    opacity:loadMore?0.5:1}}>
+                  {loadMore ? <><RefreshCw size={11} style={{animation:'spin 1s linear infinite'}}/>Carregando...</> : <>+ Carregar 100</>}
                 </button>
               )}
             </div>}
