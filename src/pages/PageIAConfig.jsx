@@ -676,7 +676,7 @@ export default function PageIAConfig({ api }) {
               {/* HORÁRIO */}
               {active==='horario' && (
                 <Card>
-                  <SectionTitle>Horário de atendimento" sub="Fora desse intervalo a IA envia a mensagem 'offline'"/>
+                  <SectionTitle sub={'Fora desse intervalo a IA envia a mensagem offline'}>Horário de atendimento</SectionTitle>
                   {schedule.map((s,i)=>(
                     <div key={s.day} style={{ display:'flex', alignItems:'center', gap:12, paddingBlock:'9px', borderBottom:i<schedule.length-1?'1px solid var(--sep)':'none' }}>
                       <span style={{ width:72, fontSize:12.5, fontWeight:500, color:s.on?'var(--label)':'var(--label-4)' }}>{s.day}</span>
@@ -704,7 +704,7 @@ export default function PageIAConfig({ api }) {
               {/* LOGÍSTICA */}
               {active==='logistica' && <>
                 <Card style={{ marginBottom:14 }}>
-                  <SectionTitle>Dimensões da embalagem padrão" sub="Usadas para cotação de frete — configure a caixa padrão"/>
+                  <SectionTitle sub={'Usadas para cotação de frete — configure a caixa padrão'}>Dimensões da embalagem padrão</SectionTitle>
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                     {[['caixaAltura','Altura (cm)'],['caixaLargura','Largura (cm)'],['caixaComprimento','Comprimento (cm)'],['caixaPesoMinimo','Peso mínimo (kg)']].map(([k,lb])=>(
                       <Field key={k} label={lb}><Input value={cfg[k]} onChange={v=>setC(k,v)} type="number"/></Field>
