@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   MessageSquare, ShoppingCart, Zap, Users, Activity,
-  Wifi, WifiOff, ChevronUp, Circle, TrendingUp
+  Wifi, WifiOff, ChevronUp, Circle, TrendingUp, Settings, X, Check, Eye, EyeOff
 } from 'lucide-react'
 
 const R = n => `R$ ${Number(n||0).toFixed(2).replace('.',',')}`
@@ -80,11 +80,26 @@ function Sep() {
 }
 
 // ── Componente principal ───────────────────────────────────────────────────────
+// Items configuráveis da barra
+const DEFAULT_ITEMS = [
+  {id:'conversas',  label:'Conversas ativas',  ativo:true},
+  {id:'fila',       label:'Fila humano',        ativo:true},
+  {id:'msgs',       label:'Msgs/hora',          ativo:true},
+  {id:'carrinho',   label:'Com carrinho',       ativo:true},
+  {id:'pedidos',    label:'Pedidos hoje',       ativo:true},
+  {id:'receita',    label:'Receita hoje',       ativo:true},
+]
+function loadItems() {
+  try { return JSON.parse(localStorage.getItem('lab_items') || 'null') || DEFAULT_ITEMS } catch { return DEFAULT_ITEMS }
+}
+
 export default function LiveActivityBar({ api, onNavigate }) {
   const [data,    setData]    = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(false)
-  const [blink,   setBlink]   = useState(false)  // pulsa quando recebe update
+  const [blink,   setBlink]   = useState(false)
+  const [showCfg, setShowCfg] = useState(false)
+  const [items,   setItems]   = useState(loadItems)
   const [expanded,setExpanded]= useState(false)
   const [lastMsg, setLastMsg] = useState(0)
   const prevRef = useRef(null)
@@ -296,6 +311,48 @@ export default function LiveActivityBar({ api, onNavigate }) {
       </div>
 
       {/* Painel expandido */}
+      {/* Painel de configuração */}
+      {showCfg && (
+        <div style={{
+          position:'absolute',bottom:'100%',right:8,
+          background:'var(--bg-2)',border:'1px solid var(--sep)',
+          borderRadius:12,padding:'12px 14px',
+          boxShadow:'0 -8px 24px rgba(0,0,0,.3)',
+          zIndex:200,minWidth:220,
+          animation:'fadeIn .15s ease-out',
+        }}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+            <span style={{fontSize:12,fontWeight:700,color:'var(--label)'}}>Configurar barra</span>
+            <button onClick={()=>setShowCfg(false)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:2}}>
+              <X size={13}/>
+            </button>
+          </div>
+          {items.map(item=>(
+            <div key={item.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+              padding:'6px 0',borderBottom:'1px solid var(--sep)'}}>
+              <span style={{fontSize:12,color:'var(--label-3)'}}>{item.label}</span>
+              <button onClick={()=>{
+                const novo = items.map(i=>i.id===item.id?{...i,ativo:!i.ativo}:i)
+                setItems(novo)
+                try{localStorage.setItem('lab_items',JSON.stringify(novo))}catch{}
+              }} style={{background:'none',border:'none',cursor:'pointer',
+                color:item.ativo?'#22c55e':'var(--label-4)',padding:2,display:'flex',alignItems:'center',gap:4,fontSize:11}}>
+                {item.ativo?<Check size={12}/>:<Eye size={12}/>}
+                {item.ativo?'Visível':'Oculto'}
+              </button>
+            </div>
+          ))}
+          <button onClick={()=>{
+            setItems(DEFAULT_ITEMS)
+            try{localStorage.removeItem('lab_items')}catch{}
+          }} style={{marginTop:8,width:'100%',padding:'5px',borderRadius:7,
+            border:'1px solid var(--sep)',background:'var(--fill)',
+            color:'var(--label-3)',cursor:'pointer',fontSize:11}}>
+            Restaurar padrão
+          </button>
+        </div>
+      )}
+
       {expanded && (
         <div style={{
           background:'var(--bg-2)', borderTop:'1px solid var(--sep)',
