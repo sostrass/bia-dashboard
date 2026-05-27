@@ -25,7 +25,7 @@ const NAV = [
     { id:'params',    icon:Layers,        label:'Parâmetros',    badge:null },
   ]},
   { group:'Mensagens', items:[
-    { id:'msgs',      icon:MessageSquare, label:'Mensagens',     badge:'13' },
+    { id:'msgs',      icon:MessageSquare, label:'Mensagens',     badge:'18' },
     { id:'bypasses',  icon:Zap,           label:'Bypasses',      badge:'7' },
   ]},
 ]
@@ -57,6 +57,12 @@ const MSGS = [
   { cat:'Avaliação',   campo:'msgAvaliacaoObrigada',  titulo:'Confirmação positiva (4-5★)',      pad:'Muito obrigada, {nome_cliente}! Seu feedback nos deixa muito felizes. 🥰', vars:['{nome_cliente}','{estrelas}'] },
   { cat:'Avaliação',   campo:'msgAvaliacaoNeutra',    titulo:'Confirmação neutra (3★)',           pad:'Obrigada pelo feedback, {nome_cliente}! Vamos continuar melhorando. 😊', vars:['{nome_cliente}','{estrelas}'] },
   { cat:'Avaliação',   campo:'msgAvaliacaoNegativa',  titulo:'Confirmação negativa (1-2★) + ocorrência', pad:'Obrigada pelo retorno, {nome_cliente}. Lamentamos a experiência — nossa equipe entrará em contato em breve. 🙏', vars:['{nome_cliente}','{estrelas}'] },
+  // ── Cenários de consulta de pedido ────────────────────────────────────────
+  { cat:'Pedidos', campo:'msgMultiplosPedidos',      titulo:'Múltiplos pedidos — destaca o mais recente',  pad:'Encontrei *{total} pedidos* no seu cadastro! 📦\n\n*Mais recente:* #{ultimo_pedido}\n📅 {data_ultimo} — {valor_ultimo}\n\nQual pedido você precisa? Posso verificar nota fiscal, rastreio ou detalhes.\n[BOTOES: Nota fiscal #{ultimo_pedido} | Rastreio #{ultimo_pedido} | Ver outros pedidos]', vars:['{total}','{ultimo_pedido}','{data_ultimo}','{valor_ultimo}'] },
+  { cat:'Pedidos', campo:'msgPedidoEntregue_botoes',  titulo:'Botões — pedido entregue',                   pad:'Avaliar compra | Preciso de ajuda | Nova compra', vars:null },
+  { cat:'Pedidos', campo:'msgPedidoTransito_botoes',  titulo:'Botões — pedido em trânsito',                pad:'Rastrear entrega | Nota fiscal #{numero} | Nova compra', vars:['{numero}'] },
+  { cat:'Pedidos', campo:'msgPedidoAguardando_botoes',titulo:'Botões — aguardando envio (sem Cancelar)',   pad:'Falar sobre o pedido | Nova compra', vars:null },
+  { cat:'Pedidos', campo:'msgOutrosPedidos',          titulo:'Template lista de outros pedidos',           pad:'Seus últimos pedidos:\n1️⃣ #{num1} — {data1} — {valor1}\nQual você quer consultar? Me mande o número.\n[BOTOES: Nota fiscal | Rastreio]', vars:['{num1}','{data1}','{valor1}'] },
 ]
 
 // ── Bypasses com fluxo explicado ─────────────────────────────────────────────
@@ -390,7 +396,7 @@ export default function PageLLMConfig({ api }) {
     modelos: {title:'Por Modelo',      sub:'Performance e custo por modelo — últimos 30 dias'},
     llm:     {title:'LLM & API Keys',  sub:'Provedor, modelo e credenciais de API'},
     params:  {title:'Parâmetros',      sub:'Temperatura, tokens e configurações avançadas'},
-    msgs:    {title:'Mensagens',       sub:'13 mensagens bypass — enviadas sem passar pelo Gemini'},
+    msgs:    {title:'Mensagens',       sub:'18 mensagens bypass — enviadas sem passar pelo Gemini'},
     bypasses:{title:'Bypasses',        sub:'Fluxos automáticos · todos hardcoded, sempre ativos'},
   }
   const p = PAGE[active]||{}
