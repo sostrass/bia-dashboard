@@ -640,7 +640,8 @@ function ConfigModal({ config, onSave, onClose }) {
 export default function PageInteligencia({ api }) {
 
   // ── Estado global ──────────────────────────────────────────────────────────
-  const [view,        setView]      = useState('overview')  // overview | clientes | sugestoes | config
+  const [view,        setView]      = useState('overview')
+  const [avaliacoes,    setAvaliacoes]    = useState([])  // overview | clientes | sugestoes | config
   const [loadSug,     setLoadSug]   = useState(true)
   const [loadClientes,setLoadCli]   = useState(true)
   const [sugestoes,   setSugestoes] = useState([])
@@ -698,8 +699,15 @@ export default function PageInteligencia({ api }) {
     } catch {}
   }, [api])
 
+  const carregarAvaliacoes = useCallback(async () => {
+    try {
+      const r = await fetch(`${api}/api/inteligencia/avaliacoes`)
+      if (r.ok) { const d = await r.json(); setAvaliacoes(d.avaliacoes || []) }
+    } catch {}
+  }, [api])
+
   useEffect(() => { carregarClientes() }, [carregarClientes])
-  useEffect(() => { carregarSugestoes(); carregarConfig() }, [carregarSugestoes, carregarConfig])
+  useEffect(() => { carregarSugestoes(); carregarConfig(); carregarAvaliacoes() }, [carregarSugestoes, carregarConfig, carregarAvaliacoes])
 
   const analisarAgora = async () => {
     setAnalisando(true)
@@ -824,9 +832,10 @@ export default function PageInteligencia({ api }) {
         {/* Tabs de navegação */}
         <div style={{display:'flex',gap:0,marginTop:14,maxWidth:1400,margin:'14px auto 0'}}>
           {[
-            {id:'overview',  label:'Visão Geral', icon:BarChart3},
-            {id:'sugestoes', label:`Sugestões da Bia${sugestoesFiltradas.length?` (${sugestoesFiltradas.length})`:''}`, icon:Brain},
-            {id:'clientes',  label:`Clientes${clientesFiltrados.length?` (${clientesFiltrados.length})`:''}`, icon:Users},
+            {id:'overview',   label:'Visão Geral', icon:BarChart3},
+            {id:'sugestoes',  label:`Sugestões da Bia${sugestoesFiltradas.length?` (${sugestoesFiltradas.length})`:''}`, icon:Brain},
+            {id:'clientes',   label:`Clientes${clientesFiltrados.length?` (${clientesFiltrados.length})`:''}`, icon:Users},
+            {id:'avaliacoes', label:`Avaliações${avaliacoes.length?` (${avaliacoes.length})`:''}`, icon:Star},
           ].map(t=>{
             const Icon = t.icon
             return (
@@ -1182,6 +1191,74 @@ export default function PageInteligencia({ api }) {
       </div>
 
       {/* ── MODAIS ─────────────────────────────────────────────────────────── */}
+      {/* ────────── VIEW: AVALIAÇÕES ──────────────────────────────────────────── */}
+      {view === 'avaliacoes' && (
+        <div style={{display:'flex',flexDirection:'column',gap:16}}>
+          {/* Resumo */}
+          {avaliacoes.length > 0 && (() => {
+            const media = avaliacoes.reduce((s,a)=>s+a.estrelas,0)/avaliacoes.length
+            const dist  = [5,4,3,2,1].map(n=>({n,count:avaliacoes.filter(a=>a.estrelas===n).length}))
+            return (
+              <div style={{display:'grid',gridTemplateColumns:'200px 1fr',gap:16}}>
+                <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'20px',textAlign:'center'}}>
+                  <div style={{fontSize:48,fontWeight:700,color:'var(--label)',lineHeight:1}}>{media.toFixed(1)}</div>
+                  <div style={{fontSize:20,margin:'6px 0'}}>{'⭐'.repeat(Math.round(media))}</div>
+                  <div style={{fontSize:12,color:'var(--label-4)'}}>{avaliacoes.length} avaliação{avaliacoes.length!==1?'ões':''}</div>
+                </div>
+                <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'20px',display:'flex',flexDirection:'column',justifyContent:'center',gap:8}}>
+                  {dist.map(({n,count})=>(
+                    <div key={n} style={{display:'flex',alignItems:'center',gap:10}}>
+                      <span style={{fontSize:12,color:'var(--label-3)',width:16,textAlign:'right'}}>{n}</span>
+                      <Star size={12} style={{color:'#f59e0b',flexShrink:0}}/>
+                      <div style={{flex:1,height:8,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
+                        <div style={{width:`${avaliacoes.length?count/avaliacoes.length*100:0}%`,height:'100%',background:'#f59e0b',borderRadius:99,transition:'width .3s'}}/>
+                      </div>
+                      <span style={{fontSize:11,color:'var(--label-4)',width:24,textAlign:'right'}}>{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
+          {/* Lista de avaliações */}
+          {avaliacoes.length === 0
+            ? <div style={{textAlign:'center',padding:48,color:'var(--label-4)',fontSize:14}}>
+                <Star size={32} style={{opacity:.2,marginBottom:12}}/>
+                <p style={{margin:0}}>Nenhuma avaliação registrada ainda.</p>
+                <p style={{margin:'6px 0 0',fontSize:12}}>As avaliações aparecem aqui quando clientes avaliam seus pedidos.</p>
+              </div>
+            : avaliacoes.map((av,i)=>(
+                <div key={i} style={{background:'var(--bg-2)',border:`1px solid ${av.estrelas<=2?'rgba(239,68,68,.3)':av.estrelas>=4?'rgba(34,197,94,.2)':'var(--sep)'}`,borderRadius:12,padding:'14px 16px'}}>
+                  <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12,marginBottom:av.comentario?8:0}}>
+                    <div>
+                      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+                        <span style={{fontSize:16}}>{'⭐'.repeat(av.estrelas)}</span>
+                        <span style={{fontSize:11,fontWeight:600,padding:'1px 7px',borderRadius:99,
+                          background:av.estrelas<=2?'rgba(239,68,68,.1)':av.estrelas>=4?'rgba(34,197,94,.1)':'rgba(245,158,11,.1)',
+                          color:av.estrelas<=2?'#ef4444':av.estrelas>=4?'#22c55e':'#f59e0b'
+                        }}>{av.estrelas<=2?'Insatisfeito':av.estrelas>=4?'Satisfeito':'Neutro'}</span>
+                        {av.estrelas<=2 && <span style={{fontSize:10,padding:'1px 6px',borderRadius:99,background:'rgba(239,68,68,.1)',color:'#ef4444',border:'1px solid rgba(239,68,68,.2)'}}>🔔 Ocorrência aberta</span>}
+                      </div>
+                      <div style={{fontSize:12,color:'var(--label-4)'}}>
+                        <strong style={{color:'var(--label-3)'}}>{av.nome_cliente || av.telefone}</strong>
+                        {av.numero_pedido && <> · Pedido #{av.numero_pedido}</>}
+                      </div>
+                    </div>
+                    <span style={{fontSize:11,color:'var(--label-4)',flexShrink:0}}>
+                      {av.criado_em ? new Date(av.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—'}
+                    </span>
+                  </div>
+                  {av.comentario && (
+                    <p style={{fontSize:12.5,color:'var(--label-3)',margin:0,padding:'8px 12px',background:'var(--fill)',borderRadius:8,lineHeight:1.6,fontStyle:'italic'}}>
+                      "{av.comentario}"
+                    </p>
+                  )}
+                </div>
+              ))
+          }
+        </div>
+      )}
+
       {clienteSel && <ClienteSheet cliente={clienteSel} onClose={()=>setCltSel(null)} api={api}/>}
       {showConfig  && <ConfigModal config={config} onSave={salvarConfig} onClose={()=>setShowCfg(false)}/>}
 
