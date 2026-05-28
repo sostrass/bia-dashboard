@@ -511,22 +511,19 @@ export default function PageIAConfig({ api }) {
     if (!api) return
     fetch(`${api}/api/ia/config`).then(r=>r.ok?r.json():null).then(d=>{
       if (!d) return
-      // Só usa a persona do banco se for a nova (longa) — se for a antiga curta, mantém o padrão novo
+      // Só usa a persona do banco se for a nova (>200 chars = tem TOM/PERSONALIDADE)
+      // Personas antigas são curtas — mantém o padrão novo no lugar delas
       const personaBanco = d.persona || d.iaPersona || ''
-      const PERSONA_ANTIGAS = [
-        'Você é Molise, assistente virtual da Só Strass. Seja simpática e objetiva.',
-        'Você é Bia, assistente de vendas da Só Strass. Comunicação precisa, profissional e direta.',
-        'Você é Molise, assistente virtual da Só Strass. Seja calorosa, precisa e direta.',
-      ]
-      const personaEAntiga = PERSONA_ANTIGAS.some(p => personaBanco.trim() === p.trim())
-      if (personaBanco && !personaEAntiga) setIaPersona(personaBanco)
+      if (personaBanco && personaBanco.trim().length > 200) setIaPersona(personaBanco)
       if (d.iaName)    setIaName(d.iaName)
       if (d.btns)      setBtns(d.btns)
       if (d.schedule)  setSchedule(d.schedule)
       if (d.tons)      setTons(d.tons)
       if (d.emoji!==undefined) setEmoji(d.emoji)
       if (d.ctxData)   setCtxData(d.ctxData)
-      setCfg(prev=>({...prev,...d}))
+      // Remove persona do cfg para não interferir com o estado iaPersona
+      const { persona: _p, iaPersona: _ip, ...dSemPersona } = d
+      setCfg(prev=>({...prev,...dSemPersona}))
     }).catch(()=>{})
   },[api])
 
