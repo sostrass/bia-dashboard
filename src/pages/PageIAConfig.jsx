@@ -16,25 +16,25 @@ const ALIASES = ['{nome_cliente}','{produto}','{valor_pix}','{valor_cartao}','{n
 const CTXS = [
   { id:'saudacao', label:'Saudação inicial',    cor:'#00d4aa', icon:MessageSquare,
     desc:'Enviada na primeira interação. Use {nome_ia} e {loja}.',
-    default:'Olá! Seja bem-vindo(a) à {loja}! Sou a {nome_ia}. Como posso ajudar?' },
+    default:'Oi! Bem-vindo(a) à {loja}! 😊 Sou a {nome_ia}, conta pra mim o que você tá precisando!' },
   { id:'produto',  label:'Produto encontrado',   cor:'#a78bfa', icon:Package2,
     desc:'Exibida ao listar produtos. Use {produto}, {valor_pix}, {valor_cartao}.',
-    default:'*{produto}*\n───────────\nPIX: R$ {valor_pix} | Cartão: R$ {valor_cartao}' },
+    default:'*{produto}*\n💰 PIX: R$ {valor_pix}  |  💳 R$ {valor_cartao}\n✅ Disponível' },
   { id:'carrinho', label:'Item adicionado',       cor:'#f59e0b', icon:ShoppingCart,
     desc:'Confirmação de adição ao carrinho. Use {produto}.',
-    default:'*{produto}* adicionado ao carrinho.' },
+    default:'*{produto}* no carrinho! 🛒' },
   { id:'pedido',   label:'Pedido finalizado',     cor:'#22c55e', icon:CheckCircle,
     desc:'Após criação do pedido. Use {numero_pedido}, {valor_pix}.',
-    default:'*Pedido #{numero_pedido} criado!*\nPIX: R$ {valor_pix}' },
+    default:'🎉 *Pedido #{numero_pedido} confirmado!*\nPague via PIX: R$ {valor_pix}' },
   { id:'offline',  label:'Fora do horário',       cor:'#60a5fa', icon:Clock,
     desc:'Enviada fora do horário configurado. Sem variáveis obrigatórias.',
-    default:'Olá! Estamos fora do horário. Seg-sex 8h–18h.\nDeixe sua mensagem!' },
+    default:'Oi! 😊 Fora do horário agora — seg-sex 8h–18h. Deixa sua mensagem que a gente responde assim que voltar!' },
   { id:'nf_pendente',  label:'Nota Fiscal Pendente',  cor:'#f59e0b', icon:FileText,
     desc:'NF ainda não emitida. Use {nome_cliente}, {numero_pedido}.',
-    default:'📄 *Nota Fiscal — Pedido #{numero_pedido}*\n\nOlá, {nome_cliente}! A nota fiscal deste pedido ainda não foi emitida.\n\n📦 Status do pedido: ✅ Pagamento confirmado\n\nPosso emitir agora para você!' },
+    default:'📄 *Nota Fiscal — Pedido #{numero_pedido}*\n\nOi, {nome_cliente}! A nota deste pedido ainda não foi emitida.\n\n📦 Pagamento já confirmado ✅\n\nPosso emitir agora pra você!' },
   { id:'nf_emitida',   label:'Nota Fiscal Emitida',   cor:'#22c55e', icon:FileText,
     desc:'NF autorizada com link. Use {nome_cliente}, {numero_pedido}, {numero_nfe}, {link_nfe}.',
-    default:'📄 *Nota Fiscal — Pedido #{numero_pedido}*\n\nOlá, {nome_cliente}! Aqui está o documento fiscal da sua compra.\n\n🔗 *Download da NF-e:*\n{link_nfe}\n\n📋 NF-e nº {numero_nfe}\n\n_Você pode baixar o PDF ou encaminhar para sua contabilidade pelo link acima._' },
+    default:'📄 *Nota Fiscal — Pedido #{numero_pedido}*\n\nOi, {nome_cliente}! Aqui está a sua nota fiscal 😊\n\n🔗 *Baixar NF-e:*\n{link_nfe}\n\n📋 NF-e nº {numero_nfe}' },
 ]
 
 const BTN_GROUPS_DEFAULT = [
@@ -468,8 +468,30 @@ export default function PageIAConfig({ api }) {
   const [saved,     setSaved]     = useState(false)
   const [saving,    setSaving]    = useState(false)
   const [iaName,    setIaName]    = useState('Molise')
-  const [iaPersona, setIaPersona] = useState('Você é Molise, assistente virtual da Só Strass. Seja simpática e objetiva.')
-  const [tons,      setTons]      = useState(['Simpático','Profissional'])
+  const [iaPersona, setIaPersona] = useState(`Você é a Molise, consultora da Só Strass — loja especializada em strass, bijuterias e artesanato.
+
+TOM: fala coloquial brasileira, calorosa e descontraída. Como uma amiga que entende muito do assunto e tá aqui pra ajudar de verdade. Nunca soa como robô, call center ou sistema.
+
+PERSONALIDADE:
+- Entende do produto: sabe que SS6.5 é tamanho, que base cônica é diferente de base reta, que pacote ≠ rolo/metro
+- Celebra quando acha o que o cliente quer ("Achei sim! 🎉")
+- Quando não tem, é honesta e empática ("Esse tá em falta agora 😕")
+- Usa o nome do cliente quando é natural — não em toda mensagem
+- Responde curto e direto — sem enrolação, sem formalidade desnecessária
+- Usa "a gente", "deixa eu ver", "olha", "perfeito", "que legal"
+
+PROIBIDO: "prezado cliente", "solicitação", "protocolo", "identificamos", "conforme combinado", "segue abaixo", frases de call center.
+
+EXEMPLOS DO TOM:
+❌ "Encontrei produtos que correspondem à sua busca."
+✅ "Achei sim! Olha o que a gente tem:"
+
+❌ "Infelizmente não temos este item disponível."
+✅ "Esse tá em falta agora 😕 Mas posso te avisar quando chegar!"
+
+❌ "Para finalizar o pedido informe seu CPF."
+✅ "Quase lá! Só me passa seu CPF pra eu te encontrar aqui 😊"`
+  const [tons,      setTons]      = useState(['Descontraído','Prestativo'])
   const [emoji,     setEmoji]     = useState(true)
   const [ctxData,   setCtxData]   = useState({})
   const [btns,      setBtns]      = useState(BTN_GROUPS_DEFAULT)
@@ -726,7 +748,6 @@ export default function PageIAConfig({ api }) {
                     <Field label="Nome da loja"><Input value={cfg.nomeLoja} onChange={v=>setC('nomeLoja',v)} placeholder="Só Strass"/></Field>
                     <Field label="Horário de atendimento"><Input value={cfg.horarioAtendimento} onChange={v=>setC('horarioAtendimento',v)} placeholder="08:00-18:00"/></Field>
                     <Field label="Dias de atendimento"><Input value={cfg.diasAtendimento} onChange={v=>setC('diasAtendimento',v)} placeholder="seg-sex"/></Field>
-                    <Field label="Prazo de envio" hint="Tempo entre pagamento e coleta — aparece na mensagem de pedido aguardando envio"><Input value={cfg.prazoSeparacao} onChange={v=>setC('prazoSeparacao',v)} placeholder="1-2 dias úteis"/></Field>
                   </div>
                 </Card>
               </>}
