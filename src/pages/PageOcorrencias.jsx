@@ -126,7 +126,12 @@ function ModalOcorrencia({ api, ocorrencia, onSalvo, onClose }) {
     setSaving(true); setErro('')
     try {
       const url = edit ? `${api}/api/ocorrencias/${ocorrencia.id}` : `${api}/api/ocorrencias`
-      const r = await fetch(url, { method:edit?'PATCH':'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(f) })
+      const payload = edit ? f : {
+        ...f,
+        nomeCliente: f.nomeCliente,
+        atribuidoA: f.atribuidoA,
+      }
+      const r = await fetch(url, { method:edit?'PATCH':'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
       if (r.ok) { onSalvo?.(); onClose() }
       else { const d=await r.json(); setErro(d.erro||'Erro ao salvar') }
     } catch { setErro('Erro de conexão') }
@@ -252,6 +257,159 @@ function ModalOcorrencia({ api, ocorrencia, onSalvo, onClose }) {
   )
 }
 
+
+// ── MODAL CONFIRMAÇÃO DE STATUS ───────────────────────────────────────────────
+// Aparece entre o clique no pipeline e o patch() real.
+// Mostra qual template vai ser enviado, com toggles WA/Email e prévia editável.
+
+const STATUS_NOTIF = {
+  aberta: {
+    wa: false, email: false,
+    tpl: '',
+  },
+  em_andamento: {
+    wa: true, email: false,
+    tpl: 'Olá, {nome}! Sua ocorrência {ticketId} está em análise pela nossa equipe. Em breve entramos em contato! 🔍',
+  },
+  resolvida: {
+    wa: true, email: true,
+    tpl: 'Olá, {nome}! Sua ocorrência {ticketId} foi resolvida. Tudo ficou certo? 😊\n\nCaso precise de algo mais, é só chamar!',
+  },
+  encerrada: {
+    wa: false, email: false,
+    tpl: '',
+  },
+}
+
+function ModalConfirmacaoStatus({ oc, novoStatus, onConfirmar, onClose }) {
+  const S     = STATUS[novoStatus] || STATUS.aberta
+  const SAtual = STATUS[oc.status] || STATUS.aberta
+  const notif = STATUS_NOTIF[novoStatus] || { wa: false, email: false, tpl: '' }
+  const nome1 = oc.nomeCliente?.split(' ')[0] || 'cliente'
+
+  const tplPreenchido = notif.tpl
+    .replace('{nome}', nome1)
+    .replace('{ticketId}', oc.ticketId || `#${oc.id}`)
+
+  const [sendWA,    setSendWA]    = useState(notif.wa)
+  const [sendEmail, setSendEmail] = useState(notif.email)
+  const [msgWA,     setMsgWA]     = useState(tplPreenchido)
+  const [salvando,  setSalvando]  = useState(false)
+
+  const confirmar = async () => {
+    setSalvando(true)
+    await onConfirmar({
+      novoStatus,
+      mensagemWA:  sendWA && msgWA.trim() ? msgWA.trim() : null,
+      enviarEmail: sendEmail,
+    })
+    setSalvando(false)
+  }
+
+  const ToggleBtn = ({ on, onChange, label, cor }) => (
+    <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => onChange(!on)}>
+      <div style={{
+        width: 36, height: 20, borderRadius: 10,
+        background: on ? cor : T.bg4,
+        border: `1px solid ${on ? cor : T.sep2}`,
+        position: 'relative', transition: 'background .15s', flexShrink: 0,
+      }}>
+        <div style={{
+          position: 'absolute', top: 2, left: on ? 18 : 2,
+          width: 14, height: 14, borderRadius: '50%', background: '#fff',
+          transition: 'left .15s',
+        }}/>
+      </div>
+      <span style={{ fontSize: 12, fontWeight: 500, color: on ? T.ink1 : T.ink3 }}>{label}</span>
+    </div>
+  )
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.75)' }} onClick={onClose}>
+      <div className="w-full flex flex-col overflow-hidden"
+        style={{ maxWidth: 480, background: T.bg1, border: `1px solid ${T.sep2}`, borderRadius: 16, boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: `1px solid ${T.sep}` }}>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: 14, fontWeight: 700, color: T.ink1, marginBottom: 2 }}>Confirmar alteração de status</p>
+            <div className="flex items-center gap-2" style={{ fontSize: 12, color: T.ink3 }}>
+              <span style={{ padding: '1px 7px', borderRadius: 5, background: SAtual.dim, color: SAtual.color, fontWeight: 600, border: `1px solid ${SAtual.bor}` }}>
+                {SAtual.label}
+              </span>
+              <ChevronRight size={12}/>
+              <span style={{ padding: '1px 7px', borderRadius: 5, background: S.dim, color: S.color, fontWeight: 600, border: `1px solid ${S.bor}` }}>
+                {S.label}
+              </span>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.ink4, display: 'flex' }}>
+            <X size={16}/>
+          </button>
+        </div>
+
+        {/* Canais */}
+        <div className="px-6 py-4" style={{ borderBottom: `1px solid ${T.sep}` }}>
+          <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: T.ink4, marginBottom: 12 }}>
+            Notificações ao cliente
+          </p>
+          <div className="flex flex-col gap-3">
+            <ToggleBtn on={sendWA} onChange={setSendWA}
+              label={`WhatsApp → ${nome1} (${oc.telefone ? fmtTel(oc.telefone) : 'sem telefone'})`}
+              cor={T.green}/>
+            <ToggleBtn on={sendEmail} onChange={setSendEmail}
+              label={`E-mail → ${oc.email || 'sem e-mail cadastrado'}`}
+              cor={T.purple}/>
+          </div>
+        </div>
+
+        {/* Prévia e edição da mensagem WA */}
+        {sendWA && (
+          <div className="px-6 py-4" style={{ borderBottom: `1px solid ${T.sep}` }}>
+            <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: T.ink4, marginBottom: 8 }}>
+              Mensagem WhatsApp — prévia editável
+            </p>
+            <textarea
+              value={msgWA}
+              onChange={e => setMsgWA(e.target.value)}
+              rows={4}
+              style={{ ...taSt, borderColor: T.greenBor, resize: 'vertical' }}
+              placeholder="Mensagem para o cliente..."
+            />
+            <p style={{ fontSize: 10, color: T.ink4, marginTop: 4 }}>
+              {msgWA.length} chars · enviada imediatamente ao salvar
+            </p>
+          </div>
+        )}
+
+        {/* Sem notificação */}
+        {!sendWA && !sendEmail && (
+          <div className="px-6 py-3 flex items-center gap-2" style={{ borderBottom: `1px solid ${T.sep}` }}>
+            <AlertCircle size={13} style={{ color: T.ink4 }}/>
+            <p style={{ fontSize: 12, color: T.ink4 }}>Nenhuma notificação será enviada ao cliente.</p>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex gap-2 px-6 py-4 justify-end">
+          <button onClick={onClose}
+            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, background: T.bg3, color: T.ink2, border: `1px solid ${T.sep2}`, cursor: 'pointer' }}>
+            Cancelar
+          </button>
+          <button onClick={confirmar} disabled={salvando}
+            style={{ padding: '7px 18px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: S.color, color: '#fff', border: 'none', cursor: 'pointer', opacity: salvando ? .6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Check size={13}/>
+            {salvando ? 'Salvando...' : `Confirmar → ${S.label}`}
+            {sendWA && <MessageSquare size={12} style={{ opacity: .7 }}/>}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── DRAWER ────────────────────────────────────────────────────────────────────
 function TicketDrawer({ oc, api, onAtualizado, onClose }) {
   const [tab,       setTab]      = useState('wa')
@@ -284,7 +442,20 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
     fetch(`${api}/api/ocorrencias/${oc.id}/csat`)
       .then(r=>r.ok?r.json():null).then(d=>{ if(d) setCsatData(d) }).catch(()=>{})
   }
-  useEffect(()=>{ fetchBling(); fetchCsat() }, [oc.id])
+  const [historico, setHistorico] = useState(oc.historico || [])
+
+  const fetchHistorico = () => {
+    fetch(`${api}/api/ocorrencias/${oc.id}/historico`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.eventos) setHistorico(d.eventos) })
+      .catch(() => {})
+  }
+
+  useEffect(() => {
+    fetchBling()
+    fetchCsat()
+    fetchHistorico()
+  }, [oc.id])
 
   const patch = async body => {
     setSalvando(true)
@@ -297,9 +468,18 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
     setSalvando(false)
   }
 
-  const mudarStatus = key => { if (oc.status!==key) patch({status:key}) }
-  const enviarWA    = async () => { if (!texto.trim()) return; await patch({respostaCliente:texto}); setTexto('') }
-  const enviarNota  = async () => { if (!nota.trim()) return; await patch({nota}); setNota('') }
+  const [modalStatus, setModalStatus] = useState(null) // { novoStatus }
+  const mudarStatus = key => { if (oc.status !== key) setModalStatus({ novoStatus: key }) }
+  const enviarWA    = async () => {
+    if (!texto.trim()) return
+    await patch({ mensagemWA: texto, acao: 'resposta_wa', por: 'atendente' })
+    setTexto('')
+  }
+  const enviarNota  = async () => {
+    if (!nota.trim()) return
+    await patch({ descricao: nota, acao: 'nota_interna', por: 'atendente' })
+    setNota('')
+  }
 
   const refinarIA = async () => {
     if (!texto.trim()) return
@@ -538,7 +718,7 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
         {/* ── TABS ─── */}
         <div className="flex flex-shrink-0" style={{ borderBottom:`1px solid ${T.sep}` }}>
           {[
-            { id:'tl',   label:'Timeline',     ic:<History size={13}/>,      cnt:(oc.historico||[]).length||null },
+            { id:'tl',   label:'Timeline',     ic:<History size={13}/>,      cnt:historico.length||null },
             { id:'wa',   label:'WhatsApp',      ic:<MessageSquare size={13}/> },
             { id:'em',   label:'E-mail',        ic:<Mail size={13}/> },
             { id:'nota', label:'Nota interna',  ic:<FileText size={13}/> },
@@ -574,20 +754,22 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
               </div>
 
               {/* Histórico */}
-              {[...(oc.historico||[])].reverse().map((h,i)=>{
-                const isWA     = h.acao==='whatsapp'
-                const isSt     = h.acao?.startsWith('status')
-                const isCsat   = h.acao?.startsWith('csat')
-                const dotColor = isWA?T.green:isSt?T.blue:isCsat?T.purple:T.ink4
-                const dotDim   = isWA?T.greenDim:isSt?T.blueDim:isCsat?T.purpleDim:T.bg3
-                const dotBor   = isWA?T.greenBor:isSt?T.blueBor:isCsat?T.purpleBor:T.sep2
-                const bubBg    = isWA?T.greenDim:isSt?T.blueDim:isCsat?T.purpleDim:T.bg2
-                const bubBor   = isWA?T.greenBor:isSt?T.blueBor:isCsat?T.purpleBor:T.sep2
-                const bubColor = isWA?'#6ee7b7':isSt?'#93c5fd':isCsat?'#c4b5fd':T.ink2
-                const IcN      = isWA?MessageSquare:isSt?RefreshCcw:isCsat?Star:FileText
+              {[...historico].reverse().map((h,i)=>{
+                const isWA     = h.tipo==='resposta_wa' || h.tipo==='criado'
+                const isSt     = h.tipo==='status'
+                const isCsat   = h.tipo==='csat'
+                const isNota   = h.tipo==='nota'
+                const isEmail  = h.tipo==='email'
+                const dotColor = isWA?T.green:isSt?T.blue:isCsat?T.purple:isNota?T.amber:isEmail?T.purple:T.ink4
+                const dotDim   = isWA?T.greenDim:isSt?T.blueDim:isCsat?T.purpleDim:isNota?T.amberDim:isEmail?T.purpleDim:T.bg3
+                const dotBor   = isWA?T.greenBor:isSt?T.blueBor:isCsat?T.purpleBor:isNota?T.amberBor:isEmail?T.purpleBor:T.sep2
+                const bubBg    = isWA?T.greenDim:isSt?T.blueDim:isCsat?T.purpleDim:isNota?T.amberDim:isEmail?T.purpleDim:T.bg2
+                const bubBor   = isWA?T.greenBor:isSt?T.blueBor:isCsat?T.purpleBor:isNota?T.amberBor:isEmail?T.purpleBor:T.sep2
+                const bubColor = isWA?'#6ee7b7':isSt?'#93c5fd':isCsat?'#c4b5fd':isNota?'#fcd34d':isEmail?'#c4b5fd':T.ink2
+                const IcN      = isWA?MessageSquare:isSt?RefreshCcw:isCsat?Star:isNota?FileText:isEmail?Mail:Tag
                 return (
                   <div key={i} className="flex gap-3 mb-5 relative">
-                    {i < (oc.historico||[]).length-1 && (
+                    {i < historico.length-1 && (
                       <div style={{ position:'absolute', left:16, top:34, bottom:-12, width:1, background:T.sep2 }}/>
                     )}
                     <div className="flex items-center justify-center rounded-full flex-shrink-0 mt-0.5"
@@ -597,15 +779,55 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-1.5" style={{ fontSize:11, color:T.ink4 }}>
                         <span style={{ fontWeight:600, color:T.ink2 }}>{h.por||'sistema'}</span>
-                        · {h.em ? fmtD(h.em)+' '+fmtH(h.em) : ''}
+                        · {h.criado_em ? fmtD(h.criado_em)+' '+fmtH(h.criado_em) : (h.em ? fmtD(h.em)+' '+fmtH(h.em) : '')}
                       </div>
-                      <div style={{ padding:'10px 13px', borderRadius:10, fontSize:11, lineHeight:1.55, background:bubBg, border:`1px solid ${bubBor}`, color:bubColor, fontFamily: isWA?'monospace':'inherit' }}>
-                        {h.nota}
+                      <div style={{ padding:'10px 13px', borderRadius:10, fontSize:11, lineHeight:1.55, background:bubBg, border:`1px solid ${bubBor}`, color:bubColor }}>
+                        {/* Status: mostra transição */}
+                        {isSt && h.status_de && h.status_para && (
+                          <span style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                            <span style={{ opacity:.7, textDecoration:'line-through' }}>{STATUS[h.status_de]?.label||h.status_de}</span>
+                            <ChevronRight size={10}/>
+                            <span style={{ fontWeight:700 }}>{STATUS[h.status_para]?.label||h.status_para}</span>
+                          </span>
+                        )}
+                        {/* Mensagem WA/email enviada */}
+                        {(isWA||isEmail) && h.dados?.mensagemWA && (
+                          <p style={{ fontFamily:'inherit' }}>{h.dados.mensagemWA}</p>
+                        )}
+                        {/* Nota interna */}
+                        {isNota && (h.dados?.nota || h.acao)}
+                        {/* Criado/CSAT/outros */}
+                        {!isSt && !isWA && !isNota && !isEmail && (h.dados?.descricao || h.acao)}
+                        {/* Canais disparados */}
+                        {h.canais?.length > 0 && (
+                          <div style={{ display:'flex', gap:4, marginTop:6, flexWrap:'wrap' }}>
+                            {h.canais.includes('wa') && (
+                              <span style={{ display:'flex', alignItems:'center', gap:3, fontSize:9, padding:'1px 6px', borderRadius:4, background:T.greenDim, color:T.green, border:`1px solid ${T.greenBor}`, fontWeight:600 }}>
+                                <MessageSquare size={9}/>WA enviado
+                              </span>
+                            )}
+                            {h.canais.includes('email') && (
+                              <span style={{ display:'flex', alignItems:'center', gap:3, fontSize:9, padding:'1px 6px', borderRadius:4, background:T.purpleDim, color:T.purple, border:`1px solid ${T.purpleBor}`, fontWeight:600 }}>
+                                <Mail size={9}/>E-mail
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
                 )
               })}
+
+              {/* Botão refresh */}
+              {historico.length > 0 && (
+                <div className="flex justify-end mb-2">
+                  <button onClick={fetchHistorico}
+                    style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, fontWeight:600, padding:'3px 10px', borderRadius:6, background:T.bg3, border:`1px solid ${T.sep2}`, color:T.ink4, cursor:'pointer' }}>
+                    <RefreshCw size={10}/>Atualizar
+                  </button>
+                </div>
+              )}
 
               {/* Nota rápida */}
               <div style={{ borderTop:`1px solid ${T.sep2}`, paddingTop:16, marginTop:4 }}>
@@ -703,7 +925,7 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
                     style={{ display:'flex', alignItems:'center', gap:4, padding:'4px 10px', borderRadius:6, fontSize:11, fontWeight:600, background:T.purpleDim, border:`1px solid ${T.purpleBor}`, color:T.purple, cursor:'pointer', opacity:(!texto.trim()||refining)?.4:1 }}>
                     <Sparkles size={11} className={refining?'animate-spin':''}/>{refining?'Refinando...':'IA'}
                   </button>
-                  <button onClick={()=>patch({nota:`E-mail redigido: "${texto.slice(0,60)}..."`})} disabled={!texto.trim()||salvando}
+                  <button onClick={()=>{ if(texto.trim()) patch({ mensagemWA: texto, acao:'email', por:'atendente', enviarEmail:true }) }} disabled={!texto.trim()||salvando}
                     style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px', borderRadius:8, fontSize:12, fontWeight:700, background:T.purple, color:'#fff', border:'none', cursor:'pointer', opacity:(!texto.trim()||salvando)?.4:1 }}>
                     <Send size={13}/>{salvando?'Enviando...':'Enviar e-mail'}
                   </button>
@@ -801,6 +1023,27 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
         <ModalOcorrencia api={api} ocorrencia={oc}
           onSalvo={()=>{ onAtualizado(); setEditModal(false) }}
           onClose={()=>setEditModal(false)}/>
+      )}
+
+      {/* ── MODAL CONFIRMAÇÃO DE STATUS ─────────────────────────────────── */}
+      {modalStatus && (
+        <ModalConfirmacaoStatus
+          oc={oc}
+          novoStatus={modalStatus.novoStatus}
+          onConfirmar={async ({ mensagemWA, enviarEmail, novoStatus }) => {
+            await patch({
+              status: novoStatus,
+              mensagemWA: mensagemWA || null,
+              enviarEmail: enviarEmail || false,
+              acao: 'status_change',
+              por: 'atendente',
+              statusAnterior: oc.status,
+            })
+            setModalStatus(null)
+            fetchHistorico()
+          }}
+          onClose={() => setModalStatus(null)}
+        />
       )}
     </div>
   )
