@@ -77,16 +77,145 @@ const DELAY_OPCOES = [
 
 // Templates padrão por gatilho
 const PADROES = {
-  pedido_criado:      { cab:'🛒 Pedido Confirmado!', corpo:'Olá *{{nome_cliente}}*!\n\nSeu pedido *#{{numero_pedido}}* foi criado com sucesso.\n\n💳 Total: *{{valor_total}}*\n💰 Pagamento: {{forma_pagamento}}', rod:'Mensagem automática — dúvidas, responda aqui.', bts:[{texto:'Ver pedido',acao:'url',valor:'{{link_pedido}}'}] },
-  pagamento_aprovado: { cab:'✅ Pagamento Aprovado!', corpo:'Olá *{{nome_cliente}}*!\n\nO pagamento do pedido *#{{numero_pedido}}* foi confirmado. 🎉\n\nJá estamos preparando com carinho!', rod:'Mensagem automática.', bts:[] },
-  pagamento_pendente: { cab:'⏳ Pagamento Pendente', corpo:'Olá *{{nome_cliente}}*, seu pedido *#{{numero_pedido}}* aguarda pagamento.\n\nTotal: *{{valor_total}}*', rod:'O link expira em 24 horas.', bts:[{texto:'Pagar agora',acao:'url',valor:'{{link_pedido}}'},{texto:'Preciso de ajuda',acao:'reply',valor:'Ajuda com pagamento'}] },
-  pedido_enviado:     { cab:'🚚 Seu pedido foi enviado!', corpo:'Olá *{{nome_cliente}}*! O pedido *#{{numero_pedido}}* saiu para entrega.\n\n📦 Transportadora: {{transportadora}}\n🔍 Rastreio: *{{codigo_rastreio}}*\n📅 Prazo: *{{prazo_entrega}}*', rod:'Continuaremos monitorando!', bts:[{texto:'Rastrear pedido',acao:'url',valor:'{{link_rastreio}}'}] },
-  pedido_entregue:    { cab:'📦 Pedido entregue!', corpo:'Olá *{{nome_cliente}}*, seu pedido *#{{numero_pedido}}* foi entregue! 😊\n\nEsperamos que você goste muito!', rod:'Qualquer problema estamos aqui.', bts:[{texto:'Avaliar ⭐⭐⭐⭐⭐',acao:'reply',valor:'Quero avaliar'},{texto:'Tive um problema',acao:'reply',valor:'Preciso de ajuda'}] },
-  nfe_emitida:        { cab:'📄 Nota Fiscal Emitida', corpo:'Olá *{{nome_cliente}}*!\n\nA nota fiscal do pedido *#{{numero_pedido}}* foi emitida.\n\n📎 NF-e nº {{numero_nfe}}', rod:'Mensagem automática.', bts:[{texto:'Download NF-e',acao:'url',valor:'{{link_nfe}}'}] },
-  cancelamento:       { cab:'❌ Pedido Cancelado', corpo:'Olá *{{nome_cliente}}*, o pedido *#{{numero_pedido}}* foi cancelado.\n\nQualquer dúvida estamos aqui!', rod:'Só Strass.', bts:[] },
-  reengajamento:      { cab:'', corpo:'Olá *{{nome_cliente}}*! 🥰\n\nSentimos sua falta! Faz {{dias_inativo}} dias desde sua última compra.\n\nTemos novidades que você vai adorar!', rod:'', bts:[] },
-  pos_entrega:        { cab:'', corpo:'Olá *{{nome_cliente}}*! Como foi sua experiência com o pedido *#{{numero_pedido}}*?\n\nSua opinião é muito importante para nós! ⭐', rod:'', bts:[] },
-  lembrete_rastreio:  { cab:'🚚 Atualização do seu pedido', corpo:'Olá *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* tem novidades.\n\n📦 Status: *{{status_rastreio}}*\n🔍 Código: {{codigo_rastreio}}', rod:'Acompanhe pelo site da transportadora.', bts:[] },
+
+  // ── HSM Meta — precisam de aprovação antes de usar ───────────────────────
+  // Linguagem direta e objetiva (requisito Meta: sem promoção agressiva)
+
+  pedido_criado: {
+    cab:'🛒 Pedido confirmado!',
+    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* foi criado com sucesso 🎉\n\n💰 Total: *{{valor_total}}*\nForma de pagamento: {{forma_pagamento}}',
+    rod:'Dúvidas? É só responder aqui.',
+    bts:[{texto:'Ver pedido',acao:'url',valor:'{{link_pedido}}'}]
+  },
+
+  pagamento_aprovado: {
+    cab:'✅ Pagamento confirmado!',
+    corpo:'Oi *{{nome_cliente}}*! O pagamento do pedido *#{{numero_pedido}}* entrou 🎉\n\nJá começamos a separar tudo com cuidado!',
+    rod:'Qualquer dúvida é só chamar.',
+    bts:[]
+  },
+
+  pagamento_pendente: {
+    cab:'⏳ Aguardando pagamento',
+    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* está aguardando o pagamento.\n\nTotal: *{{valor_total}}*\n\nO link de pagamento expira em 24 horas.',
+    rod:'Precisa de ajuda? É só responder.',
+    bts:[{texto:'Pagar agora',acao:'url',valor:'{{link_pedido}}'},{texto:'Preciso de ajuda',acao:'reply',valor:'Ajuda com pagamento'}]
+  },
+
+  pedido_enviado: {
+    cab:'🚚 Saiu para entrega!',
+    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* foi despachado!\n\n📦 Transportadora: *{{transportadora}}*\n🔍 Rastreio: *{{codigo_rastreio}}*\n📅 Previsão: *{{prazo_entrega}}*',
+    rod:'Continuaremos monitorando pra você!',
+    bts:[{texto:'Rastrear pedido',acao:'url',valor:'{{link_rastreio}}'}]
+  },
+
+  pedido_entregue: {
+    cab:'📦 Chegou!',
+    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* foi entregue 😊\n\nEsperamos que você goste muito! Qualquer coisa é só chamar.',
+    rod:'Só Strass — sempre aqui pra você.',
+    bts:[{texto:'Avaliar compra ⭐',acao:'reply',valor:'Quero avaliar'},{texto:'Tive um problema',acao:'reply',valor:'Preciso de ajuda'}]
+  },
+
+  nfe_emitida: {
+    cab:'📄 Nota fiscal emitida',
+    corpo:'Oi *{{nome_cliente}}*! A nota fiscal do pedido *#{{numero_pedido}}* foi emitida.\n\n📎 NF-e nº *{{numero_nfe}}*',
+    rod:'Disponível para download no botão abaixo.',
+    bts:[{texto:'Baixar NF-e',acao:'url',valor:'{{link_nfe}}'}]
+  },
+
+  cancelamento: {
+    cab:'Pedido cancelado',
+    corpo:'Oi *{{nome_cliente}}*, o pedido *#{{numero_pedido}}* foi cancelado.\n\nSe precisar de ajuda ou quiser fazer um novo pedido, é só chamar!',
+    rod:'Só Strass.',
+    bts:[]
+  },
+
+  lembrete_rastreio: {
+    cab:'🚚 Novidade no seu pedido',
+    corpo:'Oi *{{nome_cliente}}*! Tem atualização no pedido *#{{numero_pedido}}* 📦\n\nStatus: *{{status_rastreio}}*\nCódigo: {{codigo_rastreio}}',
+    rod:'Acompanhe pelo site da transportadora.',
+    bts:[]
+  },
+
+  // ── Inline IA / Manuais — não precisam de HSM ────────────────────────────
+  // Tom conversacional da Molise — enviados dentro da janela de 24h
+
+  reengajamento: {
+    cab:'',
+    corpo:'Oi *{{nome_cliente}}*! 😊\n\nA gente tá com saudade! Faz *{{dias_inativo}} dias* desde sua última visita e temos muita novidade esperando por você.\n\nQuer dar uma olhada?',
+    rod:'',
+    bts:[]
+  },
+
+  recompra_vip: {
+    cab:'',
+    corpo:'Oi *{{nome_cliente}}*! ✨\n\nComo cliente VIP, você é a primeira a saber das novidades. Seu ciclo de recompra é de *{{ciclo_dias}} dias* e a gente separou algumas opções pra você!',
+    rod:'',
+    bts:[]
+  },
+
+  primeira_recompra: {
+    cab:'',
+    corpo:'Oi *{{nome_cliente}}*! 😊\n\nEsperamos que tenha amado *{{ultimo_produto}}*! Já tem alguma coisa nova na sua lista? A gente adora te ajudar a encontrar o produto certo.',
+    rod:'',
+    bts:[]
+  },
+
+  pos_entrega: {
+    cab:'',
+    corpo:'Oi *{{nome_cliente}}*! Como foi a experiência com o pedido *#{{numero_pedido}}*? 😊\n\nSua opinião é muito importante pra gente melhorar cada vez mais!',
+    rod:'',
+    bts:[]
+  },
+
+  boas_vindas: {
+    cab:'',
+    corpo:'Oi *{{nome_cliente}}*! Seja bem-vinda(o) à *{{nome_loja}}*! 🎉\n\nSou a Molise, consultora da loja. Tô aqui pra te ajudar a encontrar tudo que precisar — strass, bijuterias, artesanato e muito mais!\n\nComo posso te ajudar hoje?',
+    rod:'',
+    bts:[]
+  },
+
+  avaliar_pedido: {
+    cab:'',
+    corpo:'Oi *{{nome_cliente}}*! Tudo certo com o pedido *#{{numero_pedido}}*? 😊\n\nSe puder, me conta como foi a experiência — é rapidinho e ajuda muito a gente!',
+    rod:'',
+    bts:[]
+  },
+
+  avise_me: {
+    cab:'',
+    corpo:'Oi *{{nome_cliente}}*! 🔔\n\nBoa notícia — *{{nome_produto}}* voltou ao estoque!\n\n💰 {{preco_produto}}',
+    rod:'',
+    bts:[{texto:'Ver produto',acao:'url',valor:'{{link_produto}}'}]
+  },
+
+  em_separacao: {
+    cab:'',
+    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* entrou em separação agora mesmo 📦\n\nEstamos organizando tudo com cuidado pra você!',
+    rod:'',
+    bts:[]
+  },
+
+  produto_embalado: {
+    cab:'',
+    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* está embalado e pronto! 🎁\n\nEm breve sai pra entrega.',
+    rod:'',
+    bts:[]
+  },
+
+  saiu_entrega: {
+    cab:'',
+    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* saiu pra entrega agora! 🚚\n\nCódigo de rastreio: *{{codigo_rastreio}}*',
+    rod:'',
+    bts:[{texto:'Rastrear',acao:'url',valor:'{{link_rastreio}}'}]
+  },
+
+  aguardando_retirada: {
+    cab:'',
+    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* tá prontinho pra retirada 😊\n\nEstamos te esperando!',
+    rod:'',
+    bts:[]
+  },
 }
 
 
