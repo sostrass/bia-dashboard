@@ -506,7 +506,15 @@ EXEMPLOS DO TOM:
     if (!api) return
     fetch(`${api}/api/ia/config`).then(r=>r.ok?r.json():null).then(d=>{
       if (!d) return
-      if (d.persona||d.iaPersona) setIaPersona(d.persona||d.iaPersona)
+      // Só usa a persona do banco se for a nova (longa) — se for a antiga curta, mantém o padrão novo
+      const personaBanco = d.persona || d.iaPersona || ''
+      const PERSONA_ANTIGAS = [
+        'Você é Molise, assistente virtual da Só Strass. Seja simpática e objetiva.',
+        'Você é Bia, assistente de vendas da Só Strass. Comunicação precisa, profissional e direta.',
+        'Você é Molise, assistente virtual da Só Strass. Seja calorosa, precisa e direta.',
+      ]
+      const personaEAntiga = PERSONA_ANTIGAS.some(p => personaBanco.trim() === p.trim())
+      if (personaBanco && !personaEAntiga) setIaPersona(personaBanco)
       if (d.iaName)    setIaName(d.iaName)
       if (d.btns)      setBtns(d.btns)
       if (d.schedule)  setSchedule(d.schedule)
