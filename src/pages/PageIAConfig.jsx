@@ -726,6 +726,7 @@ export default function PageIAConfig({ api }) {
                     <Field label="Nome da loja"><Input value={cfg.nomeLoja} onChange={v=>setC('nomeLoja',v)} placeholder="Só Strass"/></Field>
                     <Field label="Horário de atendimento"><Input value={cfg.horarioAtendimento} onChange={v=>setC('horarioAtendimento',v)} placeholder="08:00-18:00"/></Field>
                     <Field label="Dias de atendimento"><Input value={cfg.diasAtendimento} onChange={v=>setC('diasAtendimento',v)} placeholder="seg-sex"/></Field>
+                    <Field label="Prazo de envio" hint="Tempo entre pagamento e coleta — aparece na mensagem de pedido aguardando envio"><Input value={cfg.prazoSeparacao} onChange={v=>setC('prazoSeparacao',v)} placeholder="1-2 dias úteis"/></Field>
                   </div>
                 </Card>
               </>}

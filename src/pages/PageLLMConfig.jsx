@@ -25,7 +25,7 @@ const NAV = [
     { id:'params',    icon:Layers,        label:'Parâmetros',    badge:null },
   ]},
   { group:'Mensagens', items:[
-    { id:'msgs',      icon:MessageSquare, label:'Mensagens',     badge:'18' },
+    { id:'msgs',      icon:MessageSquare, label:'Mensagens',     badge:'22' },
     { id:'bypasses',  icon:Zap,           label:'Bypasses',      badge:'7' },
   ]},
 ]
@@ -63,6 +63,11 @@ const MSGS = [
   { cat:'Pedidos', campo:'msgPedidoTransito_botoes',  titulo:'Botões — pedido em trânsito',                pad:'Rastrear entrega | Nota fiscal #{numero} | Nova compra', vars:['{numero}'] },
   { cat:'Pedidos', campo:'msgPedidoAguardando_botoes',titulo:'Botões — aguardando envio (sem Cancelar)',   pad:'Falar sobre o pedido | Nova compra', vars:null },
   { cat:'Pedidos', campo:'msgOutrosPedidos',          titulo:'Template lista de outros pedidos',           pad:'Seus últimos pedidos:\n1️⃣ #{num1} — {data1} — {valor1}\nQual você quer consultar? Me mande o número.\n[BOTOES: Nota fiscal | Rastreio]', vars:['{num1}','{data1}','{valor1}'] },
+  // ── Templates enxutos por status (editáveis sem mexer em código) ───────────
+  { cat:'Pedidos', campo:'msgPedidoEnxuto_transito',   titulo:'Template enxuto — Em trânsito 🚚',           pad:'Oi, {nome}! 👋 Aqui está seu pedido:\n\n📦 *Pedido #{numero}* — Em trânsito 🚚\n📅 Coletado em {data_saida} · {transportadora}\n\n🛒 {qtd_itens} itens · *{total}* ({forma_pgto})\n📍 {cidade_uf}\n\n🔗 Rastrear: {url_rastreio}', vars:['{nome}','{numero}','{data_saida}','{transportadora}','{qtd_itens}','{total}','{forma_pgto}','{cidade_uf}','{url_rastreio}'] },
+  { cat:'Pedidos', campo:'msgPedidoEnxuto_entregue',   titulo:'Template enxuto — Entregue ✅',              pad:'Oi, {nome}! 👋 Seu pedido foi entregue ✅\n\n📦 *Pedido #{numero}* — Entregue em {data_entrega}\n🚚 {transportadora}\n\n🛒 {qtd_itens} itens · *{total}* ({forma_pgto})\n📍 {cidade_uf}\n\nTudo certo com sua compra?', vars:['{nome}','{numero}','{data_entrega}','{transportadora}','{qtd_itens}','{total}','{forma_pgto}','{cidade_uf}'] },
+  { cat:'Pedidos', campo:'msgPedidoEnxuto_aguardando', titulo:'Template enxuto — Aguardando envio 📦',      pad:'Oi, {nome}! 👋 Aqui está seu pedido:\n\n📦 *Pedido #{numero}* — Aguardando envio 📦\n📅 Realizado em {data}\n\n🛒 {qtd_itens} itens · *{total}* ({forma_pgto})\n📍 {cidade_uf}\n\nPrevisão de envio: {prazo}', vars:['{nome}','{numero}','{data}','{qtd_itens}','{total}','{forma_pgto}','{cidade_uf}','{prazo}'] },
+  { cat:'Pedidos', campo:'msgPedidoEnxuto_cancelado',  titulo:'Template enxuto — Cancelado ❌',             pad:'Oi, {nome}.\n\n📦 *Pedido #{numero}* — Cancelado ❌\n📅 {data}\n\nMotivo: {motivo_cancelamento}\n\n🛒 {qtd_itens} itens · {total}', vars:['{nome}','{numero}','{data}','{motivo_cancelamento}','{qtd_itens}','{total}'] },
 ]
 
 // ── Bypasses com fluxo explicado ─────────────────────────────────────────────
@@ -396,7 +401,7 @@ export default function PageLLMConfig({ api }) {
     modelos: {title:'Por Modelo',      sub:'Performance e custo por modelo — últimos 30 dias'},
     llm:     {title:'LLM & API Keys',  sub:'Provedor, modelo e credenciais de API'},
     params:  {title:'Parâmetros',      sub:'Temperatura, tokens e configurações avançadas'},
-    msgs:    {title:'Mensagens',       sub:'18 mensagens bypass — enviadas sem passar pelo Gemini'},
+    msgs:    {title:'Mensagens',       sub:'22 mensagens bypass — enviadas sem passar pelo Gemini'},
     bypasses:{title:'Bypasses',        sub:'Fluxos automáticos · todos hardcoded, sempre ativos'},
   }
   const p = PAGE[active]||{}
