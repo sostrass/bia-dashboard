@@ -191,14 +191,14 @@ const PADROES = {
 
   em_separacao: {
     cab:'',
-    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* entrou em separação agora mesmo 📦\n\nEstamos organizando tudo com cuidado pra você!',
+    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* entrou em separação agora mesmo 📦\n\nEstamos preparando tudo com cuidado pra você — em breve avisamos quando estiver pronto!',
     rod:'',
     bts:[]
   },
 
   produto_embalado: {
     cab:'',
-    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* está embalado e pronto! 🎁\n\nEm breve sai pra entrega.',
+    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* está embalado e pronto! 🎁\n\nJá vamos despachar pra você — acompanhe pelo rastreio assim que sair!',
     rod:'',
     bts:[]
   },
@@ -212,7 +212,7 @@ const PADROES = {
 
   aguardando_retirada: {
     cab:'',
-    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* tá prontinho pra retirada 😊\n\nEstamos te esperando!',
+    corpo:'Oi *{{nome_cliente}}*! 🎉\n\nSeu pedido *#{{numero_pedido}}* está pronto para retirada!\n\n📍 *Local de retirada:*\nRua Caetano Vivona, 656\nJardim Santa Catarina — Limeira/SP\nCEP: 13485-102\n\n🕐 *Horário de atendimento:*\nSeg a Qui: 8h às 17h30\nSexta-feira: 8h às 16h\n\n_Traga o número do pedido ou seu CPF na hora da retirada_ 😊',
     rod:'',
     bts:[]
   },
