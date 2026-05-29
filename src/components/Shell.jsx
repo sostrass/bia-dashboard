@@ -23,6 +23,7 @@ const PageLLMConfig   = lazy(() => import('../pages/PageLLMConfig'))
 const PageGatilhos    = lazy(() => import('../pages/PageGatilhos'))
 const PageConversas   = lazy(() => import('../pages/PageConversas'))
 const PageDisparos    = lazy(() => import('../pages/PageDisparos'))
+const PageCampanhas   = lazy(() => import('../pages/PageCampanhas'))
 const PageOcorrencias = lazy(() => import('../pages/PageOcorrencias'))
 
 const API = import.meta.env.VITE_API_URL || ''
@@ -38,9 +39,8 @@ const NAV = [
   { id:'inteligencia',icon:Brain,           label:'Inteligência IA',group:'main'   },
   { id:'caixa',       icon:CreditCard,      label:'Fluxo de Caixa', group:'main'   },
   { id:'gatilhos',    icon:Zap,             label:'Gatilhos',       group:'tools'  },
-  { id:'disparos',    icon:Activity,        label:'Disparos',       group:'tools'  },
+  { id:'campanhas',   icon:Send,            label:'Campanhas',      group:'tools'  },
   { id:'ocorrencias', icon:AlertCircle,     label:'Ocorrências',    group:'tools'  },
-  { id:'enviomassa',  icon:Send,            label:'Envio em Massa', group:'tools'  },
   { id:'avise',       icon:Package,         label:'Avise-me',       group:'tools'  },
   { id:'iaconfig',    icon:Bot,             label:'Config IA',      group:'config' },
   { id:'config',      icon:Settings,        label:'Configurações',  group:'config' },
@@ -147,6 +147,7 @@ export default function Shell() {
         </ErroBoundary>
       )
       case 'disparos':     return <Page nome="Disparos"       comp={PageDisparos}    />
+      case 'campanhas':    return <Page nome="Campanhas"      comp={PageCampanhas}   />
       case 'ocorrencias':  return <Page nome="Ocorrências"    comp={PageOcorrencias} />
       default: return <EmBreve title={NAV.find(n => n.id === page)?.label || page} />
     }
