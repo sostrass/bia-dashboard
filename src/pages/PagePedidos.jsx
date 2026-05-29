@@ -440,7 +440,9 @@ function OrderSheet({pedRow, onClose, api, allPedidos}) {
                     || transporte?.volumes?.[0]?.codigoRastreamento
                     || pedRow?.codigoRastreio
                     || ''
-  const linkRas   = rastreio?.linkCorreios || rastreio?.linkMelhorRastreio || ''
+  // Usa o link da transportadora correta (detectada pelo backend). Fallback por compatibilidade.
+  const linkRas   = rastreio?.link || rastreio?.linkCorreios || rastreio?.linkMelhorRastreio || ''
+  const transpNome = rastreio?.transportadora || transporte?.transportadora?.nome || ''
 
   const cp = (v,k)=>{ navigator.clipboard?.writeText(String(v||'')); setCpOk(k); setTimeout(()=>setCpOk(''),1500) }
 
