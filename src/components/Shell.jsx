@@ -40,6 +40,7 @@ const NAV = [
   { id:'caixa',       icon:CreditCard,      label:'Fluxo de Caixa', group:'main'   },
   { id:'gatilhos',    icon:Zap,             label:'Gatilhos',       group:'tools'  },
   { id:'campanhas',   icon:Send,            label:'Campanhas',      group:'tools'  },
+  { id:'disparos',    icon:Activity,        label:'Monitor Disparos',group:'tools'  },
   { id:'ocorrencias', icon:AlertCircle,     label:'Ocorrências',    group:'tools'  },
   { id:'avise',       icon:Package,         label:'Avise-me',       group:'tools'  },
   { id:'iaconfig',    icon:Bot,             label:'Config IA',      group:'config' },
