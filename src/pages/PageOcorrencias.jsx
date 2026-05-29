@@ -275,6 +275,8 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
         loading:false,
         eventos: d?.rastreio?.eventos || [],
         status:  d?.rastreio?.status || null,
+        link:    d?.rastreio?.link || d?.rastreio?.linkCorreios || null,
+        transportadora: d?.rastreio?.transportadora || null,
       }}))
     } catch {
       setMovim(m => ({ ...m, [numero]: { loading:false, eventos:[], erro:true } }))
@@ -553,6 +555,17 @@ function TicketDrawer({ oc, api, onAtualizado, onClose }) {
 
                           {movim[p.numero]?.eventos && (
                             <div className="mt-2 px-2.5 py-2 rounded-lg" style={{ background:T.bg3, border:`1px solid ${T.sep}` }}>
+                              {movim[p.numero].transportadora && (
+                                <div className="flex items-center gap-2 mb-2 pb-2" style={{ borderBottom:`0.5px solid ${T.sep}` }}>
+                                  <Truck size={10} style={{ color:T.ink4 }}/>
+                                  <span style={{ fontSize:10, color:T.ink3 }}>{movim[p.numero].transportadora}</span>
+                                  {movim[p.numero].link && (
+                                    <a href={movim[p.numero].link} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:10, fontWeight:600, color:T.blue, textDecoration:'none', display:'flex', alignItems:'center', gap:3 }}>
+                                      Rastrear no site <MapPin size={9}/>
+                                    </a>
+                                  )}
+                                </div>
+                              )}
                               {movim[p.numero].eventos.length === 0 ? (
                                 <div className="flex items-center gap-2">
                                   <Navigation size={11} style={{ color:T.amber }}/>
