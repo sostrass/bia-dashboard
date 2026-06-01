@@ -61,8 +61,10 @@ function fmt(v) {
   return Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})
 }
 function fmtD(d) {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})
+  if (!d || d==='0000-00-00' || d==='0000-00-00 00:00:00') return ''
+  const dt = new Date(d)
+  if (isNaN(dt.getTime())) return ''  // data inválida → não mostra (evita "Invalid Date")
+  return dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})
 }
 function fmtDH(d) {
   if (!d) return '—'
@@ -748,8 +750,10 @@ function OrderSheet({pedRow, onClose, api, allPedidos}) {
                   display:'flex',alignItems:'center',gap:12,
                   background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:10,padding:'10px 12px'}}>
                   <div style={{width:42,height:42,borderRadius:8,background:'var(--fill)',
-                    display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                    <Box size={16} style={{color:'var(--label-4)'}}/>
+                    display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,overflow:'hidden'}}>
+                    {(item._img||item.imagem||item.imagemURL)
+                      ? <img src={item._img||item.imagem||item.imagemURL} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                      : <Box size={16} style={{color:'var(--label-4)'}}/>}
                   </div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:12.5,fontWeight:600,color:'var(--label)',
