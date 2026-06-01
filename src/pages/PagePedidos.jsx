@@ -13,6 +13,7 @@ import {
   ArrowDownRight, Eye, Circle, Navigation, Hash, Calendar,
   Info, DollarSign, Box, Layers, Timer, Award, Map,
   ShieldCheck, Building, Globe, Percent, Target,
+  ShoppingBag, MessageCircle, GripVertical, Settings,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -22,14 +23,15 @@ import {
 
 // ─── MAPAS ────────────────────────────────────────────────────────────────────
 const LOJA_ID = {
-  205946980:'shopee', 203414926:'mercadolivre', 204884434:'shein',
+  205946980:'shopee', 203414926:'melhorenvio', 204884434:'shein',
   205916963:'tiktokshop', 205693668:'nuvemshop', 0:'loja',
 }
 const CANAL_CFG = {
-  shopee:       {label:'Shopee',       cor:'#f97316', icon:ShoppingCart},
-  mercadolivre: {label:'Mercado Livre',cor:'#eab308', icon:ShoppingCart},
-  shein:        {label:'Shein',        cor:'#ec4899', icon:ShoppingCart},
-  tiktokshop:   {label:'TikTok',       cor:'#06b6d4', icon:ShoppingCart},
+  shopee:       {label:'Shopee',       cor:'#ee4d2d', icon:ShoppingBag},
+  mercadolivre: {label:'Mercado Livre',cor:'#ffe600', icon:ShoppingCart},
+  melhorenvio:  {label:'Melhor Envio', cor:'#0bb07b', icon:Truck},
+  shein:        {label:'Shein',        cor:'#000000', icon:ShoppingBag},
+  tiktokshop:   {label:'TikTok',       cor:'#25f4ee', icon:ShoppingBag},
   nuvemshop:    {label:'Nuvemshop',    cor:'#a78bfa', icon:Globe},
   loja:         {label:'Loja Própria', cor:'#22c55e', icon:Building},
   bling:        {label:'Bling/Manual', cor:'#60a5fa', icon:Hash},
@@ -1110,6 +1112,7 @@ export default function PagePedidos({api}) {
   const [busca,     setBusca] = useState('')
   const [filtroSit, setFS]    = useState('0')
   const [filtroC,   setFC]    = useState('todos')
+  const [filtroTr,  setFTr]   = useState('todos')
   const [valMin,    setVMin]  = useState('')
   const [valMax,    setVMax]  = useState('')
   const [date,      setDate]  = useState({from:'',to:''})
@@ -1190,7 +1193,9 @@ export default function PagePedidos({api}) {
   const filtrados = useMemo(()=>
     pedidos.filter(p=>{
       const c=getCanal(p),tot=parseFloat(p.total||0),sit=String(getSitId(p)),txt=busca.toLowerCase()
+      const tr=(p.transportadora||'').toLowerCase()
       return (filtroC==='todos'||c===filtroC)&&(filtroSit==='0'||sit===filtroSit)
+        &&(filtroTr==='todos'||tr.includes(filtroTr.toLowerCase()))
         &&(!busca||String(p.numero).includes(busca)||(p.contato||'').toLowerCase().includes(txt)||(p.telefone||'').includes(busca))
         &&(!valMin||tot>=parseFloat(valMin))&&(!valMax||tot<=parseFloat(valMax))
     }).sort((a,b)=>{
@@ -1200,7 +1205,14 @@ export default function PagePedidos({api}) {
       if(sortCol==='data')   return(new Date(b.data)-new Date(a.data))*m
       return 0
     })
-  ,[pedidos,filtroC,filtroSit,busca,valMin,valMax,sortCol,sortDir])
+  ,[pedidos,filtroC,filtroTr,filtroSit,busca,valMin,valMax,sortCol,sortDir])
+
+  // Lista de transportadoras presentes nos pedidos (para o filtro)
+  const transportadoras = useMemo(()=>{
+    const set = new Set()
+    pedidos.forEach(p=>{ if(p.transportadora) set.add(p.transportadora) })
+    return Array.from(set).sort()
+  },[pedidos])
 
   const kpis=useMemo(()=>{
     const fat=filtrados.reduce((s,p)=>s+parseFloat(p.total||0),0)
@@ -1272,6 +1284,17 @@ export default function PagePedidos({api}) {
         {/* Faixa de valor */}
         <div>
           <div style={{fontSize:10,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8,
+            display:'flex',alignItems:'center',gap:5}}><Truck size={10}/>Transportadora</div>
+          <select value={filtroTr} onChange={e=>setFTr(e.target.value)}
+            style={{width:'100%',padding:'6px 8px',borderRadius:7,border:'1px solid var(--sep)',
+              background:'var(--fill)',color:'var(--label)',fontSize:12,marginBottom:14,cursor:'pointer'}}>
+            <option value="todos">Todas</option>
+            {transportadoras.map(t=><option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+        {/* Faixa de valor */}
+        <div>
+          <div style={{fontSize:10,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8,
             display:'flex',alignItems:'center',gap:5}}><DollarSign size={10}/>Faixa de valor</div>
           <div style={{display:'flex',gap:6}}>
             <input placeholder="Mín" value={valMin} onChange={e=>setVMin(e.target.value)}
@@ -1280,8 +1303,8 @@ export default function PagePedidos({api}) {
               style={{flex:1,padding:'5px 7px',borderRadius:7,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:11}}/>
           </div>
         </div>
-        {(filtroC!=='todos'||filtroSit!=='0'||busca||valMin||valMax||date.from)&&(
-          <button onClick={()=>{setFC('todos');setFS('0');setBusca('');setVMin('');setVMax('');setDate({from:'',to:''})}}
+        {(filtroC!=='todos'||filtroTr!=='todos'||filtroSit!=='0'||busca||valMin||valMax||date.from)&&(
+          <button onClick={()=>{setFC('todos');setFTr('todos');setFS('0');setBusca('');setVMin('');setVMax('');setDate({from:'',to:''})}}
             style={{padding:'7px',borderRadius:8,border:'1px solid rgba(239,68,68,.3)',
               background:'none',color:'#ef4444',cursor:'pointer',fontSize:12,
               display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
@@ -1384,7 +1407,7 @@ export default function PagePedidos({api}) {
           : view==='kanban'    ? <KanbanView filtrados={filtrados} onSel={setSel}/>
           : <>
             {/* Header tabela */}
-            <div style={{display:'grid',gridTemplateColumns:'80px 80px 1fr 100px 85px 90px 130px 36px',
+            <div style={{display:'grid',gridTemplateColumns:'80px 80px 1fr 100px 85px 90px 130px 56px',
               gap:0,padding:'5px 8px',marginBottom:4}}>
               {[['Pedido','numero'],['Data','data'],['Cliente','contato'],['Canal',null],['Status',null],['Total','total'],['Transp / Rastreio',null],[null,null]].map(([h,col],i)=>(
                 <div key={i} onClick={col?()=>srt(col):undefined} style={{
@@ -1405,7 +1428,7 @@ export default function PagePedidos({api}) {
                 const temRas=!!(p.codigoRastreio||p.transporte?.volumes?.[0]?.codigoRastreamento)
                 const temNF=!!p.notaFiscal?.id
                 return <div key={p.numero} onClick={()=>setSel(p)} style={{
-                  display:'grid',gridTemplateColumns:'80px 80px 1fr 100px 85px 90px 130px 36px',
+                  display:'grid',gridTemplateColumns:'80px 80px 1fr 100px 85px 90px 130px 56px',
                   gap:0,padding:'9px 8px',marginBottom:3,background:'var(--bg-2)',
                   border:'1px solid var(--sep)',borderRadius:10,cursor:'pointer',
                   transition:'border-color .12s',alignItems:'center'}}
@@ -1449,7 +1472,13 @@ export default function PagePedidos({api}) {
                       </div>
                     )}
                   </div>
-                  <div style={{padding:'0 4px',display:'flex',justifyContent:'center'}}>
+                  <div style={{padding:'0 4px',display:'flex',justifyContent:'center',alignItems:'center',gap:6}}>
+                    {p.telefone&&<button
+                      onClick={e=>{e.stopPropagation();window.open(`https://wa.me/${String(p.telefone).replace(/\D/g,'')}`,'_blank')}}
+                      title="Falar no WhatsApp"
+                      style={{background:'none',border:'none',cursor:'pointer',padding:0,display:'flex',alignItems:'center'}}>
+                      <MessageCircle size={13} style={{color:'#22c55e'}}/>
+                    </button>}
                     <Eye size={13} style={{color:'var(--label-4)'}}/>
                   </div>
                 </div>
