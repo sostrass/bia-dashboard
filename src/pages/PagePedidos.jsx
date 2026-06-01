@@ -42,6 +42,27 @@ const SIT = {
   12: {label:'Cancelado',  cor:'#ef4444', bg:'rgba(239,68,68,.12)',  bdr:'rgba(239,68,68,.3)'},
   15: {label:'Verificado', cor:'#22c55e', bg:'rgba(34,197,94,.12)',  bdr:'rgba(34,197,94,.3)'},
 }
+// Colunas disponíveis na listagem (toggle + arrastar ordem; salvas no backend)
+const COLUNAS_DISP = [
+  {id:'numero',    label:'Número da venda', largura:'80px'},
+  {id:'serie',     label:'Série',           largura:'60px'},
+  {id:'data',      label:'Data de emissão', largura:'90px'},
+  {id:'dataSaida', label:'Data de saída',   largura:'90px'},
+  {id:'contato',   label:'Nome',            largura:'1fr'},
+  {id:'documento', label:'CPF/CNPJ',        largura:'120px'},
+  {id:'natureza',  label:'Natureza op.',    largura:'110px'},
+  {id:'uf',        label:'UF',              largura:'45px'},
+  {id:'canal',     label:'Canal',           largura:'100px'},
+  {id:'status',    label:'Status',          largura:'85px'},
+  {id:'transp',    label:'Transportadora',  largura:'110px'},
+  {id:'rastreio',  label:'Nº Rastreio',     largura:'130px'},
+  {id:'total',     label:'Valor (R$)',      largura:'90px'},
+]
+// Config padrão (caso não haja nada salvo no backend)
+const COLUNAS_PADRAO = {
+  ordem: ['numero','data','contato','canal','status','total','rastreio'],
+  ativas: {numero:true,data:true,contato:true,canal:true,status:true,total:true,rastreio:true},
+}
 const RFM = {
   vip:      {label:'VIP',      icon:Crown,      cor:'#f59e0b', bg:'rgba(245,158,11,.15)'},
   fiel:     {label:'Fiel',     icon:Star,       cor:'#22c55e', bg:'rgba(34,197,94,.15)'},
@@ -1151,6 +1172,9 @@ export default function PagePedidos({api}) {
   const [sel,       setSel]   = useState(null)
   const [view,      setView]  = useState('lista')
   const [showF,     setShowF] = useState(false)
+  const [colCfg,    setColCfg]= useState(COLUNAS_PADRAO)
+  const [showCols,  setShowCols]= useState(false)
+  const [dragId,    setDragId]= useState(null)
   const [live,      setLive]  = useState(0)
   const POR_PAG = 25
 
@@ -1199,6 +1223,29 @@ export default function PagePedidos({api}) {
   },[api,filtroSit,date])
 
   useEffect(()=>{carregar(1,false);setPgUI(1)},[carregar])
+
+  // Carrega a config de colunas salva no backend (config única do painel)
+  useEffect(()=>{
+    fetch(`${api}/api/dashboard/config-colunas`)
+      .then(r=>r.ok?r.json():null)
+      .then(c=>{ if(c&&c.ordem?.length) setColCfg({ordem:c.ordem, ativas:c.ativas||{}}) })
+      .catch(()=>{})
+  },[api])
+
+  // Salva a config de colunas no backend
+  const salvarColunas = useCallback(async(cfg)=>{
+    setColCfg(cfg)
+    try{
+      await fetch(`${api}/api/dashboard/config-colunas`,{
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)
+      })
+    }catch{}
+  },[api])
+
+  // Colunas ativas, na ordem definida
+  const colunasAtivas = useMemo(()=>
+    colCfg.ordem.filter(id=>colCfg.ativas[id]!==false).map(id=>COLUNAS_DISP.find(c=>c.id===id)).filter(Boolean)
+  ,[colCfg])
 
   useEffect(()=>{
     const t=setInterval(async()=>{
@@ -1403,6 +1450,11 @@ export default function PagePedidos({api}) {
             borderRadius:8,border:'1px solid var(--sep)',background:'none',color:'var(--label-3)',cursor:'pointer',fontSize:12}}>
             <Download size={13}/>CSV
           </button>
+          <button onClick={()=>setShowCols(s=>!s)} title="Colunas" style={{width:32,height:32,borderRadius:8,
+            border:'1px solid var(--sep)',background:showCols?'var(--fill)':'none',color:showCols?'var(--accent)':'var(--label-4)',cursor:'pointer',
+            display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <Settings size={14}/>
+          </button>
           <button onClick={()=>carregar(1,false)} style={{width:32,height:32,borderRadius:8,
             border:'1px solid var(--sep)',background:'none',color:'var(--label-4)',cursor:'pointer',
             display:'flex',alignItems:'center',justifyContent:'center'}}>
@@ -1435,9 +1487,46 @@ export default function PagePedidos({api}) {
         ) : view==='analytics' ? <AnalyticsView pedidos={filtrados} api={api}/>
           : view==='kanban'    ? <KanbanView filtrados={filtrados} onSel={setSel}/>
           : <>
-            {/* Header tabela */}
-            <div style={{display:'grid',gridTemplateColumns:'80px 80px 1fr 100px 85px 90px 130px 56px',
-              gap:0,padding:'5px 8px',marginBottom:4}}>
+            {showCols&&<div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:12,padding:'14px 16px',marginBottom:12}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+                <div style={{fontSize:13,fontWeight:700,color:'var(--label)'}}>Colunas customizadas</div>
+                <button onClick={()=>setShowCols(false)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',display:'flex'}}><X size={15}/></button>
+              </div>
+              <div style={{fontSize:11,color:'var(--label-4)',marginBottom:12}}>Selecione quais colunas ficam visiveis e arraste para reordenar. A config e salva automaticamente.</div>
+              <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                {colCfg.ordem.map(id=>{
+                  const c=COLUNAS_DISP.find(x=>x.id===id); if(!c) return null
+                  const ativa=colCfg.ativas[id]!==false
+                  return <div key={id} draggable
+                    onDragStart={()=>setDragId(id)}
+                    onDragOver={e=>e.preventDefault()}
+                    onDrop={()=>{
+                      if(!dragId||dragId===id){setDragId(null);return}
+                      const ord=[...colCfg.ordem]
+                      const from=ord.indexOf(dragId),to=ord.indexOf(id)
+                      ord.splice(from,1);ord.splice(to,0,dragId)
+                      salvarColunas({...colCfg,ordem:ord});setDragId(null)
+                    }}
+                    style={{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',borderRadius:8,background:dragId===id?'var(--fill)':'var(--bg)',border:'1px solid var(--sep)',cursor:'grab',opacity:ativa?1:.5}}>
+                    <GripVertical size={14} style={{color:'var(--label-4)',flexShrink:0}}/>
+                    <span style={{flex:1,fontSize:12.5,color:'var(--label)'}}>{c.label}</span>
+                    <button onClick={()=>salvarColunas({...colCfg,ativas:{...colCfg.ativas,[id]:!ativa}})} style={{width:38,height:21,borderRadius:99,border:'none',cursor:'pointer',position:'relative',background:ativa?'#22c55e':'var(--sep)',transition:'.15s',flexShrink:0}}>
+                      <div style={{position:'absolute',top:2,left:ativa?19:2,width:17,height:17,borderRadius:'50%',background:'#fff',transition:'.15s'}}/>
+                    </button>
+                  </div>
+                })}
+              </div>
+            </div>}
+            <div style={{display:'grid',gridTemplateColumns:colunasAtivas.map(c=>c.largura).join(' ')+' 56px',gap:0,padding:'5px 8px',marginBottom:4}}>
+              {colunasAtivas.map(c=>{
+                const sortable=['numero','data','total'].includes(c.id)
+                return <div key={c.id} onClick={sortable?()=>srt(c.id):undefined} style={{display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.05em',cursor:sortable?'pointer':'default',userSelect:'none',padding:'0 6px'}}>
+                  {c.label}{sortable&&<SI col={c.id}/>}
+                </div>
+              })}
+              <div/>
+            </div>
+            <div style={{display:'none',gridTemplateColumns:'80px 80px 1fr 100px 85px 90px 130px 56px',gap:0,padding:'5px 8px',marginBottom:4}}>
               {[['Pedido','numero'],['Data','data'],['Cliente','contato'],['Canal',null],['Status',null],['Total','total'],['Transp / Rastreio',null],[null,null]].map(([h,col],i)=>(
                 <div key={i} onClick={col?()=>srt(col):undefined} style={{
                   display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:700,
@@ -1456,13 +1545,35 @@ export default function PagePedidos({api}) {
                 const canal=getCanal(p),sid=getSitId(p),s=SIT[sid]||{label:'—',cor:'#888',bg:'var(--fill)'}
                 const temRas=!!(p.codigoRastreio||p.transporte?.volumes?.[0]?.codigoRastreamento)
                 const temNF=!!p.notaFiscal?.id
+                const cod=p.codigoRastreio||p.transporte?.volumes?.[0]?.codigoRastreamento||''
+                const cell=(colId)=>{
+                  switch(colId){
+                    case 'numero':   return <span style={{fontSize:12.5,fontWeight:700,color:'var(--label)'}}>{p.numero}</span>
+                    case 'serie':    return <span style={{fontSize:11,color:'var(--label-4)'}}>{p.serie||p.notaFiscal?.serie||'—'}</span>
+                    case 'data':     return <span style={{fontSize:11,color:'var(--label-4)'}}>{fmtD(p.data)}</span>
+                    case 'dataSaida':return <span style={{fontSize:11,color:'var(--label-4)'}}>{fmtD(p.dataSaida)||'—'}</span>
+                    case 'contato':  return <div style={{overflow:'hidden'}}><div style={{fontSize:12.5,fontWeight:500,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.contato||'—'}</div>{p.telefone&&<div style={{fontSize:10,color:'var(--label-4)'}}>{p.telefone}</div>}</div>
+                    case 'documento':return <span style={{fontSize:11,color:'var(--label-3)'}}>{p.documento||p.cpfCnpj||p.contatoDoc||'—'}</span>
+                    case 'natureza': return <span style={{fontSize:10.5,color:'var(--label-4)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'block'}} title={p.naturezaOperacao||''}>{p.naturezaOperacao||'—'}</span>
+                    case 'uf':       return <span style={{fontSize:11,color:'var(--label-3)'}}>{p.uf||p.transporte?.etiqueta?.uf||'—'}</span>
+                    case 'canal':    return <CanalBadge canal={canal} small/>
+                    case 'status':   return <Pill label={s.label} cor={s.cor} bg={s.bg} sz={10}/>
+                    case 'transp':   return <span style={{fontSize:10.5,color:'var(--label-3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'block'}} title={p.transportadora||''}>{p.transportadora||'—'}</span>
+                    case 'rastreio': return cod?<div style={{display:'flex',alignItems:'center',gap:4,minWidth:0}}><Truck size={10} style={{color:'#22c55e',flexShrink:0}}/><span style={{fontSize:9.5,fontFamily:'monospace',color:'var(--label-3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:88}} title={cod}>{cod}</span><button onClick={e=>{e.stopPropagation();navigator.clipboard?.writeText(cod)}} title="Copiar" style={{flexShrink:0,background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0,display:'flex',alignItems:'center'}}><Copy size={9}/></button></div>:<span style={{fontSize:10,color:'var(--label-4)'}}>—</span>
+                    case 'total':    return <span style={{fontSize:12.5,fontWeight:700,color:'var(--label)'}}>{fmt(p.total)}</span>
+                    default:         return null
+                  }
+                }
                 return <div key={p.numero} onClick={()=>setSel(p)} style={{
-                  display:'grid',gridTemplateColumns:'80px 80px 1fr 100px 85px 90px 130px 56px',
+                  display:'grid',gridTemplateColumns:colunasAtivas.map(x=>x.largura).join(' ')+' 56px',
                   gap:0,padding:'9px 8px',marginBottom:3,background:'var(--bg-2)',
                   border:'1px solid var(--sep)',borderRadius:10,cursor:'pointer',
                   transition:'border-color .12s',alignItems:'center'}}
                   onMouseEnter={e=>e.currentTarget.style.borderColor=s.cor}
                   onMouseLeave={e=>e.currentTarget.style.borderColor='var(--sep)'}>
+                  {colunasAtivas.map(col=><div key={col.id} style={{padding:'0 6px',minWidth:0}}>{cell(col.id)}</div>)}
+                  {/* coluna fixa antiga abaixo (oculta) */}
+                  <div style={{display:'none'}}>
                   <div style={{padding:'0 6px'}}><span style={{fontSize:12.5,fontWeight:700,color:'var(--label)'}}>{p.numero}</span></div>
                   <div style={{padding:'0 6px'}}><span style={{fontSize:11,color:'var(--label-4)'}}>{fmtD(p.data)}</span></div>
                   <div style={{padding:'0 6px',overflow:'hidden'}}>
@@ -1501,6 +1612,7 @@ export default function PagePedidos({api}) {
                       </div>
                     )}
                   </div>
+                  </div>{/* fim div-none células antigas */}
                   <div style={{padding:'0 4px',display:'flex',justifyContent:'center',alignItems:'center',gap:6}}>
                     {p.telefone&&<button
                       onClick={e=>{e.stopPropagation();window.open(`https://wa.me/${String(p.telefone).replace(/\D/g,'')}`,'_blank')}}
