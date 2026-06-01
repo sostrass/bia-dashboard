@@ -386,6 +386,7 @@ function OrderSheet({pedRow, onClose, api, allPedidos}) {
   const [snd2,   setSnd2]  = useState(false)
   const [sndNF,  setSNF]   = useState(false)
   const [sentNF, setSetNF] = useState(false)
+  const [sentRas,setSentRas]= useState(false)
   const [cpOk,   setCpOk]  = useState('')
   const [trackLoad,setTL]  = useState(false)
 
@@ -817,32 +818,56 @@ function OrderSheet({pedRow, onClose, api, allPedidos}) {
               </div>)}
             </div>
 
+            {/* Enviar rastreio ao cliente via WhatsApp */}
+            {codRas&&pedRow.telefone&&<button onClick={async()=>{
+              const linkAcomp=`https://rastreio.sostrass.com.br/p/${encodeURIComponent(codRas)}`
+              const msg=`Olá! 📦 Seu pedido #${pedRow.numero} já está a caminho.\n\nVocê pode acompanhar a entrega em tempo real aqui:\n${linkAcomp}\n\nCódigo de rastreio: ${codRas}`
+              try{
+                await fetch(`${api}/api/dashboard/manual/${pedRow.telefone.replace(/\D/g,'')}`,{
+                  method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:msg})
+                })
+                setSentRas(true);setTimeout(()=>setSentRas(false),2500)
+              }catch{}
+            }} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'10px',
+              borderRadius:10,border:'none',background:sentRas?'rgba(34,197,94,.15)':'#22c55e',
+              color:sentRas?'#22c55e':'#fff',fontSize:12.5,fontWeight:600,cursor:'pointer',transition:'.15s'}}>
+              {sentRas?<><Check size={14}/>Rastreio enviado!</>:<><MessageCircle size={14}/>Enviar rastreio ao cliente</>}
+            </button>}
+
             {/* Timeline eventos */}
             {trackLoad ? (
               <div style={{textAlign:'center',padding:32,color:'var(--label-4)',fontSize:12}}>
                 <RefreshCw size={14} style={{animation:'spin 1s linear infinite'}}/><br/>Consultando...
               </div>
             ) : (rastreio?.eventos||[]).length>0 ? (
-              <div style={{position:'relative'}}>
-                <div style={{position:'absolute',left:15,top:16,bottom:16,width:2,background:'var(--sep)'}}/>
-                {rastreio.eventos.map((ev,i)=><div key={i} style={{display:'flex',gap:12,marginBottom:14,position:'relative'}}>
-                  <div style={{width:30,height:30,borderRadius:'50%',flexShrink:0,zIndex:1,
-                    background:i===0?'var(--accent)':'var(--fill)',
-                    border:`2px solid ${i===0?'var(--accent)':'var(--sep)'}`,
-                    display:'flex',alignItems:'center',justifyContent:'center'}}>
-                    <Circle size={7} fill={i===0?'#fff':'var(--label-4)'} style={{color:i===0?'#fff':'var(--label-4)'}}/>
-                  </div>
-                  <div style={{flex:1,paddingTop:5,minWidth:0}}>
-                    <div style={{fontSize:12,fontWeight:i===0?600:400,color:i===0?'var(--label)':'var(--label-3)'}}>
-                      {ev.status||ev.descricao||ev.evento||ev.raw||'—'}
+              <div style={{position:'relative',paddingLeft:4}}>
+                {rastreio.eventos.map((ev,i)=>{
+                  const atual=i===0, ult=i===rastreio.eventos.length-1
+                  return <div key={i} style={{display:'flex',gap:14,position:'relative',paddingBottom:ult?0:18}}>
+                    {/* linha conectora */}
+                    {!ult&&<div style={{position:'absolute',left:6,top:16,bottom:0,width:1.5,
+                      background:'linear-gradient(var(--accent),var(--sep))',opacity:.4}}/>}
+                    {/* dot */}
+                    <div style={{width:13,height:13,borderRadius:'50%',flexShrink:0,marginTop:3,zIndex:1,
+                      background:atual?'var(--accent)':'var(--fill)',
+                      border:`2px solid ${atual?'var(--accent)':'var(--sep)'}`,
+                      boxShadow:atual?'0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent)':'none'}}/>
+                    {/* conteúdo */}
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,fontWeight:atual?600:500,
+                        color:atual?'var(--accent)':'var(--label)',lineHeight:1.35}}>
+                        {ev.status||ev.descricao||ev.evento||ev.raw||'—'}
+                      </div>
+                      {(ev.local||ev.unidade||ev.origem)&&<div style={{fontSize:11.5,color:'var(--label-3)',marginTop:2}}>
+                        {ev.local||ev.unidade||ev.origem}
+                      </div>}
+                      <div style={{fontSize:10.5,color:'var(--label-4)',marginTop:3,display:'flex',alignItems:'center',gap:4}}>
+                        <Clock size={9}/>{ev.data||ev.dtHrCriado||ev.happened_at||''}
+                        {ev.detalhe?` · ${ev.detalhe}`:''}
+                      </div>
                     </div>
-                    <div style={{fontSize:10.5,color:'var(--label-4)',marginTop:2}}>
-                      {ev.data||ev.dtHrCriado||ev.happened_at||''}
-                      {ev.local||ev.unidade||ev.origem ? ` · ${ev.local||ev.unidade||ev.origem}` : ''}
-                      {ev.detalhe ? ` · ${ev.detalhe}` : ''}
-                    </div>
                   </div>
-                </div>)}
+                })}
               </div>
             ) : !codRas ? (
               <div style={{textAlign:'center',padding:40,color:'var(--label-4)'}}>
@@ -1005,8 +1030,11 @@ function OrderSheet({pedRow, onClose, api, allPedidos}) {
             {hist.length===0
               ? <p style={{color:'var(--label-4)',fontSize:12,textAlign:'center',padding:20}}>Primeiro pedido do cliente.</p>
               : hist.map(p=>{const sid=getSitId(p);const s=SIT[sid]||{label:'—',cor:'#888'}
-                return <div key={p.numero} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
-                  background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:10,padding:'10px 14px'}}>
+                return <div key={p.numero} onClick={()=>{setSel(p);setTab('itens')}} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+                  background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:10,padding:'10px 14px',
+                  cursor:'pointer',transition:'border-color .12s'}}
+                  onMouseEnter={e=>e.currentTarget.style.borderColor=s.cor}
+                  onMouseLeave={e=>e.currentTarget.style.borderColor='var(--sep)'}>
                   <div>
                     <div style={{fontSize:12.5,fontWeight:600,color:'var(--label)'}}>#{p.numero}</div>
                     <div style={{fontSize:11,color:'var(--label-4)'}}>{fmtD(p.data)}</div>
@@ -1015,6 +1043,7 @@ function OrderSheet({pedRow, onClose, api, allPedidos}) {
                     <CanalBadge canal={p.canal||getCanal(p)} small/>
                     <Pill label={s.label} cor={s.cor} bg={s.bg} sz={10}/>
                     <span style={{fontSize:13,fontWeight:700,color:'var(--label)'}}>{fmt(p.total)}</span>
+                    <ChevronRight size={14} style={{color:'var(--label-4)'}}/>
                   </div>
                 </div>}
               )
