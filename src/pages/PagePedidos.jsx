@@ -23,13 +23,12 @@ import {
 
 // ─── MAPAS ────────────────────────────────────────────────────────────────────
 const LOJA_ID = {
-  205946980:'shopee', 203414926:'melhorenvio', 204884434:'shein',
+  205946980:'shopee', 203414926:'mercadolivre', 204884434:'shein',
   205916963:'tiktokshop', 205693668:'nuvemshop', 0:'loja',
 }
 const CANAL_CFG = {
   shopee:       {label:'Shopee',       cor:'#ee4d2d', icon:ShoppingBag},
   mercadolivre: {label:'Mercado Livre',cor:'#ffe600', icon:ShoppingCart},
-  melhorenvio:  {label:'Melhor Envio', cor:'#0bb07b', icon:Truck},
   shein:        {label:'Shein',        cor:'#000000', icon:ShoppingBag},
   tiktokshop:   {label:'TikTok',       cor:'#25f4ee', icon:ShoppingBag},
   nuvemshop:    {label:'Nuvemshop',    cor:'#a78bfa', icon:Globe},
