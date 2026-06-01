@@ -54,10 +54,22 @@ const ACOES = [
     { tipo:'acao', nome:'Sincronização incremental', desc:'Busca só os pedidos novos/alterados dos últimos dias. Rápido. Use periodicamente para manter o banco atual.',
       botao:'Sincronizar agora', icon:RefreshCw, metodo:'POST', endpoint:'/api/pedidos-sync/incremental' },
   ]},
+  { categoria:'Rastreamento', cor:'#0bb07b', icon:Truck, itens:[
+    { tipo:'acao', nome:'Forçar varredura de rastreio', desc:'Varre os pedidos enviados dos últimos 30 dias no Bling e carrega os códigos de rastreio na fila de monitoramento. Use depois de ativar uma transportadora ou para recuperar pedidos que ficaram de fora.',
+      botao:'Forçar varredura', icon:RefreshCw, metodo:'GET', endpoint:'/bling-webhook/forcar-varredura' },
+  ]},
   { categoria:'Inteligência da Molise', cor:'#a78bfa', icon:Brain, itens:[
     { tipo:'acao', nome:'Analisar clientes (RFM + sugestões)', desc:'A Molise varre o banco, calcula o perfil dos clientes (RFM) e gera as sugestões de pró-atividade. Requer pedidos sincronizados.',
       botao:'Analisar agora', icon:Sparkles, metodo:'POST', endpoint:'/api/inteligencia/analisar' },
   ]},
+]
+
+// Toggles de ativação de rastreio por transportadora (lidos/salvos do banco)
+const TRANSPORTADORAS_TOGGLE = [
+  { id:'melhorenvio', nome:'Melhor Envio', desc:'Agrega Jadlog, Loggi, J&T, Total Express e outras' },
+  { id:'correios',    nome:'Correios',     desc:'Rastreio oficial (SEDEX, PAC)' },
+  { id:'loggi',       nome:'Loggi',        desc:'Contrato direto Loggi' },
+  { id:'jadlog',      nome:'Jadlog',       desc:'Contrato direto Jadlog' },
 ]
 
 export default function PageConfig({ api }) {
@@ -70,6 +82,7 @@ export default function PageConfig({ api }) {
   const [acaoMsg, setAcaoMsg] = useState({})
   const [aberto, setAberto] = useState({})  // grupos expandidos
   const [aba, setAba]       = useState('tokens')  // 'tokens' | 'acoes'
+  const [transp, setTransp] = useState({})  // ativação das transportadoras
 
   // Carrega config (tokens já mascarados pelo backend)
   useEffect(()=>{
@@ -78,6 +91,25 @@ export default function PageConfig({ api }) {
       .then(d=>{ setCfg(d||{}); setLoad(false) })
       .catch(()=>setLoad(false))
   },[API])
+
+  // Carrega o estado de ativação das transportadoras
+  useEffect(()=>{
+    fetch(`${API}/api/pedidos-sync/rastreio-ativacao`)
+      .then(r=>r.ok?r.json():{})
+      .then(d=>{ const m={}; Object.keys(d||{}).forEach(k=>m[k]=d[k].ativo); setTransp(m) })
+      .catch(()=>{})
+  },[API])
+
+  // Liga/desliga uma transportadora (salva no banco)
+  const toggleTransp = useCallback(async(id)=>{
+    const novo = {...transp, [id]:!transp[id]}
+    setTransp(novo)
+    try{
+      await fetch(`${API}/api/pedidos-sync/rastreio-ativacao`,{
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(novo)
+      })
+    }catch{}
+  },[API,transp])
 
   const setCampo = (k,v)=> setCfg(c=>({...c,[k]:v}))
 
@@ -236,6 +268,27 @@ export default function PageConfig({ api }) {
 
       {/* ── ABA AÇÕES ── */}
       {aba==='acoes' && <div style={{display:'flex',flexDirection:'column',gap:20}}>
+        <div>
+          <div style={{fontSize:11,fontWeight:600,color:C.label4,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10,display:'flex',alignItems:'center',gap:6}}>
+            <Truck size={13} style={{color:'#0bb07b'}}/>Transportadoras monitoradas
+          </div>
+          <div style={{borderRadius:14,border:`1px solid ${C.sep}`,background:C.card,padding:'6px 16px'}}>
+            {TRANSPORTADORAS_TOGGLE.map((t,i)=>(
+              <div key={t.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 0',borderTop:i>0?`1px solid ${C.sep}`:'none'}}>
+                <div>
+                  <div style={{fontSize:13.5,fontWeight:500,color:C.label}}>{t.nome}</div>
+                  <div style={{fontSize:11,color:C.label4}}>{t.desc}</div>
+                </div>
+                <button onClick={()=>toggleTransp(t.id)} style={{width:42,height:24,borderRadius:99,border:'none',cursor:'pointer',position:'relative',background:transp[t.id]?'#0bb07b':C.sep,transition:'.15s',flexShrink:0}}>
+                  <div style={{position:'absolute',top:2,left:transp[t.id]?20:2,width:20,height:20,borderRadius:'50%',background:'#fff',transition:'.15s'}}/>
+                </button>
+              </div>
+            ))}
+          </div>
+          <div style={{fontSize:10.5,color:C.label4,marginTop:8,lineHeight:1.5}}>
+            Ligue a transportadora para a Molise consultar o rastreio. Depois de ligar, use "Forçar varredura" abaixo para carregar os pedidos já enviados.
+          </div>
+        </div>
         {ACOES.map(cat=>{
           const CatIc = cat.icon
           return <div key={cat.categoria}>
