@@ -83,6 +83,9 @@ export default function PageConfig({ api }) {
   const [aberto, setAberto] = useState({})  // grupos expandidos
   const [aba, setAba]       = useState('tokens')  // 'tokens' | 'acoes'
   const [transp, setTransp] = useState({})  // ativação das transportadoras
+  const [dbgCodigos, setDbgCodigos] = useState('')  // textarea de códigos
+  const [dbgResult, setDbgResult]   = useState(null) // resultado do debug
+  const [dbgLoading, setDbgLoading] = useState(false)
 
   // Carrega config (tokens já mascarados pelo backend)
   useEffect(()=>{
@@ -110,6 +113,20 @@ export default function PageConfig({ api }) {
       })
     }catch{}
   },[API,transp])
+
+  // Roda o debug de rastreios (testa vários códigos colados)
+  const rodarDebug = useCallback(async()=>{
+    const codigos = dbgCodigos.split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean)
+    if(!codigos.length){ setDbgResult({erro:'Cole pelo menos um código'}); return }
+    setDbgLoading(true); setDbgResult(null)
+    try{
+      const r = await fetch(`${API}/bling-webhook/debug-rastreios`,{
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({codigos})
+      })
+      setDbgResult(await r.json())
+    }catch{ setDbgResult({erro:'Falha ao executar o debug'}) }
+    setDbgLoading(false)
+  },[API,dbgCodigos])
 
   const setCampo = (k,v)=> setCfg(c=>({...c,[k]:v}))
 
@@ -326,6 +343,40 @@ export default function PageConfig({ api }) {
             </div>
           </div>
         })}
+        <div>
+          <div style={{fontSize:11,fontWeight:600,color:C.label4,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10,display:'flex',alignItems:'center',gap:6}}>
+            <Truck size={13} style={{color:'#f59e0b'}}/>Debug de rastreios
+          </div>
+          <div style={{borderRadius:14,border:`1px solid ${C.sep}`,background:C.card,padding:'14px 16px'}}>
+            <div style={{fontSize:12,color:C.label3,lineHeight:1.5,marginBottom:10}}>
+              Cole códigos de rastreio reais (um por linha) para testar se a movimentação está chegando. Mostra a transportadora detectada e os eventos.
+            </div>
+            <textarea value={dbgCodigos} onChange={e=>setDbgCodigos(e.target.value)}
+              placeholder={'LGI-ME2628Y4F24BR\n88123456789012345\n...'} rows={4}
+              style={{width:'100%',padding:'9px 11px',borderRadius:10,border:`1px solid ${C.sep}`,background:'rgba(255,255,255,.03)',color:C.label,fontSize:12,fontFamily:'monospace',outline:'none',boxSizing:'border-box',resize:'vertical'}}/>
+            <button onClick={rodarDebug} disabled={dbgLoading} style={{marginTop:10,display:'flex',alignItems:'center',gap:6,padding:'8px 16px',borderRadius:10,border:`1px solid #f59e0b55`,background:'#f59e0b22',color:'#f59e0b',fontSize:12.5,fontWeight:600,cursor:'pointer'}}>
+              {dbgLoading?<Loader size={13} style={{animation:'spin 1s linear infinite'}}/>:<Sparkles size={14}/>}
+              Testar rastreios
+            </button>
+            {dbgResult && <div style={{marginTop:14}}>
+              {dbgResult.erro && <div style={{fontSize:12,color:'#ef4444'}}>{dbgResult.erro}</div>}
+              {dbgResult.resultados && <>
+                <div style={{fontSize:11,color:C.label4,marginBottom:8}}>Token Melhor Envio: {dbgResult.tokenME?'✓ ativo':'✗ ausente'} · {dbgResult.total} código(s)</div>
+                {dbgResult.resultados.map((r,i)=>(
+                  <div key={i} style={{padding:'10px 12px',borderRadius:10,border:`1px solid ${C.sep}`,marginBottom:6}}>
+                    <div style={{fontSize:12,fontFamily:'monospace',color:C.label,marginBottom:4}}>{r.codigo}</div>
+                    <div style={{display:'flex',gap:8,flexWrap:'wrap',fontSize:11}}>
+                      <span style={{color:C.label3}}>Detectado: <b style={{color:C.label}}>{r.detectado.transportadora}</b> ({r.detectado.fonte})</span>
+                      <span style={{color:r.temMovimentacao?'#00e5b4':'#f59e0b'}}>{r.temMovimentacao?`✓ ${r.qtdEventos} eventos`:'sem movimentação ainda'}</span>
+                    </div>
+                    {r.ultimoEvento && <div style={{fontSize:10.5,color:C.label4,marginTop:4}}>Último: {r.ultimoEvento.status}{r.ultimoEvento.local?` — ${r.ultimoEvento.local}`:''}{r.ultimoEvento.data?` (${r.ultimoEvento.data})`:''}</div>}
+                    {r.erro && <div style={{fontSize:10.5,color:'#ef4444',marginTop:4}}>Erro: {r.erro}</div>}
+                  </div>
+                ))}
+              </>}
+            </div>}
+          </div>
+        </div>
       </div>}
     </div>
   )
