@@ -19,6 +19,7 @@ const PageInteligencia = lazy(() => import('../pages/PageInteligencia'))
 const PageCaixa       = lazy(() => import('../pages/PageCaixa'))
 const PageAtendimento = lazy(() => import('../pages/PageAtendimento'))
 const PageIAConfig    = lazy(() => import('../pages/PageIAConfig'))
+const PageConfig      = lazy(() => import('../pages/PageConfig'))
 const PageLLMConfig   = lazy(() => import('../pages/PageLLMConfig'))
 const PageGatilhos    = lazy(() => import('../pages/PageGatilhos'))
 const PageConversas   = lazy(() => import('../pages/PageConversas'))
@@ -133,6 +134,7 @@ export default function Shell() {
       case 'inteligencia': return <Page nome="Inteligência" comp={PageInteligencia} />
       case 'caixa':       return <Page nome="Caixa"       comp={PageCaixa}       />
       case 'iaconfig':    return <Page nome="Config IA"   comp={PageIAConfig}    />
+      case 'config':      return <Page nome="Configurações" comp={PageConfig}    />
       case 'llmconfig':   return <Page nome="LLM & Bypasses" comp={PageLLMConfig}  />
       case 'gatilhos':    return <Page nome="Gatilhos"       comp={PageGatilhos}   />
       case 'conversas':    return (
