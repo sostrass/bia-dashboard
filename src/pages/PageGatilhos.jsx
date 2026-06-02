@@ -57,7 +57,7 @@ const GATILHOS = [
   { id:'pos_entrega',         label:'Pós-entrega IA',        grupo:'Inteligência',  tipo:'ia',    icon:Brain,       cor:'#7c6af7', situacao:'auto-ia', desc:'Follow-up automático pós-entrega', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
 ]
 
-const GRUPOS_ORDEM = ['Pedidos','Entrega','Faturamento','Pós-venda','Manual Bling','Rastreio','Catálogo','Estoque','Relacionamento','Inteligência']
+const GRUPOS_ORDEM = ['Compra & Pagamento','Preparação & Nota','Envio & Rastreio','Pós-venda','Inteligência']
 
 const TIPOS_BLOCO = [
   { tipo:'cabecalho', label:'Cabeçalho', icon:Hash,        cor:'#00d4aa', desc:'Negrito no topo' },
