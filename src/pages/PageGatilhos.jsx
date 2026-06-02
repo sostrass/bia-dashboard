@@ -349,12 +349,18 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
   const def=TIPOS_BLOCO.find(t=>t.tipo===b.tipo)||TIPOS_BLOCO[0], Ic=def.icon
   const inserirVar=(v,fId)=>{
     const el=document.getElementById(fId)
-    if(!el){onChange({...b,conteudo:(b.conteudo||'')+v});return}
-    const s=el.selectionStart,e=el.selectionEnd
-    const campo=el.tagName==='TEXTAREA'?'conteudo':'url'
-    const novo=(b[campo]||'').slice(0,s)+v+(b[campo]||'').slice(e)
+    // Campo destino depende do TIPO do bloco: cabeçalho/texto → conteudo; demais → url
+    const campo=(b.tipo==='texto'||b.tipo==='cabecalho')?'conteudo':'url'
+    const atual=b[campo]||''
+    // Sem elemento (ou campo nunca focado) → anexa no fim do conteúdo
+    if(!el){ onChange({...b,[campo]:atual+v}); return }
+    // selectionStart/End podem ser null/undefined se o campo não foi focado ainda.
+    // Nesse caso, insere no FIM (previsível) em vez de duplicar/embaralhar.
+    let s=el.selectionStart, e=el.selectionEnd
+    if(typeof s!=='number'||typeof e!=='number'){ s=atual.length; e=atual.length }
+    const novo=atual.slice(0,s)+v+atual.slice(e)
     onChange({...b,[campo]:novo})
-    setTimeout(()=>{el.focus();el.setSelectionRange(s+v.length,s+v.length)},0)
+    setTimeout(()=>{ try{ el.focus(); el.setSelectionRange(s+v.length,s+v.length) }catch{} },0)
   }
   const sty={background:'var(--bg)',border:'1px solid var(--sep)',borderRadius:9,color:'var(--label)',outline:'none',padding:'9px 12px',fontSize:13,width:'100%',fontFamily:'inherit',lineHeight:1.6}
   if(b.tipo==='quebra') return (
@@ -383,7 +389,7 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
       </div>
       {aberto&&(
         <div className="p-3 space-y-2">
-          {b.tipo==='cabecalho'&&<><input value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Emoji + título" style={sty}/><VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/></>}
+          {b.tipo==='cabecalho'&&<><input id={`bloco-${b.id}`} value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Emoji + título" style={sty}/><VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/></>}
           {b.tipo==='texto'&&<><textarea id={`bloco-${b.id}`} value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Texto... Use *negrito*" rows={4} style={{...sty,resize:'none'}}/><VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/></>}
           {b.tipo==='rodape'&&<input value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Ex: Mensagem automática — não responda." style={sty}/>}
           {b.tipo==='imagem'&&<><input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})} placeholder="URL ou {{foto_produto}}" style={{...sty,fontFamily:'monospace',fontSize:12}}/><VarPills vars={['{{foto_produto}}',...vars.filter(v=>v.includes('foto'))]} onInsert={v=>onChange({...b,url:(b.url||'')+v})}/><input value={b.legenda||''} onChange={e=>onChange({...b,legenda:e.target.value})} placeholder="Legenda (opcional)" style={{...sty,fontSize:12}}/></>}
