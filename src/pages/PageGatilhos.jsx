@@ -35,8 +35,13 @@ const GATILHOS = [
   { id:'produto_embalado',    label:'Produto Embalado',      grupo:'Manual Bling',  tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'#EMBALADO',  desc:'Obs. internas: #EMBALADO', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
   { id:'saiu_entrega',        label:'Saiu para Entrega',     grupo:'Manual Bling',  tipo:'bling', icon:Truck,       cor:'#f59e0b', situacao:'#SAIU',      desc:'Obs. internas: #SAIU', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{link_rastreio}}','{{link_acompanhamento}}'] },
   { id:'aguardando_retirada', label:'Aguardando Retirada',   grupo:'Manual Bling',  tipo:'bling', icon:Clock,       cor:'#0ea5e9', situacao:'#AGUARDANDO',desc:'Obs. internas: #AGUARDANDO', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
-  // Rastreio job
+  // Rastreio job — IDs batem com _classificarEvento do backend (NÃO renomear)
   { id:'lembrete_rastreio',   label:'Rastreio em Movimento', grupo:'Rastreio',      tipo:'bling', icon:Radio,       cor:'#4a9fff', situacao:'auto',    desc:'Atualização detectada pelo job', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{status_rastreio}}','{{link_acompanhamento}}'] },
+  { id:'pedido_coletado',     label:'Pedido Coletado',       grupo:'Rastreio',      tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'auto',    desc:'Transportadora coletou o pacote', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{transportadora}}','{{codigo_rastreio}}','{{link_acompanhamento}}'] },
+  { id:'rastreio_em_transito',label:'Em Trânsito',           grupo:'Rastreio',      tipo:'bling', icon:Radio,       cor:'#4a9fff', situacao:'auto',    desc:'Pacote em movimentação entre bases', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{status_rastreio}}','{{link_acompanhamento}}'] },
+  { id:'tentativa_entrega',   label:'Tentativa de Entrega',  grupo:'Rastreio',      tipo:'bling', icon:AlertTriangle,cor:'#f59e0b', situacao:'auto',   desc:'Destinatário ausente — vai tentar de novo', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{link_acompanhamento}}'] },
+  { id:'endereco_incorreto',  label:'Endereço Incorreto',    grupo:'Rastreio',      tipo:'bling', icon:AlertCircle, cor:'#ef4444', situacao:'auto',    desc:'Endereço com problema — precisa revisar', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{link_acompanhamento}}'] },
+  { id:'pacote_devolvido',    label:'Pacote Devolvido',      grupo:'Rastreio',      tipo:'bling', icon:RefreshCw,   cor:'#f87171', situacao:'auto',    desc:'Pacote retornou ao remetente', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}'] },
   // Manual/catálogo
   { id:'catalogo_produto',    label:'Produto do Catálogo',   grupo:'Catálogo',      tipo:'bling', icon:ShoppingBag, cor:'#10b981', situacao:'manual',  desc:'Produto enviado via catálogo', variaveis:['{{nome_produto}}','{{preco_cartao}}','{{preco_pix}}','{{foto_produto}}','{{descricao_produto}}'] },
   { id:'avise_me',            label:'Produto Disponível',    grupo:'Estoque',       tipo:'bling', icon:Bell,        cor:'#fb923c', situacao:'manual',  desc:'Produto voltou ao estoque', variaveis:['{{nome_cliente}}','{{nome_produto}}','{{preco_produto}}','{{link_produto}}'] },
@@ -216,6 +221,41 @@ const PADROES = {
     rod:'',
     bts:[]
   },
+
+  pedido_coletado: {
+    cab:'',
+    corpo:'Oi *{{nome_cliente}}*! 📦\n\nBoa notícia: a transportadora já coletou o seu pedido *#{{numero_pedido}}* e ele entrou na rota de envio!\n\nCódigo de rastreio: *{{codigo_rastreio}}*',
+    rod:'',
+    bts:[{texto:'Acompanhar',acao:'url',valor:'{{link_acompanhamento}}'}]
+  },
+
+  rastreio_em_transito: {
+    cab:'',
+    corpo:'Oi *{{nome_cliente}}*! 🚚\n\nSeu pedido *#{{numero_pedido}}* está a caminho! Acabamos de registrar uma nova movimentação.\n\n_{{status_rastreio}}_',
+    rod:'',
+    bts:[{texto:'Acompanhar',acao:'url',valor:'{{link_acompanhamento}}'}]
+  },
+
+  tentativa_entrega: {
+    cab:'',
+    corpo:'Oi *{{nome_cliente}}*! 🔔\n\nA transportadora tentou entregar o seu pedido *#{{numero_pedido}}*, mas não conseguiu te encontrar no endereço.\n\nNão se preocupe — uma nova tentativa será feita. Se precisar, acompanhe os detalhes pelo link abaixo.',
+    rod:'',
+    bts:[{texto:'Acompanhar',acao:'url',valor:'{{link_acompanhamento}}'}]
+  },
+
+  endereco_incorreto: {
+    cab:'',
+    corpo:'Oi *{{nome_cliente}}*! ⚠️\n\nIdentificamos um problema com o endereço de entrega do seu pedido *#{{numero_pedido}}*.\n\nPara que ele possa seguir, precisamos confirmar os seus dados. Pode nos responder por aqui que a gente te ajuda? 😊',
+    rod:'',
+    bts:[]
+  },
+
+  pacote_devolvido: {
+    cab:'',
+    corpo:'Oi *{{nome_cliente}}*!\n\nO seu pedido *#{{numero_pedido}}* acabou retornando para a gente. Isso pode acontecer por ausência no endereço ou dados incompletos.\n\nFica tranquilo(a) que vamos resolver juntos — responde aqui que a gente combina o reenvio. 💛',
+    rod:'',
+    bts:[]
+  },
 }
 
 
@@ -228,6 +268,9 @@ const AMOSTRAS = {
   '{{foto_produto}}':'https://cdn-sostrass-image.s3.sa-east-1.amazonaws.com/perola-furo-passante-creme.jpg',
   '{{nome_loja}}':'Só Strass','{{link_pedido}}':'https://sostrass.com.br/pedido/224307',
   '{{numero_nfe}}':'123456','{{link_nfe}}':'https://sostrass.com.br/nfe/123456',
+  '{{link_acompanhamento}}':'https://rastreio.sostrass.com.br/p/LGI-ME2628',
+  '{{status_rastreio}}':'O pacote está em uma base da Loggi — Sorocaba/SP',
+  '{{dias_inativo}}':'45','{{ultimo_produto}}':'Strass Jet 50m','{{ciclo_dias}}':'30',
 }
 const rv = t=>(t||'').replace(/\{\{([^}]+)\}\}/g,(_,k)=>AMOSTRAS[`{{${k}}}`]||`{{${k}}}`)
 
@@ -394,10 +437,15 @@ export default function PageGatilhos({ api }) {
   const [grupoAberto, setGrupoAb]   = useState({})
   const [busca,       setBusca]     = useState('')
   const [loading,     setLoading]   = useState(true)
+  const [nomesCustom, setNomesCustom] = useState({})  // { gatilhoId: 'nome editado' }
+  const [editandoNome, setEditandoNome] = useState(false)  // modo edição do nome do gatilho selecionado
 
   const gatilho = GATILHOS.find(g => g.id === selId)
   const config  = configs[selId]
   const isIA    = gatilho?.tipo === 'ia'
+  // Label efetivo: nome customizado pelo usuário OU o padrão do gatilho
+  const labelDe = (g) => (g && (nomesCustom[g.id] || g.label)) || ''
+  const labelAtual = labelDe(gatilho)
 
   // ── Carrega templates do banco ─────────────────────────────────────────────
   const carregar = useCallback(async () => {
@@ -427,13 +475,28 @@ export default function PageGatilhos({ api }) {
       if (r.ok) {
         const d = await r.json()
         const dl = {}
+        const nm = {}
         for (const g of GATILHOS) {
           const chave = `delay_${g.id}`
           if (d[chave] !== undefined) dl[g.id] = Number(d[chave])
+          const chaveNome = `nome_${g.id}`
+          if (d[chaveNome]) nm[g.id] = d[chaveNome]
         }
         setDelays(dl)
+        setNomesCustom(nm)
       }
     } catch {}
+  }, [api])
+
+  // Salva o nome customizado do gatilho (persiste em ia/config, igual aos delays)
+  const salvarNome = useCallback(async (gId, novoNome) => {
+    const nome = (novoNome || '').trim()
+    setNomesCustom(p => { const n = {...p}; if (nome) n[gId] = nome; else delete n[gId]; return n })
+    setEditandoNome(false)
+    await fetch(`${api}/api/ia/config`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ chave:`nome_${gId}`, valor:nome })
+    }).catch(() => {})
   }, [api])
 
   useEffect(() => { carregar(); carregarDelays() }, [carregar, carregarDelays])
@@ -462,6 +525,7 @@ export default function PageGatilhos({ api }) {
     setDirty(false)
     setErroIA('')
     setResTeste(null)
+    setEditandoNome(false)
     setMetaStatus(cfg?.meta_template_status || '')
     setMetaErro('')
     setAba('editor')
@@ -501,7 +565,7 @@ export default function PageGatilhos({ api }) {
     try {
       const c = configs[selId]
       const g = GATILHOS.find(x => x.id === selId)
-      const body = { gatilho:selId, nome:g?.label||selId, blocos, ativo: c?.ativo ?? true }
+      const body = { gatilho:selId, nome:(nomesCustom[selId]||g?.label||selId), blocos, ativo: c?.ativo ?? true }
       const r = await fetch(
         c ? `${api}/api/templates/${c.id}` : `${api}/api/templates`,
         { method: c?'PATCH':'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }
@@ -681,7 +745,7 @@ export default function PageGatilhos({ api }) {
                       </div>
                       {/* Info */}
                       <div style={{flex:1,minWidth:0}}>
-                        <p style={{fontSize:12,fontWeight:isSelected?600:400,color:isSelected?'var(--label)':'var(--label-2)',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{g.label}</p>
+                        <p style={{fontSize:12,fontWeight:isSelected?600:400,color:isSelected?'var(--label)':'var(--label-2)',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{labelDe(g)}</p>
                       </div>
                       {/* Status */}
                       <div style={{flexShrink:0,display:'flex',alignItems:'center',gap:3}}>
@@ -717,7 +781,21 @@ export default function PageGatilhos({ api }) {
                     {gatilho.icon && <gatilho.icon size={15} style={{color:gatilho.cor}}/>}
                   </div>
                   <div style={{flex:1,minWidth:0}}>
-                    <p style={{fontSize:14,fontWeight:600,color:'var(--label)',margin:0}}>{gatilho.label}</p>
+                    {editandoNome ? (
+                      <input autoFocus defaultValue={labelAtual}
+                        onBlur={e=>salvarNome(selId, e.target.value)}
+                        onKeyDown={e=>{ if(e.key==='Enter') salvarNome(selId, e.target.value); if(e.key==='Escape') setEditandoNome(false) }}
+                        style={{width:'100%',fontSize:14,fontWeight:600,color:'var(--label)',background:'var(--fill)',border:`1px solid ${gatilho.cor}60`,borderRadius:6,padding:'3px 8px',outline:'none'}}/>
+                    ) : (
+                      <p style={{fontSize:14,fontWeight:600,color:'var(--label)',margin:0,display:'flex',alignItems:'center',gap:6}}>
+                        {labelAtual}
+                        <button onClick={()=>setEditandoNome(true)} title="Editar nome do gatilho"
+                          style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:5,border:'none',background:'transparent',cursor:'pointer',color:'var(--label-4)',flexShrink:0}}>
+                          <Pencil size={11}/>
+                        </button>
+                        {nomesCustom[selId] && <span style={{fontSize:9,padding:'1px 5px',borderRadius:99,background:`${gatilho.cor}15`,color:gatilho.cor,fontWeight:500}}>editado</span>}
+                      </p>
+                    )}
                     <p style={{fontSize:11,color:'var(--label-4)',margin:0}}>{gatilho.desc}</p>
                   </div>
                   {/* Badge tipo */}
