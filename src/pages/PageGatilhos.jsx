@@ -18,37 +18,39 @@ const fmt = n => Number(n||0).toLocaleString('pt-BR')
 
 // Grupos e gatilhos
 const GATILHOS = [
-  // Bling automáticos
-  { id:'pedido_criado',       label:'Pedido Criado',         grupo:'Pedidos',       tipo:'bling', icon:ShoppingBag, cor:'#00d4aa', situacao:'sit=6',   desc:'Novo pedido gerado no Bling', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}','{{forma_pagamento}}','{{link_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
-  { id:'pagamento_aprovado',  label:'Pagamento Aprovado',    grupo:'Pedidos',       tipo:'bling', icon:CreditCard,  cor:'#4a9fff', situacao:'sit=9',   desc:'PIX ou cartão confirmado', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
-  { id:'pagamento_pendente',  label:'Pagamento Pendente',    grupo:'Pedidos',       tipo:'bling', icon:Clock,       cor:'#f59e0b', situacao:'sit=6',   desc:'Aguardando pagamento', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}','{{link_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
-  { id:'pedido_enviado',      label:'Pedido Enviado',        grupo:'Entrega',       tipo:'bling', icon:Truck,       cor:'#a78bfa', situacao:'sit=27',  desc:'Despachado com rastreio', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}','{{link_acompanhamento}}','{{prazo_entrega}}'] },
-  { id:'pedido_entregue',     label:'Pedido Entregue',       grupo:'Entrega',       tipo:'bling', icon:Package,     cor:'#22c55e', situacao:'sit=30',  desc:'Entrega confirmada', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
-  { id:'nao_entregue',        label:'Não Entregue',          grupo:'Entrega',       tipo:'bling', icon:AlertCircle, cor:'#ef4444', situacao:'sit=33',  desc:'Tentativa falhou', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{link_rastreio}}','{{link_acompanhamento}}'] },
-  { id:'em_andamento',        label:'Em Andamento',          grupo:'Faturamento',   tipo:'bling', icon:RefreshCw,   cor:'#8b5cf6', situacao:'sit=15',  desc:'Separação/faturamento iniciou', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
-  { id:'nfe_pendente',        label:'NF-e Pendente',         grupo:'Faturamento',   tipo:'bling', icon:FileText,    cor:'#f59e0b', situacao:'sit=21',  desc:'NF criada, aguardando SEFAZ', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}'] },
-  { id:'nfe_emitida',         label:'NF-e Emitida',          grupo:'Faturamento',   tipo:'bling', icon:FileText,    cor:'#06b6d4', situacao:'sit=24',  desc:'DANFE disponível', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{numero_nfe}}','{{link_nfe}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  // ── 1. Compra & Pagamento ──────────────────────────────────────────────
+  { id:'pedido_criado',       label:'Pedido Criado',         grupo:'Compra & Pagamento', tipo:'bling', icon:ShoppingBag, cor:'#00d4aa', situacao:'sit=6',   desc:'Novo pedido gerado no Bling', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}','{{forma_pagamento}}','{{link_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  { id:'pagamento_aprovado',  label:'Pagamento Aprovado',    grupo:'Compra & Pagamento', tipo:'bling', icon:CreditCard,  cor:'#4a9fff', situacao:'sit=9',   desc:'PIX ou cartão confirmado', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  { id:'pagamento_pendente',  label:'Pagamento Pendente',    grupo:'Compra & Pagamento', tipo:'bling', icon:Clock,       cor:'#f59e0b', situacao:'sit=6',   desc:'Aguardando pagamento', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}','{{link_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+
+  // ── 2. Preparação & Nota ───────────────────────────────────────────────
+  { id:'em_separacao',        label:'Em Separação',          grupo:'Preparação & Nota', tipo:'bling', icon:Layers,      cor:'#8b5cf6', situacao:'#SEPARACAO', manual:true, desc:'Comando manual no Bling: #SEPARACAO', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  { id:'produto_embalado',    label:'Produto Embalado',      grupo:'Preparação & Nota', tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'#EMBALADO',  manual:true, desc:'Comando manual no Bling: #EMBALADO', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  { id:'em_andamento',        label:'Em Andamento',          grupo:'Preparação & Nota', tipo:'bling', icon:RefreshCw,   cor:'#8b5cf6', situacao:'sit=15',  desc:'Separação/faturamento iniciou', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  { id:'nfe_pendente',        label:'NF-e Pendente',         grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#f59e0b', situacao:'sit=21',  desc:'NF criada, aguardando SEFAZ', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}'] },
+  { id:'nfe_emitida',         label:'NF-e Emitida',          grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#06b6d4', situacao:'sit=24',  desc:'DANFE disponível', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{numero_nfe}}','{{link_nfe}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+
+  // ── 3. Envio & Rastreio (jornada física do pacote) ─────────────────────
+  { id:'pedido_enviado',      label:'Pedido Enviado',        grupo:'Envio & Rastreio', tipo:'bling', icon:Truck,       cor:'#a78bfa', situacao:'sit=27',  desc:'Despachado com código de rastreio', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}','{{link_acompanhamento}}','{{previsao_entrega}}'] },
+  { id:'pedido_coletado',     label:'Pedido Coletado',       grupo:'Envio & Rastreio', tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'auto',    desc:'Transportadora coletou o pacote', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{transportadora}}','{{codigo_rastreio}}','{{previsao_entrega}}','{{link_acompanhamento}}'] },
+  { id:'rastreio_em_transito',label:'Em Trânsito',           grupo:'Envio & Rastreio', tipo:'bling', icon:Radio,       cor:'#4a9fff', situacao:'auto',    desc:'Pacote em movimentação entre bases', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{status_rastreio}}','{{previsao_entrega}}','{{link_acompanhamento}}'] },
+  { id:'saiu_entrega',        label:'Saiu para Entrega',     grupo:'Envio & Rastreio', tipo:'bling', icon:Truck,       cor:'#f59e0b', situacao:'#SAIU / auto', manual:true, desc:'Manual (#SAIU) ou detectado pelo rastreio', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{link_rastreio}}','{{previsao_entrega}}','{{link_acompanhamento}}'] },
+  { id:'tentativa_entrega',   label:'Tentativa de Entrega',  grupo:'Envio & Rastreio', tipo:'bling', icon:AlertTriangle,cor:'#f59e0b', situacao:'auto',   desc:'Destinatário ausente — vai tentar de novo', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{link_acompanhamento}}'] },
+  { id:'aguardando_retirada', label:'Aguardando Retirada',   grupo:'Envio & Rastreio', tipo:'bling', icon:Clock,       cor:'#0ea5e9', situacao:'#AGUARDANDO / auto', manual:true, desc:'Manual (#AGUARDANDO) ou detectado pelo rastreio', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  { id:'endereco_incorreto',  label:'Endereço Incorreto',    grupo:'Envio & Rastreio', tipo:'bling', icon:AlertCircle, cor:'#ef4444', situacao:'auto',    desc:'Endereço com problema — precisa revisar', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{link_acompanhamento}}'] },
+  { id:'pedido_entregue',     label:'Pedido Entregue',       grupo:'Envio & Rastreio', tipo:'bling', icon:Package,     cor:'#22c55e', situacao:'sit=30 / auto',  desc:'Entrega confirmada', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  { id:'nao_entregue',        label:'Não Entregue',          grupo:'Envio & Rastreio', tipo:'bling', icon:AlertCircle, cor:'#ef4444', situacao:'sit=33',  desc:'Tentativa de entrega falhou', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{link_rastreio}}','{{link_acompanhamento}}'] },
+  { id:'pacote_devolvido',    label:'Pacote Devolvido',      grupo:'Envio & Rastreio', tipo:'bling', icon:RefreshCw,   cor:'#f87171', situacao:'auto',    desc:'Pacote retornou ao remetente', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}'] },
+
+  // ── 4. Pós-venda ───────────────────────────────────────────────────────
   { id:'cancelamento',        label:'Pedido Cancelado',      grupo:'Pós-venda',     tipo:'bling', icon:XCircle,     cor:'#6b7280', situacao:'sit=12',  desc:'Pedido cancelado', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{valor_total}}'] },
   { id:'devolucao',           label:'Devolução',             grupo:'Pós-venda',     tipo:'bling', icon:RefreshCw,   cor:'#f87171', situacao:'sit=36',  desc:'Pedido devolvido', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
-  // Observações internas
-  { id:'em_separacao',        label:'Em Separação',          grupo:'Manual Bling',  tipo:'bling', icon:Layers,      cor:'#8b5cf6', situacao:'#SEPARACAO', desc:'Obs. internas: #SEPARACAO', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
-  { id:'produto_embalado',    label:'Produto Embalado',      grupo:'Manual Bling',  tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'#EMBALADO',  desc:'Obs. internas: #EMBALADO', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
-  { id:'saiu_entrega',        label:'Saiu para Entrega',     grupo:'Manual Bling',  tipo:'bling', icon:Truck,       cor:'#f59e0b', situacao:'#SAIU',      desc:'Obs. internas: #SAIU', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{link_rastreio}}','{{link_acompanhamento}}'] },
-  { id:'aguardando_retirada', label:'Aguardando Retirada',   grupo:'Manual Bling',  tipo:'bling', icon:Clock,       cor:'#0ea5e9', situacao:'#AGUARDANDO',desc:'Obs. internas: #AGUARDANDO', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
-  // Rastreio job — IDs batem com _classificarEvento do backend (NÃO renomear)
-  { id:'lembrete_rastreio',   label:'Rastreio em Movimento', grupo:'Rastreio',      tipo:'bling', icon:Radio,       cor:'#4a9fff', situacao:'auto',    desc:'Atualização detectada pelo job', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{status_rastreio}}','{{link_acompanhamento}}'] },
-  { id:'pedido_coletado',     label:'Pedido Coletado',       grupo:'Rastreio',      tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'auto',    desc:'Transportadora coletou o pacote', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{transportadora}}','{{codigo_rastreio}}','{{link_acompanhamento}}'] },
-  { id:'rastreio_em_transito',label:'Em Trânsito',           grupo:'Rastreio',      tipo:'bling', icon:Radio,       cor:'#4a9fff', situacao:'auto',    desc:'Pacote em movimentação entre bases', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{status_rastreio}}','{{link_acompanhamento}}'] },
-  { id:'tentativa_entrega',   label:'Tentativa de Entrega',  grupo:'Rastreio',      tipo:'bling', icon:AlertTriangle,cor:'#f59e0b', situacao:'auto',   desc:'Destinatário ausente — vai tentar de novo', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{link_acompanhamento}}'] },
-  { id:'endereco_incorreto',  label:'Endereço Incorreto',    grupo:'Rastreio',      tipo:'bling', icon:AlertCircle, cor:'#ef4444', situacao:'auto',    desc:'Endereço com problema — precisa revisar', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}','{{link_acompanhamento}}'] },
-  { id:'pacote_devolvido',    label:'Pacote Devolvido',      grupo:'Rastreio',      tipo:'bling', icon:RefreshCw,   cor:'#f87171', situacao:'auto',    desc:'Pacote retornou ao remetente', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{codigo_rastreio}}'] },
-  // Manual/catálogo
-  { id:'catalogo_produto',    label:'Produto do Catálogo',   grupo:'Catálogo',      tipo:'bling', icon:ShoppingBag, cor:'#10b981', situacao:'manual',  desc:'Produto enviado via catálogo', variaveis:['{{nome_produto}}','{{preco_cartao}}','{{preco_pix}}','{{foto_produto}}','{{descricao_produto}}'] },
-  { id:'avise_me',            label:'Produto Disponível',    grupo:'Estoque',       tipo:'bling', icon:Bell,        cor:'#fb923c', situacao:'manual',  desc:'Produto voltou ao estoque', variaveis:['{{nome_cliente}}','{{nome_produto}}','{{preco_produto}}','{{link_produto}}'] },
-  // Relacionamento
-  { id:'boas_vindas',         label:'Boas-vindas',           grupo:'Relacionamento',tipo:'bling', icon:Star,        cor:'#e879f9', situacao:'manual',  desc:'Primeiro contato no WhatsApp', variaveis:['{{nome_cliente}}','{{nome_loja}}'] },
-  { id:'avaliar_pedido',      label:'Avaliação Pós-venda',   grupo:'Relacionamento',tipo:'bling', icon:Star,        cor:'#f87171', situacao:'manual',  desc:'Satisfação após entrega', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
-  // Inteligência IA — inline (sem aprovação Meta)
+  { id:'avaliar_pedido',      label:'Avaliação Pós-venda',   grupo:'Pós-venda',     tipo:'bling', icon:Star,        cor:'#f87171', situacao:'manual',  manual:true, desc:'Satisfação após entrega', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  { id:'boas_vindas',         label:'Boas-vindas',           grupo:'Pós-venda',     tipo:'bling', icon:Star,        cor:'#e879f9', situacao:'manual',  manual:true, desc:'Primeiro contato no WhatsApp', variaveis:['{{nome_cliente}}','{{nome_loja}}'] },
+
+  // ── 5. Inteligência (Bia) — inline, sem aprovação Meta ─────────────────
+  { id:'avise_me',            label:'Produto Disponível',    grupo:'Inteligência',  tipo:'bling', icon:Bell,        cor:'#fb923c', situacao:'#AVISE',  manual:true, desc:'Produto voltou ao estoque (#AVISE)', variaveis:['{{nome_cliente}}','{{nome_produto}}','{{preco_produto}}','{{link_produto}}'] },
+  { id:'catalogo_produto',    label:'Produto do Catálogo',   grupo:'Inteligência',  tipo:'bling', icon:ShoppingBag, cor:'#10b981', situacao:'manual',  manual:true, desc:'Produto enviado via catálogo', variaveis:['{{nome_produto}}','{{preco_cartao}}','{{preco_pix}}','{{foto_produto}}','{{descricao_produto}}'] },
   { id:'reengajamento',       label:'Reengajamento',         grupo:'Inteligência',  tipo:'ia',    icon:Brain,       cor:'#7c6af7', situacao:'auto-ia', desc:'Cliente inativo detectado pela Bia', variaveis:['{{nome_cliente}}','{{dias_inativo}}','{{ultimo_produto}}'] },
   { id:'recompra_vip',        label:'Ciclo VIP',             grupo:'Inteligência',  tipo:'ia',    icon:Brain,       cor:'#7c6af7', situacao:'auto-ia', desc:'VIP no ciclo de recompra', variaveis:['{{nome_cliente}}','{{ciclo_dias}}'] },
   { id:'primeira_recompra',   label:'1ª Recompra',           grupo:'Inteligência',  tipo:'ia',    icon:Brain,       cor:'#7c6af7', situacao:'auto-ia', desc:'1ª compra sem retorno', variaveis:['{{nome_cliente}}','{{ultimo_produto}}'] },
@@ -109,7 +111,7 @@ const PADROES = {
 
   pedido_enviado: {
     cab:'🚚 Saiu para entrega!',
-    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* foi despachado!\n\n📦 Transportadora: *{{transportadora}}*\n🔍 Rastreio: *{{codigo_rastreio}}*\n📅 Previsão: *{{prazo_entrega}}*',
+    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* foi despachado!\n\n📦 Transportadora: *{{transportadora}}*\n🔍 Rastreio: *{{codigo_rastreio}}*\n📅 Previsão de entrega: *{{previsao_entrega}}*',
     rod:'Continuaremos monitorando pra você!',
     bts:[{texto:'Rastrear pedido',acao:'url',valor:'{{link_rastreio}}'}]
   },
@@ -132,13 +134,6 @@ const PADROES = {
     cab:'Pedido cancelado',
     corpo:'Oi *{{nome_cliente}}*, o pedido *#{{numero_pedido}}* foi cancelado.\n\nSe precisar de ajuda ou quiser fazer um novo pedido, é só chamar!',
     rod:'Só Strass.',
-    bts:[]
-  },
-
-  lembrete_rastreio: {
-    cab:'🚚 Novidade no seu pedido',
-    corpo:'Oi *{{nome_cliente}}*! Tem atualização no pedido *#{{numero_pedido}}* 📦\n\nStatus: *{{status_rastreio}}*\nCódigo: {{codigo_rastreio}}',
-    rod:'Acompanhe pelo site da transportadora.',
     bts:[]
   },
 
@@ -262,7 +257,7 @@ const PADROES = {
 const AMOSTRAS = {
   '{{nome_cliente}}':'Maria Silva','{{numero_pedido}}':'224307','{{valor_total}}':'R$ 47,52',
   '{{forma_pagamento}}':'PIX','{{transportadora}}':'Jadlog','{{codigo_rastreio}}':'JD123456789BR',
-  '{{link_rastreio}}':'https://rastreamento.jadlog.com.br','{{prazo_entrega}}':'3 dias úteis',
+  '{{link_rastreio}}':'https://rastreamento.jadlog.com.br','{{prazo_entrega}}':'3 dias úteis','{{previsao_entrega}}':'12/06/2026',
   '{{nome_produto}}':'Fio de Seda Rabo de Rato Preto','{{preco_produto}}':'R$ 11,62',
   '{{preco_pix}}':'R$ 10,46','{{link_produto}}':'https://sostrass.com.br/produto',
   '{{foto_produto}}':'https://cdn-sostrass-image.s3.sa-east-1.amazonaws.com/perola-furo-passante-creme.jpg',
@@ -817,6 +812,16 @@ export default function PageGatilhos({ api }) {
                     {isIA ? '✨ Inline IA' : '📋 HSM Meta'}
                   </span>
                 </div>
+
+                {/* Aviso de disparo manual — gatilhos acionados por comando #/ação manual */}
+                {gatilho.manual && (
+                  <div style={{display:'flex',alignItems:'center',gap:7,marginTop:10,padding:'8px 12px',borderRadius:9,background:'rgba(245,158,11,.08)',border:'0.5px solid rgba(245,158,11,.25)'}}>
+                    <AlertTriangle size={14} style={{color:'#f59e0b',flexShrink:0}}/>
+                    <span style={{fontSize:11.5,color:'var(--label-2)',lineHeight:1.4}}>
+                      <b style={{color:'#d97706'}}>Disparo manual:</b> este gatilho não dispara sozinho.{gatilho.situacao?.includes('#') ? ` É acionado quando você escreve ${gatilho.situacao.split(' ')[0]} nas observações internas do pedido no Bling.` : ' Precisa ser acionado manualmente.'}
+                    </span>
+                  </div>
+                )}
 
                 {/* Tabs do editor */}
                 <div style={{display:'flex',gap:0}}>
