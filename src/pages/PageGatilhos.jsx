@@ -637,6 +637,14 @@ export default function PageGatilhos({ api }) {
   const submeterMeta = async () => {
     const c = configs[selId]
     if (!c?.id) { alert('Salve o template primeiro'); return }
+    // Proteção: a Meta exige um bloco de Texto (BODY). Se não houver, avisa aqui
+    // em vez de deixar a Meta rejeitar com "components=0".
+    const temTexto = (blocos||[]).some(b => b.tipo==='texto' && (b.conteudo||'').trim())
+    if (!temTexto) {
+      setMetaErro('Adicione um bloco de "Texto" com conteúdo e clique em Salvar antes de enviar para a Meta. A mensagem precisa de um corpo de texto.')
+      return
+    }
+    if (dirty) { alert('Você tem alterações não salvas. Clique em Salvar antes de enviar para a Meta.'); return }
     setSubmetendo(true); setMetaErro('')
     try {
       const r = await fetch(`${api}/api/meta-templates/submeter/${c.id}`, { method:'POST' })
