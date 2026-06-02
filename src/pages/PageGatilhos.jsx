@@ -557,7 +557,7 @@ export default function PageGatilhos({ api }) {
 
   // ── Ações ──────────────────────────────────────────────────────────────────
   const addBloco = tipo => {
-    setBlocos(p => [...p, {tipo,conteudo:'',url:'',texto:'',acao:'reply',valor:'',legenda:'',id:Date.now()}])
+    setBlocos(p => [...p, {tipo,conteudo:'',url:'',texto:'',acao:tipo==='botao'?'url':'reply',valor:'',legenda:'',id:Date.now()}])
     setDirty(true)
   }
   const delBloco = i => { setBlocos(p => p.filter((_,j) => j !== i)); setDirty(true) }
