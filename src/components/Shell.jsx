@@ -5,7 +5,7 @@ import { logout } from '../pages/PageLogin'
 import {
   LayoutDashboard, ShoppingCart, Users, CreditCard,
   MessageSquare, Bot, Settings, Sun, Moon, Zap, Send, Package,
-  AlertCircle, Activity, Construction, Search, Brain
+  AlertCircle, Activity, Construction, Search, Brain, Truck
 } from 'lucide-react'
 import CommandPalette from './CommandPalette'
 import LiveActivityBar from './LiveActivityBar'
@@ -19,13 +19,13 @@ const PageInteligencia = lazy(() => import('../pages/PageInteligencia'))
 const PageCaixa       = lazy(() => import('../pages/PageCaixa'))
 const PageAtendimento = lazy(() => import('../pages/PageAtendimento'))
 const PageIAConfig    = lazy(() => import('../pages/PageIAConfig'))
-const PageConfig      = lazy(() => import('../pages/PageConfig'))
 const PageLLMConfig   = lazy(() => import('../pages/PageLLMConfig'))
 const PageGatilhos    = lazy(() => import('../pages/PageGatilhos'))
 const PageConversas   = lazy(() => import('../pages/PageConversas'))
 const PageDisparos    = lazy(() => import('../pages/PageDisparos'))
 const PageCampanhas   = lazy(() => import('../pages/PageCampanhas'))
 const PageOcorrencias = lazy(() => import('../pages/PageOcorrencias'))
+const PageRastreioConfig = lazy(() => import('../pages/PageRastreioConfig'))
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -40,6 +40,7 @@ const NAV = [
   { id:'inteligencia',icon:Brain,           label:'Inteligência IA',group:'main'   },
   { id:'caixa',       icon:CreditCard,      label:'Fluxo de Caixa', group:'main'   },
   { id:'gatilhos',    icon:Zap,             label:'Gatilhos',       group:'tools'  },
+  { id:'rastreio-config', icon:Truck,       label:'Rastreio (canais)', group:'tools' },
   { id:'campanhas',   icon:Send,            label:'Campanhas',      group:'tools'  },
   { id:'disparos',    icon:Activity,        label:'Monitor Disparos',group:'tools'  },
   { id:'ocorrencias', icon:AlertCircle,     label:'Ocorrências',    group:'tools'  },
@@ -134,9 +135,9 @@ export default function Shell() {
       case 'inteligencia': return <Page nome="Inteligência" comp={PageInteligencia} />
       case 'caixa':       return <Page nome="Caixa"       comp={PageCaixa}       />
       case 'iaconfig':    return <Page nome="Config IA"   comp={PageIAConfig}    />
-      case 'config':      return <Page nome="Configurações" comp={PageConfig}    />
       case 'llmconfig':   return <Page nome="LLM & Bypasses" comp={PageLLMConfig}  />
       case 'gatilhos':    return <Page nome="Gatilhos"       comp={PageGatilhos}   />
+      case 'rastreio-config': return <Page nome="Rastreio (canais)" comp={PageRastreioConfig} />
       case 'conversas':    return (
         <ErroBoundary nome="Conversas">
           <Suspense fallback={<Spinner />}>
