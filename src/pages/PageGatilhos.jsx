@@ -396,8 +396,8 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
       </div>
       {aberto&&(
         <div className="p-3 space-y-2">
-          {b.tipo==='cabecalho'&&<><input id={`bloco-${b.id}`} value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Emoji + título" style={sty}/><VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/></>}
-          {b.tipo==='texto'&&<><textarea id={`bloco-${b.id}`} value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Texto... Use *negrito*" rows={4} style={{...sty,resize:'none'}}/><VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/></>}
+          {b.tipo==='cabecalho'&&<><input id={`bloco-${b.id}`} value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Emoji + título" style={sty}/><div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}><EmojiPicker onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/><VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/></div></>}
+          {b.tipo==='texto'&&<><textarea id={`bloco-${b.id}`} value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Texto... Use *negrito*" rows={4} style={{...sty,resize:'none'}}/><div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}><EmojiPicker onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/><VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/></div></>}
           {b.tipo==='rodape'&&<input value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Ex: Mensagem automática — não responda." style={sty}/>}
           {b.tipo==='imagem'&&<><input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})} placeholder="URL ou {{foto_produto}}" style={{...sty,fontFamily:'monospace',fontSize:12}}/><VarPills vars={['{{foto_produto}}',...vars.filter(v=>v.includes('foto'))]} onInsert={v=>onChange({...b,url:(b.url||'')+v})}/><input value={b.legenda||''} onChange={e=>onChange({...b,legenda:e.target.value})} placeholder="Legenda (opcional)" style={{...sty,fontSize:12}}/></>}
           {b.tipo==='video'&&<input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})} placeholder="URL do vídeo" style={{...sty,fontFamily:'monospace',fontSize:12}}/>}
@@ -422,6 +422,54 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
 function VarPills({vars,onInsert}){
   if(!vars?.length)return null
   return <div className="flex flex-wrap gap-1">{vars.map(v=><button key={v} onClick={()=>onInsert(v)} style={{padding:'2px 6px',borderRadius:4,fontSize:9,fontFamily:'monospace',background:'var(--accent-dim)',color:'var(--accent)',border:'1px solid var(--accent-border)',cursor:'pointer'}}>{v}</button>)}</div>
+}
+
+// Seletor de emoji para os textos. Conjunto curado e útil para e-commerce/WhatsApp.
+const EMOJIS = {
+  'Frequentes': ['😊','🎉','✅','❤️','🙌','👏','✨','🔥','💜','🛍️'],
+  'Pedido':     ['📦','🛒','🧾','💳','💰','🏷️','✔️','📋','🎁','⭐'],
+  'Entrega':    ['🚚','📍','🛵','✈️','🏠','🗺️','⏱️','📮','🚪','🤝'],
+  'Atenção':    ['⚠️','❗','⏰','🔔','💡','👀','📢','🆘','❌','🚨'],
+  'Carinho':    ['😍','🥰','😘','💖','🌟','💫','🌸','💐','👋','🫶'],
+}
+
+function EmojiPicker({ onInsert }) {
+  const [aberto, setAberto] = useState(false)
+  const [cat, setCat] = useState('Frequentes')
+  return (
+    <div style={{ position:'relative', display:'inline-block' }}>
+      <button onClick={()=>setAberto(a=>!a)} title="Inserir emoji"
+        style={{ display:'flex', alignItems:'center', gap:4, padding:'2px 8px', borderRadius:6, fontSize:11,
+                 background:'var(--accent-dim)', color:'var(--accent)', border:'1px solid var(--accent-border)', cursor:'pointer' }}>
+        <span style={{fontSize:13}}>😊</span> Emoji
+      </button>
+      {aberto && (
+        <>
+          <div onClick={()=>setAberto(false)} style={{ position:'fixed', inset:0, zIndex:40 }}/>
+          <div style={{ position:'absolute', top:'calc(100% + 4px)', left:0, zIndex:50, width:228,
+                        background:'var(--bg-2)', border:'0.5px solid var(--sep)', borderRadius:10, padding:8,
+                        boxShadow:'0 8px 24px rgba(0,0,0,.25)' }}>
+            <div style={{ display:'flex', gap:3, marginBottom:7, flexWrap:'wrap' }}>
+              {Object.keys(EMOJIS).map(c=>(
+                <button key={c} onClick={()=>setCat(c)}
+                  style={{ fontSize:9.5, padding:'2px 7px', borderRadius:99, cursor:'pointer',
+                           background: cat===c?'var(--accent)':'var(--fill)', color: cat===c?'#fff':'var(--label-3)',
+                           border:'none' }}>{c}</button>
+              ))}
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(8,1fr)', gap:2 }}>
+              {EMOJIS[cat].map((e,i)=>(
+                <button key={i} onClick={()=>{ onInsert(e); setAberto(false) }}
+                  style={{ fontSize:17, padding:3, borderRadius:6, background:'transparent', border:'none', cursor:'pointer', lineHeight:1 }}
+                  onMouseEnter={ev=>ev.currentTarget.style.background='var(--fill)'}
+                  onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}>{e}</button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
 }
 
 
