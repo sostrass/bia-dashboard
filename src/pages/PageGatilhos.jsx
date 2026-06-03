@@ -27,8 +27,9 @@ const GATILHOS = [
   { id:'em_separacao',        label:'Em Separação',          grupo:'Preparação & Nota', tipo:'bling', icon:Layers,      cor:'#8b5cf6', situacao:'sit=9', desc:'Pedido em Atendido (separação/embalagem) — automático', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
   { id:'produto_embalado',    label:'Produto Embalado',      grupo:'Preparação & Nota', tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'#EMBALADO',  manual:true, desc:'Comando manual no Bling: #EMBALADO', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}'] },
   { id:'em_andamento',        label:'Em Andamento',          grupo:'Preparação & Nota', tipo:'bling', icon:RefreshCw,   cor:'#8b5cf6', situacao:'manual',  desc:'Informativo/manual (o status Em Andamento dispara Pagamento Aprovado)', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
-  { id:'nfe_pendente',        label:'NF-e Pendente',         grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#f59e0b', situacao:'sit=21',  desc:'NF criada, aguardando SEFAZ', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}'] },
-  { id:'nfe_emitida',         label:'NF-e Emitida',          grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#06b6d4', situacao:'sit=24',  desc:'DANFE disponível', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{numero_nfe}}','{{link_nfe}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  { id:'nfe_pendente',        label:'NF-e Pendente',         grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#f59e0b', situacao:'nfe=1',   desc:'Nota emitida, aguardando autorização da SEFAZ', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}'] },
+  { id:'nfe_rejeitada',       label:'NF-e Rejeitada',        grupo:'Preparação & Nota', tipo:'bling', icon:AlertTriangle, cor:'#ef4444', situacao:'nfe=4',   desc:'Nota rejeitada pela SEFAZ (uso interno/aviso)', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}'] },
+  { id:'nfe_emitida',         label:'NF-e Emitida',          grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#06b6d4', situacao:'nfe=5',   desc:'Nota autorizada pela SEFAZ — DANFE disponível', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{numero_nfe}}','{{link_nfe}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
 
   // ── 3. Envio & Rastreio (jornada física do pacote) ─────────────────────
   { id:'pedido_enviado',      label:'Pedido Enviado',        grupo:'Envio & Rastreio', tipo:'bling', icon:Truck,       cor:'#a78bfa', situacao:'sit=27',  desc:'Despachado com código de rastreio', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}','{{link_acompanhamento}}','{{previsao_entrega}}','{{endereco_entrega}}'] },
@@ -306,6 +307,16 @@ function manualGatilho(g) {
   if (s.startsWith('sit=')) {
     const id = s.replace('sit=','').split(' ')[0]
     return { tipo:'Automático (Bling)', quando:`Dispara quando ${SIT_NOME[id]||'a situação '+id+' ocorre'}.` }
+  }
+  if (s.startsWith('nfe=')) {
+    const id = s.replace('nfe=','').split(' ')[0]
+    const NFE_NOME = {
+      '1':'a *nota fiscal é emitida* e aguarda autorização da SEFAZ',
+      '4':'a *nota fiscal é rejeitada* pela SEFAZ',
+      '5':'a *nota fiscal é autorizada* (DANFE disponível)',
+      '6':'a *nota fiscal é autorizada* (DANFE disponível)',
+    }
+    return { tipo:'Automático (Nota Fiscal)', quando:`Dispara quando ${NFE_NOME[id]||'a nota muda de situação'}. Só para pedidos que têm nota.` }
   }
   if (s.startsWith('#')) {
     return { tipo:'Comando manual', quando:`Dispara quando você escreve *${s.split(' ')[0]}* nas observações internas do pedido no Bling.` }
