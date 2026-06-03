@@ -453,6 +453,7 @@ export default function PageGatilhos({ api }) {
   const [nomesCustom, setNomesCustom] = useState({})  // { gatilhoId: 'nome editado' }
   const [editandoNome, setEditandoNome] = useState(false)  // modo edição do nome do gatilho selecionado
   const [pulso, setPulso] = useState(null)  // dados da operação (Fase 1: /api/operacao/pulso)
+  const [jornada, setJornada] = useState(null)  // clientes por etapa (Fase 1: /api/operacao/jornada)
 
   const gatilho = GATILHOS.find(g => g.id === selId)
   const config  = configs[selId]
@@ -522,6 +523,10 @@ export default function PageGatilhos({ api }) {
     fetch(`${api}/api/operacao/pulso`)
       .then(r => r.json())
       .then(d => { if (vivo && d && d.meta) setPulso(d) })
+      .catch(() => {})
+    fetch(`${api}/api/operacao/jornada`)
+      .then(r => r.json())
+      .then(d => { if (vivo && d && d.etapas) setJornada(d) })
       .catch(() => {})
     return () => { vivo = false }
   }, [api])
@@ -754,7 +759,37 @@ export default function PageGatilhos({ api }) {
         </div>
       )}
 
-      {/* ── LAYOUT 3 COLUNAS ───────────────────────────────────────────────── */}
+      {/* ── JORNADA (Fase 2) — linha do tempo: clientes por etapa agora ──────── */}
+      {jornada && (
+        <div style={{flexShrink:0,background:'var(--bg-2)',borderBottom:'0.5px solid var(--sep)',padding:'12px 20px'}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:4}}>
+            {[
+              { id:'compra',  lbl:'Compra',    icon:ShoppingBag, cor:'#7c6af7' },
+              { id:'preparo', lbl:'Preparo',   icon:Package,     cor:'#4a9fff' },
+              { id:'envio',   lbl:'Envio',     icon:Truck,       cor:'#1D9E75' },
+              { id:'pos',     lbl:'Pós-venda', icon:RefreshCw,   cor:'#f59e0b' },
+              { id:'ia',      lbl:'IA',        icon:Brain,       cor:'#a78bfa' },
+            ].map((e,i,arr)=>{
+              const n = jornada.etapas[e.id] || 0
+              const ativo = n > 0
+              const EIcon = e.icon
+              return (
+                <div key={e.id} style={{display:'flex',alignItems:'center',flex:i<arr.length-1?1:'0 0 auto'}}>
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,flexShrink:0}}>
+                    <span style={{fontSize:15,fontWeight:600,color:ativo?e.cor:'var(--label-4)',lineHeight:1}}>{n}</span>
+                    <div style={{width:30,height:30,borderRadius:'50%',background:ativo?e.cor:'var(--fill)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                      <EIcon size={14} style={{color:ativo?'#fff':'var(--label-4)'}}/>
+                    </div>
+                    <span style={{fontSize:9.5,color:ativo?e.cor:'var(--label-4)',fontWeight:ativo?500:400}}>{e.lbl}</span>
+                  </div>
+                  {i<arr.length-1 && <div style={{flex:1,height:2,background:'var(--sep)',margin:'0 4px',marginBottom:14}}/>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       <div style={{flex:1,display:'grid',gridTemplateColumns:'240px 1fr 360px',overflow:'hidden'}}>
 
         {/* ── COLUNA 1: Lista de gatilhos ─────────────────────────────────── */}
