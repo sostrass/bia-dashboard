@@ -788,9 +788,16 @@ export default function PageGatilhos({ api }) {
                   const temTemplate = !!cfg
                   const Icon = g.icon
                   const isSelected = selId === g.id
+                  // Status Meta do gatilho (agora vem no carregar, pra todos)
+                  const mst = (cfg?.meta_template_status || '').toUpperCase()
+                  const stInfo = mst==='APPROVED' ? { cor:'#22c55e', lbl:'Aprovado', dim:'rgba(34,197,94,.12)' }
+                    : (mst==='PENDING'||mst==='IN_APPEAL') ? { cor:'#f59e0b', lbl:'Análise', dim:'rgba(245,158,11,.12)' }
+                    : mst==='REJECTED' ? { cor:'#ef4444', lbl:'Rejeitado', dim:'rgba(239,68,68,.12)' }
+                    : temTemplate ? { cor:'var(--label-4)', lbl:'Rascunho', dim:'var(--fill)' }
+                    : null
                   return (
                     <button key={g.id} onClick={()=>setSelId(g.id)} className="gat-item"
-                      style={{width:'100%',display:'flex',alignItems:'center',gap:8,padding:'7px 8px',borderRadius:8,border:`0.5px solid ${isSelected?g.cor+'40':'transparent'}`,background:isSelected?`${g.cor}08`:'transparent',cursor:'pointer',textAlign:'left',marginBottom:2}}>
+                      style={{width:'100%',display:'flex',alignItems:'center',gap:8,padding:'7px 8px',borderRadius:8,border:`0.5px solid ${isSelected?g.cor+'40':'transparent'}`,background:isSelected?`${g.cor}08`:'transparent',cursor:'pointer',textAlign:'left',marginBottom:2,borderLeft:`3px solid ${stInfo?stInfo.cor:'transparent'}`}}>
                       {/* Ícone */}
                       <div style={{width:28,height:28,borderRadius:7,background:`${g.cor}15`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                         <Icon size={13} style={{color:g.cor}}/>
@@ -802,9 +809,7 @@ export default function PageGatilhos({ api }) {
                       {/* Status */}
                       <div style={{flexShrink:0,display:'flex',alignItems:'center',gap:3}}>
                         {g.tipo==='ia' && <span style={{fontSize:9,padding:'1px 5px',borderRadius:99,background:'rgba(124,106,247,.12)',color:'#7c6af7',border:'0.5px solid rgba(124,106,247,.2)'}}>IA</span>}
-                        {temTemplate && (
-                          <div style={{width:6,height:6,borderRadius:'50%',background:ativo?'#22c55e':'var(--sep)'}}/>
-                        )}
+                        {stInfo && <span style={{fontSize:8.5,padding:'1px 6px',borderRadius:99,background:stInfo.dim,color:stInfo.cor,fontWeight:500,whiteSpace:'nowrap'}}>{stInfo.lbl}</span>}
                       </div>
                     </button>
                   )
