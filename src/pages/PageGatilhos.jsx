@@ -419,6 +419,26 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
   )
 }
 
+// Mini-gráfico de linha (sparkline) para os indicadores do topo.
+function Sparkline({ dados, cor, largura=58, altura=22 }) {
+  if (!dados || dados.length < 2) return null
+  const max = Math.max(...dados, 1), min = Math.min(...dados, 0)
+  const range = max - min || 1
+  const pts = dados.map((v,i) => {
+    const x = (i / (dados.length - 1)) * largura
+    const y = altura - ((v - min) / range) * altura
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+  const ult = dados[dados.length-1]
+  const ultX = largura, ultY = altura - ((ult - min) / range) * altura
+  return (
+    <svg width={largura} height={altura} style={{overflow:'visible',flexShrink:0}}>
+      <polyline points={pts} fill="none" stroke={cor} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
+      <circle cx={ultX} cy={ultY} r="2" fill={cor}/>
+    </svg>
+  )
+}
+
 function VarPills({vars,onInsert}){
   if(!vars?.length)return null
   return <div className="flex flex-wrap gap-1">{vars.map(v=><button key={v} onClick={()=>onInsert(v)} style={{padding:'2px 6px',borderRadius:4,fontSize:9,fontFamily:'monospace',background:'var(--accent-dim)',color:'var(--accent)',border:'1px solid var(--accent-border)',cursor:'pointer'}}>{v}</button>)}</div>
@@ -504,6 +524,9 @@ export default function PageGatilhos({ api }) {
   const [jornada, setJornada] = useState(null)  // clientes por etapa (Fase 1: /api/operacao/jornada)
   const [sugestoes, setSugestoes] = useState([])  // Molise copilota (Fase 2: /api/operacao/sugestoes)
   const [sugestoesFechadas, setSugFechadas] = useState({})  // dispensadas pelo usuário (sessão)
+  const [sparks, setSparks] = useState(null)  // séries históricas pros sparklines
+  const [atividade, setAtividade] = useState({})  // envios por gatilho (7 dias)
+  const [molisesAberta, setMoliseAberta] = useState(false)  // painel de sugestões on/off
 
   const gatilho = GATILHOS.find(g => g.id === selId)
   const config  = configs[selId]
@@ -581,6 +604,14 @@ export default function PageGatilhos({ api }) {
     fetch(`${api}/api/operacao/sugestoes`)
       .then(r => r.json())
       .then(d => { if (vivo && d && Array.isArray(d.sugestoes)) setSugestoes(d.sugestoes) })
+      .catch(() => {})
+    fetch(`${api}/api/operacao/sparklines`)
+      .then(r => r.json())
+      .then(d => { if (vivo && d && d.dias) setSparks(d) })
+      .catch(() => {})
+    fetch(`${api}/api/operacao/atividade`)
+      .then(r => r.json())
+      .then(d => { if (vivo && d && d.atividade) setAtividade(d.atividade) })
       .catch(() => {})
     return () => { vivo = false }
   }, [api])
@@ -794,20 +825,23 @@ export default function PageGatilhos({ api }) {
         </div>
       </div>
 
-      {/* ── PAINEL DE PULSO (Fase 2) — visão de comando da operação ──────────── */}
+      {/* ── PAINEL DE PULSO (Fase 2) — indicadores com sparklines ──────────── */}
       {pulso && (
-        <div style={{flexShrink:0,background:'var(--bg-2)',borderBottom:'0.5px solid var(--sep)',padding:'10px 20px',display:'flex',gap:8,overflowX:'auto'}}>
+        <div style={{flexShrink:0,background:'var(--bg-2)',borderBottom:'0.5px solid var(--sep)',padding:'9px 20px',display:'flex',gap:8,overflowX:'auto'}}>
           {[
-            { lbl:'Aprovados',     val:pulso.meta.aprovados,    cor:'#22c55e' },
-            { lbl:'Em análise',    val:pulso.meta.analise,      cor:'#f59e0b' },
-            { lbl:'Não enviados',  val:pulso.meta.naoEnviados,  cor:'var(--label-4)' },
-            { lbl:'Rejeitados',    val:pulso.meta.rejeitados,   cor:'#ef4444' },
-            { lbl:'Disparos hoje', val:pulso.disparosHoje,      cor:'#4a9fff' },
-            { lbl:'Em rota agora', val:pulso.clientesEmRota,    cor:'#7c6af7' },
+            { key:'aprovados',   lbl:'Aprovados',     val:pulso.meta.aprovados,   cor:'#22c55e' },
+            { key:'analise',     lbl:'Em análise',    val:pulso.meta.analise,     cor:'#f59e0b' },
+            { key:'naoEnviados', lbl:'Não enviados',  val:pulso.meta.naoEnviados, cor:'#8696a0' },
+            { key:'rejeitados',  lbl:'Rejeitados',    val:pulso.meta.rejeitados,  cor:'#ef4444' },
+            { key:'disparos',    lbl:'Disparos hoje', val:pulso.disparosHoje,     cor:'#4a9fff' },
+            { key:'emRota',      lbl:'Em rota agora', val:pulso.clientesEmRota,    cor:'#7c6af7' },
           ].map((c,i)=>(
-            <div key={i} style={{flex:'1 1 0',minWidth:96,background:'var(--bg)',borderRadius:9,padding:'9px 12px',border:'0.5px solid var(--sep)'}}>
-              <div style={{fontSize:20,fontWeight:600,color:c.cor,lineHeight:1}}>{c.val}</div>
-              <div style={{fontSize:10,color:'var(--label-4)',marginTop:3}}>{c.lbl}</div>
+            <div key={i} style={{flex:'1 1 0',minWidth:120,background:'var(--bg)',borderRadius:9,padding:'8px 11px',border:'0.5px solid var(--sep)'}}>
+              <div style={{fontSize:10,color:'var(--label-4)',marginBottom:3}}>{c.lbl}</div>
+              <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:6}}>
+                <span style={{fontSize:19,fontWeight:600,color:c.cor,lineHeight:1}}>{c.val}</span>
+                {sparks && sparks[c.key] && <Sparkline dados={sparks[c.key]} cor={c.cor}/>}
+              </div>
             </div>
           ))}
         </div>
@@ -939,13 +973,16 @@ export default function PageGatilhos({ api }) {
                             )}
                           </div>
                           {/* Mini preview da mensagem */}
-                          <div style={{background:'var(--bg)',borderRadius:7,padding:'7px 9px',flex:1,minHeight:38}}>
-                            <p style={{fontSize:10,color:'var(--label-3)',margin:0,lineHeight:1.45,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>{previewTxt.replace(/\n/g,' ')}</p>
+                          <div style={{background:'var(--fill)',borderRadius:7,padding:'8px 10px',flex:1,minHeight:42,border:'0.5px solid var(--sep)'}}>
+                            <p style={{fontSize:10.5,color:'var(--label-2)',margin:0,lineHeight:1.5,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>{previewTxt.replace(/\n/g,' ').replace(/\*/g,'')}</p>
                           </div>
-                          {/* Rodapé: status + ações */}
+                          {/* Rodapé: status + atividade + ações */}
                           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}}>
-                            <span style={{fontSize:9,padding:'1px 7px',borderRadius:99,background:stInfo.dim,color:stInfo.cor,fontWeight:500,whiteSpace:'nowrap'}}>{stInfo.lbl}</span>
-                            <div style={{display:'flex',gap:7,color:'var(--label-4)',flexShrink:0}}>
+                            <div style={{display:'flex',alignItems:'center',gap:6,minWidth:0}}>
+                              <span style={{fontSize:9,padding:'1px 7px',borderRadius:99,background:stInfo.dim,color:stInfo.cor,fontWeight:500,whiteSpace:'nowrap'}}>{stInfo.lbl}</span>
+                              {atividade[g.id]>0 && <span style={{fontSize:9,color:'var(--label-4)',whiteSpace:'nowrap'}}>· {atividade[g.id]}/sem</span>}
+                            </div>
+                            <div style={{display:'flex',gap:7,alignItems:'center',color:'var(--label-4)',flexShrink:0}}>
                               {g.tipo==='ia' && <span style={{fontSize:8.5,padding:'1px 5px',borderRadius:99,background:'rgba(124,106,247,.12)',color:'#7c6af7'}}>IA</span>}
                               <Pencil size={13} style={{cursor:'pointer'}}/>
                             </div>
