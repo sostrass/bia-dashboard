@@ -379,7 +379,7 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
     </div>
   )
   return (
-    <div className="rounded-[12px] overflow-hidden transition-all" style={{border:`1px solid ${aberto?def.cor+'30':'var(--sep)'}`,background:'var(--bg-2)'}}>
+    <div className="rounded-[12px] overflow-hidden transition-all" style={{border:`1px solid ${aberto?def.cor+'30':'var(--sep)'}`,background:'var(--bg-2)',marginBottom:12}}>
       <div className="flex items-center gap-2 px-3 py-2" style={{background:'var(--bg-3)',borderBottom:aberto?'1px solid var(--sep)':'none'}}>
         <GripVertical size={12} style={{color:'var(--label-4)',cursor:'grab'}}/>
         <div className="w-4 h-4 rounded-[4px] flex items-center justify-center" style={{background:`${def.cor}20`}}><Ic size={10} style={{color:def.cor}}/></div>
@@ -395,9 +395,9 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
         </div>
       </div>
       {aberto&&(
-        <div className="p-3 space-y-2">
+        <div className="p-4 space-y-3">
           {b.tipo==='cabecalho'&&<><input id={`bloco-${b.id}`} value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Emoji + título" style={sty}/><div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}><EmojiPicker onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/><VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/></div></>}
-          {b.tipo==='texto'&&<><textarea id={`bloco-${b.id}`} value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Texto... Use *negrito*" rows={4} style={{...sty,resize:'none'}}/><div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}><EmojiPicker onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/><VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/></div></>}
+          {b.tipo==='texto'&&<><textarea id={`bloco-${b.id}`} value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Texto... Use *negrito*" rows={7} style={{...sty,resize:'vertical',minHeight:140,lineHeight:1.7}}/><div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}><EmojiPicker onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/><VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/></div></>}
           {b.tipo==='rodape'&&<input value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Ex: Mensagem automática — não responda." style={sty}/>}
           {b.tipo==='imagem'&&<><input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})} placeholder="URL ou {{foto_produto}}" style={{...sty,fontFamily:'monospace',fontSize:12}}/><VarPills vars={['{{foto_produto}}',...vars.filter(v=>v.includes('foto'))]} onInsert={v=>onChange({...b,url:(b.url||'')+v})}/><input value={b.legenda||''} onChange={e=>onChange({...b,legenda:e.target.value})} placeholder="Legenda (opcional)" style={{...sty,fontSize:12}}/></>}
           {b.tipo==='video'&&<input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})} placeholder="URL do vídeo" style={{...sty,fontFamily:'monospace',fontSize:12}}/>}
@@ -515,7 +515,7 @@ export default function PageGatilhos({ api }) {
   const [metaStatus,  setMetaStatus] = useState('')
   const [metaErro,    setMetaErro]  = useState('')
   const [aba,         setAba]       = useState('editor')  // editor | preview | config | meta
-  const [grupoAberto, setGrupoAb]   = useState({})
+  const [grupoAberto, setGrupoAb]   = useState({ 'Preparação & Nota':false, 'Envio & Rastreio':false, 'Pós-venda':false, 'Inteligência':false })
   const [busca,       setBusca]     = useState('')
   const [loading,     setLoading]   = useState(true)
   const [nomesCustom, setNomesCustom] = useState({})  // { gatilhoId: 'nome editado' }
@@ -826,8 +826,8 @@ export default function PageGatilhos({ api }) {
       </div>
 
       {/* ── PAINEL DE PULSO (Fase 2) — indicadores com sparklines ──────────── */}
-      {pulso && (
-        <div style={{flexShrink:0,background:'var(--bg-2)',borderBottom:'0.5px solid var(--sep)',padding:'9px 20px',display:'flex',gap:8,overflowX:'auto'}}>
+      {pulso && !selId && (
+        <div style={{flexShrink:0,background:'var(--bg-2)',borderBottom:'0.5px solid var(--sep)',padding:'7px 20px',display:'flex',gap:7,overflowX:'auto'}}>
           {[
             { key:'aprovados',   lbl:'Aprovados',     val:pulso.meta.aprovados,   cor:'#22c55e' },
             { key:'analise',     lbl:'Em análise',    val:pulso.meta.analise,     cor:'#f59e0b' },
@@ -836,50 +836,61 @@ export default function PageGatilhos({ api }) {
             { key:'disparos',    lbl:'Disparos hoje', val:pulso.disparosHoje,     cor:'#4a9fff' },
             { key:'emRota',      lbl:'Em rota agora', val:pulso.clientesEmRota,    cor:'#7c6af7' },
           ].map((c,i)=>(
-            <div key={i} style={{flex:'1 1 0',minWidth:120,background:'var(--bg)',borderRadius:9,padding:'8px 11px',border:'0.5px solid var(--sep)'}}>
-              <div style={{fontSize:10,color:'var(--label-4)',marginBottom:3}}>{c.lbl}</div>
+            <div key={i} style={{flex:'1 1 0',minWidth:110,background:'var(--bg)',borderRadius:8,padding:'6px 10px',border:'0.5px solid var(--sep)'}}>
+              <div style={{fontSize:9.5,color:'var(--label-4)',marginBottom:2}}>{c.lbl}</div>
               <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:6}}>
-                <span style={{fontSize:19,fontWeight:600,color:c.cor,lineHeight:1}}>{c.val}</span>
-                {sparks && sparks[c.key] && <Sparkline dados={sparks[c.key]} cor={c.cor}/>}
+                <span style={{fontSize:17,fontWeight:600,color:c.cor,lineHeight:1}}>{c.val}</span>
+                {sparks && sparks[c.key] && <Sparkline dados={sparks[c.key]} cor={c.cor} altura={18}/>}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* ── MOLISE COPILOTA (Fase 2) — sugestões acionáveis ─────────────────── */}
-      {sugestoes.filter(s=>!sugestoesFechadas[s.titulo]).length > 0 && (
-        <div style={{flexShrink:0,background:'var(--bg-2)',borderBottom:'0.5px solid var(--sep)',padding:'10px 20px',display:'flex',flexDirection:'column',gap:6}}>
-          {sugestoes.filter(s=>!sugestoesFechadas[s.titulo]).slice(0,3).map((s,i)=>{
-            const cor = s.tipo==='erro'?'#ef4444':s.tipo==='aviso'?'#f59e0b':'#7c6af7'
-            const dim = s.tipo==='erro'?'rgba(239,68,68,.08)':s.tipo==='aviso'?'rgba(245,158,11,.08)':'rgba(124,106,247,.08)'
-            return (
-              <div key={i} style={{display:'flex',alignItems:'flex-start',gap:9,background:dim,border:`0.5px solid ${cor}33`,borderRadius:9,padding:'9px 12px'}}>
-                <Sparkles size={14} style={{color:cor,flexShrink:0,marginTop:1}}/>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:11.5,fontWeight:500,color:'var(--label)',lineHeight:1.4}}>
-                    <span style={{color:cor}}>Molise:</span> {s.titulo}
-                  </div>
-                  <div style={{fontSize:10.5,color:'var(--label-3)',lineHeight:1.45,marginTop:2}}>{s.texto}</div>
-                  {s.gatilho && (
-                    <button onClick={()=>{ setSelId(s.gatilho); if(s.acao==='gerar') setTimeout(()=>gerarIA(),300) }}
-                      style={{marginTop:6,fontSize:10,padding:'3px 10px',borderRadius:7,background:cor,color:'#fff',border:'none',cursor:'pointer',fontWeight:500}}>
-                      {s.acao==='gerar'?'Gerar com a Molise':s.acao==='revisar'?'Revisar gatilho':s.acao==='submeter'?'Abrir e submeter':'Abrir gatilho'}
-                    </button>
-                  )}
-                </div>
-                <button onClick={()=>setSugFechadas(f=>({...f,[s.titulo]:true}))} title="Dispensar"
-                  style={{background:'transparent',border:'none',cursor:'pointer',color:'var(--label-4)',flexShrink:0,padding:2}}>
-                  <X size={13}/>
-                </button>
+      {/* ── MOLISE COPILOTA (Fase 2) — botão que expande sob demanda ────────── */}
+      {(() => {
+        const ativas = sugestoes.filter(s=>!sugestoesFechadas[s.titulo])
+        if (!ativas.length || selId) return null
+        return (
+          <div style={{flexShrink:0,background:'var(--bg-2)',borderBottom:'0.5px solid var(--sep)',padding:'6px 20px'}}>
+            <button onClick={()=>setMoliseAberta(a=>!a)}
+              style={{display:'flex',alignItems:'center',gap:7,padding:'5px 12px',borderRadius:8,background:'rgba(124,106,247,.1)',border:'0.5px solid rgba(124,106,247,.25)',cursor:'pointer',color:'#7c6af7',fontSize:11.5,fontWeight:500}}>
+              <Sparkles size={13}/> Molise sugere {ativas.length} melhoria{ativas.length>1?'s':''}
+              {molisesAberta ? <ChevronUp size={12}/> : <ChevronDown size={12}/>}
+            </button>
+            {molisesAberta && (
+              <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:8}}>
+                {ativas.slice(0,4).map((s,i)=>{
+                  const cor = s.tipo==='erro'?'#ef4444':s.tipo==='aviso'?'#f59e0b':'#7c6af7'
+                  const dim = s.tipo==='erro'?'rgba(239,68,68,.08)':s.tipo==='aviso'?'rgba(245,158,11,.08)':'rgba(124,106,247,.08)'
+                  return (
+                    <div key={i} style={{display:'flex',alignItems:'flex-start',gap:9,background:dim,border:`0.5px solid ${cor}33`,borderRadius:9,padding:'9px 12px'}}>
+                      <Sparkles size={14} style={{color:cor,flexShrink:0,marginTop:1}}/>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:11.5,fontWeight:500,color:'var(--label)',lineHeight:1.4}}><span style={{color:cor}}>Molise:</span> {s.titulo}</div>
+                        <div style={{fontSize:10.5,color:'var(--label-3)',lineHeight:1.45,marginTop:2}}>{s.texto}</div>
+                        {s.gatilho && (
+                          <button onClick={()=>{ setSelId(s.gatilho); if(s.acao==='gerar') setTimeout(()=>gerarIA(),300) }}
+                            style={{marginTop:6,fontSize:10,padding:'3px 10px',borderRadius:7,background:cor,color:'#fff',border:'none',cursor:'pointer',fontWeight:500}}>
+                            {s.acao==='gerar'?'Gerar com a Molise':s.acao==='revisar'?'Revisar gatilho':s.acao==='submeter'?'Abrir e submeter':'Abrir gatilho'}
+                          </button>
+                        )}
+                      </div>
+                      <button onClick={()=>setSugFechadas(f=>({...f,[s.titulo]:true}))} title="Dispensar"
+                        style={{background:'transparent',border:'none',cursor:'pointer',color:'var(--label-4)',flexShrink:0,padding:2}}>
+                        <X size={13}/>
+                      </button>
+                    </div>
+                  )
+                })}
               </div>
-            )
-          })}
-        </div>
-      )}
+            )}
+          </div>
+        )
+      })()}
 
       {/* ── JORNADA (Fase 2) — linha do tempo: clientes por etapa agora ──────── */}
-      {jornada && (
+      {jornada && !selId && (
         <div style={{flexShrink:0,background:'var(--bg-2)',borderBottom:'0.5px solid var(--sep)',padding:'12px 20px'}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:4}}>
             {[
@@ -1001,9 +1012,9 @@ export default function PageGatilhos({ api }) {
         {selId && (
           <div onClick={()=>setSelId(null)} style={{position:'absolute',inset:0,background:'rgba(0,0,0,.35)',zIndex:30,animation:'fadeIn .15s'}}/>
         )}
-        <div style={{position:'absolute',top:0,right:0,bottom:0,width:selId?'min(900px,90%)':0,background:'var(--bg)',borderLeft:selId?'0.5px solid var(--sep)':'none',zIndex:31,overflow:'hidden',transition:'width .2s ease',display:'flex',boxShadow:selId?'-8px 0 24px rgba(0,0,0,.15)':'none'}}>
+        <div style={{position:'absolute',top:0,right:0,bottom:0,width:selId?'min(1180px,96%)':0,background:'var(--bg)',borderLeft:selId?'0.5px solid var(--sep)':'none',zIndex:31,overflow:'hidden',transition:'width .2s ease',display:'flex',boxShadow:selId?'-8px 0 24px rgba(0,0,0,.15)':'none'}}>
           {selId && (
-          <div style={{flex:1,display:'grid',gridTemplateColumns:'1fr 360px',overflow:'hidden',minWidth:900}}>
+          <div style={{flex:1,display:'grid',gridTemplateColumns:'1fr 340px',overflow:'hidden',minWidth:1100}}>
 
         {/* ── COLUNA 2: Editor ────────────────────────────────────────────── */}
         <div style={{display:'flex',flexDirection:'column',overflow:'hidden',borderRight:'0.5px solid var(--sep)'}}>
@@ -1094,7 +1105,7 @@ export default function PageGatilhos({ api }) {
               </div>
 
               {/* Conteúdo das abas */}
-              <div style={{flex:1,overflowY:'auto',padding:'14px 16px'}}>
+              <div style={{flex:1,overflowY:'auto',padding:'18px 22px'}}>
 
                 {/* ── ABA EDITOR ─────────────────────────────────────────── */}
                 {aba === 'editor' && (
