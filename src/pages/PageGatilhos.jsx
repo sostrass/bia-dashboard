@@ -502,6 +502,8 @@ export default function PageGatilhos({ api }) {
   const [editandoNome, setEditandoNome] = useState(false)  // modo edição do nome do gatilho selecionado
   const [pulso, setPulso] = useState(null)  // dados da operação (Fase 1: /api/operacao/pulso)
   const [jornada, setJornada] = useState(null)  // clientes por etapa (Fase 1: /api/operacao/jornada)
+  const [sugestoes, setSugestoes] = useState([])  // Molise copilota (Fase 2: /api/operacao/sugestoes)
+  const [sugestoesFechadas, setSugFechadas] = useState({})  // dispensadas pelo usuário (sessão)
 
   const gatilho = GATILHOS.find(g => g.id === selId)
   const config  = configs[selId]
@@ -575,6 +577,10 @@ export default function PageGatilhos({ api }) {
     fetch(`${api}/api/operacao/jornada`)
       .then(r => r.json())
       .then(d => { if (vivo && d && d.etapas) setJornada(d) })
+      .catch(() => {})
+    fetch(`${api}/api/operacao/sugestoes`)
+      .then(r => r.json())
+      .then(d => { if (vivo && d && Array.isArray(d.sugestoes)) setSugestoes(d.sugestoes) })
       .catch(() => {})
     return () => { vivo = false }
   }, [api])
@@ -804,6 +810,37 @@ export default function PageGatilhos({ api }) {
               <div style={{fontSize:10,color:'var(--label-4)',marginTop:3}}>{c.lbl}</div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── MOLISE COPILOTA (Fase 2) — sugestões acionáveis ─────────────────── */}
+      {sugestoes.filter(s=>!sugestoesFechadas[s.titulo]).length > 0 && (
+        <div style={{flexShrink:0,background:'var(--bg-2)',borderBottom:'0.5px solid var(--sep)',padding:'10px 20px',display:'flex',flexDirection:'column',gap:6}}>
+          {sugestoes.filter(s=>!sugestoesFechadas[s.titulo]).slice(0,3).map((s,i)=>{
+            const cor = s.tipo==='erro'?'#ef4444':s.tipo==='aviso'?'#f59e0b':'#7c6af7'
+            const dim = s.tipo==='erro'?'rgba(239,68,68,.08)':s.tipo==='aviso'?'rgba(245,158,11,.08)':'rgba(124,106,247,.08)'
+            return (
+              <div key={i} style={{display:'flex',alignItems:'flex-start',gap:9,background:dim,border:`0.5px solid ${cor}33`,borderRadius:9,padding:'9px 12px'}}>
+                <Sparkles size={14} style={{color:cor,flexShrink:0,marginTop:1}}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:11.5,fontWeight:500,color:'var(--label)',lineHeight:1.4}}>
+                    <span style={{color:cor}}>Molise:</span> {s.titulo}
+                  </div>
+                  <div style={{fontSize:10.5,color:'var(--label-3)',lineHeight:1.45,marginTop:2}}>{s.texto}</div>
+                  {s.gatilho && (
+                    <button onClick={()=>{ setSelId(s.gatilho); if(s.acao==='gerar') setTimeout(()=>gerarIA(),300) }}
+                      style={{marginTop:6,fontSize:10,padding:'3px 10px',borderRadius:7,background:cor,color:'#fff',border:'none',cursor:'pointer',fontWeight:500}}>
+                      {s.acao==='gerar'?'Gerar com a Molise':s.acao==='revisar'?'Revisar gatilho':s.acao==='submeter'?'Abrir e submeter':'Abrir gatilho'}
+                    </button>
+                  )}
+                </div>
+                <button onClick={()=>setSugFechadas(f=>({...f,[s.titulo]:true}))} title="Dispensar"
+                  style={{background:'transparent',border:'none',cursor:'pointer',color:'var(--label-4)',flexShrink:0,padding:2}}>
+                  <X size={13}/>
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
 
