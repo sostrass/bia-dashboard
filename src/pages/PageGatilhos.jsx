@@ -19,16 +19,16 @@ const fmt = n => Number(n||0).toLocaleString('pt-BR')
 // Grupos e gatilhos
 const GATILHOS = [
   // ── 1. Compra & Pagamento ──────────────────────────────────────────────
-  { id:'pedido_criado',       label:'Pedido Criado',         grupo:'Compra & Pagamento', tipo:'bling', icon:ShoppingBag, cor:'#00d4aa', situacao:'sit=6',   desc:'Novo pedido gerado no Bling', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}','{{link_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{endereco_entrega}}','{{endereco_faturamento}}'] },
-  { id:'pagamento_aprovado',  label:'Pagamento Aprovado',    grupo:'Compra & Pagamento', tipo:'bling', icon:CreditCard,  cor:'#4a9fff', situacao:'sit=9',   desc:'PIX ou cartão confirmado', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{link_pedido}}'] },
-  { id:'pagamento_pendente',  label:'Pagamento Pendente',    grupo:'Compra & Pagamento', tipo:'bling', icon:Clock,       cor:'#f59e0b', situacao:'sit=6',   desc:'Aguardando pagamento', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{link_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  { id:'pedido_criado',       label:'Pedido Criado',         grupo:'Compra & Pagamento', tipo:'bling', icon:ShoppingBag, cor:'#00d4aa', situacao:'manual',  desc:'Pedido recém-criado (use Pagamento Pendente para o status Aberto)', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}','{{link_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{endereco_entrega}}','{{endereco_faturamento}}'] },
+  { id:'pagamento_aprovado',  label:'Pagamento Aprovado',    grupo:'Compra & Pagamento', tipo:'bling', icon:CreditCard,  cor:'#4a9fff', situacao:'sit=15',  desc:'Pedido em Em Andamento (pagamento confirmado)', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{link_pedido}}'] },
+  { id:'pagamento_pendente',  label:'Pagamento Pendente',    grupo:'Compra & Pagamento', tipo:'bling', icon:Clock,       cor:'#f59e0b', situacao:'sit=6',   desc:'Pedido em Aberto (aguardando pagamento)', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{link_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
 
   // ── 2. Preparação & Nota ───────────────────────────────────────────────
-  { id:'em_separacao',        label:'Em Separação',          grupo:'Preparação & Nota', tipo:'bling', icon:Layers,      cor:'#8b5cf6', situacao:'#SEPARACAO', manual:true, desc:'Comando manual no Bling: #SEPARACAO', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{lista_itens_pedido}}'] },
+  { id:'em_separacao',        label:'Em Separação',          grupo:'Preparação & Nota', tipo:'bling', icon:Layers,      cor:'#8b5cf6', situacao:'sit=9', desc:'Pedido em Atendido (separação/embalagem) — automático', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
   { id:'produto_embalado',    label:'Produto Embalado',      grupo:'Preparação & Nota', tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'#EMBALADO',  manual:true, desc:'Comando manual no Bling: #EMBALADO', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}'] },
-  { id:'em_andamento',        label:'Em Andamento',          grupo:'Preparação & Nota', tipo:'bling', icon:RefreshCw,   cor:'#8b5cf6', situacao:'sit=15',  desc:'Separação/faturamento iniciou', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  { id:'em_andamento',        label:'Em Andamento',          grupo:'Preparação & Nota', tipo:'bling', icon:RefreshCw,   cor:'#8b5cf6', situacao:'manual',  desc:'Informativo/manual (o status Em Andamento dispara Pagamento Aprovado)', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
   { id:'nfe_pendente',        label:'NF-e Pendente',         grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#f59e0b', situacao:'sit=21',  desc:'NF criada, aguardando SEFAZ', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}'] },
-  { id:'nfe_emitida',         label:'NF-e Emitida',          grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#06b6d4', situacao:'sit=24',  desc:'DANFE disponível', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{numero_nfe}}','{{link_nfe}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  { id:'nfe_emitida',         label:'NF-e Emitida',          grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#06b6d4', situacao:'sit=24',  desc:'DANFE disponível', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{numero_nfe}}','{{link_nfe}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
 
   // ── 3. Envio & Rastreio (jornada física do pacote) ─────────────────────
   { id:'pedido_enviado',      label:'Pedido Enviado',        grupo:'Envio & Rastreio', tipo:'bling', icon:Truck,       cor:'#a78bfa', situacao:'sit=27',  desc:'Despachado com código de rastreio', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}','{{link_acompanhamento}}','{{previsao_entrega}}','{{endereco_entrega}}'] },
@@ -278,8 +278,53 @@ const AMOSTRAS = {
   '{{link_acompanhamento}}':'https://rastreio.sostrass.com.br/p/LGI-ME2628',
   '{{status_rastreio}}':'O pacote está em uma base da Loggi — Sorocaba/SP',
   '{{dias_inativo}}':'45','{{ultimo_produto}}':'Strass Jet 50m','{{ciclo_dias}}':'30',
+  '{{qtde_item_pedido}}':'48',
+  '{{lista_itens_pedido}}':'12x Strass Jet SS10\n24x Fio de Seda Preto\n12x Pérola Creme 8mm',
+  '{{itens_linha_unica}}':'12x Strass Jet SS10 / 24x Fio de Seda Preto / 12x Pérola Creme 8mm',
+  '{{descricao_produto}}':'Fio de seda de alta resistência, ideal para montagem de bijuterias',
+  '{{preco_cartao}}':'R$ 12,90',
 }
 const rv = t=>(t||'').replace(/\{\{([^}]+)\}\}/g,(_,k)=>AMOSTRAS[`{{${k}}}`]||`{{${k}}}`)
+
+// Traduz o campo "situacao" (técnico) em uma explicação legível: quando o
+// gatilho dispara. Usado no manual da aba Configuração.
+function manualGatilho(g) {
+  const s = g?.situacao || ''
+  // Situações do Bling (sit=N) → nome amigável
+  const SIT_NOME = {
+    '6':'o pedido entra como *Em Aberto* no Bling (novo pedido)',
+    '9':'o pedido muda para *Atendido* (pagamento confirmado)',
+    '12':'o pedido é *Cancelado*',
+    '15':'o pedido muda para *Em Andamento* (separação/faturamento)',
+    '21':'a *NF-e é criada* e aguarda autorização da SEFAZ',
+    '24':'a *NF-e é autorizada* (DANFE disponível)',
+    '27':'o pedido muda para *Enviado* (com código de rastreio)',
+    '30':'o pedido é marcado como *Entregue*',
+    '33':'a entrega *falha* (tentativa sem sucesso)',
+    '36':'o pedido é *Devolvido*',
+  }
+  if (s.startsWith('sit=')) {
+    const id = s.replace('sit=','').split(' ')[0]
+    return { tipo:'Automático (Bling)', quando:`Dispara quando ${SIT_NOME[id]||'a situação '+id+' ocorre'}.` }
+  }
+  if (s.startsWith('#')) {
+    return { tipo:'Comando manual', quando:`Dispara quando você escreve *${s.split(' ')[0]}* nas observações internas do pedido no Bling.` }
+  }
+  if (s.includes('auto') && s.includes('#')) {
+    const cmd = s.match(/#[A-Z]+/)?.[0] || ''
+    return { tipo:'Híbrido (auto + manual)', quando:`Dispara automaticamente pelo robô de rastreio OU quando você escreve *${cmd}* no pedido.` }
+  }
+  if (s === 'auto') {
+    return { tipo:'Automático (rastreio)', quando:'Dispara sozinho quando o robô de rastreio detecta este status na transportadora.' }
+  }
+  if (s === 'auto-ia') {
+    return { tipo:'Inteligência (IA)', quando:'Dispara automaticamente quando a IA detecta a condição (ex: cliente inativo, recompra).' }
+  }
+  if (s === 'manual') {
+    return { tipo:'Manual', quando:'Não dispara sozinho. Você aciona quando quiser.' }
+  }
+  return { tipo:'—', quando:'Configuração de disparo não definida.' }
+}
 
 
 // ── Preview WhatsApp ───────────────────────────────────────────────────────────
@@ -1179,6 +1224,22 @@ export default function PageGatilhos({ api }) {
                 {/* ── ABA CONFIGURAÇÃO ───────────────────────────────────── */}
                 {aba === 'config' && (
                   <div style={{display:'flex',flexDirection:'column',gap:12}}>
+
+                    {/* Manual: quando este gatilho dispara */}
+                    {(() => {
+                      const man = manualGatilho(gatilho)
+                      const renderNegrito = (txt) => txt.split('*').map((p,i)=> i%2===1 ? <b key={i} style={{color:'var(--label)'}}>{p}</b> : p)
+                      return (
+                        <div style={{padding:'12px 14px',borderRadius:10,border:'0.5px solid rgba(74,159,255,.25)',background:'rgba(74,159,255,.06)'}}>
+                          <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:6}}>
+                            <Info size={14} style={{color:'#4a9fff'}}/>
+                            <p style={{fontSize:12.5,fontWeight:600,color:'var(--label)',margin:0}}>Quando dispara</p>
+                            <span style={{fontSize:9.5,padding:'1px 8px',borderRadius:99,background:'rgba(74,159,255,.12)',color:'#4a9fff',fontWeight:500}}>{man.tipo}</span>
+                          </div>
+                          <p style={{fontSize:11.5,color:'var(--label-3)',margin:0,lineHeight:1.5}}>{renderNegrito(man.quando)}</p>
+                        </div>
+                      )
+                    })()}
 
                     {/* Toggle ativo */}
                     <div style={{padding:'12px 14px',borderRadius:10,border:'0.5px solid var(--sep)',background:'var(--bg-2)'}}>
