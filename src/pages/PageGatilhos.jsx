@@ -875,69 +875,98 @@ export default function PageGatilhos({ api }) {
         </div>
       )}
 
-      <div style={{flex:1,display:'grid',gridTemplateColumns:'240px 1fr 360px',overflow:'hidden'}}>
+      <div style={{flex:1,display:'flex',overflow:'hidden',position:'relative'}}>
 
-        {/* ── COLUNA 1: Lista de gatilhos ─────────────────────────────────── */}
-        <div style={{borderRight:'0.5px solid var(--sep)',display:'flex',flexDirection:'column',overflow:'hidden',background:'var(--bg-2)'}}>
+        {/* ── GRADE DE CARDS (Centro de Operações) ────────────────────────── */}
+        <div style={{flex:1,overflowY:'auto',padding:'14px 20px',background:'var(--bg)'}}>
 
           {/* Busca */}
-          <div style={{padding:'10px 12px',borderBottom:'0.5px solid var(--sep)',flexShrink:0}}>
-            <div style={{display:'flex',alignItems:'center',gap:7,padding:'7px 10px',borderRadius:8,border:'0.5px solid var(--sep)',background:'var(--fill)'}}>
-              <Activity size={12} style={{color:'var(--label-4)',flexShrink:0}}/>
+          <div style={{marginBottom:14,maxWidth:360}}>
+            <div style={{display:'flex',alignItems:'center',gap:7,padding:'8px 11px',borderRadius:9,border:'0.5px solid var(--sep)',background:'var(--bg-2)'}}>
+              <Activity size={13} style={{color:'var(--label-4)',flexShrink:0}}/>
               <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar gatilho..."
-                style={{flex:1,border:'none',background:'transparent',color:'var(--label)',fontSize:12,outline:'none'}}/>
+                style={{flex:1,border:'none',background:'transparent',color:'var(--label)',fontSize:13,outline:'none'}}/>
             </div>
           </div>
 
-          {/* Lista agrupada */}
-          <div style={{flex:1,overflowY:'auto',padding:'6px 8px'}}>
-            {gruposFiltrados.map(grupo => (
-              <div key={grupo.nome} style={{marginBottom:3}}>
-                {/* Header do grupo */}
-                <button onClick={()=>setGrupoAb(p=>({...p,[grupo.nome]:!p[grupo.nome]}))}
-                  style={{width:'100%',display:'flex',alignItems:'center',gap:6,padding:'6px 8px',borderRadius:7,border:'none',background:'transparent',cursor:'pointer',textAlign:'left'}}>
-                  <span style={{fontSize:9.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',flex:1}}>{grupo.nome}</span>
-                  <span style={{fontSize:10,color:'var(--label-4)',background:'var(--fill)',padding:'0 5px',borderRadius:99,border:'0.5px solid var(--sep)'}}>{grupo.itens.length}</span>
-                  {grupoAberto[grupo.nome] ? <ChevronUp size={10} style={{color:'var(--label-4)'}}/> : <ChevronDown size={10} style={{color:'var(--label-4)'}}/>}
-                </button>
+          {/* Grade agrupada por jornada */}
+          {gruposFiltrados.map(grupo => (
+            <div key={grupo.nome} style={{marginBottom:18}}>
+              <button onClick={()=>setGrupoAb(p=>({...p,[grupo.nome]:!p[grupo.nome]}))}
+                style={{display:'flex',alignItems:'center',gap:8,padding:'4px 2px',marginBottom:9,border:'none',background:'transparent',cursor:'pointer'}}>
+                <span style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-3)'}}>{grupo.nome}</span>
+                <span style={{fontSize:10.5,color:'var(--label-4)',background:'var(--fill)',padding:'1px 7px',borderRadius:99,border:'0.5px solid var(--sep)'}}>{grupo.itens.length}</span>
+                {grupoAberto[grupo.nome]===false ? <ChevronDown size={12} style={{color:'var(--label-4)'}}/> : <ChevronUp size={12} style={{color:'var(--label-4)'}}/>}
+              </button>
 
-                {/* Itens do grupo */}
-                {grupoAberto[grupo.nome] && grupo.itens.map(g => {
-                  const cfg = configs[g.id]
-                  const ativo = cfg?.ativo
-                  const temTemplate = !!cfg
-                  const Icon = g.icon
-                  const isSelected = selId === g.id
-                  // Status Meta do gatilho (agora vem no carregar, pra todos)
-                  const mst = (cfg?.meta_template_status || '').toUpperCase()
-                  const stInfo = mst==='APPROVED' ? { cor:'#22c55e', lbl:'Aprovado', dim:'rgba(34,197,94,.12)' }
-                    : (mst==='PENDING'||mst==='IN_APPEAL') ? { cor:'#f59e0b', lbl:'Análise', dim:'rgba(245,158,11,.12)' }
-                    : mst==='REJECTED' ? { cor:'#ef4444', lbl:'Rejeitado', dim:'rgba(239,68,68,.12)' }
-                    : temTemplate ? { cor:'var(--label-4)', lbl:'Rascunho', dim:'var(--fill)' }
-                    : null
-                  return (
-                    <button key={g.id} onClick={()=>setSelId(g.id)} className="gat-item"
-                      style={{width:'100%',display:'flex',alignItems:'center',gap:8,padding:'7px 8px',borderRadius:8,border:`0.5px solid ${isSelected?g.cor+'40':'transparent'}`,background:isSelected?`${g.cor}08`:'transparent',cursor:'pointer',textAlign:'left',marginBottom:2,borderLeft:`3px solid ${stInfo?stInfo.cor:'transparent'}`}}>
-                      {/* Ícone */}
-                      <div style={{width:28,height:28,borderRadius:7,background:`${g.cor}15`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                        <Icon size={13} style={{color:g.cor}}/>
+              {grupoAberto[grupo.nome]!==false && (
+                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))',gap:10}}>
+                  {grupo.itens.map(g => {
+                    const cfg = configs[g.id]
+                    const ativo = cfg?.ativo
+                    const temTemplate = !!cfg
+                    const Icon = g.icon
+                    const isSelected = selId === g.id
+                    const mst = (cfg?.meta_template_status || '').toUpperCase()
+                    const stInfo = mst==='APPROVED' ? { cor:'#22c55e', lbl:'Aprovado', dim:'rgba(34,197,94,.12)' }
+                      : (mst==='PENDING'||mst==='IN_APPEAL') ? { cor:'#f59e0b', lbl:'Em análise', dim:'rgba(245,158,11,.12)' }
+                      : mst==='REJECTED' ? { cor:'#ef4444', lbl:'Rejeitado', dim:'rgba(239,68,68,.12)' }
+                      : temTemplate ? { cor:'var(--label-4)', lbl:'Rascunho', dim:'var(--fill)' }
+                      : { cor:'var(--label-4)', lbl:'Sem template', dim:'var(--fill)' }
+                    // Preview do conteúdo: primeiro texto/cabeçalho do gatilho
+                    const blocoTexto = (cfg?.blocos||[]).find(b=>b.tipo==='texto'||b.tipo==='cabecalho')
+                    const previewTxt = blocoTexto?.conteudo || 'Sem conteúdo configurado'
+                    return (
+                      <div key={g.id} onClick={()=>setSelId(g.id)} className="gat-card"
+                        style={{background:'var(--bg-2)',borderRadius:11,border:`0.5px solid ${isSelected?g.cor+'60':'var(--sep)'}`,cursor:'pointer',overflow:'hidden',display:'flex',flexDirection:'column'}}>
+                        {/* Faixa de status */}
+                        <div style={{height:3,background:stInfo.cor==='var(--label-4)'?'var(--sep)':stInfo.cor}}/>
+                        <div style={{padding:'11px 13px',display:'flex',flexDirection:'column',gap:8,flex:1}}>
+                          {/* Cabeçalho do card */}
+                          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+                            <div style={{display:'flex',alignItems:'center',gap:8,minWidth:0}}>
+                              <div style={{width:30,height:30,borderRadius:8,background:`${g.cor}15`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                                <Icon size={15} style={{color:g.cor}}/>
+                              </div>
+                              <span style={{fontSize:12.5,fontWeight:500,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{labelDe(g)}</span>
+                            </div>
+                            {/* Toggle ativo */}
+                            {temTemplate && (
+                              <button onClick={(e)=>{e.stopPropagation(); toggleAtivo(g.id)}} title={ativo?'Ativo':'Inativo'}
+                                style={{position:'relative',width:30,height:17,borderRadius:99,border:'none',cursor:'pointer',background:ativo?'#22c55e':'var(--sep)',flexShrink:0,transition:'background .15s'}}>
+                                <span style={{position:'absolute',width:13,height:13,background:'#fff',borderRadius:'50%',top:2,left:ativo?15:2,transition:'left .15s'}}/>
+                              </button>
+                            )}
+                          </div>
+                          {/* Mini preview da mensagem */}
+                          <div style={{background:'var(--bg)',borderRadius:7,padding:'7px 9px',flex:1,minHeight:38}}>
+                            <p style={{fontSize:10,color:'var(--label-3)',margin:0,lineHeight:1.45,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>{previewTxt.replace(/\n/g,' ')}</p>
+                          </div>
+                          {/* Rodapé: status + ações */}
+                          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}}>
+                            <span style={{fontSize:9,padding:'1px 7px',borderRadius:99,background:stInfo.dim,color:stInfo.cor,fontWeight:500,whiteSpace:'nowrap'}}>{stInfo.lbl}</span>
+                            <div style={{display:'flex',gap:7,color:'var(--label-4)',flexShrink:0}}>
+                              {g.tipo==='ia' && <span style={{fontSize:8.5,padding:'1px 5px',borderRadius:99,background:'rgba(124,106,247,.12)',color:'#7c6af7'}}>IA</span>}
+                              <Pencil size={13} style={{cursor:'pointer'}}/>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      {/* Info */}
-                      <div style={{flex:1,minWidth:0}}>
-                        <p style={{fontSize:12,fontWeight:isSelected?600:400,color:isSelected?'var(--label)':'var(--label-2)',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{labelDe(g)}</p>
-                      </div>
-                      {/* Status */}
-                      <div style={{flexShrink:0,display:'flex',alignItems:'center',gap:3}}>
-                        {g.tipo==='ia' && <span style={{fontSize:9,padding:'1px 5px',borderRadius:99,background:'rgba(124,106,247,.12)',color:'#7c6af7',border:'0.5px solid rgba(124,106,247,.2)'}}>IA</span>}
-                        {stInfo && <span style={{fontSize:8.5,padding:'1px 6px',borderRadius:99,background:stInfo.dim,color:stInfo.cor,fontWeight:500,whiteSpace:'nowrap'}}>{stInfo.lbl}</span>}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            ))}
-          </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
+
+        {/* ── PAINEL DESLIZANTE (editor + preview) ────────────────────────── */}
+        {selId && (
+          <div onClick={()=>setSelId(null)} style={{position:'absolute',inset:0,background:'rgba(0,0,0,.35)',zIndex:30,animation:'fadeIn .15s'}}/>
+        )}
+        <div style={{position:'absolute',top:0,right:0,bottom:0,width:selId?'min(900px,90%)':0,background:'var(--bg)',borderLeft:selId?'0.5px solid var(--sep)':'none',zIndex:31,overflow:'hidden',transition:'width .2s ease',display:'flex',boxShadow:selId?'-8px 0 24px rgba(0,0,0,.15)':'none'}}>
+          {selId && (
+          <div style={{flex:1,display:'grid',gridTemplateColumns:'1fr 360px',overflow:'hidden',minWidth:900}}>
 
         {/* ── COLUNA 2: Editor ────────────────────────────────────────────── */}
         <div style={{display:'flex',flexDirection:'column',overflow:'hidden',borderRight:'0.5px solid var(--sep)'}}>
@@ -1270,6 +1299,9 @@ export default function PageGatilhos({ api }) {
           )}
         </div>
 
+          </div>
+          )}
+        </div>
       </div>
     </div>
   )
