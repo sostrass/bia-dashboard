@@ -93,142 +93,259 @@ function KCard({icon:Ic, label, value, sub, cor='#7c6af7', trend, spark}) {
   )
 }
 
-// ─── LINHA DO LOG ─────────────────────────────────────────────────────────────
-function LinhaLog({row, onReenviar, onVerPedido}) {
-  const [expanded, setExpanded] = useState(false)
-  const [reenviando, setReenv]  = useState(false)
-  const [reenviado,  setReenvOk]= useState(false)
+// ─── DRAWER LATERAL: detalhe do disparo OU perfil do cliente ──────────────────
+function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilho }) {
+  // tipo: 'disparo' (1 disparo) ou 'cliente' (timeline completa)
+  const [cli, setCli]       = useState(null)
+  const [loadCli, setLoad]  = useState(false)
 
+  useEffect(() => {
+    if (tipo==='cliente' && dados?.telefone) {
+      setLoad(true)
+      fetch(`${api}/api/dashboard/disparos-cliente/${encodeURIComponent(dados.telefone)}`)
+        .then(r=>r.json()).then(d=>{ setCli(d); setLoad(false) })
+        .catch(()=>setLoad(false))
+    }
+  }, [tipo, dados, api])
+
+  return (
+    <>
+      {/* fundo escuro */}
+      <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:60,
+        animation:'fadeIn .2s ease'}}/>
+      {/* painel */}
+      <div style={{position:'fixed',top:0,right:0,bottom:0,width:'min(440px,92vw)',zIndex:61,
+        background:'var(--bg-2)',borderLeft:'1px solid var(--sep)',boxShadow:'-8px 0 40px rgba(0,0,0,.3)',
+        display:'flex',flexDirection:'column',animation:'slideIn .28s cubic-bezier(.2,.8,.2,1)'}}>
+
+        {/* header */}
+        <div style={{padding:'16px 18px',borderBottom:'1px solid var(--sep)',background:'var(--bg-3)',
+          display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <span style={{fontSize:14,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:8}}>
+            {tipo==='cliente'
+              ? <><Users size={15}/>Perfil do cliente</>
+              : <><Eye size={15}/>Detalhe do disparo</>}
+          </span>
+          <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:4,display:'flex'}}>
+            <X size={18}/>
+          </button>
+        </div>
+
+        <div style={{flex:1,overflowY:'auto',padding:'18px'}}>
+          {tipo==='disparo' && dados && (() => {
+            const meta = GATILHO_META[dados.gatilho]||{label:dados.gatilho,icon:Zap,cor:'#6b7280'}
+            const smeta= STATUS_META[dados.status]||STATUS_META.ignorado
+            const Ic=meta.icon, SIc=smeta.icon
+            return (
+              <div style={{display:'flex',flexDirection:'column',gap:16}}>
+                {/* topo */}
+                <div style={{display:'flex',alignItems:'center',gap:12}}>
+                  <div style={{width:44,height:44,borderRadius:12,background:`${meta.cor}18`,
+                    display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <Ic size={20} style={{color:meta.cor}}/>
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:15,fontWeight:600,color:'var(--label)'}}>{meta.label}</div>
+                    <div style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 8px',
+                      borderRadius:99,background:smeta.bg,marginTop:3}}>
+                      <SIc size={9} style={{color:smeta.cor}}/>
+                      <span style={{fontSize:10,fontWeight:600,color:smeta.cor}}>{smeta.label}</span>
+                    </div>
+                  </div>
+                </div>
+                {/* erro destacado */}
+                {dados.erro_msg && (
+                  <div style={{padding:'10px 12px',borderRadius:10,background:'rgba(239,68,68,.08)',
+                    border:'1px solid rgba(239,68,68,.2)',display:'flex',gap:8,alignItems:'flex-start'}}>
+                    <AlertCircle size={13} style={{color:'#ef4444',flexShrink:0,marginTop:1}}/>
+                    <span style={{fontSize:12,color:'#ef4444',lineHeight:1.5}}>{dados.erro_msg}</span>
+                  </div>
+                )}
+                {/* campos */}
+                <div style={{display:'flex',flexDirection:'column',gap:0,border:'1px solid var(--sep)',borderRadius:12,overflow:'hidden'}}>
+                  {[
+                    ['Cliente', dados.nome_cliente||'—'],
+                    ['Telefone', fmtTel(dados.telefone)],
+                    ['Pedido', dados.numero_pedido?`#${dados.numero_pedido}`:'—'],
+                    ['Template', dados.template_nome||dados.gatilho],
+                    ['Gatilho (técnico)', dados.gatilho],
+                    ['Origem', dados.origem||'bling'],
+                    ['Delay', dados.delay_min>0?`${dados.delay_min} min`:'Imediato'],
+                    ['Data/hora', new Date(dados.criado_em).toLocaleString('pt-BR')],
+                    ['ID', `#${dados.id}`],
+                  ].map(([k,v],i)=>(
+                    <div key={k} style={{display:'flex',justifyContent:'space-between',gap:12,padding:'10px 12px',
+                      borderBottom:i<8?'1px solid var(--sep)':'none',background:i%2?'var(--fill)':'transparent'}}>
+                      <span style={{fontSize:11,color:'var(--label-4)'}}>{k}</span>
+                      <span style={{fontSize:12,color:'var(--label)',fontWeight:500,textAlign:'right',wordBreak:'break-word'}}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* ações */}
+                <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                  {dados.numero_pedido && (
+                    <button onClick={()=>onVerPedido?.(dados.numero_pedido)} style={{
+                      display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'10px',borderRadius:10,
+                      border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',cursor:'pointer',fontSize:12,fontWeight:600}}>
+                      <Package size={13}/>Ver pedido #{dados.numero_pedido}
+                    </button>
+                  )}
+                  {dados.telefone && (
+                    <button onClick={()=>onFiltrarGatilho?.('__cliente__', dados.telefone)} style={{
+                      display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'10px',borderRadius:10,
+                      border:'1px solid rgba(124,106,247,.3)',background:'rgba(124,106,247,.08)',color:'#a78bfa',cursor:'pointer',fontSize:12,fontWeight:600}}>
+                      <Users size={13}/>Ver timeline deste cliente
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
+
+          {tipo==='cliente' && (
+            <div style={{display:'flex',flexDirection:'column',gap:16}}>
+              {loadCli && <div style={{textAlign:'center',padding:40,color:'var(--label-4)'}}><RefreshCw size={20} style={{animation:'spin 1s linear infinite'}}/></div>}
+              {cli && (
+                <>
+                  {/* cabeçalho do cliente */}
+                  <div style={{padding:'14px',borderRadius:12,background:'var(--fill)',border:'1px solid var(--sep)'}}>
+                    <div style={{fontSize:15,fontWeight:600,color:'var(--label)',marginBottom:4}}>
+                      {cli.resumo?.nome||'Cliente'}
+                    </div>
+                    <div style={{fontSize:12,color:'var(--label-4)',fontFamily:'monospace'}}>{fmtTel(dados.telefone)}</div>
+                    <div style={{display:'flex',gap:14,marginTop:12,flexWrap:'wrap'}}>
+                      {[['Total',cli.resumo?.total||0,'var(--label)'],
+                        ['Enviados',cli.resumo?.enviados||0,'#22c55e'],
+                        ['Erros',cli.resumo?.erros||0,'#ef4444'],
+                        ['Pedidos',cli.resumo?.pedidos?.length||0,'#a78bfa']].map(([k,v,c])=>(
+                        <div key={k}>
+                          <div style={{fontSize:18,fontWeight:700,color:c}}>{v}</div>
+                          <div style={{fontSize:10,color:'var(--label-4)'}}>{k}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* timeline */}
+                  <div>
+                    <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',
+                      color:'var(--label-4)',marginBottom:10}}>Linha do tempo</div>
+                    <div style={{position:'relative',paddingLeft:20}}>
+                      <div style={{position:'absolute',left:5,top:4,bottom:4,width:2,background:'var(--sep)'}}/>
+                      {(cli.disparos||[]).map((d,i)=>{
+                        const m=GATILHO_META[d.gatilho]||{label:d.gatilho,cor:'#6b7280'}
+                        const s=STATUS_META[d.status]||STATUS_META.ignorado
+                        return (
+                          <div key={d.id||i} style={{position:'relative',marginBottom:14}}>
+                            <div style={{position:'absolute',left:-18,top:3,width:10,height:10,borderRadius:'50%',
+                              background:m.cor,border:'2px solid var(--bg-2)'}}/>
+                            <div style={{display:'flex',justifyContent:'space-between',gap:8,alignItems:'baseline'}}>
+                              <span style={{fontSize:12.5,fontWeight:600,color:'var(--label)'}}>{m.label}</span>
+                              <span style={{fontSize:10,color:'var(--label-4)',flexShrink:0}}>{fmtDH(d.criado_em)}</span>
+                            </div>
+                            <div style={{fontSize:10.5,color:'var(--label-4)',marginTop:2}}>
+                              {d.template_nome||d.gatilho}
+                              {d.numero_pedido&&<span style={{marginLeft:6,color:'var(--label-3)'}}>· #{d.numero_pedido}</span>}
+                            </div>
+                            <span style={{display:'inline-flex',alignItems:'center',gap:3,padding:'1px 6px',
+                              borderRadius:99,background:s.bg,marginTop:4}}>
+                              <span style={{fontSize:9,fontWeight:600,color:s.cor}}>{s.label}</span>
+                            </span>
+                          </div>
+                        )
+                      })}
+                      {(!cli.disparos||cli.disparos.length===0)&&(
+                        <div style={{fontSize:12,color:'var(--label-4)',padding:'12px 0'}}>Nenhum disparo registrado.</div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ─── LINHA DO LOG ─────────────────────────────────────────────────────────────
+function LinhaLog({row, onVerDisparo, onVerCliente}) {
   const meta  = GATILHO_META[row.gatilho] || {label:row.gatilho, icon:Zap, cor:'#6b7280'}
   const smeta = STATUS_META[row.status]   || STATUS_META.ignorado
   const Ic    = meta.icon
   const SIc   = smeta.icon
 
-  const reenviar = async () => {
-    setReenv(true)
-    try {
-      await onReenviar(row.id)
-      setReenvOk(true); setTimeout(()=>setReenvOk(false),2500)
-    } catch {}
-    setReenv(false)
-  }
-
   return (
-    <>
-      <div onClick={()=>setExpanded(v=>!v)} style={{
-        display:'grid',
-        gridTemplateColumns:'32px 1fr 110px 100px 90px 80px 44px',
-        gap:0,padding:'9px 12px',alignItems:'center',cursor:'pointer',
-        borderBottom:'1px solid var(--sep)',
-        background:row.status==='erro'?'rgba(239,68,68,.03)':expanded?'var(--fill)':'transparent',
-        transition:'background .1s',
-      }}
-        onMouseEnter={e=>!expanded&&(e.currentTarget.style.background='var(--bg-3)')}
-        onMouseLeave={e=>!expanded&&(e.currentTarget.style.background=row.status==='erro'?'rgba(239,68,68,.03)':'transparent')}
-      >
-        {/* Ícone gatilho */}
-        <div style={{width:24,height:24,borderRadius:7,background:`${meta.cor}18`,
-          display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-          <Ic size={11} style={{color:meta.cor}}/>
+    <div style={{
+      display:'grid',
+      gridTemplateColumns:'32px 1fr 110px 100px 90px 80px 44px',
+      gap:0,padding:'9px 12px',alignItems:'center',
+      borderBottom:'1px solid var(--sep)',
+      background:row.status==='erro'?'rgba(239,68,68,.03)':'transparent',
+      transition:'background .1s',
+    }}
+      onMouseEnter={e=>e.currentTarget.style.background='var(--bg-3)'}
+      onMouseLeave={e=>e.currentTarget.style.background=row.status==='erro'?'rgba(239,68,68,.03)':'transparent'}
+    >
+      {/* Ícone gatilho */}
+      <div style={{width:24,height:24,borderRadius:7,background:`${meta.cor}18`,
+        display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+        <Ic size={11} style={{color:meta.cor}}/>
+      </div>
+      {/* Gatilho + cliente (cliente clicável → perfil) */}
+      <div style={{minWidth:0,padding:'0 8px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
+          <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>{meta.label}</span>
+          {row.delay_min>0&&<span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
+            background:'rgba(245,158,11,.1)',color:'#f59e0b'}}>+{row.delay_min}min</span>}
+          {row.origem==='rastreio_job'&&<span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
+            background:'rgba(6,182,212,.1)',color:'#06b6d4'}}>job</span>}
+          {row.origem==='manual_reenvio'&&<span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
+            background:'rgba(167,139,250,.1)',color:'#a78bfa'}}>reenvio</span>}
         </div>
-        {/* Gatilho + cliente */}
-        <div style={{minWidth:0,padding:'0 8px'}}>
-          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
-            <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>{meta.label}</span>
-            {row.delay_min>0&&<span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
-              background:'rgba(245,158,11,.1)',color:'#f59e0b'}}>+{row.delay_min}min</span>}
-            {row.origem==='rastreio_job'&&<span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
-              background:'rgba(6,182,212,.1)',color:'#06b6d4'}}>job</span>}
-            {row.origem==='manual_reenvio'&&<span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
-              background:'rgba(167,139,250,.1)',color:'#a78bfa'}}>reenvio</span>}
-          </div>
-          <div style={{fontSize:10.5,color:'var(--label-4)',
-            overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-            {row.nome_cliente||'—'}
-            {row.numero_pedido&&<span style={{color:'var(--label-3)',marginLeft:4}}>· #{row.numero_pedido}</span>}
-          </div>
-        </div>
-        {/* Telefone */}
-        <div style={{padding:'0 6px'}}>
-          <span style={{fontSize:11,color:'var(--label-4)',fontFamily:'monospace'}}>
-            {fmtTel(row.telefone)}
-          </span>
-        </div>
-        {/* Template */}
-        <div style={{padding:'0 6px',overflow:'hidden'}}>
-          <span style={{fontSize:10.5,color:'var(--label-3)',
-            overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'block'}}>
-            {row.template_nome||row.gatilho}
-          </span>
-        </div>
-        {/* Status */}
-        <div style={{padding:'0 6px'}}>
-          <div style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 8px',
-            borderRadius:99,background:smeta.bg}}>
-            <SIc size={9} style={{color:smeta.cor}}/>
-            <span style={{fontSize:10,fontWeight:600,color:smeta.cor}}>{smeta.label}</span>
-          </div>
-        </div>
-        {/* Hora */}
-        <div style={{padding:'0 6px'}}>
-          <span style={{fontSize:10,color:'var(--label-4)'}}>{fmtDH(row.criado_em)}</span>
-        </div>
-        {/* Expand */}
-        <div style={{display:'flex',justifyContent:'center'}}>
-          <Eye size={12} style={{color:'var(--label-4)'}}/>
+        <div onClick={()=>onVerCliente?.(row)} title="Ver timeline do cliente" style={{fontSize:10.5,color:'var(--label-4)',
+          overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',cursor:'pointer'}}
+          onMouseEnter={e=>e.currentTarget.style.color='#a78bfa'}
+          onMouseLeave={e=>e.currentTarget.style.color='var(--label-4)'}>
+          {row.nome_cliente||'—'}
+          {row.numero_pedido&&<span style={{color:'var(--label-3)',marginLeft:4}}>· #{row.numero_pedido}</span>}
         </div>
       </div>
-
-      {/* Linha expandida */}
-      {expanded && (
-        <div style={{
-          padding:'10px 16px 12px',borderBottom:'1px solid var(--sep)',
-          background:'var(--fill)',display:'flex',flexDirection:'column',gap:8,
-        }}>
-          {row.erro_msg && (
-            <div style={{display:'flex',alignItems:'flex-start',gap:8,padding:'8px 12px',
-              borderRadius:8,background:'rgba(239,68,68,.08)',border:'1px solid rgba(239,68,68,.2)'}}>
-              <AlertCircle size={12} style={{color:'#ef4444',flexShrink:0,marginTop:1}}/>
-              <span style={{fontSize:11.5,color:'#ef4444',lineHeight:1.5}}>{row.erro_msg}</span>
-            </div>
-          )}
-          <div style={{display:'flex',gap:24,flexWrap:'wrap'}}>
-            {[
-              ['ID',         `#${row.id}`],
-              ['Origem',     row.origem||'bling'],
-              ['Gatilho',    row.gatilho],
-              ['Pedido',     row.numero_pedido||'—'],
-              ['Data/hora',  new Date(row.criado_em).toLocaleString('pt-BR')],
-              ['Delay',      row.delay_min>0?`${row.delay_min} min`:'Imediato'],
-            ].map(([k,v])=>(
-              <div key={k} style={{minWidth:80}}>
-                <div style={{fontSize:9,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:2}}>{k}</div>
-                <div style={{fontSize:12,color:'var(--label)',fontWeight:500}}>{v}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{display:'flex',gap:8,marginTop:4}}>
-            {['erro','ignorado'].includes(row.status) && (
-              <button onClick={reenviar} disabled={reenviando||reenviado} style={{
-                display:'flex',alignItems:'center',gap:5,padding:'5px 12px',borderRadius:8,
-                border:'1px solid rgba(167,139,250,.3)',background:'rgba(167,139,250,.08)',
-                color:'#a78bfa',cursor:'pointer',fontSize:11,fontWeight:600}}>
-                <RotateCcw size={11}/>
-                {reenviando?'Reenviando...':reenviado?'Reenviado!':'Reenviar'}
-              </button>
-            )}
-            {row.numero_pedido && (
-              <button onClick={()=>onVerPedido?.(row.numero_pedido)} style={{
-                display:'flex',alignItems:'center',gap:5,padding:'5px 12px',borderRadius:8,
-                border:'1px solid var(--sep)',background:'var(--fill)',
-                color:'var(--label-3)',cursor:'pointer',fontSize:11}}>
-                <Package size={11}/>Ver pedido #{row.numero_pedido}
-              </button>
-            )}
-          </div>
+      {/* Telefone */}
+      <div style={{padding:'0 6px'}}>
+        <span style={{fontSize:11,color:'var(--label-4)',fontFamily:'monospace'}}>
+          {fmtTel(row.telefone)}
+        </span>
+      </div>
+      {/* Template */}
+      <div style={{padding:'0 6px',overflow:'hidden'}}>
+        <span style={{fontSize:10.5,color:'var(--label-3)',
+          overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'block'}}>
+          {row.template_nome||row.gatilho}
+        </span>
+      </div>
+      {/* Status */}
+      <div style={{padding:'0 6px'}}>
+        <div style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 8px',
+          borderRadius:99,background:smeta.bg}}>
+          <SIc size={9} style={{color:smeta.cor}}/>
+          <span style={{fontSize:10,fontWeight:600,color:smeta.cor}}>{smeta.label}</span>
         </div>
-      )}
-    </>
+      </div>
+      {/* Hora */}
+      <div style={{padding:'0 6px'}}>
+        <span style={{fontSize:10,color:'var(--label-4)'}}>{fmtDH(row.criado_em)}</span>
+      </div>
+      {/* Olho → abre drawer com detalhe */}
+      <div style={{display:'flex',justifyContent:'center'}}>
+        <button onClick={()=>onVerDisparo?.(row)} title="Ver detalhes" style={{
+          background:'none',border:'none',cursor:'pointer',padding:6,borderRadius:7,display:'flex'}}
+          onMouseEnter={e=>e.currentTarget.style.background='var(--fill)'}
+          onMouseLeave={e=>e.currentTarget.style.background='none'}>
+          <Eye size={13} style={{color:'var(--label-3)'}}/>
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -240,6 +357,9 @@ export default function PageDisparos({api: apiProp}) {
   const [stats,   setStats]   = useState(null)
   const [loadSt,  setLoadSt]  = useState(true)
   const [periodo, setPeriodo] = useState('7d')
+
+  // Drawer lateral (detalhe do disparo OU perfil do cliente)
+  const [drawer, setDrawer] = useState(null)  // {tipo:'disparo'|'cliente', dados}
 
   // Log paginado
   const [log,       setLog]      = useState([])
@@ -473,9 +593,14 @@ export default function PageDisparos({api: apiProp}) {
                     const maxG = Math.max(...porGatChart.map(x=>x.total),1)
                     const pct  = Math.round(g.total/maxG*100)
                     const taxa = g.total>0?Math.round(g.enviados/g.total*100):0
+                    const gatKey = Object.keys(GATILHO_META).find(k=>GATILHO_META[k].label===g.name) || g.name
                     return (
-                      <div key={i} style={{display:'flex',alignItems:'center',gap:8,
-                        padding:'6px 0',borderBottom:i<porGatChart.length-1?'1px solid var(--sep)':'none'}}>
+                      <div key={i} onClick={()=>{ setFiltroGat(gatKey); setLogPg(1) }}
+                        title="Filtrar o log por este gatilho" style={{display:'flex',alignItems:'center',gap:8,
+                        padding:'6px 4px',borderRadius:7,cursor:'pointer',
+                        borderBottom:i<porGatChart.length-1?'1px solid var(--sep)':'none'}}
+                        onMouseEnter={e=>e.currentTarget.style.background='var(--fill)'}
+                        onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
                         <div style={{width:20,height:20,borderRadius:5,background:`${g.cor}18`,
                           display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                           {GATILHO_META[Object.keys(GATILHO_META).find(k=>GATILHO_META[k].label===g.name)]?.icon
@@ -570,7 +695,8 @@ export default function PageDisparos({api: apiProp}) {
             ))}
           </div>
 
-          {/* Linhas */}
+          {/* Linhas — área com scroll próprio */}
+          <div style={{maxHeight:'calc(100vh - 380px)',minHeight:200,overflowY:'auto'}}>
           {log.length===0&&!loadLog
             ? <div style={{padding:48,textAlign:'center',color:'var(--label-4)'}}>
                 <Zap size={32} style={{opacity:.15,marginBottom:12}}/><br/>
@@ -578,9 +704,12 @@ export default function PageDisparos({api: apiProp}) {
                 <p style={{fontSize:11,margin:'6px 0 0'}}>Verifique os filtros ou aguarde novos eventos.</p>
               </div>
             : log.map((row,i)=>(
-                <LinhaLog key={row.id||i} row={row} onReenviar={reenviar}/>
+                <LinhaLog key={row.id||i} row={row}
+                  onVerDisparo={r=>setDrawer({tipo:'disparo',dados:r})}
+                  onVerCliente={r=>setDrawer({tipo:'cliente',dados:r})}/>
               ))
           }
+          </div>
 
           {/* Paginação */}
           {logPgs>1&&(
@@ -607,9 +736,25 @@ export default function PageDisparos({api: apiProp}) {
 
       </div>
 
+      {/* Drawer lateral */}
+      {drawer && (
+        <DrawerDetalhe
+          tipo={drawer.tipo}
+          dados={drawer.dados}
+          api={api}
+          onClose={()=>setDrawer(null)}
+          onVerPedido={num=>{ window.open(`https://rastreio.sostrass.com.br/pedido/${num}`,'_blank') }}
+          onFiltrarGatilho={(g,tel)=>{
+            if (g==='__cliente__') { setDrawer({tipo:'cliente',dados:{telefone:tel}}) }
+          }}
+        />
+      )}
+
       <style>{`
         @keyframes spin  { to { transform: rotate(360deg) } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes slideIn { from{transform:translateX(100%)} to{transform:translateX(0)} }
+        @keyframes fadeIn  { from{opacity:0} to{opacity:1} }
       `}</style>
     </div>
   )
