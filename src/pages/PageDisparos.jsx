@@ -132,7 +132,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
           </button>
         </div>
 
-        <div style={{flex:1,overflowY:'auto',padding:'18px'}}>
+        <div style={{flex:1,minHeight:0,overflowY:'auto',padding:'18px'}}>
           {tipo==='disparo' && dados && (() => {
             const meta = GATILHO_META[dados.gatilho]||{label:dados.gatilho,icon:Zap,cor:'#6b7280'}
             const smeta= STATUS_META[dados.status]||STATUS_META.ignorado
@@ -536,7 +536,7 @@ export default function PageDisparos({api: apiProp}) {
   }
 
   return (
-    <div style={{height:'100vh',maxHeight:'100vh',display:'flex',flexDirection:'column',overflow:'hidden',background:'var(--bg)'}}>
+    <div style={{height:'100%',minHeight:'100dvh',display:'flex',flexDirection:'column',overflow:'hidden',background:'var(--bg)'}}>
 
       {/* ── HEADER ── */}
       <div style={{padding:'12px 20px',flexShrink:0,borderBottom:'1px solid var(--sep)',
