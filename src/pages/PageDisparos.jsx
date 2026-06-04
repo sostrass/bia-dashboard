@@ -529,7 +529,7 @@ export default function PageDisparos({api: apiProp}) {
   }
 
   return (
-    <div style={{height:'100%',minHeight:0,display:'flex',flexDirection:'column',overflow:'hidden',background:'var(--bg)'}}>
+    <div style={{height:'100%',display:'flex',flexDirection:'column',background:'var(--bg)'}}>
 
       {/* ── HEADER ── */}
       <div style={{padding:'12px 20px',flexShrink:0,borderBottom:'1px solid var(--sep)',
@@ -585,7 +585,7 @@ export default function PageDisparos({api: apiProp}) {
         </div>
       </div>
 
-      <div style={{flex:1,minHeight:0,overflowY:'auto',padding:'16px 20px',display:'flex',flexDirection:'column',gap:16}}>
+      <div style={{flex:1,minHeight:0,height:'calc(100vh - 64px)',overflowY:'auto',padding:'16px 20px',display:'flex',flexDirection:'column',gap:16}}>
 
         {/* ── KPIs ── */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:10}}>
