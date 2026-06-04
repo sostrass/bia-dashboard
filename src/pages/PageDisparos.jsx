@@ -379,7 +379,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                     </button>
                   )}
                   {dados.telefone && (
-                    <button onClick={()=>setDrawer?.({tipo:'cliente',dados})} style={{
+                    <button onClick={()=>onFiltrarGatilho?.('__cliente__', dados.telefone)} style={{
                       display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'11px',borderRadius:11,
                       border:'0.5px solid rgba(124,106,247,.3)',background:'rgba(124,106,247,.07)',
                       color:'#a78bfa',cursor:'pointer',fontSize:12,fontWeight:500}}>
