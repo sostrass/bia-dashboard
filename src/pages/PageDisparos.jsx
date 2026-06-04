@@ -2,43 +2,44 @@
  * PageDisparos.jsx — Bia v6 Enterprise
  * Monitor de disparos automáticos e gatilhos WhatsApp
  */
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Zap, Send, AlertCircle, Clock, CheckCircle, RefreshCw,
   TrendingUp, Users, XCircle, BarChart3, Activity, Filter,
   ShoppingBag, Truck, CreditCard, Bell, Star, FileText,
   Package, ArrowUpRight, ArrowDownRight, Minus, Search,
   RotateCcw, ChevronLeft, ChevronRight, Eye, X, Navigation,
-  ShieldCheck, ToggleLeft, ToggleRight, Download, Info,
+  Hash, Timer, AlertTriangle, ShieldCheck, ToggleLeft,
+  ToggleRight, Download, Info, MessageSquare, ExternalLink,
 } from 'lucide-react'
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, CartesianGrid, Cell,
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, CartesianGrid, Cell, PieChart, Pie,
 } from 'recharts'
 
 const BASE = import.meta.env?.VITE_API_URL || ''
 
 // ─── METADADOS DOS GATILHOS ───────────────────────────────────────────────────
 const GATILHO_META = {
-  pagamento_aprovado:        { label:'Pagamento Aprovado',       icon:CreditCard,    cor:'#4a9fff' },
-  pedido_criado:             { label:'Pedido Criado',            icon:ShoppingBag,   cor:'#00d4aa' },
+  pagamento_aprovado:       { label:'Pagamento Aprovado',       icon:CreditCard,    cor:'#4a9fff' },
+  pedido_criado:            { label:'Pedido Criado',            icon:ShoppingBag,   cor:'#00d4aa' },
   pedido_aguardando_pagamento:{ label:'Aguardando Pagamento',   icon:Clock,         cor:'#f59e0b' },
-  em_separacao:              { label:'Em Separação',             icon:Activity,      cor:'#8b5cf6' },
-  produto_embalado:          { label:'Produto Embalado',         icon:Package,       cor:'#06b6d4' },
-  nfe_pendente:              { label:'NF-e Pendente',            icon:FileText,      cor:'#f97316' },
-  nfe_emitida:               { label:'NF-e Emitida',             icon:FileText,      cor:'#f59e0b' },
-  pedido_enviado:            { label:'Pedido Enviado',           icon:Truck,         cor:'#a78bfa' },
-  rastreio_em_transito:      { label:'Em Trânsito',              icon:Navigation,    cor:'#06b6d4' },
-  saiu_entrega:              { label:'Saiu p/ Entrega',          icon:Truck,         cor:'#22c55e' },
-  pedido_entregue:           { label:'Pedido Entregue',          icon:Package,       cor:'#22c55e' },
-  nao_entregue:              { label:'Não Entregue',             icon:XCircle,       cor:'#ef4444' },
-  cancelamento:              { label:'Cancelamento',             icon:XCircle,       cor:'#ef4444' },
-  devolucao:                 { label:'Devolução',                icon:RotateCcw,     cor:'#f97316' },
-  avise_me:                  { label:'Avise-me',                 icon:Bell,          cor:'#fb923c' },
-  boas_vindas:               { label:'Boas-vindas',              icon:Star,          cor:'#e879f9' },
-  avaliar_pedido:            { label:'Avaliação',                icon:Star,          cor:'#f87171' },
-  estorno_realizado:         { label:'Estorno',                  icon:RotateCcw,     cor:'#f97316' },
-  pix_pendente:              { label:'PIX Pendente',             icon:CreditCard,    cor:'#22c55e' },
+  em_separacao:             { label:'Em Separação',             icon:Activity,      cor:'#8b5cf6' },
+  produto_embalado:         { label:'Produto Embalado',         icon:Package,       cor:'#06b6d4' },
+  nfe_pendente:             { label:'NF-e Pendente',            icon:FileText,      cor:'#f97316' },
+  nfe_emitida:              { label:'NF-e Emitida',             icon:FileText,      cor:'#f59e0b' },
+  pedido_enviado:           { label:'Pedido Enviado',           icon:Truck,         cor:'#a78bfa' },
+  rastreio_em_transito:     { label:'Em Trânsito',              icon:Navigation,    cor:'#06b6d4' },
+  saiu_entrega:             { label:'Saiu p/ Entrega',          icon:Truck,         cor:'#22c55e' },
+  pedido_entregue:          { label:'Pedido Entregue',          icon:Package,       cor:'#22c55e' },
+  nao_entregue:             { label:'Não Entregue',             icon:XCircle,       cor:'#ef4444' },
+  cancelamento:             { label:'Cancelamento',             icon:XCircle,       cor:'#ef4444' },
+  devolucao:                { label:'Devolução',                icon:RotateCcw,     cor:'#f97316' },
+  avise_me:                 { label:'Avise-me',                 icon:Bell,          cor:'#fb923c' },
+  boas_vindas:              { label:'Boas-vindas',              icon:Star,          cor:'#e879f9' },
+  avaliar_pedido:           { label:'Avaliação',                icon:Star,          cor:'#f87171' },
+  estorno_realizado:        { label:'Estorno',                  icon:RotateCcw,     cor:'#f97316' },
+  pix_pendente:             { label:'PIX Pendente',             icon:CreditCard,    cor:'#22c55e' },
 }
 
 const STATUS_META = {
@@ -64,7 +65,7 @@ const fmtD  = ts => ts ? new Date(ts).toLocaleDateString('pt-BR',{day:'2-digit',
 const TT = {contentStyle:{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:8,fontSize:11,color:'var(--label)'}}
 
 // ─── KPI CARD ─────────────────────────────────────────────────────────────────
-function KCard({icon:Ic, label, value, sub, cor='#7c6af7', trend}) {
+function KCard({icon:Ic, label, value, sub, cor='#7c6af7', trend, spark}) {
   return (
     <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,
       padding:'14px 16px',display:'flex',flexDirection:'column',gap:8,position:'relative',overflow:'hidden'}}>
@@ -92,11 +93,12 @@ function KCard({icon:Ic, label, value, sub, cor='#7c6af7', trend}) {
   )
 }
 
-// ─── DRAWER LATERAL ───────────────────────────────────────────────────────────
+// ─── DRAWER LATERAL: detalhe do disparo OU perfil do cliente ──────────────────
 function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilho, onReenviar }) {
+  // tipo: 'disparo' (1 disparo) ou 'cliente' (timeline completa)
   const [cli, setCli]       = useState(null)
   const [loadCli, setLoad]  = useState(false)
-  const [reenviados, setReenviados] = useState([])
+  const [reenviados, setReenviados] = useState([])  // ids já reenviados nesta sessão
 
   useEffect(() => {
     if (tipo==='cliente' && dados?.telefone) {
@@ -109,12 +111,15 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
 
   return (
     <>
+      {/* fundo escuro */}
       <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:60,
         animation:'fadeIn .2s ease'}}/>
+      {/* painel */}
       <div style={{position:'fixed',top:0,right:0,bottom:0,width:'min(440px,92vw)',zIndex:61,
         background:'var(--bg-2)',borderLeft:'1px solid var(--sep)',boxShadow:'-8px 0 40px rgba(0,0,0,.3)',
         display:'flex',flexDirection:'column',animation:'slideIn .28s cubic-bezier(.2,.8,.2,1)'}}>
 
+        {/* header */}
         <div style={{padding:'16px 18px',borderBottom:'1px solid var(--sep)',background:'var(--bg-3)',
           display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <span style={{fontSize:14,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:8}}>
@@ -127,14 +132,14 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
           </button>
         </div>
 
-        {/* CORREÇÃO AQUI: minHeight: 0 adicionado para evitar estourar o layout no Flexbox */}
-        <div style={{flex:1, minHeight: 0, overflowY:'auto', padding:'18px'}}>
+        <div style={{flex:1,minHeight:0,overflowY:'auto',padding:'18px'}}>
           {tipo==='disparo' && dados && (() => {
             const meta = GATILHO_META[dados.gatilho]||{label:dados.gatilho,icon:Zap,cor:'#6b7280'}
             const smeta= STATUS_META[dados.status]||STATUS_META.ignorado
             const Ic=meta.icon, SIc=smeta.icon
             return (
               <div style={{display:'flex',flexDirection:'column',gap:16}}>
+                {/* topo */}
                 <div style={{display:'flex',alignItems:'center',gap:12}}>
                   <div style={{width:44,height:44,borderRadius:12,background:`${meta.cor}18`,
                     display:'flex',alignItems:'center',justifyContent:'center'}}>
@@ -149,6 +154,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                     </div>
                   </div>
                 </div>
+                {/* erro destacado */}
                 {dados.erro_msg && (
                   <div style={{padding:'10px 12px',borderRadius:10,background:'rgba(239,68,68,.08)',
                     border:'1px solid rgba(239,68,68,.2)',display:'flex',gap:8,alignItems:'flex-start'}}>
@@ -156,6 +162,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                     <span style={{fontSize:12,color:'#ef4444',lineHeight:1.5}}>{dados.erro_msg}</span>
                   </div>
                 )}
+                {/* campos */}
                 <div style={{display:'flex',flexDirection:'column',gap:0,border:'1px solid var(--sep)',borderRadius:12,overflow:'hidden'}}>
                   {[
                     ['Cliente', dados.nome_cliente||'—'],
@@ -175,6 +182,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                     </div>
                   ))}
                 </div>
+                {/* ações */}
                 <div style={{display:'flex',flexDirection:'column',gap:8}}>
                   {dados.numero_pedido && (
                     <button onClick={()=>onVerPedido?.(dados.numero_pedido)} style={{
@@ -200,6 +208,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
               {loadCli && <div style={{textAlign:'center',padding:40,color:'var(--label-4)'}}><RefreshCw size={20} style={{animation:'spin 1s linear infinite'}}/></div>}
               {cli && (
                 <>
+                  {/* cabeçalho do cliente */}
                   <div style={{padding:'14px',borderRadius:12,background:'var(--fill)',border:'1px solid var(--sep)'}}>
                     <div style={{fontSize:15,fontWeight:600,color:'var(--label)',marginBottom:4}}>
                       {cli.resumo?.nome||'Cliente'}
@@ -217,6 +226,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                       ))}
                     </div>
                   </div>
+                  {/* timeline */}
                   <div>
                     <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',
                       color:'var(--label-4)',marginBottom:10}}>Linha do tempo</div>
@@ -230,6 +240,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                         const jaReenv = reenviados.includes(d.id)
                         return (
                           <div key={d.id||i} style={{position:'relative',marginBottom:16}}>
+                            {/* ícone da etapa no lugar do ponto */}
                             <div style={{position:'absolute',left:-24,top:0,width:22,height:22,borderRadius:'50%',
                               background:`${m.cor}22`,border:'2px solid var(--bg-2)',display:'flex',
                               alignItems:'center',justifyContent:'center'}}>
@@ -297,10 +308,12 @@ function LinhaLog({row, onVerDisparo, onVerCliente}) {
       onMouseEnter={e=>e.currentTarget.style.background='var(--bg-3)'}
       onMouseLeave={e=>e.currentTarget.style.background=row.status==='erro'?'rgba(239,68,68,.03)':'transparent'}
     >
+      {/* Ícone gatilho */}
       <div style={{width:24,height:24,borderRadius:7,background:`${meta.cor}18`,
         display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
         <Ic size={11} style={{color:meta.cor}}/>
       </div>
+      {/* Gatilho + cliente (cliente clicável → perfil) */}
       <div style={{minWidth:0,padding:'0 8px'}}>
         <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
           <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>{meta.label}</span>
@@ -319,17 +332,20 @@ function LinhaLog({row, onVerDisparo, onVerCliente}) {
           {row.numero_pedido&&<span style={{color:'var(--label-3)',marginLeft:4}}>· #{row.numero_pedido}</span>}
         </div>
       </div>
+      {/* Telefone */}
       <div style={{padding:'0 6px'}}>
         <span style={{fontSize:11,color:'var(--label-4)',fontFamily:'monospace'}}>
           {fmtTel(row.telefone)}
         </span>
       </div>
+      {/* Template */}
       <div style={{padding:'0 6px',overflow:'hidden'}}>
         <span style={{fontSize:10.5,color:'var(--label-3)',
           overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'block'}}>
           {row.template_nome||row.gatilho}
         </span>
       </div>
+      {/* Status */}
       <div style={{padding:'0 6px'}}>
         <div style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 8px',
           borderRadius:99,background:smeta.bg}}>
@@ -337,9 +353,11 @@ function LinhaLog({row, onVerDisparo, onVerCliente}) {
           <span style={{fontSize:10,fontWeight:600,color:smeta.cor}}>{smeta.label}</span>
         </div>
       </div>
+      {/* Hora */}
       <div style={{padding:'0 6px'}}>
         <span style={{fontSize:10,color:'var(--label-4)'}}>{fmtDH(row.criado_em)}</span>
       </div>
+      {/* Olho → abre drawer com detalhe */}
       <div style={{display:'flex',justifyContent:'center'}}>
         <button onClick={()=>onVerDisparo?.(row)} title="Ver detalhes" style={{
           background:'none',border:'none',cursor:'pointer',padding:6,borderRadius:7,display:'flex'}}
@@ -356,27 +374,33 @@ function LinhaLog({row, onVerDisparo, onVerCliente}) {
 export default function PageDisparos({api: apiProp}) {
   const api = apiProp || BASE
 
+  // Stats gerais
   const [stats,   setStats]   = useState(null)
   const [loadSt,  setLoadSt]  = useState(true)
   const [periodo, setPeriodo] = useState('7d')
 
-  const [drawer, setDrawer] = useState(null)
+  // Drawer lateral (detalhe do disparo OU perfil do cliente)
+  const [drawer, setDrawer] = useState(null)  // {tipo:'disparo'|'cliente', dados}
+  // Insights dispensados (marcados como "entendi") — por texto
   const [insDispensados, setInsDispensados] = useState([])
 
-  const [log,        setLog]      = useState([])
-  const [logTotal,   setLogTotal] = useState(0)
-  const [logPgs,     setLogPgs]   = useState(1)
-  const [logPg,      setLogPg]    = useState(1)
-  const [loadLog,    setLoadLog]  = useState(false)
-  const [filtroSt,   setFiltroSt] = useState('todos')
-  const [filtroGat,  setFiltroGat]= useState('todos')
-  const [busca,      setBusca]    = useState('')
-  const [buscaInput, setBuscaInput]=useState('')
+  // Log paginado
+  const [log,       setLog]      = useState([])
+  const [logTotal,  setLogTotal] = useState(0)
+  const [logPgs,    setLogPgs]   = useState(1)
+  const [logPg,     setLogPg]    = useState(1)
+  const [loadLog,   setLoadLog]  = useState(false)
+  const [filtroSt,  setFiltroSt] = useState('todos')
+  const [filtroGat, setFiltroGat]= useState('todos')
+  const [busca,     setBusca]    = useState('')
+  const [buscaInput,setBuscaInput]=useState('')
 
+  // Auto-refresh
   const [autoRef,  setAutoRef]  = useState(true)
   const [lastUpd,  setLastUpd]  = useState(null)
   const polRef = useRef(null)
 
+  // Carrega stats
   const carregarStats = useCallback(async(sil=false)=>{
     if(!sil) setLoadSt(true)
     try {
@@ -386,6 +410,7 @@ export default function PageDisparos({api: apiProp}) {
     if(!sil) setLoadSt(false)
   },[api,periodo])
 
+  // Carrega log
   const carregarLog = useCallback(async(pg=1)=>{
     setLoadLog(true)
     try {
@@ -410,6 +435,7 @@ export default function PageDisparos({api: apiProp}) {
   useEffect(()=>{ carregarStats(); carregarLog(1) },[carregarStats])
   useEffect(()=>{ carregarLog(1) },[filtroSt,filtroGat,busca,periodo])
 
+  // Auto-refresh
   useEffect(()=>{
     if(!autoRef) { clearInterval(polRef.current); return }
     polRef.current = setInterval(()=>{ carregarStats(true); carregarLog(logPg) },15000)
@@ -433,14 +459,17 @@ export default function PageDisparos({api: apiProp}) {
     a.download=`disparos-${periodo}-${new Date().toISOString().slice(0,10)}.csv`; a.click()
   }
 
+  // Dados derivados
   const t          = stats?.totais||{}
   const total      = parseInt(t.total)||0
   const enviados   = parseInt(t.enviados)||0
   const erros      = parseInt(t.erros)||0
   const ignorados  = parseInt(t.ignorados)||0
   const aguardando = parseInt(t.aguardando)||0
+  // TAXA DE SUCESSO: dos que o sistema TENTOU enviar (enviados+erros), quantos
+  // deram certo. "Ignorado" (template off / sem telefone) é NEUTRO, não entra.
   const tentados   = enviados + erros
-  const taxa       = tentados>0 ? Math.round(enviados/tentados*100) : null
+  const taxa       = tentados>0 ? Math.round(enviados/tentados*100) : null  // null = nada tentado ainda
   const porDiaChart= (stats?.porDia||[]).map(d=>({
     d: fmtD(d.dia),
     enviados: parseInt(d.enviados)||0,
@@ -456,6 +485,7 @@ export default function PageDisparos({api: apiProp}) {
   }))
   const gatilhosUsados = [...new Set((stats?.porGatilho||[]).map(g=>g.gatilho))]
 
+  // FUNIL DA JORNADA — etapas na ordem do fluxo físico do pedido.
   const _byGat = Object.fromEntries((stats?.porGatilho||[]).map(g=>[g.gatilho,{total:parseInt(g.total)||0,enviados:parseInt(g.enviados)||0}]))
   const ETAPAS_FUNIL = [
     { gat:'pedido_criado',       label:'Pedido criado',       cor:'#00d4aa' },
@@ -466,8 +496,13 @@ export default function PageDisparos({api: apiProp}) {
     { gat:'pedido_entregue',     label:'Entregue',            cor:'#22c55e' },
   ]
   const funil = ETAPAS_FUNIL.map(e=>({ ...e, total:_byGat[e.gat]?.total||0 })).filter(e=>e.total>0)
+  // Base do funil = a MAIOR etapa (evita percentuais absurdos quando as etapas
+  // iniciais ainda não disparam). A barra é proporcional ao maior volume.
   const funilMax = Math.max(...funil.map(e=>e.total), 1)
 
+  // INSIGHTS automáticos — lê os dados e gera avisos úteis.
+  // IMPORTANTE: "ignorado" NÃO é falha (é template off / sem telefone).
+  // Só conta como falha o status "erro".
   const insights = []
   ;(stats?.porGatilho||[]).forEach(g=>{
     const env=parseInt(g.enviados)||0, err=parseInt(g.erros)||0
@@ -477,6 +512,7 @@ export default function PageDisparos({api: apiProp}) {
       if (txErr >= 30) insights.push({ tipo:'alerta', txt:`"${GATILHO_META[g.gatilho]?.label||g.gatilho}" com ${txErr}% de erro real (${err} de ${tent} enviados).` })
     }
   })
+  // Aviso sobre ignorados (a maioria, no seu caso): gatilhos desativados
   if (ignorados>0 && total>0) {
     const pctIgn = Math.round(ignorados/total*100)
     if (pctIgn >= 50) insights.push({ tipo:'info', txt:`${pctIgn}% dos disparos foram só registrados (não enviados) — são gatilhos desativados aguardando ativação. Normal enquanto você orquestra o fluxo.` })
@@ -484,6 +520,7 @@ export default function PageDisparos({api: apiProp}) {
   if (taxa!==null && taxa>=90 && tentados>=3) insights.push({ tipo:'bom', txt:`Taxa de entrega de ${taxa}% nos ${tentados} disparos efetivos — saudável.` })
   else if (taxa!==null && taxa<70 && tentados>=3) insights.push({ tipo:'alerta', txt:`Taxa de entrega de ${taxa}% — verifique os erros.` })
   if ((parseInt(t.ultimas_24h)||0)===0 && total>0) insights.push({ tipo:'info', txt:'Nenhum disparo nas últimas 24h.' })
+  // Gatilho mais ativo
   const _ord = [...(stats?.porGatilho||[])].sort((a,b)=>(parseInt(b.total)||0)-(parseInt(a.total)||0))
   if (_ord[0] && (parseInt(_ord[0].total)||0)>=10) {
     insights.push({ tipo:'info', txt:`Gatilho mais ativo: "${GATILHO_META[_ord[0].gatilho]?.label||_ord[0].gatilho}" (${_ord[0].total} registros).` })
@@ -499,8 +536,7 @@ export default function PageDisparos({api: apiProp}) {
   }
 
   return (
-    /* CORREÇÃO AQUI: height: '100%', minHeight: '100dvh' adicionados no container principal */
-    <div style={{height: '100%', minHeight: '100dvh', display:'flex', flexDirection:'column', overflow:'hidden', background:'var(--bg)'}}>
+    <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',overflow:'hidden',background:'var(--bg)'}}>
 
       {/* ── HEADER ── */}
       <div style={{padding:'12px 20px',flexShrink:0,borderBottom:'1px solid var(--sep)',
@@ -521,6 +557,7 @@ export default function PageDisparos({api: apiProp}) {
           </div>
         </div>
         <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+          {/* Auto-refresh */}
           <button onClick={()=>setAutoRef(v=>!v)} style={{
             display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:8,fontSize:11,
             border:`1px solid ${autoRef?'rgba(34,197,94,.35)':'var(--sep)'}`,
@@ -529,6 +566,7 @@ export default function PageDisparos({api: apiProp}) {
             {autoRef?<ToggleRight size={13}/>:<ToggleLeft size={13}/>}
             Live {autoRef&&<span style={{width:6,height:6,borderRadius:'50%',background:'#22c55e',animation:'pulse 1.5s ease infinite'}}/>}
           </button>
+          {/* Período */}
           <div style={{display:'flex',gap:2,padding:'3px',borderRadius:10,background:'var(--fill)',border:'1px solid var(--sep)'}}>
             {PERIODOS.map(p=>(
               <button key={p.id} onClick={()=>setPeriodo(p.id)} style={{
@@ -559,7 +597,7 @@ export default function PageDisparos({api: apiProp}) {
         {/* ── KPIs ── */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:10}}>
           <KCard icon={Send}      label="Total disparos"     value={total}     cor="#7c6af7" sub={`últimos ${stats?.dias||7} dias`}/>
-          <KCard icon={CheckCircle}label="Enviados"          value={enviados}  cor="#22c55e" sub={taxa===null?'sem envios ainda':`taxa ${taxa}%`} trend={taxa===null?undefined:taxa>=90?5:taxa>=70?0:-5}/>
+          <KCard icon={CheckCircle}label="Enviados"           value={enviados}  cor="#22c55e" sub={taxa===null?'sem envios ainda':`taxa ${taxa}%`} trend={taxa===null?undefined:taxa>=90?5:taxa>=70?0:-5}/>
           <KCard icon={XCircle}   label="Erros"              value={erros}     cor="#ef4444" trend={erros>0?-1:0}/>
           <KCard icon={Users}     label="Clientes alcançados" value={parseInt(t.clientes_unicos)||0} cor="#4a9fff"/>
           <KCard icon={Activity}  label="Últimas 24h"        value={parseInt(t.ultimas_24h)||0} cor="#a78bfa"/>
@@ -849,8 +887,8 @@ export default function PageDisparos({api: apiProp}) {
             ))}
           </div>
 
-          {/* Linhas */}
-          <div style={{minHeight:120}}>
+          {/* Linhas — scroll próprio garantido */}
+          <div style={{minHeight:120,maxHeight:'calc(100vh - 420px)',overflowY:'auto',overflowX:'hidden'}}>
           {log.length===0&&!loadLog
             ? <div style={{padding:48,textAlign:'center',color:'var(--label-4)'}}>
                 <Zap size={32} style={{opacity:.15,marginBottom:12}}/><br/>
@@ -888,7 +926,7 @@ export default function PageDisparos({api: apiProp}) {
           )}
         </div>
 
-        {/* respiro final */}
+        {/* respiro final — garante que o log seja totalmente visível ao rolar */}
         <div style={{height:24,flexShrink:0}}/>
 
       </div>
