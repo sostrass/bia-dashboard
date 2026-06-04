@@ -94,10 +94,11 @@ function KCard({icon:Ic, label, value, sub, cor='#7c6af7', trend, spark}) {
 }
 
 // ─── DRAWER LATERAL: detalhe do disparo OU perfil do cliente ──────────────────
-function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilho }) {
+function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilho, onReenviar }) {
   // tipo: 'disparo' (1 disparo) ou 'cliente' (timeline completa)
   const [cli, setCli]       = useState(null)
   const [loadCli, setLoad]  = useState(false)
+  const [reenviados, setReenviados] = useState([])  // ids já reenviados nesta sessão
 
   useEffect(() => {
     if (tipo==='cliente' && dados?.telefone) {
@@ -229,15 +230,22 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                   <div>
                     <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',
                       color:'var(--label-4)',marginBottom:10}}>Linha do tempo</div>
-                    <div style={{position:'relative',paddingLeft:20}}>
-                      <div style={{position:'absolute',left:5,top:4,bottom:4,width:2,background:'var(--sep)'}}/>
+                    <div style={{position:'relative',paddingLeft:30}}>
+                      <div style={{position:'absolute',left:10,top:4,bottom:4,width:2,background:'var(--sep)'}}/>
                       {(cli.disparos||[]).map((d,i)=>{
-                        const m=GATILHO_META[d.gatilho]||{label:d.gatilho,cor:'#6b7280'}
+                        const m=GATILHO_META[d.gatilho]||{label:d.gatilho,cor:'#6b7280',icon:Zap}
                         const s=STATUS_META[d.status]||STATUS_META.ignorado
+                        const DIc=m.icon||Zap
+                        const falhou = d.status==='erro'||d.status==='ignorado'
+                        const jaReenv = reenviados.includes(d.id)
                         return (
-                          <div key={d.id||i} style={{position:'relative',marginBottom:14}}>
-                            <div style={{position:'absolute',left:-18,top:3,width:10,height:10,borderRadius:'50%',
-                              background:m.cor,border:'2px solid var(--bg-2)'}}/>
+                          <div key={d.id||i} style={{position:'relative',marginBottom:16}}>
+                            {/* ícone da etapa no lugar do ponto */}
+                            <div style={{position:'absolute',left:-24,top:0,width:22,height:22,borderRadius:'50%',
+                              background:`${m.cor}22`,border:'2px solid var(--bg-2)',display:'flex',
+                              alignItems:'center',justifyContent:'center'}}>
+                              <DIc size={11} style={{color:m.cor}}/>
+                            </div>
                             <div style={{display:'flex',justifyContent:'space-between',gap:8,alignItems:'baseline'}}>
                               <span style={{fontSize:12.5,fontWeight:600,color:'var(--label)'}}>{m.label}</span>
                               <span style={{fontSize:10,color:'var(--label-4)',flexShrink:0}}>{fmtDH(d.criado_em)}</span>
@@ -246,10 +254,23 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                               {d.template_nome||d.gatilho}
                               {d.numero_pedido&&<span style={{marginLeft:6,color:'var(--label-3)'}}>· #{d.numero_pedido}</span>}
                             </div>
-                            <span style={{display:'inline-flex',alignItems:'center',gap:3,padding:'1px 6px',
-                              borderRadius:99,background:s.bg,marginTop:4}}>
-                              <span style={{fontSize:9,fontWeight:600,color:s.cor}}>{s.label}</span>
-                            </span>
+                            <div style={{display:'flex',alignItems:'center',gap:6,marginTop:5}}>
+                              <span style={{display:'inline-flex',alignItems:'center',gap:3,padding:'1px 6px',
+                                borderRadius:99,background:s.bg}}>
+                                <span style={{fontSize:9,fontWeight:600,color:s.cor}}>{s.label}</span>
+                              </span>
+                              {falhou && (
+                                <button disabled={jaReenv} onClick={async()=>{
+                                  try { await onReenviar?.(d.id); setReenviados(r=>[...r,d.id]) } catch {}
+                                }} style={{
+                                  display:'inline-flex',alignItems:'center',gap:3,padding:'2px 8px',borderRadius:6,
+                                  border:`1px solid ${jaReenv?'rgba(34,197,94,.4)':'rgba(167,139,250,.4)'}`,
+                                  background:'transparent',color:jaReenv?'#22c55e':'#a78bfa',
+                                  cursor:jaReenv?'default':'pointer',fontSize:10,fontWeight:600}}>
+                                  {jaReenv?<><CheckCircle size={10}/>Reenviado</>:<><RotateCcw size={10}/>Reenviar</>}
+                                </button>
+                              )}
+                            </div>
                           </div>
                         )
                       })}
@@ -360,6 +381,8 @@ export default function PageDisparos({api: apiProp}) {
 
   // Drawer lateral (detalhe do disparo OU perfil do cliente)
   const [drawer, setDrawer] = useState(null)  // {tipo:'disparo'|'cliente', dados}
+  // Insights dispensados (marcados como "entendi") — por texto
+  const [insDispensados, setInsDispensados] = useState([])
 
   // Log paginado
   const [log,       setLog]      = useState([])
@@ -485,6 +508,20 @@ export default function PageDisparos({api: apiProp}) {
     if (queda>0) insights.push({ tipo:'info', txt:`${queda}% dos pedidos ainda não chegaram à entrega (acompanhe o trânsito).` })
   }
   if ((parseInt(t.ultimas_24h)||0)===0 && total>0) insights.push({ tipo:'info', txt:'Nenhum disparo nas últimas 24h.' })
+  // Mais insights: gatilho campeão, ignorados altos, melhor horário, volume do dia
+  const _ord = [...(stats?.porGatilho||[])].sort((a,b)=>(parseInt(b.total)||0)-(parseInt(a.total)||0))
+  if (_ord[0] && (parseInt(_ord[0].total)||0)>=10) {
+    insights.push({ tipo:'info', txt:`Gatilho mais ativo: "${GATILHO_META[_ord[0].gatilho]?.label||_ord[0].gatilho}" (${_ord[0].total} disparos).` })
+  }
+  const ign = parseInt(t.ignorados)||0
+  if (total>0 && ign/total>0.3) {
+    insights.push({ tipo:'alerta', txt:`${Math.round(ign/total*100)}% dos disparos foram ignorados — veja se há gatilhos desativados ou sem telefone.` })
+  }
+  if (stats?.picoHora!=null) {
+    insights.push({ tipo:'info', txt:`Horário de pico: a maioria dos disparos sai por volta das ${stats.picoHora}h.` })
+  }
+  const aguard = parseInt(t.aguardando)||0
+  if (aguard>5) insights.push({ tipo:'alerta', txt:`${aguard} disparos aguardando há mais tempo que o esperado — verifique a fila.` })
   const INS_META = {
     alerta:{ cor:'#f59e0b', bg:'rgba(245,158,11,.1)', icon:AlertTriangle },
     bom:   { cor:'#22c55e', bg:'rgba(34,197,94,.1)',  icon:CheckCircle },
@@ -601,18 +638,33 @@ export default function PageDisparos({api: apiProp}) {
             </div>
             {funil.length===0
               ? <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:20,margin:0}}>Sem dados de jornada no período</p>
-              : <div style={{display:'flex',flexDirection:'column',gap:9}}>
+              : <div style={{display:'flex',flexDirection:'column',gap:0}}>
                   {funil.map((e,i)=>{
                     const pct = funilTopo>0?Math.round(e.total/funilTopo*100):0
+                    const EIc = GATILHO_META[e.gat]?.icon || Zap
                     return (
                       <div key={e.gat} onClick={()=>{ setFiltroGat(e.gat); setLogPg(1) }}
-                        title="Filtrar log por esta etapa" style={{cursor:'pointer'}}>
-                        <div style={{display:'flex',justifyContent:'space-between',fontSize:11.5,marginBottom:3}}>
-                          <span style={{color:'var(--label-3)'}}>{e.label}</span>
-                          <span style={{color:'var(--label-4)'}}>{e.total}{i>0&&` · ${pct}%`}</span>
+                        title="Filtrar log por esta etapa" style={{display:'flex',alignItems:'center',gap:8,
+                        padding:'6px 4px',borderRadius:7,cursor:'pointer',
+                        borderBottom:i<funil.length-1?'1px solid var(--sep)':'none'}}
+                        onMouseEnter={ev=>ev.currentTarget.style.background='var(--fill)'}
+                        onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}>
+                        <div style={{width:20,height:20,borderRadius:5,background:`${e.cor}18`,
+                          display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                          <EIc size={10} style={{color:e.cor}}/>
                         </div>
-                        <div style={{height:18,borderRadius:6,background:'var(--fill)',overflow:'hidden'}}>
-                          <div style={{height:'100%',borderRadius:6,width:`${pct}%`,background:e.cor,transition:'width .7s'}}/>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                            <span style={{fontSize:11,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>{e.label}</span>
+                            <div style={{display:'flex',gap:6,flexShrink:0,alignItems:'center'}}>
+                              <span style={{fontSize:11,fontWeight:700,color:'var(--label)'}}>{e.total}</span>
+                              {i>0&&<span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
+                                color:'var(--label-4)',background:'var(--fill)'}}>{pct}%</span>}
+                            </div>
+                          </div>
+                          <div style={{height:4,borderRadius:99,background:'var(--fill)',overflow:'hidden'}}>
+                            <div style={{height:'100%',borderRadius:99,background:e.cor,width:`${pct}%`,transition:'width .7s'}}/>
+                          </div>
                         </div>
                       </div>
                     )
@@ -625,21 +677,58 @@ export default function PageDisparos({api: apiProp}) {
             <div style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7,marginBottom:12}}>
               <Zap size={14} style={{color:'#f59e0b'}}/>Insights
             </div>
-            {insights.length===0
-              ? <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:20,margin:0}}>Tudo tranquilo por aqui.</p>
+            {(() => {
+              const visiveis = insights.filter(ins => !insDispensados.includes(ins.txt))
+              return visiveis.length===0
+              ? <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:20,margin:0}}>
+                  {insights.length>0?'Todos os alertas foram revisados ✓':'Tudo tranquilo por aqui.'}
+                </p>
               : <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                  {insights.slice(0,5).map((ins,i)=>{
+                  {visiveis.slice(0,5).map((ins,i)=>{
                     const m=INS_META[ins.tipo]||INS_META.info, MI=m.icon
                     return (
                       <div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',padding:'8px 10px',
                         borderRadius:9,background:m.bg}}>
-                        <MI size={13} style={{color:m.cor,flexShrink:0,marginTop:1}}/>
-                        <span style={{fontSize:11.5,color:'var(--label-3)',lineHeight:1.45}}>{ins.txt}</span>
+                        <MI size={13} style={{color:m.cor,flexShrink:0,marginTop:2}}/>
+                        <span style={{flex:1,fontSize:11.5,color:'var(--label-3)',lineHeight:1.45}}>{ins.txt}</span>
+                        <button onClick={()=>setInsDispensados(d=>[...d,ins.txt])}
+                          title="Marcar como revisado" style={{
+                          flexShrink:0,display:'flex',alignItems:'center',gap:3,padding:'2px 7px',borderRadius:6,
+                          border:`1px solid ${m.cor}40`,background:'transparent',color:m.cor,cursor:'pointer',
+                          fontSize:10,fontWeight:600}}>
+                          <CheckCircle size={10}/>Entendi
+                        </button>
                       </div>
                     )
                   })}
                 </div>
-            }
+            })()}
+          </div>
+        </div>
+
+        {/* ── Horários de pico ── */}
+        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px'}}>
+          <div style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7,marginBottom:4}}>
+            <Clock size={14} style={{color:'#06b6d4'}}/>Horários de pico
+            {stats?.picoHora!=null&&<span style={{fontSize:10,color:'var(--label-4)',fontWeight:400,marginLeft:'auto'}}>
+              pico às {stats.picoHora}h
+            </span>}
+          </div>
+          <div style={{height:120,marginTop:8}}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats?.porHora||[]} margin={{top:4,right:4,left:-28,bottom:0}}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--sep)" vertical={false}/>
+                <XAxis dataKey="hora" tick={{fontSize:9,fill:'var(--label-4)'}} interval={2}
+                  tickFormatter={h=>`${h}h`} axisLine={false} tickLine={false}/>
+                <YAxis tick={{fontSize:9,fill:'var(--label-4)'}} axisLine={false} tickLine={false} allowDecimals={false}/>
+                <Tooltip {...TT} labelFormatter={h=>`${h}:00 - ${h}:59`} formatter={v=>[v,'disparos']}/>
+                <Bar dataKey="total" radius={[3,3,0,0]}>
+                  {(stats?.porHora||[]).map((h,i)=>(
+                    <Cell key={i} fill={h.hora===stats?.picoHora?'#06b6d4':'#06b6d455'}/>
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
@@ -782,8 +871,8 @@ export default function PageDisparos({api: apiProp}) {
             ))}
           </div>
 
-          {/* Linhas — área com scroll próprio */}
-          <div style={{maxHeight:'calc(100vh - 380px)',minHeight:200,overflowY:'auto'}}>
+          {/* Linhas */}
+          <div>
           {log.length===0&&!loadLog
             ? <div style={{padding:48,textAlign:'center',color:'var(--label-4)'}}>
                 <Zap size={32} style={{opacity:.15,marginBottom:12}}/><br/>
@@ -831,6 +920,7 @@ export default function PageDisparos({api: apiProp}) {
           api={api}
           onClose={()=>setDrawer(null)}
           onVerPedido={num=>{ window.open(`https://rastreio.sostrass.com.br/pedido/${num}`,'_blank') }}
+          onReenviar={reenviar}
           onFiltrarGatilho={(g,tel)=>{
             if (g==='__cliente__') { setDrawer({tipo:'cliente',dados:{telefone:tel}}) }
           }}
