@@ -240,7 +240,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
       <div style={{position:'fixed',top:0,right:0,bottom:0,width:'min(480px,94vw)',zIndex:61,
         display:'flex',flexDirection:'column',animation:'slideIn .3s cubic-bezier(.2,.8,.2,1)',
         background:'var(--bg-2)',borderLeft:'0.5px solid var(--sep)',
-        boxShadow:'-12px 0 48px rgba(0,0,0,.4)'}}>
+        boxShadow:'-4px 0 60px rgba(0,0,0,.6), -24px 0 80px rgba(0,0,0,.4)'}}>
 
         {/* ── HEADER COM GRADIENTE ── */}
         <div style={{flexShrink:0,padding:'18px 20px 16px',
@@ -531,17 +531,14 @@ function LinhaLog({row, onVerDisparo, onVerCliente}) {
   const SIc   = smeta.icon
 
   return (
-    <div style={{
+    <div className="log-row" style={{
       display:'grid',
       gridTemplateColumns:'32px 1fr 110px 100px 90px 80px 44px',
       gap:0,padding:'9px 12px',alignItems:'center',
       borderBottom:'1px solid var(--sep)',
       background:row.status==='erro'?'rgba(239,68,68,.03)':'transparent',
-      transition:'background .1s',
-    }}
-      onMouseEnter={e=>e.currentTarget.style.background='var(--bg-3)'}
-      onMouseLeave={e=>e.currentTarget.style.background=row.status==='erro'?'rgba(239,68,68,.03)':'transparent'}
-    >
+      transition:'background .12s',
+    }}>
       {/* Ícone gatilho */}
       <div style={{width:24,height:24,borderRadius:7,background:`${meta.cor}18`,
         display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
@@ -770,7 +767,7 @@ export default function PageDisparos({api: apiProp}) {
   }
 
   return (
-    <div style={{position:'absolute',inset:0,overflowY:'auto',overflowX:'hidden',background:'var(--bg)'}}>
+    <div style={{position:'absolute',inset:0,overflowY:'auto',overflowX:'hidden',background:'var(--bg)',fontFamily:'"DM Sans", system-ui, sans-serif'}}>
 
       {/* ── HEADER ── */}
       <div style={{padding:'12px 20px',position:'sticky',top:0,zIndex:10,borderBottom:'1px solid var(--sep)',
@@ -782,7 +779,7 @@ export default function PageDisparos({api: apiProp}) {
               <Zap size={17} style={{color:'#7c6af7'}}/>
             </div>
             <div>
-              <h2 style={{fontSize:18,fontWeight:700,color:'var(--label)',margin:0}}>Monitor de Disparos</h2>
+              <h2 style={{fontSize:18,fontWeight:700,color:'var(--label)',margin:0,letterSpacing:'-.02em'}}>Monitor de Disparos</h2>
               <p style={{fontSize:11,color:'var(--label-4)',margin:0}}>
                 Gatilhos automáticos WhatsApp
                 {lastUpd&&<span style={{marginLeft:8}}>· atualizado {lastUpd.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>}
@@ -839,7 +836,7 @@ export default function PageDisparos({api: apiProp}) {
         </div>
 
         {/* ── Taxa global ── */}
-        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px'}}>
+        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px',boxShadow:'0 2px 16px rgba(0,0,0,.18),0 1px 0 rgba(255,255,255,.04) inset',animation:'chartIn .4s ease'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
             <span style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7}}>
               <ShieldCheck size={14} style={{color:'#22c55e'}}/>Taxa de entrega
@@ -878,7 +875,7 @@ export default function PageDisparos({api: apiProp}) {
         {/* ── Funil da jornada + Insights ── */}
         <div style={{display:'grid',gridTemplateColumns:'1.4fr 1fr',gap:14}}>
           {/* Funil */}
-          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px'}}>
+          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px',boxShadow:'0 2px 16px rgba(0,0,0,.18),0 1px 0 rgba(255,255,255,.04) inset',animation:'chartIn .4s ease'}}>
             <div style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7,marginBottom:14}}>
               <Filter size={14} style={{color:'#7c6af7'}}/>Funil da jornada
               <span style={{fontSize:10,color:'var(--label-4)',fontWeight:400,marginLeft:'auto'}}>onde estão seus clientes</span>
@@ -918,7 +915,7 @@ export default function PageDisparos({api: apiProp}) {
             }
           </div>
           {/* Insights */}
-          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px'}}>
+          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px',boxShadow:'0 2px 16px rgba(0,0,0,.18),0 1px 0 rgba(255,255,255,.04) inset',animation:'chartIn .4s ease'}}>
             <div style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7,marginBottom:12}}>
               <Zap size={14} style={{color:'#f59e0b'}}/>Insights
             </div>
@@ -952,7 +949,7 @@ export default function PageDisparos({api: apiProp}) {
         </div>
 
         {/* ── Horários de pico ── */}
-        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px'}}>
+        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px',boxShadow:'0 2px 16px rgba(0,0,0,.18),0 1px 0 rgba(255,255,255,.04) inset',animation:'chartIn .4s ease'}}>
           <div style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7,marginBottom:4}}>
             <Clock size={14} style={{color:'#06b6d4'}}/>Horários de pico
             {stats?.picoHora!=null&&<span style={{fontSize:10,color:'var(--label-4)',fontWeight:400,marginLeft:'auto'}}>
@@ -981,7 +978,7 @@ export default function PageDisparos({api: apiProp}) {
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
 
           {/* Evolução diária */}
-          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px'}}>
+          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px',boxShadow:'0 2px 16px rgba(0,0,0,.18),0 1px 0 rgba(255,255,255,.04) inset',animation:'chartIn .4s ease'}}>
             <div style={{fontSize:13,fontWeight:600,color:'var(--label)',marginBottom:14,
               display:'flex',alignItems:'center',gap:7}}>
               <BarChart3 size={13} style={{color:'#7c6af7'}}/>Evolução diária
@@ -1002,7 +999,7 @@ export default function PageDisparos({api: apiProp}) {
           </div>
 
           {/* Por gatilho */}
-          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px'}}>
+          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px',boxShadow:'0 2px 16px rgba(0,0,0,.18),0 1px 0 rgba(255,255,255,.04) inset',animation:'chartIn .4s ease'}}>
             <div style={{fontSize:13,fontWeight:600,color:'var(--label)',marginBottom:10,
               display:'flex',alignItems:'center',gap:7}}>
               <Zap size={13} style={{color:'#f59e0b'}}/>Por gatilho
@@ -1059,7 +1056,7 @@ export default function PageDisparos({api: apiProp}) {
         </div>
 
         {/* ── Log de disparos ── */}
-        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,overflow:'hidden'}}>
+        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,overflow:'hidden',boxShadow:'0 2px 16px rgba(0,0,0,.18)'}}>
 
           {/* Header do log */}
           <div style={{padding:'12px 14px',borderBottom:'1px solid var(--sep)',
@@ -1181,10 +1178,16 @@ export default function PageDisparos({api: apiProp}) {
       )}
 
       <style>{`
-        @keyframes spin  { to { transform: rotate(360deg) } }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-        @keyframes slideIn { from{transform:translateX(100%)} to{transform:translateX(0)} }
-        @keyframes fadeIn  { from{opacity:0} to{opacity:1} }
+        @keyframes spin     { to { transform: rotate(360deg) } }
+        @keyframes pulse    { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes slideIn  { from{transform:translateX(100%)} to{transform:translateX(0)} }
+        @keyframes fadeIn   { from{opacity:0} to{opacity:1} }
+        @keyframes chartIn  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        ::-webkit-scrollbar       { width:4px; height:4px }
+        ::-webkit-scrollbar-track { background:transparent }
+        ::-webkit-scrollbar-thumb { background:rgba(255,255,255,.1); border-radius:99px }
+        .log-row:hover { background:rgba(255,255,255,.025) !important }
+        .gat-bar:hover { background:var(--fill) !important; border-radius:7px }
       `}</style>
     </div>
   )
