@@ -246,7 +246,7 @@ export default function Shell() {
         </aside>
 
         {/* Main */}
-        <main style={{ flex:1, overflow:'hidden', background:'var(--bg)' }}>
+        <main style={{ flex:1, minHeight:0, overflow:'hidden', background:'var(--bg)' }}>
           {conteudo()}
         </main>
 
