@@ -201,6 +201,9 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
   const [cli, setCli]             = useState(null)
   const [loadCli, setLoad]        = useState(false)
   const [reenviados, setReenviados] = useState([])
+  // Estados do detalhe do disparo (precisam estar no topo, fora de qualquer IIFE)
+  const [jaReenv,    setJaR]      = useState(false)
+  const [enviandoR,  setEnvR]     = useState(false)
   // Envio manual
   const [gatManual, setGatManual] = useState('')
   const [pedManual, setPedManual] = useState(dados?.numero_pedido||'')
@@ -286,12 +289,11 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
         <div style={{flex:1,minHeight:0,overflowY:'auto',padding:'16px 20px'}}>
 
           {/* ── DETALHE DO DISPARO ── */}
-          {tipo==='disparo' && dados && (() => {
+          {tipo==='disparo' && dados && (()=>{
+            // Não usar hooks aqui — jaReenv/enviandoR estão no topo do componente
             const Ic=meta.icon||Zap, SIc=smeta.icon
-            const falhou = dados.status==='erro'
-            const ignorado = dados.status==='ignorado'
-            const [jaReenv, setJaR] = useState(false)
-            const [enviandoR, setEnvR] = useState(false)
+            const falhou  = dados.status==='erro'
+            const ignorado= dados.status==='ignorado'
             const doR = async() => { setEnvR(true); try{ await onReenviar?.(dados.id); setJaR(true) }catch{}; setEnvR(false) }
             return (
               <div style={{display:'flex',flexDirection:'column',gap:14}}>
