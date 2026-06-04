@@ -464,7 +464,12 @@ export default function PageDisparos({api: apiProp}) {
   const total      = parseInt(t.total)||0
   const enviados   = parseInt(t.enviados)||0
   const erros      = parseInt(t.erros)||0
-  const taxa       = total>0 ? Math.round(enviados/total*100) : 0
+  const ignorados  = parseInt(t.ignorados)||0
+  const aguardando = parseInt(t.aguardando)||0
+  // TAXA DE SUCESSO: dos que o sistema TENTOU enviar (enviados+erros), quantos
+  // deram certo. "Ignorado" (template off / sem telefone) é NEUTRO, não entra.
+  const tentados   = enviados + erros
+  const taxa       = tentados>0 ? Math.round(enviados/tentados*100) : null  // null = nada tentado ainda
   const porDiaChart= (stats?.porDia||[]).map(d=>({
     d: fmtD(d.dia),
     enviados: parseInt(d.enviados)||0,
@@ -475,6 +480,7 @@ export default function PageDisparos({api: apiProp}) {
     name:  GATILHO_META[g.gatilho]?.label||g.gatilho,
     total: parseInt(g.total)||0,
     enviados: parseInt(g.enviados)||0,
+    erros: parseInt(g.erros)||0,
     cor:   GATILHO_META[g.gatilho]?.cor||'#6b7280',
   }))
   const gatilhosUsados = [...new Set((stats?.porGatilho||[]).map(g=>g.gatilho))]
@@ -495,35 +501,34 @@ export default function PageDisparos({api: apiProp}) {
   const funilMax = Math.max(...funil.map(e=>e.total), 1)
 
   // INSIGHTS automáticos — lê os dados e gera avisos úteis.
+  // IMPORTANTE: "ignorado" NÃO é falha (é template off / sem telefone).
+  // Só conta como falha o status "erro".
   const insights = []
   ;(stats?.porGatilho||[]).forEach(g=>{
-    const tot=parseInt(g.total)||0, env=parseInt(g.enviados)||0
-    if (tot>=5) {
-      const tx = Math.round(env/tot*100)
-      if (tx < 70) insights.push({ tipo:'alerta', txt:`"${GATILHO_META[g.gatilho]?.label||g.gatilho}" com ${100-tx}% de falha (${tot-env} de ${tot}).` })
+    const env=parseInt(g.enviados)||0, err=parseInt(g.erros)||0
+    const tent = env+err
+    if (tent>=5) {
+      const txErr = Math.round(err/tent*100)
+      if (txErr >= 30) insights.push({ tipo:'alerta', txt:`"${GATILHO_META[g.gatilho]?.label||g.gatilho}" com ${txErr}% de erro real (${err} de ${tent} enviados).` })
     }
   })
-  if (taxa>=90) insights.push({ tipo:'bom', txt:`Taxa de entrega de ${taxa}% — comunicação saudável.` })
-  else if (taxa>0 && taxa<70) insights.push({ tipo:'alerta', txt:`Taxa global de ${taxa}% está baixa — verifique os erros.` })
-  if (funil.length>=2) {
-    const queda = funilMax>0 ? Math.round((1-(funil[funil.length-1].total/funilMax))*100) : 0
-    if (queda>0) insights.push({ tipo:'info', txt:`${queda}% dos pedidos ainda não chegaram à entrega (acompanhe o trânsito).` })
+  // Aviso sobre ignorados (a maioria, no seu caso): gatilhos desativados
+  if (ignorados>0 && total>0) {
+    const pctIgn = Math.round(ignorados/total*100)
+    if (pctIgn >= 50) insights.push({ tipo:'info', txt:`${pctIgn}% dos disparos foram só registrados (não enviados) — são gatilhos desativados aguardando ativação. Normal enquanto você orquestra o fluxo.` })
   }
+  if (taxa!==null && taxa>=90 && tentados>=3) insights.push({ tipo:'bom', txt:`Taxa de entrega de ${taxa}% nos ${tentados} disparos efetivos — saudável.` })
+  else if (taxa!==null && taxa<70 && tentados>=3) insights.push({ tipo:'alerta', txt:`Taxa de entrega de ${taxa}% — verifique os erros.` })
   if ((parseInt(t.ultimas_24h)||0)===0 && total>0) insights.push({ tipo:'info', txt:'Nenhum disparo nas últimas 24h.' })
-  // Mais insights: gatilho campeão, ignorados altos, melhor horário, volume do dia
+  // Gatilho mais ativo
   const _ord = [...(stats?.porGatilho||[])].sort((a,b)=>(parseInt(b.total)||0)-(parseInt(a.total)||0))
   if (_ord[0] && (parseInt(_ord[0].total)||0)>=10) {
-    insights.push({ tipo:'info', txt:`Gatilho mais ativo: "${GATILHO_META[_ord[0].gatilho]?.label||_ord[0].gatilho}" (${_ord[0].total} disparos).` })
-  }
-  const ign = parseInt(t.ignorados)||0
-  if (total>0 && ign/total>0.3) {
-    insights.push({ tipo:'alerta', txt:`${Math.round(ign/total*100)}% dos disparos foram ignorados — veja se há gatilhos desativados ou sem telefone.` })
+    insights.push({ tipo:'info', txt:`Gatilho mais ativo: "${GATILHO_META[_ord[0].gatilho]?.label||_ord[0].gatilho}" (${_ord[0].total} registros).` })
   }
   if (stats?.picoHora!=null) {
     insights.push({ tipo:'info', txt:`Horário de pico: a maioria dos disparos sai por volta das ${stats.picoHora}h.` })
   }
-  const aguard = parseInt(t.aguardando)||0
-  if (aguard>5) insights.push({ tipo:'alerta', txt:`${aguard} disparos aguardando há mais tempo que o esperado — verifique a fila.` })
+  if (aguardando>5) insights.push({ tipo:'alerta', txt:`${aguardando} disparos aguardando na fila — verifique se estão saindo.` })
   const INS_META = {
     alerta:{ cor:'#f59e0b', bg:'rgba(245,158,11,.1)', icon:AlertTriangle },
     bom:   { cor:'#22c55e', bg:'rgba(34,197,94,.1)',  icon:CheckCircle },
@@ -531,7 +536,7 @@ export default function PageDisparos({api: apiProp}) {
   }
 
   return (
-    <div style={{height:'100dvh',display:'flex',flexDirection:'column',overflow:'hidden',background:'var(--bg)'}}>
+    <div style={{height:'100vh',maxHeight:'100vh',display:'flex',flexDirection:'column',overflow:'hidden',background:'var(--bg)'}}>
 
       {/* ── HEADER ── */}
       <div style={{padding:'12px 20px',flexShrink:0,borderBottom:'1px solid var(--sep)',
@@ -592,38 +597,44 @@ export default function PageDisparos({api: apiProp}) {
         {/* ── KPIs ── */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:10}}>
           <KCard icon={Send}      label="Total disparos"     value={total}     cor="#7c6af7" sub={`últimos ${stats?.dias||7} dias`}/>
-          <KCard icon={CheckCircle}label="Enviados"           value={enviados}  cor="#22c55e" sub={`taxa ${taxa}%`} trend={taxa>=90?5:taxa>=70?0:-5}/>
+          <KCard icon={CheckCircle}label="Enviados"           value={enviados}  cor="#22c55e" sub={taxa===null?'sem envios ainda':`taxa ${taxa}%`} trend={taxa===null?undefined:taxa>=90?5:taxa>=70?0:-5}/>
           <KCard icon={XCircle}   label="Erros"              value={erros}     cor="#ef4444" trend={erros>0?-1:0}/>
           <KCard icon={Users}     label="Clientes alcançados" value={parseInt(t.clientes_unicos)||0} cor="#4a9fff"/>
           <KCard icon={Activity}  label="Últimas 24h"        value={parseInt(t.ultimas_24h)||0} cor="#a78bfa"/>
-          <KCard icon={Clock}     label="Aguardando"          value={parseInt(t.aguardando)||0} cor="#f59e0b"/>
+          <KCard icon={Clock}     label="Aguardando"          value={aguardando} cor="#f59e0b"/>
         </div>
 
         {/* ── Taxa global ── */}
         <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
             <span style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7}}>
-              <ShieldCheck size={14} style={{color:'#22c55e'}}/>Taxa de sucesso global
+              <ShieldCheck size={14} style={{color:'#22c55e'}}/>Taxa de entrega
+              <span style={{fontSize:10,color:'var(--label-4)',fontWeight:400}}>(dos que foram enviados)</span>
             </span>
-            <span style={{fontSize:24,fontWeight:800,color:taxa>=90?'#22c55e':taxa>=70?'#f59e0b':'#ef4444'}}>
-              {taxa}%
+            <span style={{fontSize:24,fontWeight:800,color:taxa===null?'var(--label-4)':taxa>=90?'#22c55e':taxa>=70?'#f59e0b':'#ef4444'}}>
+              {taxa===null?'—':`${taxa}%`}
             </span>
           </div>
           <div style={{height:10,borderRadius:99,overflow:'hidden',background:'var(--fill)',marginBottom:10}}>
             <div style={{height:'100%',borderRadius:99,transition:'width 1s',
-              width:`${taxa}%`,background:taxa>=90?'#22c55e':taxa>=70?'#f59e0b':'#ef4444'}}/>
+              width:`${taxa===null?0:taxa}%`,background:taxa>=90?'#22c55e':taxa>=70?'#f59e0b':'#ef4444'}}/>
           </div>
+          {taxa===null && (
+            <div style={{fontSize:11,color:'var(--label-4)',marginBottom:10,display:'flex',alignItems:'center',gap:6}}>
+              <Info size={12}/>Ainda não há envios efetivos — a maioria está como "ignorado" (gatilhos desativados). Quando ativar os templates, a taxa passa a contar.
+            </div>
+          )}
           <div style={{display:'flex',gap:20,flexWrap:'wrap'}}>
             {[
-              {l:'Enviados',  v:t.enviados,  c:'#22c55e'},
-              {l:'Erros',     v:t.erros,     c:'#ef4444'},
-              {l:'Ignorados', v:t.ignorados, c:'#6b7280'},
-              {l:'Aguardando',v:t.aguardando,c:'#f59e0b'},
+              {l:'Enviados',  v:enviados,  c:'#22c55e'},
+              {l:'Erros',     v:erros,     c:'#ef4444'},
+              {l:'Ignorados', v:ignorados, c:'#6b7280'},
+              {l:'Aguardando',v:aguardando,c:'#f59e0b'},
             ].map(s=>(
               <div key={s.l} style={{display:'flex',alignItems:'center',gap:6}}>
                 <div style={{width:8,height:8,borderRadius:'50%',background:s.c}}/>
                 <span style={{fontSize:11,color:'var(--label-3)'}}>
-                  {s.l}: <strong style={{color:'var(--label)'}}>{parseInt(s.v)||0}</strong>
+                  {s.l}: <strong style={{color:'var(--label)'}}>{s.v}</strong>
                 </span>
               </div>
             ))}
@@ -687,15 +698,15 @@ export default function PageDisparos({api: apiProp}) {
                   {visiveis.slice(0,5).map((ins,i)=>{
                     const m=INS_META[ins.tipo]||INS_META.info, MI=m.icon
                     return (
-                      <div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',padding:'8px 10px',
-                        borderRadius:9,background:m.bg}}>
+                      <div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',padding:'9px 11px',
+                        borderRadius:9,background:m.bg,border:`1px solid ${m.cor}25`}}>
                         <MI size={13} style={{color:m.cor,flexShrink:0,marginTop:2}}/>
-                        <span style={{flex:1,fontSize:11.5,color:'var(--label-3)',lineHeight:1.45}}>{ins.txt}</span>
+                        <span style={{flex:1,minWidth:0,fontSize:11.5,color:'var(--label)',lineHeight:1.5}}>{ins.txt}</span>
                         <button onClick={()=>setInsDispensados(d=>[...d,ins.txt])}
                           title="Marcar como revisado" style={{
-                          flexShrink:0,display:'flex',alignItems:'center',gap:3,padding:'2px 7px',borderRadius:6,
-                          border:`1px solid ${m.cor}40`,background:'transparent',color:m.cor,cursor:'pointer',
-                          fontSize:10,fontWeight:600}}>
+                          flexShrink:0,display:'flex',alignItems:'center',gap:3,padding:'3px 8px',borderRadius:6,
+                          border:`1px solid ${m.cor}50`,background:`${m.cor}15`,color:m.cor,cursor:'pointer',
+                          fontSize:10,fontWeight:600,whiteSpace:'nowrap',alignSelf:'flex-start'}}>
                           <CheckCircle size={10}/>Entendi
                         </button>
                       </div>
@@ -768,7 +779,8 @@ export default function PageDisparos({api: apiProp}) {
                   {porGatChart.slice(0,8).map((g,i)=>{
                     const maxG = Math.max(...porGatChart.map(x=>x.total),1)
                     const pct  = Math.round(g.total/maxG*100)
-                    const taxa = g.total>0?Math.round(g.enviados/g.total*100):0
+                    const tentadosG = g.enviados + g.erros
+                    const taxaG = tentadosG>0 ? Math.round(g.enviados/tentadosG*100) : null
                     const gatKey = Object.keys(GATILHO_META).find(k=>GATILHO_META[k].label===g.name) || g.name
                     return (
                       <div key={i} onClick={()=>{ setFiltroGat(gatKey); setLogPg(1) }}
@@ -789,11 +801,15 @@ export default function PageDisparos({api: apiProp}) {
                             <span style={{fontSize:11,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>{g.name}</span>
                             <div style={{display:'flex',gap:6,flexShrink:0,alignItems:'center'}}>
                               <span style={{fontSize:11,fontWeight:700,color:'var(--label)'}}>{g.total}</span>
-                              <span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
-                                color:taxa>=90?'#22c55e':taxa>=70?'#f59e0b':'#ef4444',
-                                background:taxa>=90?'rgba(34,197,94,.1)':taxa>=70?'rgba(245,158,11,.1)':'rgba(239,68,68,.1)'}}>
-                                {taxa}%
-                              </span>
+                              {taxaG===null
+                                ? <span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
+                                    color:'var(--label-4)',background:'var(--fill)'}} title="Registrado, mas ainda não enviado (template off)">só log</span>
+                                : <span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
+                                    color:taxaG>=90?'#22c55e':taxaG>=70?'#f59e0b':'#ef4444',
+                                    background:taxaG>=90?'rgba(34,197,94,.1)':taxaG>=70?'rgba(245,158,11,.1)':'rgba(239,68,68,.1)'}}>
+                                    {taxaG}%
+                                  </span>
+                              }
                             </div>
                           </div>
                           <div style={{height:4,borderRadius:99,background:'var(--fill)',overflow:'hidden'}}>
