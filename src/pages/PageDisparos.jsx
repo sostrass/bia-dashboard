@@ -3,6 +3,7 @@
  * Monitor de disparos automáticos e gatilhos WhatsApp
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import React from 'react'
 import {
   Zap, Send, AlertCircle, Clock, CheckCircle, RefreshCw,
   TrendingUp, Users, XCircle, BarChart3, Activity, Filter,
@@ -94,108 +95,295 @@ function KCard({icon:Ic, label, value, sub, cor='#7c6af7', trend, spark}) {
 }
 
 // ─── DRAWER LATERAL: detalhe do disparo OU perfil do cliente ──────────────────
+// ─── DRAWER ENTERPRISE ────────────────────────────────────────────────────────
+function Iniciais({nome, size=44}) {
+  const ini = (nome||'?').split(' ').slice(0,2).map(p=>p[0]||'').join('').toUpperCase()||'?'
+  return (
+    <div style={{width:size,height:size,borderRadius:'50%',flexShrink:0,
+      background:'linear-gradient(135deg,#7c6af7,#a855f7)',
+      display:'flex',alignItems:'center',justifyContent:'center',
+      fontSize:size*.38,fontWeight:700,color:'#fff',letterSpacing:'.5px'}}>
+      {ini}
+    </div>
+  )
+}
+
+function StatCard({label, value, cor='var(--label)'}) {
+  return (
+    <div style={{flex:1,background:'var(--bg-3)',borderRadius:10,padding:'10px 8px',textAlign:'center',border:'0.5px solid var(--sep)'}}>
+      <div style={{fontSize:20,fontWeight:700,color:cor,lineHeight:1}}>{value}</div>
+      <div style={{fontSize:9.5,color:'var(--label-4)',marginTop:3,textTransform:'uppercase',letterSpacing:'.04em'}}>{label}</div>
+    </div>
+  )
+}
+
+function EventoCard({d, onReenviar, reenviados, setReenviados}) {
+  const m = GATILHO_META[d.gatilho]||{label:d.gatilho,icon:Zap,cor:'#6b7280'}
+  const s = STATUS_META[d.status]||STATUS_META.ignorado
+  const DIc = m.icon||Zap
+  const falhou = d.status==='erro'
+  const ignorado = d.status==='ignorado'
+  const jaReenv = reenviados.includes(d.id)
+  const [enviando, setEnviando] = useState(false)
+  const doReenviar = async () => {
+    setEnviando(true)
+    try { await onReenviar?.(d.id); setReenviados(r=>[...r,d.id]) } catch {}
+    setEnviando(false)
+  }
+  return (
+    <div style={{display:'flex',gap:12,padding:'12px 14px',borderRadius:12,
+      background:falhou?'rgba(239,68,68,.04)':ignorado?'var(--bg-3)':'var(--bg-3)',
+      border:`0.5px solid ${falhou?'rgba(239,68,68,.2)':'var(--sep)'}`,
+      marginBottom:10}}>
+      {/* ícone */}
+      <div style={{width:36,height:36,borderRadius:10,flexShrink:0,
+        background:`linear-gradient(135deg,${m.cor}25,${m.cor}10)`,
+        border:`1.5px solid ${m.cor}35`,
+        display:'flex',alignItems:'center',justifyContent:'center'}}>
+        <DIc size={16} style={{color:m.cor}}/>
+      </div>
+      {/* conteúdo */}
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+          <span style={{fontSize:12.5,fontWeight:600,color:'var(--label)',lineHeight:1.3}}>{m.label}</span>
+          <span style={{fontSize:10,color:'var(--label-4)',flexShrink:0,marginTop:1}}>{fmtDH(d.criado_em)}</span>
+        </div>
+        <div style={{fontSize:10.5,color:'var(--label-4)',marginTop:3}}>
+          {d.template_nome&&d.template_nome!==d.gatilho?d.template_nome:d.gatilho}
+          {d.numero_pedido&&<span style={{marginLeft:6,color:'var(--label-3)',fontWeight:500}}>· #{d.numero_pedido}</span>}
+        </div>
+        {d.erro_msg&&(
+          <div style={{marginTop:6,padding:'5px 8px',borderRadius:6,background:'rgba(239,68,68,.08)',
+            fontSize:10.5,color:'#ef4444',lineHeight:1.4}}>{d.erro_msg}</div>
+        )}
+        <div style={{display:'flex',alignItems:'center',gap:6,marginTop:7}}>
+          {/* badge status */}
+          <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 8px',
+            borderRadius:99,background:s.bg,border:`0.5px solid ${s.cor}30`}}>
+            {React.createElement(s.icon,{size:8,style:{color:s.cor}})}
+            <span style={{fontSize:9,fontWeight:700,color:s.cor,textTransform:'uppercase',letterSpacing:'.04em'}}>{s.label}</span>
+          </span>
+          {/* reenviar (erro) */}
+          {falhou && (
+            <button disabled={jaReenv||enviando} onClick={doReenviar} style={{
+              display:'inline-flex',alignItems:'center',gap:4,padding:'2px 10px',borderRadius:99,
+              border:`0.5px solid ${jaReenv?'#22c55e60':'#a78bfa60'}`,
+              background:jaReenv?'rgba(34,197,94,.08)':'rgba(167,139,250,.08)',
+              color:jaReenv?'#22c55e':'#a78bfa',cursor:jaReenv?'default':'pointer',
+              fontSize:9.5,fontWeight:600}}>
+              {enviando?<><RefreshCw size={9} style={{animation:'spin .7s linear infinite'}}/>Enviando...</>
+               :jaReenv?<><CheckCircle size={9}/>Reenviado</>
+               :<><RotateCcw size={9}/>Reenviar</>}
+            </button>
+          )}
+          {/* enviar (ignorado) */}
+          {ignorado && !jaReenv && (
+            <button onClick={doReenviar} disabled={enviando} style={{
+              display:'inline-flex',alignItems:'center',gap:4,padding:'2px 10px',borderRadius:99,
+              border:'0.5px solid rgba(245,158,11,.5)',background:'rgba(245,158,11,.08)',
+              color:'#f59e0b',cursor:'pointer',fontSize:9.5,fontWeight:600}}>
+              {enviando?<><RefreshCw size={9} style={{animation:'spin .7s linear infinite'}}/>Enviando...</>
+               :<><Send size={9}/>Enviar agora</>}
+            </button>
+          )}
+          {ignorado && jaReenv && (
+            <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:9.5,color:'#22c55e'}}>
+              <CheckCircle size={9}/>Enviado
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilho, onReenviar }) {
-  // tipo: 'disparo' (1 disparo) ou 'cliente' (timeline completa)
-  const [cli, setCli]       = useState(null)
-  const [loadCli, setLoad]  = useState(false)
-  const [reenviados, setReenviados] = useState([])  // ids já reenviados nesta sessão
+  const [cli, setCli]             = useState(null)
+  const [loadCli, setLoad]        = useState(false)
+  const [reenviados, setReenviados] = useState([])
+  // Envio manual
+  const [gatManual, setGatManual] = useState('')
+  const [pedManual, setPedManual] = useState(dados?.numero_pedido||'')
+  const [enviandoMan, setEnvMan]  = useState(false)
+  const [envManOk, setEnvManOk]   = useState(false)
 
   useEffect(() => {
     if (tipo==='cliente' && dados?.telefone) {
-      setLoad(true)
+      setLoad(true); setCli(null)
       fetch(`${api}/api/dashboard/disparos-cliente/${encodeURIComponent(dados.telefone)}`)
-        .then(r=>r.json()).then(d=>{ setCli(d); setLoad(false) })
-        .catch(()=>setLoad(false))
+        .then(r=>r.json()).then(d=>{ setCli(d); setLoad(false) }).catch(()=>setLoad(false))
     }
+    if (dados?.numero_pedido) setPedManual(dados.numero_pedido)
   }, [tipo, dados, api])
+
+  const enviarManual = async () => {
+    if (!gatManual || !dados?.telefone) return
+    setEnvMan(true)
+    try {
+      await fetch(`${api}/api/dashboard/disparos-reenviar/manual`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ gatilho:gatManual, telefone:dados.telefone,
+          numero_pedido:pedManual, nome_cliente:cli?.resumo?.nome||dados?.nome_cliente||'' })
+      })
+      setEnvManOk(true); setTimeout(()=>setEnvManOk(false), 3000)
+    } catch {}
+    setEnvMan(false)
+  }
+
+  const meta = tipo==='disparo' ? (GATILHO_META[dados?.gatilho]||{label:dados?.gatilho,icon:Zap,cor:'#7c6af7'}) : null
+  const smeta = tipo==='disparo' ? (STATUS_META[dados?.status]||STATUS_META.ignorado) : null
 
   return (
     <>
-      {/* fundo escuro */}
-      <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:60,
-        animation:'fadeIn .2s ease'}}/>
-      {/* painel */}
-      <div style={{position:'fixed',top:0,right:0,bottom:0,width:'min(440px,92vw)',zIndex:61,
-        background:'var(--bg-2)',borderLeft:'1px solid var(--sep)',boxShadow:'-8px 0 40px rgba(0,0,0,.3)',
-        display:'flex',flexDirection:'column',animation:'slideIn .28s cubic-bezier(.2,.8,.2,1)'}}>
+      <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:60,
+        backdropFilter:'blur(2px)',animation:'fadeIn .2s ease'}}/>
+      <div style={{position:'fixed',top:0,right:0,bottom:0,width:'min(480px,94vw)',zIndex:61,
+        display:'flex',flexDirection:'column',animation:'slideIn .3s cubic-bezier(.2,.8,.2,1)',
+        background:'var(--bg-2)',borderLeft:'0.5px solid var(--sep)',
+        boxShadow:'-12px 0 48px rgba(0,0,0,.4)'}}>
 
-        {/* header */}
-        <div style={{padding:'16px 18px',borderBottom:'1px solid var(--sep)',background:'var(--bg-3)',
-          display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <span style={{fontSize:14,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:8}}>
-            {tipo==='cliente'
-              ? <><Users size={15}/>Perfil do cliente</>
-              : <><Eye size={15}/>Detalhe do disparo</>}
-          </span>
-          <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:4,display:'flex'}}>
-            <X size={18}/>
-          </button>
+        {/* ── HEADER COM GRADIENTE ── */}
+        <div style={{flexShrink:0,padding:'18px 20px 16px',
+          background:tipo==='cliente'
+            ?'linear-gradient(135deg,#12073a 0%,#1e0d5c 50%,#2a0e6b 100%)'
+            :`linear-gradient(135deg,${meta?.cor}22 0%,var(--bg-3) 100%)`,
+          borderBottom:'0.5px solid var(--sep)',position:'relative',overflow:'hidden'}}>
+          {/* blob decorativo */}
+          <div style={{position:'absolute',top:-30,right:-30,width:120,height:120,borderRadius:'50%',
+            background:tipo==='cliente'?'rgba(124,106,247,.25)':`${meta?.cor}20`,
+            filter:'blur(30px)',pointerEvents:'none'}}/>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',position:'relative'}}>
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              {tipo==='cliente'
+                ? <div style={{width:32,height:32,borderRadius:9,background:'rgba(124,106,247,.2)',
+                    display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <Users size={16} style={{color:'#a78bfa'}}/>
+                  </div>
+                : <div style={{width:32,height:32,borderRadius:9,background:`${meta?.cor}20`,
+                    display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    {React.createElement(meta?.icon||Zap,{size:16,style:{color:meta?.cor}})}
+                  </div>
+              }
+              <div>
+                <div style={{fontSize:13,fontWeight:600,color:'var(--label)'}}>
+                  {tipo==='cliente'?'Perfil do cliente':'Detalhe do disparo'}
+                </div>
+                <div style={{fontSize:10.5,color:'var(--label-4)',marginTop:1}}>
+                  {tipo==='cliente'?fmtTel(dados?.telefone):(meta?.label||dados?.gatilho)}
+                </div>
+              </div>
+            </div>
+            <button onClick={onClose} style={{width:28,height:28,borderRadius:8,
+              display:'flex',alignItems:'center',justifyContent:'center',
+              background:'rgba(255,255,255,.08)',border:'0.5px solid rgba(255,255,255,.1)',
+              cursor:'pointer',color:'var(--label-3)'}}>
+              <X size={14}/>
+            </button>
+          </div>
         </div>
 
-        <div style={{flex:1,minHeight:0,overflowY:'auto',padding:'18px'}}>
+        {/* ── CONTEÚDO SCROLL ── */}
+        <div style={{flex:1,minHeight:0,overflowY:'auto',padding:'16px 20px'}}>
+
+          {/* ── DETALHE DO DISPARO ── */}
           {tipo==='disparo' && dados && (() => {
-            const meta = GATILHO_META[dados.gatilho]||{label:dados.gatilho,icon:Zap,cor:'#6b7280'}
-            const smeta= STATUS_META[dados.status]||STATUS_META.ignorado
-            const Ic=meta.icon, SIc=smeta.icon
+            const Ic=meta.icon||Zap, SIc=smeta.icon
+            const falhou = dados.status==='erro'
+            const ignorado = dados.status==='ignorado'
+            const [jaReenv, setJaR] = useState(false)
+            const [enviandoR, setEnvR] = useState(false)
+            const doR = async() => { setEnvR(true); try{ await onReenviar?.(dados.id); setJaR(true) }catch{}; setEnvR(false) }
             return (
-              <div style={{display:'flex',flexDirection:'column',gap:16}}>
-                {/* topo */}
-                <div style={{display:'flex',alignItems:'center',gap:12}}>
-                  <div style={{width:44,height:44,borderRadius:12,background:`${meta.cor}18`,
+              <div style={{display:'flex',flexDirection:'column',gap:14}}>
+                {/* hero do disparo */}
+                <div style={{padding:'16px',borderRadius:14,background:'var(--bg-3)',
+                  border:'0.5px solid var(--sep)',display:'flex',gap:14,alignItems:'flex-start'}}>
+                  <div style={{width:52,height:52,borderRadius:14,flexShrink:0,
+                    background:`linear-gradient(135deg,${meta.cor}30,${meta.cor}10)`,
+                    border:`1.5px solid ${meta.cor}40`,
                     display:'flex',alignItems:'center',justifyContent:'center'}}>
-                    <Ic size={20} style={{color:meta.cor}}/>
+                    <Ic size={24} style={{color:meta.cor}}/>
                   </div>
                   <div style={{flex:1}}>
-                    <div style={{fontSize:15,fontWeight:600,color:'var(--label)'}}>{meta.label}</div>
-                    <div style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 8px',
-                      borderRadius:99,background:smeta.bg,marginTop:3}}>
-                      <SIc size={9} style={{color:smeta.cor}}/>
-                      <span style={{fontSize:10,fontWeight:600,color:smeta.cor}}>{smeta.label}</span>
+                    <div style={{fontSize:16,fontWeight:700,color:'var(--label)',marginBottom:6}}>{meta.label}</div>
+                    <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                      <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'3px 10px',
+                        borderRadius:99,background:smeta.bg,border:`0.5px solid ${smeta.cor}30`}}>
+                        {React.createElement(SIc,{size:9,style:{color:smeta.cor}})}
+                        <span style={{fontSize:10,fontWeight:700,color:smeta.cor}}>{smeta.label}</span>
+                      </span>
+                      {dados.origem==='rastreio_job'&&<span style={{display:'inline-flex',alignItems:'center',gap:3,padding:'3px 10px',
+                        borderRadius:99,background:'rgba(6,182,212,.1)',border:'0.5px solid rgba(6,182,212,.2)'}}>
+                        <span style={{fontSize:10,fontWeight:600,color:'#06b6d4'}}>job automático</span>
+                      </span>}
                     </div>
                   </div>
                 </div>
+
                 {/* erro destacado */}
                 {dados.erro_msg && (
-                  <div style={{padding:'10px 12px',borderRadius:10,background:'rgba(239,68,68,.08)',
-                    border:'1px solid rgba(239,68,68,.2)',display:'flex',gap:8,alignItems:'flex-start'}}>
-                    <AlertCircle size={13} style={{color:'#ef4444',flexShrink:0,marginTop:1}}/>
-                    <span style={{fontSize:12,color:'#ef4444',lineHeight:1.5}}>{dados.erro_msg}</span>
+                  <div style={{padding:'12px 14px',borderRadius:10,
+                    background:'rgba(239,68,68,.06)',border:'0.5px solid rgba(239,68,68,.3)',
+                    display:'flex',gap:10,alignItems:'flex-start'}}>
+                    <AlertCircle size={15} style={{color:'#ef4444',flexShrink:0,marginTop:1}}/>
+                    <div>
+                      <div style={{fontSize:11,fontWeight:700,color:'#ef4444',marginBottom:3}}>Erro no disparo</div>
+                      <div style={{fontSize:11.5,color:'#ef4444',lineHeight:1.5,opacity:.85}}>{dados.erro_msg}</div>
+                    </div>
                   </div>
                 )}
-                {/* campos */}
-                <div style={{display:'flex',flexDirection:'column',gap:0,border:'1px solid var(--sep)',borderRadius:12,overflow:'hidden'}}>
+
+                {/* campos agrupados */}
+                <div style={{borderRadius:12,overflow:'hidden',border:'0.5px solid var(--sep)'}}>
                   {[
-                    ['Cliente', dados.nome_cliente||'—'],
-                    ['Telefone', fmtTel(dados.telefone)],
-                    ['Pedido', dados.numero_pedido?`#${dados.numero_pedido}`:'—'],
-                    ['Template', dados.template_nome||dados.gatilho],
-                    ['Gatilho (técnico)', dados.gatilho],
-                    ['Origem', dados.origem||'bling'],
-                    ['Delay', dados.delay_min>0?`${dados.delay_min} min`:'Imediato'],
-                    ['Data/hora', new Date(dados.criado_em).toLocaleString('pt-BR')],
-                    ['ID', `#${dados.id}`],
-                  ].map(([k,v],i)=>(
-                    <div key={k} style={{display:'flex',justifyContent:'space-between',gap:12,padding:'10px 12px',
-                      borderBottom:i<8?'1px solid var(--sep)':'none',background:i%2?'var(--fill)':'transparent'}}>
-                      <span style={{fontSize:11,color:'var(--label-4)'}}>{k}</span>
-                      <span style={{fontSize:12,color:'var(--label)',fontWeight:500,textAlign:'right',wordBreak:'break-word'}}>{v}</span>
+                    ['👤 Cliente',   dados.nome_cliente||'—'],
+                    ['📱 Telefone',  fmtTel(dados.telefone)],
+                    ['🛒 Pedido',    dados.numero_pedido?`#${dados.numero_pedido}`:'—'],
+                    ['📋 Template',  dados.template_nome||dados.gatilho],
+                    ['⚡ Gatilho',   dados.gatilho],
+                    ['🕐 Data',      new Date(dados.criado_em).toLocaleString('pt-BR')],
+                    ['⏱ Delay',     dados.delay_min>0?`${dados.delay_min} min`:'Imediato'],
+                    ['🔑 ID',        `#${dados.id}`],
+                  ].map(([k,v],i,arr)=>(
+                    <div key={k} style={{display:'flex',justifyContent:'space-between',gap:16,
+                      padding:'10px 14px',alignItems:'center',
+                      borderBottom:i<arr.length-1?'0.5px solid var(--sep)':'none',
+                      background:i%2===0?'transparent':'var(--fill)'}}>
+                      <span style={{fontSize:11,color:'var(--label-4)',flexShrink:0}}>{k}</span>
+                      <span style={{fontSize:11.5,color:'var(--label)',fontWeight:500,textAlign:'right',
+                        wordBreak:'break-all',maxWidth:'60%'}}>{v}</span>
                     </div>
                   ))}
                 </div>
+
                 {/* ações */}
                 <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                  {(falhou||ignorado) && (
+                    <button disabled={jaReenv||enviandoR} onClick={doR} style={{
+                      display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'11px',borderRadius:11,
+                      border:`0.5px solid ${jaReenv?'#22c55e':'#a78bfa'}`,
+                      background:jaReenv?'rgba(34,197,94,.1)':'rgba(167,139,250,.1)',
+                      color:jaReenv?'#22c55e':'#a78bfa',cursor:jaReenv?'default':'pointer',
+                      fontSize:12.5,fontWeight:600}}>
+                      {enviandoR?<><RefreshCw size={12} style={{animation:'spin .7s linear infinite'}}/>Reenviando...</>
+                       :jaReenv?<><CheckCircle size={12}/>Reenviado com sucesso</>
+                       :<><RotateCcw size={12}/>{falhou?'Reenviar disparo':'Enviar agora'}</>}
+                    </button>
+                  )}
                   {dados.numero_pedido && (
                     <button onClick={()=>onVerPedido?.(dados.numero_pedido)} style={{
-                      display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'10px',borderRadius:10,
-                      border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',cursor:'pointer',fontSize:12,fontWeight:600}}>
+                      display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'11px',borderRadius:11,
+                      border:'0.5px solid var(--sep)',background:'var(--fill)',
+                      color:'var(--label-3)',cursor:'pointer',fontSize:12,fontWeight:500}}>
                       <Package size={13}/>Ver pedido #{dados.numero_pedido}
                     </button>
                   )}
                   {dados.telefone && (
-                    <button onClick={()=>onFiltrarGatilho?.('__cliente__', dados.telefone)} style={{
-                      display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'10px',borderRadius:10,
-                      border:'1px solid rgba(124,106,247,.3)',background:'rgba(124,106,247,.08)',color:'#a78bfa',cursor:'pointer',fontSize:12,fontWeight:600}}>
-                      <Users size={13}/>Ver timeline deste cliente
+                    <button onClick={()=>setDrawer?.({tipo:'cliente',dados})} style={{
+                      display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'11px',borderRadius:11,
+                      border:'0.5px solid rgba(124,106,247,.3)',background:'rgba(124,106,247,.07)',
+                      color:'#a78bfa',cursor:'pointer',fontSize:12,fontWeight:500}}>
+                      <Users size={13}/>Ver perfil completo deste cliente
                     </button>
                   )}
                 </div>
@@ -203,80 +391,126 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
             )
           })()}
 
+          {/* ── PERFIL DO CLIENTE ── */}
           {tipo==='cliente' && (
-            <div style={{display:'flex',flexDirection:'column',gap:16}}>
-              {loadCli && <div style={{textAlign:'center',padding:40,color:'var(--label-4)'}}><RefreshCw size={20} style={{animation:'spin 1s linear infinite'}}/></div>}
+            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+              {loadCli && (
+                <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:10,
+                  padding:'48px 0',color:'var(--label-4)'}}>
+                  <RefreshCw size={18} style={{animation:'spin 1s linear infinite'}}/>
+                  <span style={{fontSize:12}}>Carregando histórico...</span>
+                </div>
+              )}
               {cli && (
                 <>
-                  {/* cabeçalho do cliente */}
-                  <div style={{padding:'14px',borderRadius:12,background:'var(--fill)',border:'1px solid var(--sep)'}}>
-                    <div style={{fontSize:15,fontWeight:600,color:'var(--label)',marginBottom:4}}>
-                      {cli.resumo?.nome||'Cliente'}
-                    </div>
-                    <div style={{fontSize:12,color:'var(--label-4)',fontFamily:'monospace'}}>{fmtTel(dados.telefone)}</div>
-                    <div style={{display:'flex',gap:14,marginTop:12,flexWrap:'wrap'}}>
-                      {[['Total',cli.resumo?.total||0,'var(--label)'],
-                        ['Enviados',cli.resumo?.enviados||0,'#22c55e'],
-                        ['Erros',cli.resumo?.erros||0,'#ef4444'],
-                        ['Pedidos',cli.resumo?.pedidos?.length||0,'#a78bfa']].map(([k,v,c])=>(
-                        <div key={k}>
-                          <div style={{fontSize:18,fontWeight:700,color:c}}>{v}</div>
-                          <div style={{fontSize:10,color:'var(--label-4)'}}>{k}</div>
+                  {/* hero do cliente */}
+                  <div style={{padding:'18px',borderRadius:14,background:'var(--bg-3)',
+                    border:'0.5px solid var(--sep)',display:'flex',gap:14,alignItems:'center'}}>
+                    <Iniciais nome={cli.resumo?.nome} size={52}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:16,fontWeight:700,color:'var(--label)',marginBottom:2}}>
+                        {cli.resumo?.nome||'Cliente'}
+                      </div>
+                      <div style={{fontSize:12,color:'var(--label-4)',fontFamily:'monospace',marginBottom:6}}>
+                        {fmtTel(dados.telefone)}
+                      </div>
+                      {cli.resumo?.ultimo_contato&&(
+                        <div style={{fontSize:10.5,color:'var(--label-4)',display:'flex',alignItems:'center',gap:4}}>
+                          <Clock size={10}/>Último contato: {fmtDH(cli.resumo.ultimo_contato)}
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
+
+                  {/* stats */}
+                  <div style={{display:'flex',gap:8}}>
+                    <StatCard label="Disparos" value={cli.resumo?.total||0}/>
+                    <StatCard label="Enviados" value={cli.resumo?.enviados||0} cor="#22c55e"/>
+                    <StatCard label="Erros" value={cli.resumo?.erros||0} cor="#ef4444"/>
+                    <StatCard label="Pedidos" value={cli.resumo?.pedidos?.length||0} cor="#a78bfa"/>
+                  </div>
+
+                  {/* pedidos do cliente */}
+                  {cli.resumo?.pedidos?.length>0 && (
+                    <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                      {cli.resumo.pedidos.map(p=>(
+                        <button key={p} onClick={()=>onVerPedido?.(p)} style={{
+                          padding:'3px 10px',borderRadius:99,fontSize:10.5,fontWeight:600,
+                          border:'0.5px solid rgba(124,106,247,.3)',background:'rgba(124,106,247,.08)',
+                          color:'#a78bfa',cursor:'pointer'}}>
+                          #{p}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   {/* timeline */}
                   <div>
-                    <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',
-                      color:'var(--label-4)',marginBottom:10}}>Linha do tempo</div>
-                    <div style={{position:'relative',paddingLeft:30}}>
-                      <div style={{position:'absolute',left:10,top:4,bottom:4,width:2,background:'var(--sep)'}}/>
-                      {(cli.disparos||[]).map((d,i)=>{
-                        const m=GATILHO_META[d.gatilho]||{label:d.gatilho,cor:'#6b7280',icon:Zap}
-                        const s=STATUS_META[d.status]||STATUS_META.ignorado
-                        const DIc=m.icon||Zap
-                        const falhou = d.status==='erro'||d.status==='ignorado'
-                        const jaReenv = reenviados.includes(d.id)
-                        return (
-                          <div key={d.id||i} style={{position:'relative',marginBottom:16}}>
-                            {/* ícone da etapa no lugar do ponto */}
-                            <div style={{position:'absolute',left:-24,top:0,width:22,height:22,borderRadius:'50%',
-                              background:`${m.cor}22`,border:'2px solid var(--bg-2)',display:'flex',
-                              alignItems:'center',justifyContent:'center'}}>
-                              <DIc size={11} style={{color:m.cor}}/>
-                            </div>
-                            <div style={{display:'flex',justifyContent:'space-between',gap:8,alignItems:'baseline'}}>
-                              <span style={{fontSize:12.5,fontWeight:600,color:'var(--label)'}}>{m.label}</span>
-                              <span style={{fontSize:10,color:'var(--label-4)',flexShrink:0}}>{fmtDH(d.criado_em)}</span>
-                            </div>
-                            <div style={{fontSize:10.5,color:'var(--label-4)',marginTop:2}}>
-                              {d.template_nome||d.gatilho}
-                              {d.numero_pedido&&<span style={{marginLeft:6,color:'var(--label-3)'}}>· #{d.numero_pedido}</span>}
-                            </div>
-                            <div style={{display:'flex',alignItems:'center',gap:6,marginTop:5}}>
-                              <span style={{display:'inline-flex',alignItems:'center',gap:3,padding:'1px 6px',
-                                borderRadius:99,background:s.bg}}>
-                                <span style={{fontSize:9,fontWeight:600,color:s.cor}}>{s.label}</span>
-                              </span>
-                              {falhou && (
-                                <button disabled={jaReenv} onClick={async()=>{
-                                  try { await onReenviar?.(d.id); setReenviados(r=>[...r,d.id]) } catch {}
-                                }} style={{
-                                  display:'inline-flex',alignItems:'center',gap:3,padding:'2px 8px',borderRadius:6,
-                                  border:`1px solid ${jaReenv?'rgba(34,197,94,.4)':'rgba(167,139,250,.4)'}`,
-                                  background:'transparent',color:jaReenv?'#22c55e':'#a78bfa',
-                                  cursor:jaReenv?'default':'pointer',fontSize:10,fontWeight:600}}>
-                                  {jaReenv?<><CheckCircle size={10}/>Reenviado</>:<><RotateCcw size={10}/>Reenviar</>}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                      {(!cli.disparos||cli.disparos.length===0)&&(
-                        <div style={{fontSize:12,color:'var(--label-4)',padding:'12px 0'}}>Nenhum disparo registrado.</div>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+                      <span style={{fontSize:11,fontWeight:700,textTransform:'uppercase',
+                        letterSpacing:'.06em',color:'var(--label-4)'}}>
+                        Linha do tempo ({cli.disparos?.length||0})
+                      </span>
+                      {cli.resumo?.erros>0&&(
+                        <span style={{fontSize:10,padding:'2px 8px',borderRadius:99,
+                          background:'rgba(239,68,68,.1)',color:'#ef4444',fontWeight:600}}>
+                          {cli.resumo.erros} com erro
+                        </span>
                       )}
+                    </div>
+                    <div>
+                      {(cli.disparos||[]).map((d,i)=>(
+                        <EventoCard key={d.id||i} d={d}
+                          onReenviar={onReenviar} reenviados={reenviados} setReenviados={setReenviados}/>
+                      ))}
+                      {(!cli.disparos||cli.disparos.length===0)&&(
+                        <div style={{textAlign:'center',padding:'32px 0',color:'var(--label-4)'}}>
+                          <MessageSquare size={28} style={{opacity:.2,marginBottom:8}}/>
+                          <div style={{fontSize:12}}>Nenhum disparo registrado.</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* envio manual */}
+                  <div style={{borderRadius:13,border:'0.5px solid rgba(124,106,247,.3)',
+                    background:'rgba(124,106,247,.04)',overflow:'hidden'}}>
+                    <div style={{padding:'12px 14px',borderBottom:'0.5px solid rgba(124,106,247,.15)',
+                      display:'flex',alignItems:'center',gap:7}}>
+                      <Send size={13} style={{color:'#a78bfa'}}/>
+                      <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>Enviar gatilho manualmente</span>
+                      <span style={{fontSize:10,color:'var(--label-4)',marginLeft:'auto'}}>p/ gaps de sequência</span>
+                    </div>
+                    <div style={{padding:'12px 14px',display:'flex',flexDirection:'column',gap:8}}>
+                      <div>
+                        <div style={{fontSize:10.5,color:'var(--label-4)',marginBottom:4}}>Gatilho</div>
+                        <select value={gatManual} onChange={e=>setGatManual(e.target.value)} style={{
+                          width:'100%',padding:'8px 10px',borderRadius:8,fontSize:12,
+                          border:'0.5px solid var(--sep)',background:'var(--bg)',color:'var(--label)'}}>
+                          <option value="">Selecione o gatilho...</option>
+                          {Object.entries(GATILHO_META).map(([k,v])=>(
+                            <option key={k} value={k}>{v.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <div style={{fontSize:10.5,color:'var(--label-4)',marginBottom:4}}>Nº do pedido (opcional)</div>
+                        <input value={pedManual} onChange={e=>setPedManual(e.target.value)}
+                          placeholder="Ex: 231514" style={{
+                          width:'100%',padding:'8px 10px',borderRadius:8,fontSize:12,
+                          border:'0.5px solid var(--sep)',background:'var(--bg)',
+                          color:'var(--label)',boxSizing:'border-box'}}/>
+                      </div>
+                      <button disabled={!gatManual||enviandoMan} onClick={enviarManual} style={{
+                        padding:'10px',borderRadius:9,fontSize:12.5,fontWeight:600,cursor:gatManual?'pointer':'not-allowed',
+                        border:'none',
+                        background:envManOk?'rgba(34,197,94,.15)':gatManual?'linear-gradient(90deg,#6d28d9,#a855f7)':'var(--fill)',
+                        color:envManOk?'#22c55e':gatManual?'#fff':'var(--label-4)',
+                        display:'flex',alignItems:'center',justifyContent:'center',gap:7,opacity:!gatManual?.6:1}}>
+                        {enviandoMan?<><RefreshCw size={12} style={{animation:'spin .7s linear infinite'}}/>Enviando...</>
+                         :envManOk?<><CheckCircle size={12}/>Gatilho enviado!</>
+                         :<><Send size={12}/>Enviar para este cliente</>}
+                      </button>
                     </div>
                   </div>
                 </>
