@@ -552,6 +552,290 @@ function EmojiPicker({ onInsert }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // PÁGINA PRINCIPAL
 // ══════════════════════════════════════════════════════════════════════════════
+// ── PLANO DE DISPAROS ─────────────────────────────────────────────────────────
+// Tela inicial da PageGatilhos: roadmap visual da sequência, status real de
+// cada gatilho, verificador de pedido e sequência anti-atropelamento.
+function PlanodeDisparos({ gatilhos, configs, atividade, onSelect, api }) {
+  const [numPedido, setNumPedido] = useState('')
+  const [checando,  setChecando]  = useState(false)
+  const [resultado, setResultado] = useState(null)
+
+  // Verifica quais gatilhos dispararam para um pedido
+  const verificar = async () => {
+    if (!numPedido.trim()) return
+    setChecando(true); setResultado(null)
+    try {
+      const r = await fetch(`${api}/api/dashboard/disparos-log?busca=${numPedido}&limite=100`)
+      const d = await r.json()
+      const disparos = (d.disparos||[]).filter(x=>String(x.numero_pedido)===String(numPedido.trim()))
+      setResultado({ pedido: numPedido.trim(), disparos })
+    } catch { setResultado({ pedido: numPedido.trim(), disparos: [] }) }
+    setChecando(false)
+  }
+
+  // Sequência rígida do Envio & Rastreio (anti-atropelamento)
+  const SEQ_RASTREIO = [
+    { id:'aguardando_retirada', nivel:0 },
+    { id:'pedido_coletado',     nivel:1 },
+    { id:'rastreio_em_transito',nivel:2 },
+    { id:'saiu_entrega',        nivel:3 },
+    { id:'pedido_entregue',     nivel:4 },
+  ]
+  const EXCECOES_RASTREIO = ['tentativa_entrega','nao_entrou_unidade','endereco_incorreto','nao_entregue','pacote_devolvido']
+
+  // Status real de cada gatilho
+  const statusDe = (id) => {
+    const cfg = configs[id]
+    if (!cfg) return 'criar'     // não existe no banco
+    if (!cfg.ativo) return 'off' // existe mas desativado
+    return 'on'                  // ativo
+  }
+  const metaDe = (id) => configs[id]?.meta_status || ''
+  const qtdDe  = (id) => atividade[id] || 0
+
+  const STATUS_COR = { on:'#22c55e', off:'#f59e0b', criar:'#ef4444' }
+  const STATUS_LBL = { on:'ativo', off:'aguardando', criar:'criar' }
+
+  // Grupos para o roadmap (excluindo Envio & Rastreio que tem tratamento especial)
+  const GRUPOS_PLANO = ['Compra & Pagamento','Preparação & Nota','Pós-venda']
+
+  const CardGatilho = ({g, nivel, excecao}) => {
+    const st = statusDe(g.id)
+    const qt = qtdDe(g.id)
+    const mt = metaDe(g.id)
+    const GIc = g.icon
+    const disparouNoPedido = resultado?.disparos?.some(d=>d.gatilho===g.id)
+    const ignoradoNoPedido = resultado?.disparos?.some(d=>d.gatilho===g.id && d.status==='ignorado')
+    const faltouNoPedido   = resultado && !disparouNoPedido && !excecao
+
+    return (
+      <div onClick={()=>onSelect(g.id)} title="Clique para editar o template"
+        style={{cursor:'pointer',borderRadius:10,padding:'10px 12px',
+          border:`0.5px solid ${faltouNoPedido?'rgba(239,68,68,.4)':disparouNoPedido?'rgba(34,197,94,.3)':'var(--sep)'}`,
+          background:faltouNoPedido?'rgba(239,68,68,.04)':disparouNoPedido?'rgba(34,197,94,.04)':'var(--bg)',
+          display:'flex',gap:10,alignItems:'flex-start',transition:'background .12s'}}
+        onMouseEnter={e=>e.currentTarget.style.background=faltouNoPedido?'rgba(239,68,68,.08)':disparouNoPedido?'rgba(34,197,94,.08)':'var(--fill)'}
+        onMouseLeave={e=>e.currentTarget.style.background=faltouNoPedido?'rgba(239,68,68,.04)':disparouNoPedido?'rgba(34,197,94,.04)':'var(--bg)'}>
+        {/* ícone */}
+        <div style={{width:30,height:30,borderRadius:8,flexShrink:0,
+          background:`${g.cor}18`,border:`0.5px solid ${g.cor}30`,
+          display:'flex',alignItems:'center',justifyContent:'center'}}>
+          {GIc && <GIc size={14} style={{color:g.cor}}/>}
+        </div>
+        {/* info */}
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3}}>
+            <span style={{fontSize:11.5,fontWeight:600,color:'var(--label)',
+              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{g.label}</span>
+            {nivel!==undefined && (
+              <span style={{fontSize:9,padding:'1px 5px',borderRadius:99,flexShrink:0,
+                background:'rgba(74,159,255,.1)',color:'#4a9fff',border:'0.5px solid rgba(74,159,255,.2)',fontWeight:700}}>
+                Nível {nivel}
+              </span>
+            )}
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
+            {/* status ativo */}
+            <span style={{fontSize:9,padding:'1px 6px',borderRadius:99,
+              background:`${STATUS_COR[st]}15`,color:STATUS_COR[st],
+              border:`0.5px solid ${STATUS_COR[st]}30`,fontWeight:600}}>
+              {STATUS_LBL[st]}
+            </span>
+            {/* status meta */}
+            {mt && mt!=='pendente' && (
+              <span style={{fontSize:9,padding:'1px 6px',borderRadius:99,
+                background:mt==='APPROVED'?'rgba(34,197,94,.1)':mt==='IN_APPEAL'?'rgba(245,158,11,.1)':'rgba(239,68,68,.1)',
+                color:mt==='APPROVED'?'#22c55e':mt==='IN_APPEAL'?'#f59e0b':'#ef4444',fontWeight:500}}>
+                Meta {mt==='APPROVED'?'✓':mt==='IN_APPEAL'?'⏳':'✗'}
+              </span>
+            )}
+            {/* disparos 7d */}
+            {qt>0 && (
+              <span style={{fontSize:9,color:'var(--label-4)'}}>{qt} / 7d</span>
+            )}
+          </div>
+        </div>
+        {/* indicador do pedido */}
+        {resultado && (
+          <div style={{flexShrink:0,width:18,height:18,borderRadius:'50%',
+            display:'flex',alignItems:'center',justifyContent:'center',
+            background:disparouNoPedido?(ignoradoNoPedido?'rgba(245,158,11,.2)':'rgba(34,197,94,.15)'):faltouNoPedido?'rgba(239,68,68,.15)':'transparent',
+            border:disparouNoPedido?`1px solid ${ignoradoNoPedido?'#f59e0b':'#22c55e'}`:faltouNoPedido?'1px solid rgba(239,68,68,.4)':'none'}}>
+            {disparouNoPedido && !ignoradoNoPedido && <Check size={10} style={{color:'#22c55e'}}/>}
+            {ignoradoNoPedido && <Clock size={9} style={{color:'#f59e0b'}}/>}
+            {faltouNoPedido && <XCircle size={10} style={{color:'#ef4444'}}/>}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{flex:1,minHeight:0,overflowY:'auto',padding:'16px 20px',display:'flex',flexDirection:'column',gap:16}}>
+
+      {/* Header */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8}}>
+        <div>
+          <div style={{fontSize:15,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:8}}>
+            <SlidersHorizontal size={16} style={{color:'#7c6af7'}}/>
+            Plano de disparos
+          </div>
+          <div style={{fontSize:11,color:'var(--label-4)',marginTop:2}}>
+            Sequência, status e regras — clique num gatilho para editar o template
+          </div>
+        </div>
+        {/* Verificador de pedido */}
+        <div style={{display:'flex',gap:6,alignItems:'center'}}>
+          <input value={numPedido} onChange={e=>setNumPedido(e.target.value)}
+            onKeyDown={e=>e.key==='Enter'&&verificar()}
+            placeholder="Nº do pedido..." style={{
+            padding:'6px 10px',borderRadius:8,fontSize:12,width:130,
+            border:'0.5px solid var(--sep)',background:'var(--bg)',color:'var(--label)'}}/>
+          <button onClick={verificar} disabled={!numPedido.trim()||checando} style={{
+            display:'flex',alignItems:'center',gap:5,padding:'6px 12px',borderRadius:8,
+            background:'rgba(124,106,247,.1)',border:'0.5px solid rgba(124,106,247,.25)',
+            color:'#7c6af7',cursor:numPedido.trim()?'pointer':'not-allowed',fontSize:12,fontWeight:600}}>
+            {checando?<><RefreshCw size={11} style={{animation:'spin .7s linear infinite'}}/>Checando...</>:<><Activity size={11}/>Verificar</>}
+          </button>
+          {resultado && (
+            <button onClick={()=>setResultado(null)} style={{display:'flex',alignItems:'center',padding:4,borderRadius:6,background:'none',border:'none',cursor:'pointer',color:'var(--label-4)'}}>
+              <X size={13}/>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Resultado da verificação */}
+      {resultado && (
+        <div style={{padding:'10px 14px',borderRadius:10,background:'var(--fill)',border:'0.5px solid var(--sep)'}}>
+          <div style={{fontSize:11,fontWeight:600,color:'var(--label)',marginBottom:6,display:'flex',alignItems:'center',gap:6}}>
+            <Activity size={12} style={{color:'#7c6af7'}}/>
+            Pedido #{resultado.pedido} — {resultado.disparos.length} disparo(s) registrado(s)
+          </div>
+          <div style={{display:'flex',gap:10,flexWrap:'wrap',fontSize:10.5,color:'var(--label-4)'}}>
+            <span style={{color:'#22c55e'}}>✓ verde = disparou</span>
+            <span style={{color:'#f59e0b'}}>⏳ laranja = registrado (ignorado)</span>
+            <span style={{color:'#ef4444'}}>✗ vermelho = não disparou</span>
+            <span>· sem marcador = opcional/exceção</span>
+          </div>
+        </div>
+      )}
+
+      {/* Grupos normais (Compra, Preparação, Pós-venda) */}
+      {GRUPOS_PLANO.map(grupo => {
+        const gs = gatilhos.filter(g=>g.grupo===grupo)
+        if (!gs.length) return null
+        const COR_GRUPO = {'Compra & Pagamento':'#00d4aa','Preparação & Nota':'#8b5cf6','Pós-venda':'#f87171'}[grupo]||'#7c6af7'
+        return (
+          <div key={grupo} style={{background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:12,overflow:'hidden'}}>
+            <div style={{padding:'10px 14px',borderBottom:'0.5px solid var(--sep)',background:'var(--bg-3)',
+              display:'flex',alignItems:'center',gap:8}}>
+              <div style={{width:6,height:6,borderRadius:'50%',background:COR_GRUPO,flexShrink:0}}/>
+              <span style={{fontSize:11.5,fontWeight:600,color:'var(--label)'}}>{grupo}</span>
+              <span style={{fontSize:10,color:'var(--label-4)',marginLeft:'auto'}}>
+                {gs.filter(g=>statusDe(g.id)==='on').length}/{gs.length} ativos
+              </span>
+            </div>
+            <div style={{padding:'10px',display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:6}}>
+              {gs.map(g => <CardGatilho key={g.id} g={g}/>)}
+            </div>
+          </div>
+        )
+      })}
+
+      {/* Envio & Rastreio — SEQUÊNCIA RÍGIDA */}
+      <div style={{background:'var(--bg-2)',border:'0.5px solid rgba(74,159,255,.3)',borderRadius:12,overflow:'hidden'}}>
+        <div style={{padding:'10px 14px',borderBottom:'0.5px solid rgba(74,159,255,.2)',
+          background:'rgba(74,159,255,.04)',display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+          <div style={{width:6,height:6,borderRadius:'50%',background:'#4a9fff',flexShrink:0}}/>
+          <span style={{fontSize:11.5,fontWeight:600,color:'var(--label)'}}>Envio & Rastreio</span>
+          <span style={{fontSize:9.5,padding:'2px 8px',borderRadius:99,
+            background:'rgba(74,159,255,.1)',color:'#4a9fff',border:'0.5px solid rgba(74,159,255,.2)',fontWeight:600}}>
+            sequência rígida — anti-atropelamento ativo
+          </span>
+          <span style={{fontSize:10,color:'var(--label-4)',marginLeft:'auto'}}>
+            nível mais alto já disparado bloqueia os anteriores
+          </span>
+        </div>
+        <div style={{padding:'12px'}}>
+          {/* Sequência ordenada */}
+          <div style={{fontSize:10.5,fontWeight:600,color:'var(--label-4)',marginBottom:8,
+            textTransform:'uppercase',letterSpacing:'.04em'}}>Sequência (0→4)</div>
+          <div style={{display:'flex',gap:0,alignItems:'stretch',marginBottom:12,overflowX:'auto'}}>
+            {SEQ_RASTREIO.map((item, i) => {
+              const g = gatilhos.find(x=>x.id===item.id)
+              if (!g) return null
+              const st = statusDe(g.id)
+              const qt = qtdDe(g.id)
+              const GIc = g.icon
+              const disparouNoPedido = resultado?.disparos?.some(d=>d.gatilho===g.id)
+              return (
+                <div key={g.id} style={{display:'flex',alignItems:'center'}}>
+                  <div onClick={()=>onSelect(g.id)} title={`Nível ${item.nivel} — clique para editar`}
+                    style={{cursor:'pointer',minWidth:140,borderRadius:10,padding:'10px',
+                      border:`0.5px solid ${disparouNoPedido?'rgba(34,197,94,.4)':st==='on'?'rgba(74,159,255,.25)':'var(--sep)'}`,
+                      background:disparouNoPedido?'rgba(34,197,94,.06)':st==='on'?'rgba(74,159,255,.04)':'var(--bg)',
+                      display:'flex',flexDirection:'column',gap:6,alignItems:'center',textAlign:'center',transition:'opacity .15s'}}
+                    onMouseEnter={e=>e.currentTarget.style.opacity='.8'}
+                    onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
+                    <div style={{fontSize:9,color:'#4a9fff',fontWeight:700}}>NÍVEL {item.nivel}</div>
+                    <div style={{width:32,height:32,borderRadius:9,
+                      background:`${g.cor}18`,border:`0.5px solid ${g.cor}30`,
+                      display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      {GIc && <GIc size={15} style={{color:g.cor}}/>}
+                    </div>
+                    <div style={{fontSize:11,fontWeight:600,color:'var(--label)',lineHeight:1.3}}>{g.label}</div>
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+                      <span style={{fontSize:9,padding:'1px 6px',borderRadius:99,
+                        background:`${STATUS_COR[st]}15`,color:STATUS_COR[st],fontWeight:600}}>
+                        {STATUS_LBL[st]}
+                      </span>
+                      {qt>0 && <span style={{fontSize:9,color:'var(--label-4)'}}>{qt}/7d</span>}
+                    </div>
+                    {resultado && (
+                      <div style={{width:16,height:16,borderRadius:'50%',
+                        display:'flex',alignItems:'center',justifyContent:'center',
+                        background:disparouNoPedido?'rgba(34,197,94,.2)':'rgba(239,68,68,.1)',
+                        border:`1px solid ${disparouNoPedido?'#22c55e':'rgba(239,68,68,.3)'}`}}>
+                        {disparouNoPedido?<Check size={9} style={{color:'#22c55e'}}/>:<XCircle size={9} style={{color:'#ef4444'}}/>}
+                      </div>
+                    )}
+                  </div>
+                  {i < SEQ_RASTREIO.length-1 && (
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'center',padding:'0 4px',flexShrink:0}}>
+                      <ArrowRight size={14} style={{color:'var(--label-4)'}}/>
+                      <span style={{fontSize:8,color:'var(--label-4)',marginTop:2,whiteSpace:'nowrap'}}>bloqueia</span>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Exceções (qualquer momento) */}
+          <div style={{fontSize:10.5,fontWeight:600,color:'var(--label-4)',marginBottom:8,
+            textTransform:'uppercase',letterSpacing:'.04em'}}>Exceções — disparam a qualquer momento</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:6}}>
+            {gatilhos.filter(g=>g.grupo==='Envio & Rastreio' && !SEQ_RASTREIO.find(s=>s.id===g.id)).map(g=>(
+              <CardGatilho key={g.id} g={g} excecao/>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Legenda */}
+      <div style={{display:'flex',gap:14,flexWrap:'wrap',paddingBottom:8}}>
+        {[['#22c55e','ativo — dispara automaticamente'],['#f59e0b','off — aprovado na Meta, aguardando ativação'],['#ef4444','criar — template precisa ser criado e aprovado']].map(([c,l])=>(
+          <div key={l} style={{display:'flex',alignItems:'center',gap:5}}>
+            <div style={{width:8,height:8,borderRadius:'50%',background:c,flexShrink:0}}/>
+            <span style={{fontSize:10,color:'var(--label-4)'}}>{l}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function PageGatilhos({ api }) {
 
   // ── Estado ─────────────────────────────────────────────────────────────────
@@ -1075,13 +1359,13 @@ export default function PageGatilhos({ api }) {
         {/* ── COLUNA 2: Editor ────────────────────────────────────────────── */}
         <div style={{display:'flex',flexDirection:'column',overflow:'hidden',borderRight:'0.5px solid var(--sep)'}}>
           {!selId ? (
-            <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:12,color:'var(--label-4)',padding:32}}>
-              <div style={{width:56,height:56,borderRadius:16,background:'var(--fill)',border:'0.5px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                <Zap size={24} style={{opacity:.3}}/>
-              </div>
-              <p style={{fontSize:14,margin:0,color:'var(--label-3)'}}>Selecione um gatilho para editar</p>
-              <p style={{fontSize:12,margin:0,opacity:.6,textAlign:'center'}}>Escolha na lista à esquerda</p>
-            </div>
+            <PlanodeDisparos
+              gatilhos={GATILHOS}
+              configs={configs}
+              atividade={atividade}
+              onSelect={setSelId}
+              api={api}
+            />
           ) : (
             <>
               {/* Header do editor */}
