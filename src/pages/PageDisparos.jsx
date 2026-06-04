@@ -490,7 +490,9 @@ export default function PageDisparos({api: apiProp}) {
     { gat:'pedido_entregue',     label:'Entregue',            cor:'#22c55e' },
   ]
   const funil = ETAPAS_FUNIL.map(e=>({ ...e, total:_byGat[e.gat]?.total||0 })).filter(e=>e.total>0)
-  const funilTopo = funil[0]?.total || 0
+  // Base do funil = a MAIOR etapa (evita percentuais absurdos quando as etapas
+  // iniciais ainda não disparam). A barra é proporcional ao maior volume.
+  const funilMax = Math.max(...funil.map(e=>e.total), 1)
 
   // INSIGHTS automáticos — lê os dados e gera avisos úteis.
   const insights = []
@@ -504,7 +506,7 @@ export default function PageDisparos({api: apiProp}) {
   if (taxa>=90) insights.push({ tipo:'bom', txt:`Taxa de entrega de ${taxa}% — comunicação saudável.` })
   else if (taxa>0 && taxa<70) insights.push({ tipo:'alerta', txt:`Taxa global de ${taxa}% está baixa — verifique os erros.` })
   if (funil.length>=2) {
-    const queda = funilTopo>0 ? Math.round((1-(funil[funil.length-1].total/funilTopo))*100) : 0
+    const queda = funilMax>0 ? Math.round((1-(funil[funil.length-1].total/funilMax))*100) : 0
     if (queda>0) insights.push({ tipo:'info', txt:`${queda}% dos pedidos ainda não chegaram à entrega (acompanhe o trânsito).` })
   }
   if ((parseInt(t.ultimas_24h)||0)===0 && total>0) insights.push({ tipo:'info', txt:'Nenhum disparo nas últimas 24h.' })
@@ -529,7 +531,7 @@ export default function PageDisparos({api: apiProp}) {
   }
 
   return (
-    <div style={{height:'100%',display:'flex',flexDirection:'column',background:'var(--bg)'}}>
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column',overflow:'hidden',background:'var(--bg)'}}>
 
       {/* ── HEADER ── */}
       <div style={{padding:'12px 20px',flexShrink:0,borderBottom:'1px solid var(--sep)',
@@ -585,7 +587,7 @@ export default function PageDisparos({api: apiProp}) {
         </div>
       </div>
 
-      <div style={{flex:1,minHeight:0,height:'calc(100vh - 64px)',overflowY:'auto',padding:'16px 20px',display:'flex',flexDirection:'column',gap:16}}>
+      <div style={{flex:1,minHeight:0,overflowY:'auto',WebkitOverflowScrolling:'touch',padding:'16px 20px',display:'flex',flexDirection:'column',gap:16}}>
 
         {/* ── KPIs ── */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:10}}>
@@ -640,7 +642,7 @@ export default function PageDisparos({api: apiProp}) {
               ? <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:20,margin:0}}>Sem dados de jornada no período</p>
               : <div style={{display:'flex',flexDirection:'column',gap:0}}>
                   {funil.map((e,i)=>{
-                    const pct = funilTopo>0?Math.round(e.total/funilTopo*100):0
+                    const pct = Math.round(e.total/funilMax*100)
                     const EIc = GATILHO_META[e.gat]?.icon || Zap
                     return (
                       <div key={e.gat} onClick={()=>{ setFiltroGat(e.gat); setLogPg(1) }}
@@ -658,8 +660,6 @@ export default function PageDisparos({api: apiProp}) {
                             <span style={{fontSize:11,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>{e.label}</span>
                             <div style={{display:'flex',gap:6,flexShrink:0,alignItems:'center'}}>
                               <span style={{fontSize:11,fontWeight:700,color:'var(--label)'}}>{e.total}</span>
-                              {i>0&&<span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
-                                color:'var(--label-4)',background:'var(--fill)'}}>{pct}%</span>}
                             </div>
                           </div>
                           <div style={{height:4,borderRadius:99,background:'var(--fill)',overflow:'hidden'}}>
