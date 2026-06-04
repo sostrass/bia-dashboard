@@ -456,6 +456,41 @@ export default function PageDisparos({api: apiProp}) {
   }))
   const gatilhosUsados = [...new Set((stats?.porGatilho||[]).map(g=>g.gatilho))]
 
+  // FUNIL DA JORNADA — etapas na ordem do fluxo físico do pedido.
+  const _byGat = Object.fromEntries((stats?.porGatilho||[]).map(g=>[g.gatilho,{total:parseInt(g.total)||0,enviados:parseInt(g.enviados)||0}]))
+  const ETAPAS_FUNIL = [
+    { gat:'pedido_criado',       label:'Pedido criado',       cor:'#00d4aa' },
+    { gat:'pagamento_aprovado',  label:'Pagamento aprovado',  cor:'#4a9fff' },
+    { gat:'pedido_enviado',      label:'Enviado',             cor:'#a78bfa' },
+    { gat:'rastreio_em_transito',label:'Em trânsito',         cor:'#06b6d4' },
+    { gat:'saiu_entrega',        label:'Saiu p/ entrega',     cor:'#22c55e' },
+    { gat:'pedido_entregue',     label:'Entregue',            cor:'#22c55e' },
+  ]
+  const funil = ETAPAS_FUNIL.map(e=>({ ...e, total:_byGat[e.gat]?.total||0 })).filter(e=>e.total>0)
+  const funilTopo = funil[0]?.total || 0
+
+  // INSIGHTS automáticos — lê os dados e gera avisos úteis.
+  const insights = []
+  ;(stats?.porGatilho||[]).forEach(g=>{
+    const tot=parseInt(g.total)||0, env=parseInt(g.enviados)||0
+    if (tot>=5) {
+      const tx = Math.round(env/tot*100)
+      if (tx < 70) insights.push({ tipo:'alerta', txt:`"${GATILHO_META[g.gatilho]?.label||g.gatilho}" com ${100-tx}% de falha (${tot-env} de ${tot}).` })
+    }
+  })
+  if (taxa>=90) insights.push({ tipo:'bom', txt:`Taxa de entrega de ${taxa}% — comunicação saudável.` })
+  else if (taxa>0 && taxa<70) insights.push({ tipo:'alerta', txt:`Taxa global de ${taxa}% está baixa — verifique os erros.` })
+  if (funil.length>=2) {
+    const queda = funilTopo>0 ? Math.round((1-(funil[funil.length-1].total/funilTopo))*100) : 0
+    if (queda>0) insights.push({ tipo:'info', txt:`${queda}% dos pedidos ainda não chegaram à entrega (acompanhe o trânsito).` })
+  }
+  if ((parseInt(t.ultimas_24h)||0)===0 && total>0) insights.push({ tipo:'info', txt:'Nenhum disparo nas últimas 24h.' })
+  const INS_META = {
+    alerta:{ cor:'#f59e0b', bg:'rgba(245,158,11,.1)', icon:AlertTriangle },
+    bom:   { cor:'#22c55e', bg:'rgba(34,197,94,.1)',  icon:CheckCircle },
+    info:  { cor:'#4a9fff', bg:'rgba(74,159,255,.1)', icon:Info },
+  }
+
   return (
     <div style={{height:'100%',display:'flex',flexDirection:'column',overflow:'hidden',background:'var(--bg)'}}>
 
@@ -553,6 +588,58 @@ export default function PageDisparos({api: apiProp}) {
                 </span>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* ── Funil da jornada + Insights ── */}
+        <div style={{display:'grid',gridTemplateColumns:'1.4fr 1fr',gap:14}}>
+          {/* Funil */}
+          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px'}}>
+            <div style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7,marginBottom:14}}>
+              <Filter size={14} style={{color:'#7c6af7'}}/>Funil da jornada
+              <span style={{fontSize:10,color:'var(--label-4)',fontWeight:400,marginLeft:'auto'}}>onde estão seus clientes</span>
+            </div>
+            {funil.length===0
+              ? <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:20,margin:0}}>Sem dados de jornada no período</p>
+              : <div style={{display:'flex',flexDirection:'column',gap:9}}>
+                  {funil.map((e,i)=>{
+                    const pct = funilTopo>0?Math.round(e.total/funilTopo*100):0
+                    return (
+                      <div key={e.gat} onClick={()=>{ setFiltroGat(e.gat); setLogPg(1) }}
+                        title="Filtrar log por esta etapa" style={{cursor:'pointer'}}>
+                        <div style={{display:'flex',justifyContent:'space-between',fontSize:11.5,marginBottom:3}}>
+                          <span style={{color:'var(--label-3)'}}>{e.label}</span>
+                          <span style={{color:'var(--label-4)'}}>{e.total}{i>0&&` · ${pct}%`}</span>
+                        </div>
+                        <div style={{height:18,borderRadius:6,background:'var(--fill)',overflow:'hidden'}}>
+                          <div style={{height:'100%',borderRadius:6,width:`${pct}%`,background:e.cor,transition:'width .7s'}}/>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+            }
+          </div>
+          {/* Insights */}
+          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'14px 18px'}}>
+            <div style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7,marginBottom:12}}>
+              <Zap size={14} style={{color:'#f59e0b'}}/>Insights
+            </div>
+            {insights.length===0
+              ? <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:20,margin:0}}>Tudo tranquilo por aqui.</p>
+              : <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                  {insights.slice(0,5).map((ins,i)=>{
+                    const m=INS_META[ins.tipo]||INS_META.info, MI=m.icon
+                    return (
+                      <div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',padding:'8px 10px',
+                        borderRadius:9,background:m.bg}}>
+                        <MI size={13} style={{color:m.cor,flexShrink:0,marginTop:1}}/>
+                        <span style={{fontSize:11.5,color:'var(--label-3)',lineHeight:1.45}}>{ins.txt}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+            }
           </div>
         </div>
 
