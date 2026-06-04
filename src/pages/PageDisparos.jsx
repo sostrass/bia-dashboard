@@ -872,7 +872,7 @@ export default function PageDisparos({api: apiProp}) {
           </div>
 
           {/* Linhas */}
-          <div>
+          <div style={{minHeight:120}}>
           {log.length===0&&!loadLog
             ? <div style={{padding:48,textAlign:'center',color:'var(--label-4)'}}>
                 <Zap size={32} style={{opacity:.15,marginBottom:12}}/><br/>
@@ -909,6 +909,9 @@ export default function PageDisparos({api: apiProp}) {
             </div>
           )}
         </div>
+
+        {/* respiro final — garante que o log seja totalmente visível ao rolar */}
+        <div style={{height:24,flexShrink:0}}/>
 
       </div>
 
