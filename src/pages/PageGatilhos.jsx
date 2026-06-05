@@ -11,7 +11,7 @@ import {
   ArrowRight, SlidersHorizontal, Tag, Repeat, Activity,
   GripVertical, Timer, Edit3, Send as SendIcon,
   Search, Users, Download, Minus, CheckCircle as CheckCircleIc,
-  Navigation, ArrowUpRight, History, TrendingUp,
+  Navigation, ArrowUpRight, History, TrendingUp, ChevronLeft,
 } from 'lucide-react'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -363,7 +363,7 @@ function PreviewBolha({ blocos }) {
     else msgs[msgs.length-1].push(b)
   }
   return (
-    <div className="space-y-2">
+    <div style={{display:'flex',flexDirection:'column',gap:8}}>
       {msgs.filter(m=>m.length>0).map((msg,mi)=>{
         const cab=msg.find(b=>b.tipo==='cabecalho'), img=msg.find(b=>b.tipo==='imagem')
         const txts=msg.filter(b=>b.tipo==='texto'), rod=msg.find(b=>b.tipo==='rodape')
@@ -371,24 +371,47 @@ function PreviewBolha({ blocos }) {
         if(!cab&&!img&&!txts.length&&!rod) return null
         return (
           <div key={mi}>
-            {mi>0&&<div className="flex items-center gap-1 my-1"><div className="flex-1 border-t" style={{borderColor:'#2a3942'}}/><span style={{fontSize:8,color:'#8696a0'}}>msg separada</span><div className="flex-1 border-t" style={{borderColor:'#2a3942'}}/></div>}
-            <div className="rounded-[12px] rounded-tl-[2px] overflow-hidden max-w-[260px]" style={{background:'#202c33'}}>
-              {img?.url&&<div style={{background:'#1a2733'}}><img src={rv(img.url)} alt="" style={{width:'100%',maxHeight:120,objectFit:'cover'}} onError={e=>e.target.style.display='none'}/></div>}
-              {cab?.conteudo&&<div className="px-3 pt-2.5 pb-0.5"><p style={{fontSize:13,fontWeight:700,color:'#e9edef'}}>{rv(cab.conteudo)}</p></div>}
+            {mi>0&&(
+              <div style={{display:'flex',alignItems:'center',gap:6,margin:'2px 0 6px'}}>
+                <div style={{flex:1,height:1,background:'#2a3942'}}/>
+                <span style={{fontSize:8,color:'#8696a0'}}>msg separada</span>
+                <div style={{flex:1,height:1,background:'#2a3942'}}/>
+              </div>
+            )}
+            <div style={{borderRadius:'12px 12px 12px 3px',overflow:'hidden',
+              maxWidth:264,background:'#202c33',position:'relative',
+              boxShadow:'0 1px 4px rgba(0,0,0,.3)'}}>
+              {img?.url&&<div style={{background:'#1a2733'}}>
+                <img src={rv(img.url)} alt="" style={{width:'100%',maxHeight:130,objectFit:'cover'}} onError={e=>e.target.style.display='none'}/>
+              </div>}
+              {cab?.conteudo&&<div style={{padding:'10px 12px 4px'}}>
+                <p style={{fontSize:13,fontWeight:700,color:'#e9edef',margin:0,lineHeight:1.35}}>{rv(cab.conteudo)}</p>
+              </div>}
               {txts.map((b,i)=>(
-                <div key={i} className="px-3 py-2">
-                  <p style={{fontSize:12,color:'#e9edef',lineHeight:1.6,whiteSpace:'pre-wrap'}}
+                <div key={i} style={{padding:'5px 12px 3px'}}>
+                  <p style={{fontSize:12,color:'#e9edef',lineHeight:1.65,margin:0,whiteSpace:'pre-wrap'}}
                     dangerouslySetInnerHTML={{__html:rv(b.conteudo||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br/>').replace(/\*([^*\n]+)\*/g,'<strong>$1</strong>').replace(/_([^_\n]+)_/g,'<em>$1</em>')}}/>
                 </div>
               ))}
-              {rod?.conteudo&&<div className="px-3 pb-2"><p style={{fontSize:10,color:'#8696a0'}}>{rv(rod.conteudo)}</p></div>}
-              <div className="px-3 pb-1.5 flex justify-end"><span style={{fontSize:9,color:'#8696a0'}}>{hora} ✓✓</span></div>
-              {bts.length>0&&<div style={{borderTop:'1px solid #2a3942'}}>{bts.map((b,i)=>(
-                <div key={i} className="flex items-center justify-center gap-1.5 py-2" style={{borderTop:i>0?'1px solid #2a3942':'none',color:'#00a884',cursor:'pointer'}}>
-                  {b.tipo==='ligar'?<Phone size={10}/>:b.tipo==='link'?<LinkIcon size={10}/>:<MousePointer size={10}/>}
-                  <span style={{fontSize:12,fontWeight:500}}>{rv(b.texto||b.url||'Botão')}</span>
+              {rod?.conteudo&&<div style={{padding:'2px 12px 5px'}}>
+                <p style={{fontSize:10,color:'#8696a0',margin:0,fontStyle:'italic'}}>{rv(rod.conteudo)}</p>
+              </div>}
+              <div style={{padding:'2px 10px 8px',display:'flex',justifyContent:'flex-end',alignItems:'center',gap:3}}>
+                <span style={{fontSize:9,color:'#8696a0'}}>{hora}</span>
+                <span style={{fontSize:11,color:'#53bdeb'}}>✓✓</span>
+              </div>
+              {bts.length>0&&(
+                <div style={{borderTop:'1px solid #2a3942'}}>
+                  {bts.map((b,i)=>(
+                    <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'center',
+                      gap:6,padding:'9px 12px',borderTop:i>0?'1px solid #2a3942':'none',
+                      color:'#00a884',cursor:'pointer',fontSize:12,fontWeight:500}}>
+                      {b.tipo==='ligar'?<Phone size={11}/>:b.tipo==='link'?<LinkIcon size={11}/>:<MousePointer size={11}/>}
+                      {rv(b.texto||b.url||'Botão')}
+                    </div>
+                  ))}
                 </div>
-              ))}</div>}
+              )}
             </div>
           </div>
         )
@@ -401,22 +424,96 @@ function PreviewWA({ blocos=[], label='' }) {
   const hora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
   const vazio = !blocos.filter(b=>b.tipo!=='quebra').length
   return (
-    <div style={{maxWidth:280,margin:'0 auto',userSelect:'none'}}>
-      <div className="rounded-[20px] overflow-hidden" style={{background:'#111b21',border:'6px solid #1a252f',boxShadow:'0 20px 50px rgba(0,0,0,0.5)'}}>
-        <div style={{background:'#1a252f',padding:'4px 12px'}}><div className="flex justify-between"><span style={{fontSize:9,color:'#8696a0'}}>{hora}</span><span style={{fontSize:9,color:'#8696a0'}}>●●●</span></div></div>
-        <div className="flex items-center gap-2 px-3 py-2" style={{background:'#202c33'}}>
-          <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-white" style={{background:'#00a884',fontSize:11}}>S</div>
-          <div><p style={{fontSize:12,fontWeight:700,color:'white',lineHeight:1.2}}>Só Strass</p><p style={{fontSize:9,color:'#8696a0'}}>mensagem automática</p></div>
+    <div style={{maxWidth:290,margin:'0 auto',userSelect:'none',position:'relative'}}>
+      {/* ── Moldura do celular ── */}
+      <div style={{
+        borderRadius:44,overflow:'hidden',
+        background:'linear-gradient(160deg,#1a252e,#111c24)',
+        border:'8px solid #0d1820',
+        boxShadow:'0 0 0 1px rgba(255,255,255,.07) inset, 0 24px 60px rgba(0,0,0,.7), 0 0 0 12px rgba(10,20,28,.4)',
+        position:'relative',
+      }}>
+        {/* Status bar */}
+        <div style={{background:'#111b21',padding:'10px 18px 5px',
+          display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <span style={{fontSize:10,color:'#9aa4ae',fontWeight:600}}>{hora}</span>
+          {/* Notch */}
+          <div style={{width:68,height:16,borderRadius:99,background:'#0d1820',
+            display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <div style={{width:8,height:8,borderRadius:'50%',background:'#1a2733'}}/>
+          </div>
+          <div style={{display:'flex',gap:4,alignItems:'center'}}>
+            <svg width="14" height="10" viewBox="0 0 14 10"><rect x="1" y="3" width="2" height="7" rx="1" fill="#9aa4ae"/><rect x="4.5" y="2" width="2" height="8" rx="1" fill="#9aa4ae"/><rect x="8" y="0.5" width="2" height="9.5" rx="1" fill="#9aa4ae"/><rect x="11.5" y="0" width="2" height="10" rx="1" fill="#9aa4ae" opacity=".3"/></svg>
+            <svg width="16" height="10" viewBox="0 0 16 10"><rect x="0.5" y="0.5" width="13" height="9" rx="2.5" stroke="#9aa4ae" strokeWidth="1.2" fill="none"/><rect x="14" y="3" width="1.5" height="4" rx="1" fill="#9aa4ae" opacity=".5"/><rect x="2" y="2.5" width="9" height="5" rx="1.5" fill="#9aa4ae"/></svg>
+          </div>
         </div>
-        <div className="p-3" style={{background:'#0b141a',minHeight:80}}>
-          {vazio?(
-            <div className="flex flex-col items-center py-4" style={{opacity:.3}}>
-              <MessageSquare size={20} style={{color:'#8696a0'}}/><p style={{fontSize:10,color:'#8696a0',marginTop:4}}>Configure os blocos</p>
+
+        {/* WhatsApp header */}
+        <div style={{background:'#202c33',padding:'8px 12px',
+          display:'flex',alignItems:'center',gap:9,
+          borderBottom:'1px solid rgba(255,255,255,.04)'}}>
+          <ChevronLeft size={20} style={{color:'#00a884',flexShrink:0}}/>
+          <div style={{width:36,height:36,borderRadius:'50%',flexShrink:0,
+            background:'linear-gradient(135deg,#00a884,#006855)',
+            display:'flex',alignItems:'center',justifyContent:'center',
+            fontSize:14,fontWeight:700,color:'#fff',
+            boxShadow:'0 2px 8px rgba(0,168,132,.3)'}}>S</div>
+          <div style={{flex:1,minWidth:0}}>
+            <p style={{fontSize:13,fontWeight:700,color:'#e9edef',margin:0,lineHeight:1.2}}>Só Strass</p>
+            <p style={{fontSize:10,color:'#8696a0',margin:0}}>mensagem automática</p>
+          </div>
+          <div style={{display:'flex',gap:12,flexShrink:0}}>
+            <Phone size={16} style={{color:'#aab8c2'}}/>
+            <MoreHorizontal size={16} style={{color:'#aab8c2'}}/>
+          </div>
+        </div>
+
+        {/* Chat area */}
+        <div style={{
+          background:'#0b141a',
+          minHeight:140,maxHeight:420,
+          overflowY:'auto',
+          padding:'10px 10px 14px',
+        }}>
+          {/* Data pill */}
+          <div style={{display:'flex',justifyContent:'center',marginBottom:10}}>
+            <span style={{fontSize:10,color:'#8696a0',background:'rgba(11,20,26,.85)',
+              padding:'3px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,.05)'}}>
+              {new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long'})}
+            </span>
+          </div>
+          {vazio ? (
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',
+              padding:'20px 0',opacity:.25}}>
+              <MessageSquare size={22} style={{color:'#8696a0'}}/>
+              <p style={{fontSize:10,color:'#8696a0',marginTop:6,margin:'6px 0 0'}}>Configure os blocos</p>
             </div>
-          ):<PreviewBolha blocos={blocos}/>}
+          ) : (
+            <PreviewBolha blocos={blocos}/>
+          )}
+        </div>
+
+        {/* Input bar */}
+        <div style={{background:'#202c33',padding:'7px 10px',
+          display:'flex',alignItems:'center',gap:7}}>
+          <div style={{flex:1,background:'#2a3942',borderRadius:22,
+            padding:'8px 14px',fontSize:12,color:'#8696a0',
+            border:'1px solid rgba(255,255,255,.04)'}}>
+            Mensagem...
+          </div>
+          <div style={{width:36,height:36,borderRadius:'50%',background:'#00a884',flexShrink:0,
+            display:'flex',alignItems:'center',justifyContent:'center',
+            boxShadow:'0 2px 8px rgba(0,168,132,.3)'}}>
+            <Send size={14} style={{color:'#fff',transform:'translate(1px,-1px)'}}/>
+          </div>
         </div>
       </div>
-      {!vazio&&<p style={{fontSize:9,color:'var(--label-4)',textAlign:'center',marginTop:6}}>Preview com dados de exemplo</p>}
+
+      {!vazio&&(
+        <p style={{fontSize:9,color:T.ink4,textAlign:'center',marginTop:8}}>
+          Preview com dados de exemplo
+        </p>
+      )}
     </div>
   )
 }
@@ -443,31 +540,31 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
   }
   const sty={background:'var(--bg)',border:'1px solid var(--sep)',borderRadius:9,color:'var(--label)',outline:'none',padding:'9px 12px',fontSize:13,width:'100%',fontFamily:'inherit',lineHeight:1.6}
   if(b.tipo==='quebra') return (
-    <div className="flex items-center gap-2 py-1.5">
-      <div className="flex-1 border-t border-dashed" style={{borderColor:'var(--sep)'}}/>
-      <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold" style={{background:'var(--bg-3)',color:'var(--label-3)',border:'1px solid var(--sep)'}}><Plus size={8}/> Nova mensagem separada</div>
-      <div className="flex-1 border-t border-dashed" style={{borderColor:'var(--sep)'}}/>
+    <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0"}}>
+      <div style={{flex:1,height:1,borderTop:"1px dashed var(--sep)"}}/>
+      <div style={{display:"flex",alignItems:"center",gap:4,padding:"4px 10px",borderRadius:99,fontSize:10,fontWeight:600,background:"var(--bg-3)",color:"var(--label-3)",border:"1px solid var(--sep)"}}><Plus size={8}/> Nova mensagem separada</div>
+      <div style={{flex:1,height:1,borderTop:"1px dashed var(--sep)"}}/>
       <button onClick={onDelete} style={{color:'var(--label-4)'}}><X size={11}/></button>
     </div>
   )
   return (
-    <div className="rounded-[12px] overflow-hidden transition-all" style={{border:`1px solid ${aberto?def.cor+'30':'var(--sep)'}`,background:'var(--bg-2)',marginBottom:12}}>
-      <div className="flex items-center gap-2 px-3 py-2" style={{background:'var(--bg-3)',borderBottom:aberto?'1px solid var(--sep)':'none'}}>
+    <div style={{borderRadius:12,overflow:"hidden",transition:"all .15s",border:`1px solid ${aberto?def.cor+'30':'var(--sep)'}`,background:'var(--bg-2)',marginBottom:12}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:'var(--bg-3)',borderBottom:aberto?'1px solid var(--sep)':'none'}}>
         <GripVertical size={12} style={{color:'var(--label-4)',cursor:'grab'}}/>
-        <div className="w-4 h-4 rounded-[4px] flex items-center justify-center" style={{background:`${def.cor}20`}}><Ic size={10} style={{color:def.cor}}/></div>
-        <span className="text-[11px] font-semibold flex-1 truncate" style={{color:'var(--label-2)'}}>
-          {def.label}{b.tipo==='texto'&&b.conteudo?<span className="font-normal ml-1" style={{color:'var(--label-4)'}}> — {b.conteudo.slice(0,30).replace(/\n/g,' ')}{b.conteudo.length>30?'…':''}</span>:null}
+        <div style={{width:16,height:16,borderRadius:5,display:"flex",alignItems:"center",justifyContent:"center",background:`${def.cor}20`}}><Ic size={10} style={{color:def.cor}}/></div>
+        <span style={{fontSize:11,fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:'var(--label-2)'}}>
+          {def.label}{b.tipo==='texto'&&b.conteudo?<span style={{fontWeight:400,marginLeft:4,color:'var(--label-4)'}}> — {b.conteudo.slice(0,30).replace(/\n/g,' ')}{b.conteudo.length>30?'…':''}</span>:null}
         </span>
-        <div className="flex items-center gap-0.5">
-          <button onClick={()=>onMove(idx,-1)} disabled={idx===0} className="p-0.5 rounded disabled:opacity-20" style={{color:'var(--label-4)'}}><ChevronUp size={10}/></button>
-          <button onClick={()=>onMove(idx,1)} disabled={idx===total-1} className="p-0.5 rounded disabled:opacity-20" style={{color:'var(--label-4)'}}><ChevronDown size={10}/></button>
-          <button onClick={onDuplicate} className="p-0.5 rounded" style={{color:'var(--label-4)'}}><Copy size={10}/></button>
-          <button onClick={()=>setAberto(v=>!v)} className="p-0.5 rounded" style={{color:'var(--label-4)'}}>{aberto?<ChevronUp size={10}/>:<ChevronDown size={10}/>}</button>
-          <button onClick={onDelete} className="p-0.5 rounded" style={{color:'var(--label-4)'}}><X size={10}/></button>
+        <div style={{display:"flex",alignItems:"center",gap:2}}>
+          <button onClick={()=>onMove(idx,-1)} disabled={idx===0} style={{padding:2,borderRadius:4,color:"var(--label-4)",background:"none",border:"none",cursor:"pointer",display:"flex"}}><ChevronUp size={10}/></button>
+          <button onClick={()=>onMove(idx,1)} disabled={idx===total-1} style={{padding:2,borderRadius:4,color:"var(--label-4)",background:"none",border:"none",cursor:"pointer",display:"flex"}}><ChevronDown size={10}/></button>
+          <button onClick={onDuplicate} style={{padding:2,borderRadius:4,color:"var(--label-4)",background:"none",border:"none",cursor:"pointer",display:"flex"}}><Copy size={10}/></button>
+          <button onClick={()=>setAberto(v=>!v)} style={{padding:2,borderRadius:4,color:"var(--label-4)",background:"none",border:"none",cursor:"pointer",display:"flex"}}>{aberto?<ChevronUp size={10}/>:<ChevronDown size={10}/>}</button>
+          <button onClick={onDelete} style={{padding:2,borderRadius:4,color:"var(--label-4)",background:"none",border:"none",cursor:"pointer",display:"flex"}}><X size={10}/></button>
         </div>
       </div>
       {aberto&&(
-        <div className="p-4 space-y-3">
+        <div style={{padding:16,display:"flex",flexDirection:"column",gap:12}}>
           {b.tipo==='cabecalho'&&<><input id={`bloco-${b.id}`} value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Emoji + título" style={sty}/><div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}><EmojiPicker onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/><VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/></div></>}
           {b.tipo==='texto'&&<><textarea id={`bloco-${b.id}`} value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Texto... Use *negrito*" rows={7} style={{...sty,resize:'vertical',minHeight:140,lineHeight:1.7}}/><div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}><EmojiPicker onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/><VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/></div></>}
           {b.tipo==='rodape'&&<input value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Ex: Mensagem automática — não responda." style={sty}/>}
@@ -476,9 +573,9 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
           {b.tipo==='audio'&&<input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})} placeholder="URL do áudio" style={{...sty,fontFamily:'monospace',fontSize:12}}/>}
           {b.tipo==='botao'&&<>
             <input value={b.texto||''} onChange={e=>onChange({...b,texto:e.target.value})} placeholder="Texto do botão (máx. 20)" maxLength={20} style={sty}/>
-            <div className="grid grid-cols-3 gap-1.5">
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
               {[['url','🔗 Link'],['reply','💬 Resposta'],['tel','📞 Ligar']].map(([v,l])=>(
-                <button key={v} onClick={()=>onChange({...b,acao:v})} className="py-1.5 rounded-[7px] text-[10px] font-medium" style={{background:b.acao===v?'var(--accent-dim)':'var(--bg)',color:b.acao===v?'var(--accent)':'var(--label-3)',border:b.acao===v?'1px solid var(--accent-border)':'1px solid var(--sep)'}}>{l}</button>
+                <button key={v} onClick={()=>onChange({...b,acao:v})} style={{padding:"6px 4px",borderRadius:7,fontSize:10,fontWeight:500,cursor:"pointer",background:b.acao===v?'var(--accent-dim)':'var(--bg)',color:b.acao===v?'var(--accent)':'var(--label-3)',border:b.acao===v?'1px solid var(--accent-border)':'1px solid var(--sep)'}}>{l}</button>
               ))}
             </div>
             {(b.acao==='url'||b.acao==='tel')&&<><input value={b.valor||''} onChange={e=>onChange({...b,valor:e.target.value})} placeholder={b.acao==='tel'?'Número':'URL'} style={{...sty,fontFamily:'monospace',fontSize:11}}/>{b.acao==='url'&&<VarPills vars={vars} onInsert={v=>onChange({...b,valor:(b.valor||'')+v})}/>}</>}
@@ -513,7 +610,7 @@ function Sparkline({ dados, cor, largura=58, altura=22 }) {
 
 function VarPills({vars,onInsert}){
   if(!vars?.length)return null
-  return <div className="flex flex-wrap gap-1">{vars.map(v=><button key={v} onClick={()=>onInsert(v)} style={{padding:'2px 6px',borderRadius:4,fontSize:9,fontFamily:'monospace',background:'var(--accent-dim)',color:'var(--accent)',border:'1px solid var(--accent-border)',cursor:'pointer'}}>{v}</button>)}</div>
+  return <div style={{display:"flex",flexWrap:"wrap",gap:4}}>{vars.map(v=><button key={v} onClick={()=>onInsert(v)} style={{padding:'2px 6px',borderRadius:4,fontSize:9,fontFamily:'monospace',background:'var(--accent-dim)',color:'var(--accent)',border:'1px solid var(--accent-border)',cursor:'pointer'}}>{v}</button>)}</div>
 }
 
 // Seletor de emoji para os textos. Conjunto curado e útil para e-commerce/WhatsApp.
@@ -2217,11 +2314,11 @@ export default function PageGatilhos({ api }) {
                     </div>
 
                     {/* Paleta de blocos */}
-                    <div className="rounded-[12px] overflow-hidden" style={{border:'1px solid var(--sep)',background:'var(--bg-2)',marginTop:10}}>
-                      <div className="px-3 py-2" style={{borderBottom:'1px solid var(--sep)',background:'var(--bg-3)'}}>
-                        <p className="text-[10px] font-semibold" style={{color:'var(--label-3)'}}>Adicionar bloco</p>
+                    <div style={{borderRadius:12,overflow:"hidden",border:"1px solid var(--sep)",background:"var(--bg-2)",marginTop:10}}>
+                      <div style={{padding:"8px 12px",borderBottom:"1px solid var(--sep)",background:"var(--bg-3)"}}>
+                        <p style={{fontSize:10,fontWeight:600,color:"var(--label-3)",margin:0}}>Adicionar bloco</p>
                       </div>
-                      <div className="p-2 grid grid-cols-5 gap-1.5">
+                      <div style={{padding:8,display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6}}>
                         {TIPOS_BLOCO.filter(t => {
                           if (t.tipo==='cabecalho' && blocos.find(b=>b.tipo==='cabecalho')) return false
                           if (t.tipo==='rodape'    && blocos.find(b=>b.tipo==='rodape'))    return false
@@ -2233,10 +2330,8 @@ export default function PageGatilhos({ api }) {
                           const Ic = t.icon
                           return (
                             <button key={t.tipo} onClick={()=>addBloco(t.tipo)}
-                              className="flex flex-col items-center gap-1 py-2 rounded-[8px] text-[9px] font-semibold transition-all group"
-                              style={{background:'var(--bg-3)',border:'1px solid var(--sep)',color:'var(--label-3)'}} title={t.desc}>
-                              <div className="w-5 h-5 rounded-[6px] flex items-center justify-center group-hover:scale-110 transition-transform"
-                                style={{background:`${t.cor}20`}}><Ic size={11} style={{color:t.cor}}/></div>
+                              style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,padding:"8px 4px",borderRadius:8,fontSize:9,fontWeight:600,cursor:"pointer",transition:"all .12s",border:"1px solid var(--sep)",background:'var(--bg-3)',color:'var(--label-3)'}} title={t.desc}>
+                              <div style={{width:20,height:20,borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",background:`${t.cor}20`}}><Ic size={11} style={{color:t.cor}}/></div>
                               {t.label}
                             </button>
                           )
@@ -2464,23 +2559,47 @@ export default function PageGatilhos({ api }) {
           )}
         </div>
 
-        {/* ── COLUNA 3: Preview ────────────────────────────────────────────── */}
-        <div style={{display:'flex',flexDirection:'column',overflow:'hidden',background:'var(--fill)'}}>
+        {/* ── COLUNA 3: Preview premium ───────────────────────────────────── */}
+        <div style={{display:'flex',flexDirection:'column',overflow:'hidden',
+          background:`linear-gradient(160deg,${T.bg1} 0%,${T.bg0} 100%)`}}>
           {!selId ? (
-            <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--label-4)'}}>
-              <p style={{fontSize:12}}>Preview aparece aqui</p>
+            <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',
+              justifyContent:'center',gap:12,padding:24}}>
+              <div style={{width:48,height:48,borderRadius:14,background:T.bg3,
+                display:'flex',alignItems:'center',justifyContent:'center',opacity:.4}}>
+                <Eye size={22} style={{color:T.ink3}}/>
+              </div>
+              <p style={{fontSize:12,color:T.ink4,textAlign:'center'}}>
+                Selecione um gatilho para ver o preview da mensagem
+              </p>
             </div>
           ) : (
             <>
-              {/* Header preview */}
-              <div style={{flexShrink:0,padding:'10px 14px',borderBottom:'0.5px solid var(--sep)',background:'var(--bg-2)',display:'flex',alignItems:'center',gap:8}}>
-                <Eye size={13} style={{color:'var(--label-4)'}}/>
-                <span style={{fontSize:12,fontWeight:500,color:'var(--label-3)'}}>Preview WhatsApp</span>
-                <span style={{fontSize:10.5,color:'var(--label-4)',marginLeft:'auto'}}>com dados de exemplo</span>
+              {/* Header contextual do preview */}
+              <div style={{flexShrink:0,padding:'14px 16px',
+                background:`linear-gradient(135deg,${gatilho?.cor}15 0%,${T.bg2} 70%)`,
+                borderBottom:`1px solid ${T.sep}`}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:2}}>
+                  <div style={{width:20,height:20,borderRadius:6,background:`${gatilho?.cor}20`,
+                    display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    {gatilho?.icon&&<gatilho.icon size={11} style={{color:gatilho?.cor}}/>}
+                  </div>
+                  <span style={{fontSize:12,fontWeight:600,color:T.ink1}}>{labelAtual}</span>
+                  <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:4}}>
+                    <div style={{width:6,height:6,borderRadius:'50%',
+                      background:configs[selId]?.ativo?T.green:T.ink4}}/>
+                    <span style={{fontSize:10,color:configs[selId]?.ativo?T.green:T.ink3,fontWeight:500}}>
+                      {configs[selId]?.ativo?'Ativo':'Inativo'}
+                    </span>
+                  </div>
+                </div>
+                <p style={{fontSize:10,color:T.ink3,margin:0}}>Preview com dados de exemplo</p>
               </div>
 
-              {/* Preview */}
-              <div style={{flex:1,overflowY:'auto',padding:'20px 16px',background:'#e5ddd5'}}>
+              {/* Área do preview — background realista de wallpaper */}
+              <div style={{flex:1,overflowY:'auto',padding:'20px 16px',
+                background:'radial-gradient(ellipse at 60% 40%, #162029 0%, #0b1419 60%, #080f14 100%)',
+                display:'flex',alignItems:'flex-start',justifyContent:'center'}}>
                 <PreviewWA blocos={blocos} label={gatilho?.label}/>
               </div>
 
@@ -2520,24 +2639,23 @@ function ModalGatilho({modo,existente,api,onClose,onSave}){
   }
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
-      <div className="w-full max-w-[380px] rounded-[18px] overflow-hidden" style={{background:'var(--bg-2)',border:'1px solid var(--sep)'}}>
-        <div className="flex items-center justify-between px-5 py-4" style={{borderBottom:'1px solid var(--sep)',background:'var(--bg-3)'}}>
-          <h3 className="text-[14px] font-bold" style={{color:'var(--label)'}}>{modo==='novo'?'Novo gatilho personalizado':'Editar gatilho'}</h3>
+      <div style={{width:"100%",maxWidth:380,borderRadius:18,overflow:"hidden",background:"var(--bg-2)",border:"1px solid var(--sep)"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 20px",borderBottom:"1px solid var(--sep)",background:"var(--bg-3)"}}>
+          <h3 style={{fontSize:14,fontWeight:700,color:"var(--label)",margin:0}}>{modo==='novo'?'Novo gatilho personalizado':'Editar gatilho'}</h3>
           <button onClick={onClose} style={{color:'var(--label-3)'}}><X size={15}/></button>
         </div>
-        <div className="p-5 space-y-3">
+        <div style={{padding:20,display:"flex",flexDirection:"column",gap:12}}>
           {[['label','Nome *','Ex: Produto em Trânsito',false],['string','String de ativação','Ex: #TRANSITO — cole nas Obs. Internas',true],['desc','Descrição','Para que serve este gatilho?',false]].map(([k,lb,ph,mono])=>(
             <div key={k}>
-              <label className="text-[11px] font-medium block mb-1" style={{color:'var(--label-2)'}}>{lb}</label>
+              <label style={{fontSize:11,fontWeight:500,display:"block",marginBottom:4,color:"var(--label-2)"}}>{lb}</label>
               <input value={form[k]} onChange={e=>set(k,mono?e.target.value.toUpperCase():e.target.value)}
-                placeholder={ph} className="w-full px-3 py-2.5 rounded-[9px] text-[12px] outline-none"
-                style={{background:'var(--bg)',border:'1px solid var(--sep)',color:mono?'var(--accent)':'var(--label)',fontFamily:mono?'monospace':'inherit'}}/>
+                placeholder={ph} style={{width:"100%",padding:"10px 12px",borderRadius:9,fontSize:12,outline:"none",boxSizing:"border-box",background:'var(--bg)',border:'1px solid var(--sep)',color:mono?'var(--accent)':'var(--label)',fontFamily:mono?'monospace':'inherit'}}/>
             </div>
           ))}
-          {erro&&<p className="text-[11px]" style={{color:'var(--red)'}}>{erro}</p>}
-          <div className="flex gap-3 pt-1">
-            <button onClick={onClose} className="flex-1 py-2.5 rounded-[10px] text-[12px]" style={{background:'var(--fill)',color:'var(--label-2)'}}>Cancelar</button>
-            <button onClick={salvar} disabled={salvando||!form.label.trim()} className="flex-1 py-2.5 rounded-[10px] text-[12px] font-semibold" style={{background:'var(--accent)',color:'#000',opacity:!form.label.trim()?0.5:1}}>
+          {erro&&<p style={{fontSize:11,color:"var(--red)",margin:0}}>{erro}</p>}
+          <div style={{display:"flex",gap:12,paddingTop:4}}>
+            <button onClick={onClose} style={{flex:1,padding:"10px",borderRadius:10,fontSize:12,background:"var(--fill)",color:"var(--label-2)",border:"none",cursor:"pointer"}}>Cancelar</button>
+            <button onClick={salvar} disabled={salvando||!form.label.trim()} style={{flex:1,padding:"10px",borderRadius:10,fontSize:12,fontWeight:600,background:"var(--accent)",color:"#000",opacity:!form.label.trim()?0.5:1,border:"none",cursor:"pointer"}}>
               {salvando?'Salvando...':'Criar gatilho'}
             </button>
           </div>
