@@ -873,8 +873,37 @@ function PlanodeDisparos({ gatilhos, configs, atividade, onSelect, api }) {
   )
 }
 
-export default function PageGatilhos({ api }) {
+// Helper: tempo relativo (ex: "há 2h", "ontem", "3 dias")
+function tempoRel(iso) {
+  if (!iso) return null
+  const diff = Date.now() - new Date(iso).getTime()
+  const min  = Math.floor(diff/60000)
+  if (min < 60)   return min <= 1 ? 'agora' : `${min}min`
+  const h = Math.floor(min/60)
+  if (h < 24)    return `${h}h`
+  const d = Math.floor(h/24)
+  if (d === 1)   return 'ontem'
+  return `${d}d`
+}
 
+// Sparkline inline (7 barrinhas) usando SVG simples
+function SparkCard({ serie=[], cor='#22c55e' }) {
+  const max = Math.max(...serie, 1)
+  const H = 22, W = 4, G = 2
+  const total = serie.reduce((s,v)=>s+v,0)
+  if (total === 0) return null
+  return (
+    <svg width={serie.length*(W+G)-G} height={H} style={{display:'block',flexShrink:0}}>
+      {serie.map((v,i)=>{
+        const h = Math.max(2, Math.round((v/max)*H))
+        return <rect key={i} x={i*(W+G)} y={H-h} width={W} height={h}
+          fill={i===serie.length-1?cor:`${cor}50`} rx={1}/>
+      })}
+    </svg>
+  )
+}
+
+export default function PageGatilhos({ api }) {
   // ── Estado ─────────────────────────────────────────────────────────────────
   const [selId,       setSelId]     = useState(null)
   const [configs,     setConfigs]   = useState({})
@@ -894,6 +923,7 @@ export default function PageGatilhos({ api }) {
   const [aba,         setAba]       = useState('editor')  // editor | preview | config | meta
   const [grupoAberto, setGrupoAb]   = useState({ 'Preparação & Nota':false, 'Envio & Rastreio':false, 'Pós-venda':false, 'Inteligência':false })
   const [busca,       setBusca]     = useState('')
+  const [showPlano,   setShowPlano] = useState(false)  // alterna entre grade e Plano de Disparos
   const [loading,     setLoading]   = useState(true)
   const [nomesCustom, setNomesCustom] = useState({})  // { gatilhoId: 'nome editado' }
   const [editandoNome, setEditandoNome] = useState(false)  // modo edição do nome do gatilho selecionado
@@ -903,6 +933,7 @@ export default function PageGatilhos({ api }) {
   const [sugestoesFechadas, setSugFechadas] = useState({})  // dispensadas pelo usuário (sessão)
   const [sparks, setSparks] = useState(null)  // séries históricas pros sparklines
   const [atividade, setAtividade] = useState({})  // envios por gatilho (7 dias)
+  const [indicadores, setIndicadores] = useState({})  // indicadores ricos por gatilho
   const [molisesAberta, setMoliseAberta] = useState(false)  // painel de sugestões on/off
 
   const gatilho = GATILHOS.find(g => g.id === selId)
@@ -989,6 +1020,10 @@ export default function PageGatilhos({ api }) {
     fetch(`${api}/api/operacao/atividade`)
       .then(r => r.json())
       .then(d => { if (vivo && d && d.atividade) setAtividade(d.atividade) })
+      .catch(() => {})
+    fetch(`${api}/api/dashboard/gatilhos-indicadores`)
+      .then(r => r.json())
+      .then(d => { if (vivo && d?.indicadores) setIndicadores(d.indicadores) })
       .catch(() => {})
     return () => { vivo = false }
   }, [api])
@@ -1302,17 +1337,36 @@ export default function PageGatilhos({ api }) {
         {/* ── GRADE DE CARDS (Centro de Operações) ────────────────────────── */}
         <div style={{flex:1,overflowY:'auto',padding:'14px 20px',background:'var(--bg)'}}>
 
-          {/* Busca */}
-          <div style={{marginBottom:14,maxWidth:360}}>
-            <div style={{display:'flex',alignItems:'center',gap:7,padding:'8px 11px',borderRadius:9,border:'0.5px solid var(--sep)',background:'var(--bg-2)'}}>
+          {/* Barra de busca + botão Plano */}
+          <div style={{marginBottom:14,display:'flex',gap:8,alignItems:'center'}}>
+            <div style={{flex:1,maxWidth:320,display:'flex',alignItems:'center',gap:7,padding:'8px 11px',borderRadius:9,border:'0.5px solid var(--sep)',background:'var(--bg-2)'}}>
               <Activity size={13} style={{color:'var(--label-4)',flexShrink:0}}/>
-              <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar gatilho..."
+              <input value={busca} onChange={e=>{setBusca(e.target.value);setShowPlano(false)}} placeholder="Buscar gatilho..."
                 style={{flex:1,border:'none',background:'transparent',color:'var(--label)',fontSize:13,outline:'none'}}/>
             </div>
+            <button onClick={()=>setShowPlano(p=>!p)} style={{
+              display:'flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius:9,
+              border:`0.5px solid ${showPlano?'rgba(124,106,247,.4)':'var(--sep)'}`,
+              background:showPlano?'rgba(124,106,247,.1)':'var(--bg-2)',
+              color:showPlano?'#7c6af7':'var(--label-3)',cursor:'pointer',fontSize:12,fontWeight:500,
+              whiteSpace:'nowrap'}}>
+              <SlidersHorizontal size={13}/>Plano
+            </button>
           </div>
 
-          {/* Grade agrupada por jornada */}
-          {gruposFiltrados.map(grupo => (
+          {/* Plano de Disparos (quando ativo) */}
+          {showPlano && (
+            <PlanodeDisparos
+              gatilhos={GATILHOS}
+              configs={configs}
+              atividade={atividade}
+              onSelect={id=>{ setSelId(id); setShowPlano(false) }}
+              api={api}
+            />
+          )}
+
+          {/* Grade agrupada por jornada (quando Plano não está ativo) */}
+          {!showPlano && gruposFiltrados.map(grupo => (
             <div key={grupo.nome} style={{marginBottom:18}}>
               <button onClick={()=>setGrupoAb(p=>({...p,[grupo.nome]:!p[grupo.nome]}))}
                 style={{display:'flex',alignItems:'center',gap:8,padding:'4px 2px',marginBottom:9,border:'none',background:'transparent',cursor:'pointer'}}>
@@ -1364,17 +1418,54 @@ export default function PageGatilhos({ api }) {
                           <div style={{background:'var(--fill)',borderRadius:7,padding:'8px 10px',flex:1,minHeight:42,border:'0.5px solid var(--sep)'}}>
                             <p style={{fontSize:10.5,color:'var(--label-2)',margin:0,lineHeight:1.5,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>{previewTxt.replace(/\n/g,' ').replace(/\*/g,'')}</p>
                           </div>
-                          {/* Rodapé: status + atividade + ações */}
-                          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}}>
-                            <div style={{display:'flex',alignItems:'center',gap:6,minWidth:0}}>
-                              <span style={{fontSize:9,padding:'1px 7px',borderRadius:99,background:stInfo.dim,color:stInfo.cor,fontWeight:500,whiteSpace:'nowrap'}}>{stInfo.lbl}</span>
-                              {atividade[g.id]>0 && <span style={{fontSize:9,color:'var(--label-4)',whiteSpace:'nowrap'}}>· {atividade[g.id]}/sem</span>}
-                            </div>
-                            <div style={{display:'flex',gap:7,alignItems:'center',color:'var(--label-4)',flexShrink:0}}>
-                              {g.tipo==='ia' && <span style={{fontSize:8.5,padding:'1px 5px',borderRadius:99,background:'rgba(124,106,247,.12)',color:'#7c6af7'}}>IA</span>}
-                              <Pencil size={13} style={{cursor:'pointer'}}/>
-                            </div>
-                          </div>
+                          {/* Rodapé rico: indicadores + sparkline */}
+                          {(() => {
+                            const ind = indicadores[g.id]
+                            const erros  = ind?.erros  || 0
+                            const total  = ind?.total   || atividade[g.id] || 0
+                            const serie  = ind?.serie   || []
+                            const ultimo = ind?.ultimo  || null
+                            const rel    = tempoRel(ultimo)
+                            // Alerta de gap: gatilho sem template mas com volume esperado
+                            const ehCritico = ['pedido_entregue','rastreio_em_transito','saiu_entrega','pedido_coletado'].includes(g.id)
+                            const semTemplate = !temTemplate
+                            return (
+                              <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                                {/* Alerta de gap */}
+                                {semTemplate && ehCritico && (
+                                  <div style={{display:'flex',alignItems:'center',gap:5,padding:'4px 8px',
+                                    borderRadius:6,background:'rgba(239,68,68,.08)',border:'0.5px solid rgba(239,68,68,.2)'}}>
+                                    <AlertTriangle size={10} style={{color:'#ef4444',flexShrink:0}}/>
+                                    <span style={{fontSize:9.5,color:'#ef4444'}}>Criar e aprovar na Meta</span>
+                                  </div>
+                                )}
+                                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}}>
+                                  <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
+                                    {/* Badge status Meta */}
+                                    <span style={{fontSize:9,padding:'1px 7px',borderRadius:99,background:stInfo.dim,color:stInfo.cor,fontWeight:500,whiteSpace:'nowrap'}}>{stInfo.lbl}</span>
+                                    {/* Contagem total */}
+                                    {total>0 && <span style={{fontSize:9,color:'var(--label-4)',whiteSpace:'nowrap'}}>{total}/sem</span>}
+                                    {/* Erro */}
+                                    {erros>0 && (
+                                      <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:9,
+                                        color:'#ef4444',padding:'1px 5px',borderRadius:99,
+                                        background:'rgba(239,68,68,.1)',fontWeight:600}}>
+                                        ⚠ {erros} erro{erros>1?'s':''}
+                                      </span>
+                                    )}
+                                    {/* Último disparo */}
+                                    {rel && <span style={{fontSize:9,color:'var(--label-4)'}}>· {rel}</span>}
+                                  </div>
+                                  <div style={{display:'flex',gap:6,alignItems:'center',flexShrink:0}}>
+                                    {/* Sparkline */}
+                                    {serie.length>0 && <SparkCard serie={serie} cor={erros>0?'#ef4444':ativo?'#22c55e':'#f59e0b'}/>}
+                                    {g.tipo==='ia' && <span style={{fontSize:8.5,padding:'1px 5px',borderRadius:99,background:'rgba(124,106,247,.12)',color:'#7c6af7'}}>IA</span>}
+                                    <Pencil size={13} style={{cursor:'pointer',color:'var(--label-4)'}}/>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })()}
                         </div>
                       </div>
                     )
@@ -1384,8 +1475,6 @@ export default function PageGatilhos({ api }) {
             </div>
           ))}
         </div>
-
-        {/* ── PAINEL DESLIZANTE (editor + preview) ────────────────────────── */}
         {selId && (
           <div onClick={()=>setSelId(null)} style={{position:'absolute',inset:0,background:'rgba(0,0,0,.35)',zIndex:30,animation:'fadeIn .15s'}}/>
         )}
