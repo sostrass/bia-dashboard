@@ -3274,16 +3274,18 @@ export default function PageGatilhos({ api }) {
               <div style={{display:'flex',flexDirection:'column',overflow:'hidden',
                 background:`linear-gradient(160deg,${T.bg1} 0%,${T.bg0} 100%)`}}>
               {/* Header contextual do preview */}
-              <div style={{flexShrink:0,padding:'14px 16px',
+              <div style={{flexShrink:0,padding:'12px 16px',
                 background:`linear-gradient(135deg,${gatilho?.cor}15 0%,${T.bg2} 70%)`,
                 borderBottom:`1px solid ${T.sep}`}}>
-                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:2}}>
+
+                {/* Linha 1: ícone + nome + status */}
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
                   <div style={{width:20,height:20,borderRadius:6,background:`${gatilho?.cor}20`,
                     display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                     {gatilho?.icon&&<gatilho.icon size={11} style={{color:gatilho?.cor}}/>}
                   </div>
-                  <span style={{fontSize:12,fontWeight:600,color:T.ink1}}>{labelAtual}</span>
-                  <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:4}}>
+                  <span style={{fontSize:12,fontWeight:600,color:T.ink1,flex:1}}>{labelAtual}</span>
+                  <div style={{display:'flex',alignItems:'center',gap:4}}>
                     <div style={{width:6,height:6,borderRadius:'50%',
                       background:configs[selId]?.ativo?T.green:T.ink4}}/>
                     <span style={{fontSize:10,color:configs[selId]?.ativo?T.green:T.ink3,fontWeight:500}}>
@@ -3291,7 +3293,60 @@ export default function PageGatilhos({ api }) {
                     </span>
                   </div>
                 </div>
-                <p style={{fontSize:10,color:T.ink3,margin:0}}>Preview com dados de exemplo</p>
+
+                {/* Linha 2: Health ring + barras de stats */}
+                {(()=>{
+                  const indPrev = indicadores[selId]
+                  if (!indPrev) return (
+                    <p style={{fontSize:10,color:T.ink4,margin:0}}>Preview com dados de exemplo</p>
+                  )
+                  const envP  = indPrev.enviados||0
+                  const errP  = indPrev.erros||0
+                  const tentP = envP+errP
+                  const taxaP = tentP>0?Math.round(envP/tentP*100):null
+                  const rCorP = taxaP===null?T.ink4:taxaP>=70?T.green:taxaP>=30?T.amber:T.red
+                  const CIRC2 = 69  // 2π × 11
+                  const dash2 = taxaP!==null ? Math.round(CIRC2*(1-taxaP/100)) : CIRC2
+                  return (
+                    <div style={{display:'flex',alignItems:'center',gap:10}}>
+                      {/* Mini health ring */}
+                      <div style={{position:'relative',width:30,height:30,flexShrink:0}}>
+                        <svg width="30" height="30" viewBox="0 0 30 30">
+                          <circle cx="15" cy="15" r="11" fill="none" stroke={T.bg4} strokeWidth="2.5"/>
+                          <circle cx="15" cy="15" r="11" fill="none" stroke={rCorP}
+                            strokeWidth="2.5" strokeDasharray={`${CIRC2}`}
+                            strokeDashoffset={`${dash2}`} strokeLinecap="round"
+                            transform="rotate(-90 15 15)"
+                            style={{transition:'stroke-dashoffset .8s ease'}}/>
+                        </svg>
+                        <div style={{position:'absolute',inset:0,display:'flex',
+                          alignItems:'center',justifyContent:'center'}}>
+                          <span style={{fontSize:8,fontWeight:700,color:rCorP,lineHeight:1}}>
+                            {taxaP!==null?`${taxaP}%`:'—'}
+                          </span>
+                        </div>
+                      </div>
+                      {/* Barras de stats */}
+                      <div style={{flex:1,display:'flex',flexDirection:'column',gap:4}}>
+                        {[
+                          {l:'Enviados',v:envP, t:tentP, c:T.green},
+                          {l:'Erros',   v:errP, t:tentP, c:T.red},
+                        ].map(s=>(
+                          <div key={s.l} style={{display:'flex',alignItems:'center',gap:5}}>
+                            <span style={{fontSize:9,color:T.ink4,width:46,flexShrink:0}}>{s.l}</span>
+                            <div style={{flex:1,height:3,borderRadius:99,background:T.bg4,overflow:'hidden'}}>
+                              <div style={{height:'100%',borderRadius:99,background:s.c,
+                                width:`${s.t>0?Math.round(s.v/s.t*100):0}%`,
+                                transition:'width .6s ease'}}/>
+                            </div>
+                            <span style={{fontSize:9,color:s.c,fontWeight:600,
+                              width:26,textAlign:'right',flexShrink:0}}>{s.v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
 
               {/* Área do preview — background realista de wallpaper */}
