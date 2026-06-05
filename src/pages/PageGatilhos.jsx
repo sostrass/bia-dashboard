@@ -11,7 +11,7 @@ import {
   ArrowRight, SlidersHorizontal, Tag, Repeat, Activity,
   GripVertical, Timer, Edit3, Send as SendIcon,
   Search, Users, Download, Minus, CheckCircle as CheckCircleIc,
-  Navigation, ArrowUpRight,
+  Navigation, ArrowUpRight, History, TrendingUp,
 } from 'lucide-react'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -890,6 +890,89 @@ function PlanodeDisparos({ gatilhos, configs, atividade, onSelect, api }) {
 }
 
 // Helper: tempo relativo (ex: "há 2h", "ontem", "3 dias")
+// ─── INSIGHT CARD para PageGatilhos ──────────────────────────────────────────
+// Idêntico ao InsightCard do PageDisparos mas com "Ver gatilho" como ação
+function InsightCardGat({ ins, onDismiss, onGoto }) {
+  const [detalhe, setDetalhe] = useState(false)
+  const cfg = {
+    critico:      {cor:T.red,   dim:T.redDim,   bor:T.redBor,   Ic:AlertTriangle, lbl:'CRÍTICO'},
+    aviso:        {cor:T.amber, dim:T.amberDim, bor:T.amberBor, Ic:Clock,         lbl:'ATENÇÃO'},
+    oportunidade: {cor:T.blue,  dim:T.blueDim,  bor:T.blueBor,  Ic:Star,          lbl:'OPORTUNIDADE'},
+    positivo:     {cor:T.green, dim:T.greenDim, bor:T.greenBor, Ic:Activity,      lbl:'POSITIVO'},
+  }[ins.tipo] || {cor:T.ink3, dim:T.gray, bor:T.grayBor, Ic:Info, lbl:'INFO'}
+  const {cor, dim, bor, Ic, lbl} = cfg
+
+  return (
+    <div style={{borderRadius:11, padding:'12px 14px', background:dim,
+      border:`1px solid ${bor}`, animation:'fadeIn .3s ease'}}>
+      <div style={{display:'flex', alignItems:'flex-start', gap:10}}>
+        <div style={{width:32, height:32, borderRadius:9, background:`${cor}18`,
+          border:`1px solid ${bor}`, display:'flex', alignItems:'center',
+          justifyContent:'center', flexShrink:0, marginTop:1}}>
+          <Ic size={15} style={{color:cor}}/>
+        </div>
+        <div style={{flex:1, minWidth:0}}>
+          {/* badges de severidade + métrica */}
+          <div style={{display:'flex', alignItems:'center', gap:6, marginBottom:5, flexWrap:'wrap'}}>
+            <span style={{fontSize:9, padding:'1px 7px', borderRadius:99,
+              background:`${cor}20`, color:cor, fontWeight:700, letterSpacing:'.04em'}}>{lbl}</span>
+            {ins.afetados > 0 && (
+              <span style={{fontSize:10, color:T.ink3, display:'flex', alignItems:'center', gap:3}}>
+                <AlertTriangle size={9}/>{ins.afetados} disparo{ins.afetados>1?'s':''} afetados
+              </span>
+            )}
+            {ins.dias > 0 && (
+              <span style={{fontSize:10, color:T.ink4}}>{ins.dias}d sem envio</span>
+            )}
+          </div>
+
+          {/* título */}
+          <div style={{fontSize:13, fontWeight:600, color:T.ink1, marginBottom:4, lineHeight:1.4}}>
+            {ins.titulo}
+          </div>
+
+          {/* descrição colapsável */}
+          {detalhe && (
+            <div style={{fontSize:11, color:T.ink2, lineHeight:1.65, marginBottom:9,
+              animation:'fadeIn .2s ease', padding:'8px 10px', borderRadius:7,
+              background:'rgba(255,255,255,.04)'}}>
+              {ins.desc}
+            </div>
+          )}
+
+          {/* ações */}
+          <div style={{display:'flex', alignItems:'center', gap:7, flexWrap:'wrap', marginTop:8}}>
+            {ins.gatilho && onGoto && (
+              <button onClick={()=>onGoto(ins.gatilho)} style={{
+                display:'inline-flex', alignItems:'center', gap:5,
+                padding:'5px 12px', borderRadius:7, border:'none', cursor:'pointer',
+                fontSize:11, fontWeight:600,
+                background:'linear-gradient(135deg,#5b21b6,#9333ea)', color:'#fff'}}>
+                <Zap size={10}/>Abrir gatilho ↗
+              </button>
+            )}
+            <button onClick={()=>setDetalhe(v=>!v)} style={{
+              display:'inline-flex', alignItems:'center', gap:4,
+              padding:'5px 10px', borderRadius:7, cursor:'pointer',
+              fontSize:10.5, background:'transparent', border:`1px solid ${bor}`,
+              color:cor, fontWeight:500}}>
+              {detalhe?<ChevronUp size={10}/>:<ChevronDown size={10}/>}
+              {detalhe?'Menos':'Detalhes'}
+            </button>
+            <button onClick={onDismiss} style={{marginLeft:'auto',
+              display:'inline-flex', alignItems:'center', gap:4,
+              padding:'5px 10px', borderRadius:7, cursor:'pointer',
+              fontSize:10.5, background:'transparent', border:`1px solid ${T.sep}`,
+              color:T.ink3, fontWeight:500}}>
+              <CheckCircle size={10}/>Entendi
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── COMMAND PALETTE ⌘K para Gatilhos ────────────────────────────────────────
 function CmdGatilhos({open, onClose, gatilhos, configs, onSelect, onToggle, labelDe}) {
   const [q, setQ] = useState('')
@@ -1089,6 +1172,13 @@ export default function PageGatilhos({ api }) {
   // Command palette ⌘K
   const [cmdK, setCmdK] = useState(false)
 
+  // Insights dismissados
+  const [insDismiss, setInsDismiss] = useState(new Set())
+
+  // Disparos recentes do gatilho selecionado (para o drawer)
+  const [dispGat,    setDispGat]    = useState([])
+  const [loadDispGat,setLoadDG]     = useState(false)
+
   // Bulk operations
   const toggleSelEst = (id) => setSelEst(prev => {
     const next = new Set(prev); if(next.has(id)) next.delete(id); else next.add(id); return next
@@ -1105,6 +1195,104 @@ export default function PageGatilhos({ api }) {
     }
     setSelEst(new Set())
   }
+
+  // Buscar disparos recentes quando gatilho é selecionado
+  useEffect(()=>{
+    if (!selId) { setDispGat([]); return }
+    setLoadDG(true)
+    fetch(`${api}/api/dashboard/disparos-log?gatilho=${selId}&limite=8&pagina=1`)
+      .then(r=>r.json())
+      .then(d=>{ setDispGat(d.disparos||[]); setLoadDG(false) })
+      .catch(()=>setLoadDG(false))
+  }, [selId, api])
+
+  // Insights computados client-side a partir de indicadores + configs
+  const insightsGat = useMemo(()=>{
+    const result = []
+
+    // 1. Taxa 0% — template inativo (crítico)
+    GATILHOS.forEach(g=>{
+      const ind   = indicadores[g.id]
+      if (!ind) return
+      const env   = ind.enviados || 0
+      const err   = ind.erros    || 0
+      const tot   = ind.total    || 0
+      const tent  = env + err
+      const taxa  = tent > 0 ? Math.round(env/tent*100) : null
+      if (tot > 0 && taxa === 0) {
+        result.push({
+          id:`taxa0_${g.id}`, tipo:'critico', gatilho:g.id,
+          titulo:`${labelDe(g)} — 0% de entrega`,
+          desc:`${tot} disparo${tot>1?'s':''} registrados mas nenhum enviado. O template está inativo — nenhum cliente recebeu esta mensagem.`,
+          afetados:tot, dias:0,
+          score: tot * 10,
+        })
+      }
+      // 2. Gap de inatividade (aviso)
+      if (ind.ultimo && tot > 0) {
+        const diasSem = Math.floor((Date.now()-new Date(ind.ultimo))/86400000)
+        if (diasSem >= 5 && taxa > 0) {
+          result.push({
+            id:`gap_${g.id}`, tipo:'aviso', gatilho:g.id,
+            titulo:`${labelDe(g)} — sem disparo há ${diasSem} dias`,
+            desc:`Este gatilho tinha atividade mas está parado. Verifique se o webhook do Bling está configurado.`,
+            afetados:0, dias:diasSem,
+            score: diasSem * 3,
+          })
+        }
+      }
+    })
+
+    // 3. Templates criados mas não submetidos para a Meta (aviso)
+    const naoSub = GATILHOS.filter(g=>g.tipo!=='ia'&&configs[g.id]&&!configs[g.id]?.meta_template_status)
+    if (naoSub.length > 0) {
+      result.push({
+        id:'nao_submetidos', tipo:'aviso', gatilho:null,
+        titulo:`${naoSub.length} template${naoSub.length>1?'s':''} sem aprovação Meta`,
+        desc:`Templates configurados mas ainda não submetidos. Sem aprovação da Meta, não funcionam como HSM para números fora da janela de 24h. Abra cada um e clique em "Submeter para aprovação".`,
+        afetados:0, dias:0,
+        score: naoSub.length * 5,
+      })
+    }
+
+    // 4. Gatilhos críticos sem template (crítico)
+    const criticos = ['pedido_entregue','rastreio_em_transito','saiu_entrega','pedido_coletado']
+    criticos.forEach(id=>{
+      if (!configs[id]) {
+        const g = GATILHOS.find(x=>x.id===id)
+        if (g) result.push({
+          id:`sem_tpl_${id}`, tipo:'critico', gatilho:id,
+          titulo:`${labelDe(g)} — sem template configurado`,
+          desc:`Gatilho de alto volume sem template. Configure e aprove na Meta para começar a notificar clientes automaticamente.`,
+          afetados:0, dias:0,
+          score: 80,
+        })
+      }
+    })
+
+    // 5. Melhor gatilho (positivo)
+    const candidatos = GATILHOS.map(g=>{
+      const ind = indicadores[g.id]
+      if (!ind) return null
+      const env=ind.enviados||0, err=ind.erros||0, tent=env+err
+      const taxa = tent >= 5 ? Math.round(env/tent*100) : null
+      return taxa!==null ? {id:g.id, taxa, tent, env} : null
+    }).filter(Boolean).sort((a,b)=>b.taxa-a.taxa)
+    if (candidatos[0]?.taxa >= 80) {
+      const best = candidatos[0]
+      const gBest = GATILHOS.find(x=>x.id===best.id)
+      result.push({
+        id:`top_${best.id}`, tipo:'positivo', gatilho:best.id,
+        titulo:`${best.taxa}% taxa de entrega — ${labelDe(gBest)}`,
+        desc:`Melhor performance entre os gatilhos ativos. ${best.env} de ${best.tent} disparos entregues com sucesso.`,
+        afetados:0, dias:0, score:0,
+      })
+    }
+
+    // Ordenar: crítico → aviso → oportunidade → positivo, depois por score
+    const ord = {critico:0,aviso:1,oportunidade:2,positivo:3}
+    return result.sort((a,b)=>(ord[a.tipo]??9)-(ord[b.tipo]??9)||b.score-a.score)
+  }, [indicadores, configs, nomesCustom])
 
   const gatilho = GATILHOS.find(g => g.id === selId)
   const config  = configs[selId]
@@ -1561,6 +1749,48 @@ export default function PageGatilhos({ api }) {
             </button>
           </div>
 
+          {/* ── INSIGHTS INTELIGENTES MULTI-NÍVEL ── */}
+          {!showPlano && !selId && insightsGat.filter(i=>!insDismiss.has(i.id)).length > 0 && (
+            <div style={{marginBottom:20,padding:'14px 16px',borderRadius:13,
+              background:T.bg2,border:`1px solid ${T.sep2}`,
+              boxShadow:'0 4px 20px rgba(0,0,0,.25)'}}>
+              {/* Header */}
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+                <Activity size={14} style={{color:T.amber}}/>
+                <span style={{fontSize:12,fontWeight:700,color:T.ink1,letterSpacing:'-.01em'}}>
+                  Inteligência dos Gatilhos
+                </span>
+                <span style={{fontSize:10,padding:'1px 7px',borderRadius:99,
+                  background:T.redDim,color:T.red,border:`1px solid ${T.redBor}`,fontWeight:700}}>
+                  {insightsGat.filter(i=>!insDismiss.has(i.id)&&i.tipo==='critico').length > 0
+                    ? `${insightsGat.filter(i=>!insDismiss.has(i.id)&&i.tipo==='critico').length} crítico${insightsGat.filter(i=>!insDismiss.has(i.id)&&i.tipo==='critico').length>1?'s':''}`
+                    : `${insightsGat.filter(i=>!insDismiss.has(i.id)).length} alertas`
+                  }
+                </span>
+                <button onClick={()=>setInsDismiss(new Set(insightsGat.map(i=>i.id)))}
+                  style={{marginLeft:'auto',fontSize:10,color:T.ink4,background:'transparent',
+                    cursor:'pointer',padding:'3px 8px',borderRadius:6,
+                    border:`1px solid ${T.sep}`}}>
+                  Dispensar todos
+                </button>
+              </div>
+              {/* Cards de insight */}
+              <div style={{display:'flex',flexDirection:'column',gap:9}}>
+                {insightsGat
+                  .filter(i=>!insDismiss.has(i.id))
+                  .map(ins=>(
+                    <InsightCardGat
+                      key={ins.id}
+                      ins={ins}
+                      onDismiss={()=>setInsDismiss(d=>new Set([...d,ins.id]))}
+                      onGoto={id=>{setSelId(id);setShowPlano(false)}}
+                    />
+                  ))
+                }
+              </div>
+            </div>
+          )}
+
           {/* Plano de Disparos (quando ativo) */}
           {showPlano && (
             <PlanodeDisparos
@@ -1632,6 +1862,25 @@ export default function PageGatilhos({ api }) {
                           {/* Cabeçalho */}
                           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
                             <div style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}>
+                              {/* Mini ring de saúde */}
+                              {taxa2!==null && (
+                                <div style={{position:'relative',width:24,height:24,flexShrink:0}}>
+                                  <svg width="24" height="24" viewBox="0 0 24 24">
+                                    <circle cx="12" cy="12" r="9" fill="none" stroke={T.bg4} strokeWidth="2.5"/>
+                                    <circle cx="12" cy="12" r="9" fill="none" stroke={tCor2}
+                                      strokeWidth="2.5"
+                                      strokeDasharray="57"
+                                      strokeDashoffset={`${Math.round(57*(1-taxa2/100))}`}
+                                      strokeLinecap="round"
+                                      transform="rotate(-90 12 12)"
+                                      style={{transition:'stroke-dashoffset .8s ease'}}/>
+                                  </svg>
+                                  <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                                    <span style={{fontSize:6,fontWeight:700,color:tCor2,lineHeight:1}}>{taxa2}</span>
+                                  </div>
+                                </div>
+                              )}
+
                               {/* Checkbox bulk */}
                               <div onClick={e=>{e.stopPropagation();toggleSelEst(g.id)}}
                                 className="gat-cb"
@@ -2094,6 +2343,44 @@ export default function PageGatilhos({ api }) {
                         </p>
                       </div>
                     )}
+
+                    {/* ── Disparos recentes deste gatilho ── */}
+                    <div style={{padding:'12px 14px',borderRadius:10,
+                      border:`1px solid ${T.sep}`,background:T.bg2}}>
+                      <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:10}}>
+                        <History size={13} style={{color:T.ink3}}/>
+                        <p style={{fontSize:12,fontWeight:700,color:T.ink1,margin:0}}>
+                          Disparos recentes
+                        </p>
+                        {loadDispGat && <RefreshCw size={11} style={{color:T.ink3,animation:'spin 1s linear infinite',marginLeft:'auto'}}/>}
+                      </div>
+                      {!loadDispGat && dispGat.length===0 && (
+                        <p style={{fontSize:11,color:T.ink4,margin:0}}>Nenhum disparo encontrado.</p>
+                      )}
+                      {dispGat.map((d,i)=>{
+                        const sCor = d.status==='enviado'?T.green:d.status==='erro'?T.red:T.amber
+                        const sLbl = d.status==='enviado'?'Enviado':d.status==='erro'?'Erro':'Ignorado'
+                        return (
+                          <div key={i} style={{display:'flex',alignItems:'center',gap:8,
+                            padding:'6px 0',borderBottom:i<dispGat.length-1?`1px solid ${T.sep}`:'none'}}>
+                            <div style={{width:6,height:6,borderRadius:'50%',
+                              background:sCor,flexShrink:0}}/>
+                            <span style={{fontSize:11,color:T.ink2,flex:1,
+                              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                              {d.nome_cliente||'—'}
+                              {d.numero_pedido&&<span style={{color:T.ink4}}> · #{d.numero_pedido}</span>}
+                            </span>
+                            <span style={{fontSize:9,padding:'1px 6px',borderRadius:99,
+                              background:`${sCor}18`,color:sCor,fontWeight:600,flexShrink:0}}>
+                              {sLbl}
+                            </span>
+                            <span style={{fontSize:9,color:T.ink4,flexShrink:0}}>
+                              {tempoRel(d.criado_em)}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
 
                     {/* Teste */}
                     <div style={{padding:'12px 14px',borderRadius:10,border:'0.5px solid var(--sep)',background:'var(--bg-2)'}}>
