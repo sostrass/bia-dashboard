@@ -893,7 +893,7 @@ function PlanodeDisparos({ gatilhos, configs, atividade, onSelect, api }) {
 // ─── COMMAND PALETTE ⌘K para Gatilhos ────────────────────────────────────────
 function CmdGatilhos({open, onClose, gatilhos, configs, onSelect, onToggle, labelDe}) {
   const [q, setQ] = useState('')
-  const inputRef = React.useRef(null)
+  const inputRef = useRef(null)
   useEffect(() => { if(open){ setQ(''); setTimeout(()=>inputRef.current?.focus(),50) } },[open])
 
   const results = q.trim()
