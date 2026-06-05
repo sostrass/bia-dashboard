@@ -1905,10 +1905,19 @@ export default function PageGatilhos({ api }) {
           {!showPlano && gruposFiltrados.map(grupo => (
             <div key={grupo.nome} style={{marginBottom:18}}>
               <button onClick={()=>setGrupoAb(p=>({...p,[grupo.nome]:!p[grupo.nome]}))}
-                style={{display:'flex',alignItems:'center',gap:8,padding:'4px 2px',marginBottom:9,border:'none',background:'transparent',cursor:'pointer'}}>
-                <span style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-3)'}}>{grupo.nome}</span>
-                <span style={{fontSize:10.5,color:'var(--label-4)',background:'var(--fill)',padding:'1px 7px',borderRadius:99,border:'0.5px solid var(--sep)'}}>{grupo.itens.length}</span>
-                {grupoAberto[grupo.nome]===false ? <ChevronDown size={12} style={{color:'var(--label-4)'}}/> : <ChevronUp size={12} style={{color:'var(--label-4)'}}/>}
+                style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0',marginBottom:10,
+                  border:'none',background:'transparent',cursor:'pointer',width:'100%'}}>
+                <div style={{height:1,width:14,background:T.sep2,flexShrink:0}}/>
+                <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',
+                  letterSpacing:'.1em',color:T.ink3,whiteSpace:'nowrap'}}>{grupo.nome}</span>
+                <span style={{fontSize:9.5,color:T.ink4,background:T.bg3,padding:'1px 8px',
+                  borderRadius:99,border:`1px solid ${T.sep}`,flexShrink:0,fontWeight:600}}>
+                  {grupo.itens.length}
+                </span>
+                <div style={{flex:1,height:1,background:T.sep}}/>
+                {grupoAberto[grupo.nome]===false
+                  ? <ChevronDown size={12} style={{color:T.ink4,flexShrink:0}}/>
+                  : <ChevronUp size={12} style={{color:T.ink4,flexShrink:0}}/>}
               </button>
 
               {grupoAberto[grupo.nome]!==false && (
@@ -1951,10 +1960,16 @@ export default function PageGatilhos({ api }) {
                           transition:'all .12s',
                           boxShadow:isSelected?`0 2px 16px ${g.cor}20, 0 0 0 2px ${g.cor}15`:'none'}}>
 
-                        {/* Faixa de health no topo */}
-                        <div style={{height:2.5,
-                          background:taxa2===null?T.ink4:taxa2>=70?T.green:taxa2>=30?T.amber:T.red,
-                          borderRadius:'2px 2px 0 0', opacity:taxa2===null?.3:1}}/>
+                        {/* Faixa de health no topo com gradiente */}
+                        <div style={{height:3.5,
+                          background:taxa2===null
+                            ?`linear-gradient(90deg,${T.ink4}40,${T.ink4}20)`
+                            :taxa2>=70
+                              ?`linear-gradient(90deg,${T.green},${T.green}60)`
+                              :taxa2>=30
+                                ?`linear-gradient(90deg,${T.amber},${T.amber}60)`
+                                :`linear-gradient(90deg,${T.red},${T.red}60)`,
+                          borderRadius:'3px 3px 0 0'}}/>
 
                         <div style={{padding:'11px 13px',display:'flex',flexDirection:'column',gap:8,flex:1}}>
 
@@ -1990,15 +2005,21 @@ export default function PageGatilhos({ api }) {
                                   cursor:'pointer',opacity:isSel?1:0,transition:'all .12s'}}>
                                 {isSel&&<Check size={8} style={{color:'#fff'}}/>}
                               </div>
-                              <div style={{width:30,height:30,borderRadius:8,background:`${g.cor}18`,
-                                border:`0.5px solid ${g.cor}30`,flexShrink:0,
-                                display:'flex',alignItems:'center',justifyContent:'center'}}>
-                                <Icon size={15} style={{color:g.cor}}/>
+                              <div style={{width:34,height:34,borderRadius:10,
+                                background:`linear-gradient(135deg,${g.cor}28,${g.cor}12)`,
+                                border:`1px solid ${g.cor}40`,flexShrink:0,
+                                display:'flex',alignItems:'center',justifyContent:'center',
+                                boxShadow:`0 2px 8px ${g.cor}18`}}>
+                                <Icon size={16} style={{color:g.cor}}/>
                               </div>
-                              <span style={{fontSize:12.5,fontWeight:600,color:T.ink1,
-                                overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                                {labelDe(g)}
-                              </span>
+                              <div style={{minWidth:0,flex:1}}>
+                                <span style={{fontSize:12.5,fontWeight:700,color:T.ink1,
+                                  display:'block',overflow:'hidden',textOverflow:'ellipsis',
+                                  whiteSpace:'nowrap',letterSpacing:'-.01em'}}>
+                                  {labelDe(g)}
+                                </span>
+                                {g.grupo&&<span style={{fontSize:9,color:T.ink4}}>{g.grupo}</span>}
+                              </div>
                             </div>
                             {/* Toggle */}
                             {temTemplate && (
@@ -2013,13 +2034,32 @@ export default function PageGatilhos({ api }) {
                             )}
                           </div>
 
-                          {/* Preview */}
-                          <div style={{background:T.bg3,borderRadius:7,padding:'7px 10px',
-                            flex:1,minHeight:38,border:`0.5px solid ${T.sep}`}}>
-                            <p style={{fontSize:10.5,color:T.ink2,margin:0,lineHeight:1.5,
-                              display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>
-                              {previewTxt.replace(/\n/g,' ').replace(/\*/g,'')}
-                            </p>
+                          {/* Preview — bolha WA com bold rendering */}
+                          <div style={{background:'#0d1a22',borderRadius:9,
+                            padding:'9px 10px 7px',flex:1,minHeight:44,
+                            border:'1px solid rgba(255,255,255,.07)',position:'relative',overflow:'hidden'}}>
+                            {/* Borda esquerda colorida — cor do gatilho */}
+                            <div style={{position:'absolute',top:0,left:0,width:3,height:'100%',
+                              background:`linear-gradient(to bottom,${g.cor},${g.cor}40)`,
+                              borderRadius:'3px 0 0 3px'}}/>
+                            <p style={{fontSize:10.5,color:'#e9edef',margin:0,lineHeight:1.55,
+                              paddingLeft:9,
+                              display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',
+                              overflow:'hidden'}}
+                              dangerouslySetInnerHTML={{__html:
+                                (previewTxt||'Sem mensagem configurada')
+                                  .replace(/</g,'&lt;')
+                                  .replace(/\n.*[\s\S]*/,'')
+                                  .replace(/\*([^*]+)\*/g,'<strong style="color:#fff">$1</strong>')
+                                  .replace(/^(.{0,90}).*$/,'$1')
+                              }}/>
+                            {blocoTexto && (
+                              <div style={{display:'flex',justifyContent:'flex-end',gap:3,
+                                marginTop:4,paddingLeft:9,alignItems:'center'}}>
+                                <span style={{fontSize:8,color:'#8696a0'}}>{rel2||'nunca'}</span>
+                                <span style={{fontSize:10,color:ativo?'#53bdeb':'rgba(255,255,255,.15)'}}>✓✓</span>
+                              </div>
+                            )}
                           </div>
 
                           {/* Footer: insights + sparkline ── */}
@@ -2235,6 +2275,40 @@ export default function PageGatilhos({ api }) {
                           justifyContent:'center',color:T.ink3,flexShrink:0}}>
                         <X size={14}/>
                       </button>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* ── Intelligence card contextual do gatilho selecionado ── */}
+              {(() => {
+                const ins = insightsGat.find(i=>i.gatilho===selId&&!insDismiss.has(i.id))
+                if (!ins) return null
+                const cfgIns = {
+                  critico:{cor:T.red,  dim:T.redDim,  bor:T.redBor,  Ic:AlertTriangle, lbl:'CRÍTICO'},
+                  aviso:  {cor:T.amber,dim:T.amberDim,bor:T.amberBor,Ic:Clock,         lbl:'ATENÇÃO'},
+                }[ins.tipo]
+                if (!cfgIns) return null
+                const {cor,dim,bor,Ic:IcIns,lbl} = cfgIns
+                return (
+                  <div style={{margin:'0 16px 10px',padding:'11px 14px',borderRadius:10,
+                    background:dim, border:`1px solid ${bor}`, animation:'fadeIn .3s ease'}}>
+                    <div style={{display:'flex',alignItems:'flex-start',gap:9}}>
+                      <IcIns size={14} style={{color:cor,flexShrink:0,marginTop:1}}/>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:5,flexWrap:'wrap'}}>
+                          <span style={{fontSize:9,padding:'1px 7px',borderRadius:99,
+                            background:`${cor}22`,color:cor,fontWeight:700,letterSpacing:'.04em'}}>{lbl}</span>
+                          {ins.afetados>0&&<span style={{fontSize:10,color:T.ink3}}>{ins.afetados} disparos afetados</span>}
+                          {ins.dias>0&&<span style={{fontSize:10,color:T.ink3}}>Sem envio há {ins.dias}d</span>}
+                        </div>
+                        <p style={{fontSize:12.5,fontWeight:700,color:T.ink1,margin:'0 0 5px',lineHeight:1.4}}>{ins.titulo}</p>
+                        <p style={{fontSize:11,color:T.ink2,margin:0,lineHeight:1.55}}>{ins.desc}</p>
+                      </div>
+                      <button onClick={()=>setInsDismiss(d=>new Set([...d,ins.id]))}
+                        style={{fontSize:10,color:T.ink3,background:'transparent',
+                          border:`1px solid ${T.sep}`,borderRadius:6,padding:'3px 8px',
+                          cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>Entendi</button>
                     </div>
                   </div>
                 )
@@ -2605,11 +2679,44 @@ export default function PageGatilhos({ api }) {
                 <PreviewWA blocos={blocos} label={gatilho?.label}/>
               </div>
 
+              {/* ── Stats de desempenho — últimos 7 dias ── */}
+              {(() => {
+                const indP = indicadores[selId]
+                if (!indP) return null
+                const envP  = indP.enviados||0
+                const errP  = indP.erros||0
+                const tentP = envP+errP
+                const taxaP = tentP>0?Math.round(envP/tentP*100):null
+                const rCorP = taxaP===null?T.ink4:taxaP>=70?T.green:taxaP>=30?T.amber:T.red
+                return (
+                  <div style={{flexShrink:0,padding:'12px 16px',
+                    borderTop:`1px solid ${T.sep}`,background:T.bg2}}>
+                    <p style={{fontSize:9,fontWeight:700,textTransform:'uppercase',
+                      letterSpacing:'.07em',color:T.ink4,marginBottom:9}}>Desempenho — últimos 7 dias</p>
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+                      {[
+                        {l:'Taxa',     v:taxaP!==null?`${taxaP}%`:'—', cor:rCorP},
+                        {l:'Disparos', v:tentP||'—',                   cor:T.ink2},
+                        {l:'Erros',    v:errP||'—',                    cor:errP>0?T.red:T.ink4},
+                      ].map(s=>(
+                        <div key={s.l} style={{textAlign:'center',padding:'9px 4px',
+                          background:T.bg3,borderRadius:9,border:`1px solid ${T.sep}`}}>
+                          <p style={{fontSize:18,fontWeight:700,color:s.cor,margin:0,
+                            letterSpacing:'-.025em',lineHeight:1}}>{s.v}</p>
+                          <p style={{fontSize:9,color:T.ink4,margin:'4px 0 0',
+                            textTransform:'uppercase',letterSpacing:'.06em'}}>{s.l}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+
               {/* Barra de salvar */}
               {dirty && (
-                <div style={{flexShrink:0,padding:'10px 14px',borderTop:'0.5px solid var(--sep)',background:'var(--bg-2)',display:'flex',gap:7}}>
-                  <button onClick={salvar} disabled={salvando} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'9px',borderRadius:9,border:'0.5px solid rgba(37,211,102,.3)',background:'rgba(37,211,102,.08)',color:'#22c55e',cursor:'pointer',fontSize:12.5,fontWeight:700}}>
-                    {salvando?<><RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/> Salvando...</>:salvoOk?<><Check size={13}/> Salvo!</>:<><Save size={13}/> Salvar alterações</>}
+                <div style={{flexShrink:0,padding:'10px 14px',borderTop:'0.5px solid var(--sep)',background:T.bg2,display:'flex',gap:7}}>
+                  <button onClick={salvar} disabled={salvando} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'9px',borderRadius:9,border:`1px solid ${T.greenBor}`,background:T.greenDim,color:T.green,cursor:'pointer',fontSize:12.5,fontWeight:700}}>
+                    {salvando?<><RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/> Salvando...</>:salvoOk?<><Check size={13}/> Salvo!</>:<><Save size={13}/> Salvar template</>}
                   </button>
                 </div>
               )}
