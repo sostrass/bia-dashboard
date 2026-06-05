@@ -132,10 +132,10 @@ const PADROES = {
   },
 
   pedido_enviado: {
-    cab:'🚚 Saiu para entrega!',
-    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* foi despachado!\n\n📦 Transportadora: *{{transportadora}}*\n🔍 Rastreio: *{{codigo_rastreio}}*\n📅 Previsão de entrega: *{{previsao_entrega}}*',
-    rod:'Continuaremos monitorando pra você!',
-    bts:[{texto:'Rastrear pedido',acao:'url',valor:'{{link_rastreio}}'}]
+    cab:'🚚 Pedido despachado!',
+    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* foi despachado! 🎉\n\n📦 Transportadora: *{{transportadora}}*\n🔍 Rastreio: *{{codigo_rastreio}}*\n📅 Previsão: *{{previsao_entrega}}*',
+    rod:'Acompanhe em tempo real pelo botão abaixo.',
+    bts:[{texto:'Acompanhar pedido',acao:'url',valor:'{{link_acompanhamento}}'}]
   },
 
   pedido_entregue: {
@@ -241,9 +241,9 @@ const PADROES = {
 
   saiu_entrega: {
     cab:'',
-    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* saiu pra entrega agora! 🚚\n\nCódigo de rastreio: *{{codigo_rastreio}}*',
+    corpo:'Oi *{{nome_cliente}}*! 🚚 Seu pedido *#{{numero_pedido}}* saiu para entrega agora mesmo!\n\nFique de olho no mensageiro 😊',
     rod:'',
-    bts:[{texto:'Rastrear',acao:'url',valor:'{{link_rastreio}}'}]
+    bts:[{texto:'Acompanhar',acao:'url',valor:'{{link_acompanhamento}}'}]
   },
 
   aguardando_retirada: {
@@ -294,6 +294,13 @@ const PADROES = {
     rod:'',
     bts:[]
   },
+
+  nao_entregue: {
+    cab:'',
+    corpo:'Oi *{{nome_cliente}}*! 🔔\n\nA transportadora informou que não conseguiu realizar a entrega do pedido *#{{numero_pedido}}*.\n\nEntre em contato com a *{{transportadora}}* ou acompanhe pelo link abaixo para reagendar.',
+    rod:'',
+    bts:[{texto:'Acompanhar',acao:'url',valor:'{{link_acompanhamento}}'}]
+  }
 }
 
 
@@ -421,7 +428,7 @@ function PreviewBolha({ blocos }) {
                 </div>
               ))}
               {rod?.conteudo&&<div style={{padding:'2px 12px 5px'}}>
-                <p style={{fontSize:10,color:'#8696a0',margin:0,fontStyle:'italic'}}>{rv(rod.conteudo)}</p>
+                <p style={{fontSize:10,color:'#8696a0',margin:0}}>{rv(rod.conteudo)}</p>
               </div>}
               <div style={{padding:'2px 10px 8px',display:'flex',justifyContent:'flex-end',alignItems:'center',gap:3}}>
                 <span style={{fontSize:9,color:'#8696a0'}}>{hora}</span>
