@@ -77,37 +77,34 @@ const fmtTel = t => {
 const fmtDH = ts => ts ? new Date(ts).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—'
 const fmtD  = ts => ts ? new Date(ts).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : '—'
 
-const TT = {contentStyle:{background:T.bg2,border:`1px solid ${T.sep}`,borderRadius:8,fontSize:11,color:T.ink1}}
+const TT = {contentStyle:{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:8,fontSize:11,color:'var(--label)'}}
 
 // ─── KPI CARD ─────────────────────────────────────────────────────────────────
 function KCard({icon:Ic, label, value, sub, cor='#7c6af7', trend, spark}) {
   return (
-    <div style={{background:T.bg2,border:`1px solid ${T.sep2}`,borderRadius:14,
+    <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,
       padding:'16px 16px',display:'flex',flexDirection:'column',gap:10,
       position:'relative',overflow:'hidden',
-      boxShadow:`0 8px 32px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.04) inset`}}>
-      {/* Glow de cor no canto */}
+      boxShadow:'0 4px 24px rgba(0,0,0,.18), 0 1px 0 rgba(255,255,255,.04) inset'}}>
       <div style={{position:'absolute',top:0,right:0,width:80,height:80,
-        background:`radial-gradient(circle at 100% 0%,${cor}22 0%,transparent 70%)`,
-        pointerEvents:'none'}}/>
+        background:`radial-gradient(circle at 100% 0%,${cor}22 0%,transparent 70%)`,pointerEvents:'none'}}/>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
         <div style={{width:34,height:34,borderRadius:10,background:`${cor}18`,
-          border:`1px solid ${cor}28`,
-          display:'flex',alignItems:'center',justifyContent:'center'}}>
+          border:`1px solid ${cor}30`,display:'flex',alignItems:'center',justifyContent:'center'}}>
           <Ic size={16} style={{color:cor}}/>
         </div>
         {trend!==undefined && (
           <div style={{display:'flex',alignItems:'center',gap:3,fontSize:11,fontWeight:600,
-            color:trend>0?T.green:trend<0?T.red:T.ink3}}>
+            color:trend>0?'#22c55e':trend<0?'#ef4444':'var(--label-4)'}}>
             {trend>0?<ArrowUpRight size={11}/>:trend<0?<ArrowDownRight size={11}/>:<Minus size={11}/>}
             {trend!==0&&`${Math.abs(trend)}%`}
           </div>
         )}
       </div>
       <div>
-        <div style={{fontSize:26,fontWeight:700,color:T.ink1,lineHeight:1.1,letterSpacing:'-.03em'}}>{value??'—'}</div>
-        <div style={{fontSize:11,color:T.ink3,marginTop:3}}>{label}</div>
-        {sub && <div style={{fontSize:10,color:T.ink4,marginTop:2}}>{sub}</div>}
+        <div style={{fontSize:26,fontWeight:700,color:'var(--label)',lineHeight:1.1,letterSpacing:'-.025em'}}>{value??'—'}</div>
+        <div style={{fontSize:11,color:'var(--label-4)',marginTop:3}}>{label}</div>
+        {sub && <div style={{fontSize:10,color:'var(--label-4)',marginTop:2}}>{sub}</div>}
       </div>
     </div>
   )
@@ -127,11 +124,11 @@ function Iniciais({nome, size=44}) {
   )
 }
 
-function StatCard({label, value, cor=T.ink1}) {
+function StatCard({label, value, cor='var(--label)'}) {
   return (
-    <div style={{flex:1,background:T.bg3,borderRadius:10,padding:'10px 8px',textAlign:'center',border:`1px solid ${T.sep}`}}>
+    <div style={{flex:1,background:'var(--bg-3)',borderRadius:10,padding:'10px 8px',textAlign:'center',border:'0.5px solid var(--sep)'}}>
       <div style={{fontSize:20,fontWeight:700,color:cor,lineHeight:1}}>{value}</div>
-      <div style={{fontSize:9.5,color:T.ink3,marginTop:3,textTransform:'uppercase',letterSpacing:'.04em'}}>{label}</div>
+      <div style={{fontSize:9.5,color:'var(--label-4)',marginTop:3,textTransform:'uppercase',letterSpacing:'.04em'}}>{label}</div>
     </div>
   )
 }
@@ -151,8 +148,8 @@ function EventoCard({d, onReenviar, reenviados, setReenviados}) {
   }
   return (
     <div style={{display:'flex',gap:12,padding:'12px 14px',borderRadius:12,
-      background:falhou?'rgba(239,68,68,.04)':ignorado?T.bg3:T.bg3,
-      border:`0.5px solid ${falhou?'rgba(239,68,68,.2)':T.sep}`,
+      background:falhou?'rgba(239,68,68,.04)':ignorado?'var(--bg-3)':'var(--bg-3)',
+      border:`0.5px solid ${falhou?'rgba(239,68,68,.2)':'var(--sep)'}`,
       marginBottom:10}}>
       {/* ícone */}
       <div style={{width:36,height:36,borderRadius:10,flexShrink:0,
@@ -164,12 +161,12 @@ function EventoCard({d, onReenviar, reenviados, setReenviados}) {
       {/* conteúdo */}
       <div style={{flex:1,minWidth:0}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
-          <span style={{fontSize:12.5,fontWeight:600,color:T.ink1,lineHeight:1.3}}>{m.label}</span>
-          <span style={{fontSize:10,color:T.ink3,flexShrink:0,marginTop:1}}>{fmtDH(d.criado_em)}</span>
+          <span style={{fontSize:12.5,fontWeight:600,color:'var(--label)',lineHeight:1.3}}>{m.label}</span>
+          <span style={{fontSize:10,color:'var(--label-4)',flexShrink:0,marginTop:1}}>{fmtDH(d.criado_em)}</span>
         </div>
-        <div style={{fontSize:10.5,color:T.ink3,marginTop:3}}>
+        <div style={{fontSize:10.5,color:'var(--label-4)',marginTop:3}}>
           {d.template_nome&&d.template_nome!==d.gatilho?d.template_nome:d.gatilho}
-          {d.numero_pedido&&<span style={{marginLeft:6,color:T.ink2,fontWeight:500}}>· #{d.numero_pedido}</span>}
+          {d.numero_pedido&&<span style={{marginLeft:6,color:'var(--label-3)',fontWeight:500}}>· #{d.numero_pedido}</span>}
         </div>
         {d.erro_msg&&(
           <div style={{marginTop:6,padding:'5px 8px',borderRadius:6,background:'rgba(239,68,68,.08)',
@@ -263,15 +260,15 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
         backdropFilter:'blur(2px)',animation:'fadeIn .2s ease'}}/>
       <div style={{position:'fixed',top:0,right:0,bottom:0,width:'min(480px,94vw)',zIndex:61,
         display:'flex',flexDirection:'column',animation:'slideIn .3s cubic-bezier(.2,.8,.2,1)',
-        background:T.bg2,borderLeft:'0.5px solid T.sep',
+        background:'var(--bg-2)',borderLeft:'0.5px solid var(--sep)',
         boxShadow:'-4px 0 60px rgba(0,0,0,.6), -24px 0 80px rgba(0,0,0,.4)'}}>
 
         {/* ── HEADER COM GRADIENTE ── */}
         <div style={{flexShrink:0,padding:'18px 20px 16px',
           background:tipo==='cliente'
             ?'linear-gradient(135deg,#12073a 0%,#1e0d5c 50%,#2a0e6b 100%)'
-            :`linear-gradient(135deg,${meta?.cor}22 0%,T.bg3 100%)`,
-          borderBottom:'0.5px solid T.sep',position:'relative',overflow:'hidden'}}>
+            :`linear-gradient(135deg,${meta?.cor}22 0%,var(--bg-3) 100%)`,
+          borderBottom:'0.5px solid var(--sep)',position:'relative',overflow:'hidden'}}>
           {/* blob decorativo */}
           <div style={{position:'absolute',top:-30,right:-30,width:120,height:120,borderRadius:'50%',
             background:tipo==='cliente'?'rgba(124,106,247,.25)':`${meta?.cor}20`,
@@ -289,10 +286,10 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                   </div>
               }
               <div>
-                <div style={{fontSize:13,fontWeight:600,color:T.ink1}}>
+                <div style={{fontSize:13,fontWeight:600,color:'var(--label)'}}>
                   {tipo==='cliente'?'Perfil do cliente':'Detalhe do disparo'}
                 </div>
-                <div style={{fontSize:10.5,color:T.ink3,marginTop:1}}>
+                <div style={{fontSize:10.5,color:'var(--label-4)',marginTop:1}}>
                   {tipo==='cliente'?fmtTel(dados?.telefone):(meta?.label||dados?.gatilho)}
                 </div>
               </div>
@@ -300,7 +297,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
             <button onClick={onClose} style={{width:28,height:28,borderRadius:8,
               display:'flex',alignItems:'center',justifyContent:'center',
               background:'rgba(255,255,255,.08)',border:'0.5px solid rgba(255,255,255,.1)',
-              cursor:'pointer',color:T.ink2}}>
+              cursor:'pointer',color:'var(--label-3)'}}>
               <X size={14}/>
             </button>
           </div>
@@ -319,8 +316,8 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
             return (
               <div style={{display:'flex',flexDirection:'column',gap:14}}>
                 {/* hero do disparo */}
-                <div style={{padding:'16px',borderRadius:14,background:T.bg3,
-                  border:'0.5px solid T.sep',display:'flex',gap:14,alignItems:'flex-start'}}>
+                <div style={{padding:'16px',borderRadius:14,background:'var(--bg-3)',
+                  border:'0.5px solid var(--sep)',display:'flex',gap:14,alignItems:'flex-start'}}>
                   <div style={{width:52,height:52,borderRadius:14,flexShrink:0,
                     background:`linear-gradient(135deg,${meta.cor}30,${meta.cor}10)`,
                     border:`1.5px solid ${meta.cor}40`,
@@ -328,7 +325,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                     <Ic size={24} style={{color:meta.cor}}/>
                   </div>
                   <div style={{flex:1}}>
-                    <div style={{fontSize:16,fontWeight:700,color:T.ink1,marginBottom:6}}>{meta.label}</div>
+                    <div style={{fontSize:16,fontWeight:700,color:'var(--label)',marginBottom:6}}>{meta.label}</div>
                     <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
                       <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'3px 10px',
                         borderRadius:99,background:smeta.bg,border:`0.5px solid ${smeta.cor}30`}}>
@@ -357,7 +354,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                 )}
 
                 {/* campos agrupados */}
-                <div style={{borderRadius:12,overflow:'hidden',border:'0.5px solid T.sep'}}>
+                <div style={{borderRadius:12,overflow:'hidden',border:'0.5px solid var(--sep)'}}>
                   {[
                     ['👤 Cliente',   dados.nome_cliente||'—'],
                     ['📱 Telefone',  fmtTel(dados.telefone)],
@@ -370,10 +367,10 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                   ].map(([k,v],i,arr)=>(
                     <div key={k} style={{display:'flex',justifyContent:'space-between',gap:16,
                       padding:'10px 14px',alignItems:'center',
-                      borderBottom:i<arr.length-1?'0.5px solid T.sep':'none',
-                      background:i%2===0?'transparent':T.bg3}}>
-                      <span style={{fontSize:11,color:T.ink3,flexShrink:0}}>{k}</span>
-                      <span style={{fontSize:11.5,color:T.ink1,fontWeight:500,textAlign:'right',
+                      borderBottom:i<arr.length-1?'0.5px solid var(--sep)':'none',
+                      background:i%2===0?'transparent':'var(--fill)'}}>
+                      <span style={{fontSize:11,color:'var(--label-4)',flexShrink:0}}>{k}</span>
+                      <span style={{fontSize:11.5,color:'var(--label)',fontWeight:500,textAlign:'right',
                         wordBreak:'break-all',maxWidth:'60%'}}>{v}</span>
                     </div>
                   ))}
@@ -396,8 +393,8 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                   {dados.numero_pedido && (
                     <button onClick={()=>onVerPedido?.(dados.numero_pedido)} style={{
                       display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'11px',borderRadius:11,
-                      border:'0.5px solid T.sep',background:T.bg3,
-                      color:T.ink2,cursor:'pointer',fontSize:12,fontWeight:500}}>
+                      border:'0.5px solid var(--sep)',background:'var(--fill)',
+                      color:'var(--label-3)',cursor:'pointer',fontSize:12,fontWeight:500}}>
                       <Package size={13}/>Ver pedido #{dados.numero_pedido}
                     </button>
                   )}
@@ -1089,11 +1086,11 @@ export default function PageDisparos({api: apiProp}) {
   }
 
   return (
-    <div style={{position:'absolute',inset:0,overflowY:'auto',overflowX:'hidden',background:T.bg0,fontFamily:'"DM Sans", system-ui, sans-serif'}}>
+    <div style={{position:'absolute',inset:0,overflowY:'auto',overflowX:'hidden',background:'var(--bg)',fontFamily:'"DM Sans", system-ui, sans-serif'}}>
 
       {/* ── HEADER ── */}
-      <div style={{padding:'12px 20px',position:'sticky',top:0,zIndex:10,borderBottom:`1px solid ${T.sep2}`,
-        background:T.bg2,display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:10}}>
+      <div style={{padding:'12px 20px',position:'sticky',top:0,zIndex:10,borderBottom:'1px solid var(--sep)',
+        background:'var(--bg-2)',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:10}}>
         <div>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
             <div style={{width:34,height:34,borderRadius:10,background:'rgba(124,106,247,.15)',
@@ -1101,8 +1098,8 @@ export default function PageDisparos({api: apiProp}) {
               <Zap size={17} style={{color:'#7c6af7'}}/>
             </div>
             <div>
-              <h2 style={{fontSize:18,fontWeight:700,color:T.ink1,margin:0,letterSpacing:'-.025em'}}>Monitor de Disparos</h2>
-              <p style={{fontSize:11,color:T.ink3,margin:0}}>
+              <h2 style={{fontSize:18,fontWeight:700,color:'var(--label)',margin:0,letterSpacing:'-.02em'}}>Monitor de Disparos</h2>
+              <p style={{fontSize:11,color:'var(--label-4)',margin:0}}>
                 Gatilhos automáticos WhatsApp
                 {lastUpd&&<span style={{marginLeft:8}}>· atualizado {lastUpd.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>}
               </p>
@@ -1113,41 +1110,41 @@ export default function PageDisparos({api: apiProp}) {
           {/* Auto-refresh */}
           <button onClick={()=>setAutoRef(v=>!v)} style={{
             display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:8,fontSize:11,
-            border:`1px solid ${autoRef?'rgba(0,230,118,.3)':T.sep2}`,
-            background:autoRef?T.greenDim:'transparent',
-            color:autoRef?T.green:T.ink3,cursor:'pointer'}}>
+            border:`1px solid ${autoRef?'rgba(34,197,94,.35)':'var(--sep)'}`,
+            background:autoRef?'rgba(34,197,94,.08)':'none',
+            color:autoRef?'#22c55e':'var(--label-4)',cursor:'pointer'}}>
             {autoRef?<ToggleRight size={13}/>:<ToggleLeft size={13}/>}
             Live {autoRef&&<span style={{width:6,height:6,borderRadius:'50%',background:'#22c55e',animation:'pulse 1.5s ease infinite'}}/>}
           </button>
           {/* Período */}
-          <div style={{display:'flex',gap:2,padding:'3px',borderRadius:10,background:T.bg3,border:`1px solid ${T.sep2}`}}>
+          <div style={{display:'flex',gap:2,padding:'3px',borderRadius:10,background:'var(--fill)',border:'1px solid var(--sep)',boxShadow:'0 1px 4px rgba(0,0,0,.12)'}}>
             {PERIODOS.map(p=>(
               <button key={p.id} onClick={()=>setPeriodo(p.id)} style={{
-                padding:'4px 12px',borderRadius:7,border:'none',fontSize:11,cursor:'pointer',
+                padding:'5px 12px',borderRadius:7,border:'none',fontSize:11,cursor:'pointer',
                 transition:'all .15s',
-                background:periodo===p.id?T.bg4:'transparent',
-                color:periodo===p.id?T.ink1:T.ink3,
+                background:periodo===p.id?'var(--bg)':'transparent',
+                color:periodo===p.id?'var(--label)':'var(--label-4)',
                 fontWeight:periodo===p.id?600:400,
-                boxShadow:periodo===p.id?`0 1px 4px rgba(0,0,0,.4)`:undefined}}>
+                boxShadow:periodo===p.id?'0 1px 6px rgba(0,0,0,.2)':undefined}}>
                 {p.label}
               </button>
             ))}
           </div>
           <button onClick={()=>{carregarStats();carregarLog(1)}} style={{
-            width:32,height:32,borderRadius:8,border:`1px solid ${T.sep}`,
-            background:'none',color:T.ink3,cursor:'pointer',
+            width:32,height:32,borderRadius:8,border:'1px solid var(--sep)',
+            background:'none',color:'var(--label-4)',cursor:'pointer',
             display:'flex',alignItems:'center',justifyContent:'center'}}>
             <RefreshCw size={13} style={loadSt?{animation:'spin 1s linear infinite'}:{}}/>
           </button>
           <button onClick={exportarCSV} style={{
             display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:8,
-            border:`1px solid ${T.sep}`,background:'none',color:T.ink2,cursor:'pointer',fontSize:11}}>
+            border:'1px solid var(--sep)',background:'none',color:'var(--label-3)',cursor:'pointer',fontSize:11}}>
             <Download size={12}/>CSV
           </button>
         </div>
       </div>
 
-      <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:18}}>
+      <div style={{padding:'16px 20px',display:'flex',flexDirection:'column',gap:16}}>
 
         {/* ── KPIs ── */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:10}}>
@@ -1160,22 +1157,22 @@ export default function PageDisparos({api: apiProp}) {
         </div>
 
         {/* ── Taxa global ── */}
-        <div style={{background:T.bg2,border:`1px solid ${T.sep2}`,borderRadius:14,padding:'14px 18px',boxShadow:'0 12px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04) inset',animation:'chartIn .4s ease'}}>
+        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px',boxShadow:'0 6px 32px rgba(0,0,0,.2), 0 1px 0 rgba(255,255,255,.05) inset',animation:'chartIn .4s ease'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-            <span style={{fontSize:13,fontWeight:600,color:T.ink1,display:'flex',alignItems:'center',gap:7}}>
+            <span style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7}}>
               <ShieldCheck size={14} style={{color:'#22c55e'}}/>Taxa de entrega
-              <span style={{fontSize:10,color:T.ink3,fontWeight:400}}>(dos que foram enviados)</span>
+              <span style={{fontSize:10,color:'var(--label-4)',fontWeight:400}}>(dos que foram enviados)</span>
             </span>
-            <span style={{fontSize:24,fontWeight:800,color:taxa===null?T.ink3:taxa>=90?'#22c55e':taxa>=70?'#f59e0b':'#ef4444'}}>
+            <span style={{fontSize:24,fontWeight:800,color:taxa===null?'var(--label-4)':taxa>=90?'#22c55e':taxa>=70?'#f59e0b':'#ef4444'}}>
               {taxa===null?'—':`${taxa}%`}
             </span>
           </div>
-          <div style={{height:10,borderRadius:99,overflow:'hidden',background:T.bg3,marginBottom:10}}>
+          <div style={{height:12,borderRadius:99,overflow:'hidden',background:'var(--fill)',marginBottom:10}}>
             <div style={{height:'100%',borderRadius:99,transition:'width 1s',
               width:`${taxa===null?0:taxa}%`,background:taxa>=90?'#22c55e':taxa>=70?'#f59e0b':'#ef4444'}}/>
           </div>
           {taxa===null && (
-            <div style={{fontSize:11,color:T.ink3,marginBottom:10,display:'flex',alignItems:'center',gap:6}}>
+            <div style={{fontSize:11,color:'var(--label-4)',marginBottom:10,display:'flex',alignItems:'center',gap:6}}>
               <Info size={12}/>Ainda não há envios efetivos — a maioria está como "ignorado" (gatilhos desativados). Quando ativar os templates, a taxa passa a contar.
             </div>
           )}
@@ -1188,8 +1185,8 @@ export default function PageDisparos({api: apiProp}) {
             ].map(s=>(
               <div key={s.l} style={{display:'flex',alignItems:'center',gap:6}}>
                 <div style={{width:8,height:8,borderRadius:'50%',background:s.c}}/>
-                <span style={{fontSize:11,color:T.ink2}}>
-                  {s.l}: <strong style={{color:T.ink1}}>{s.v}</strong>
+                <span style={{fontSize:11,color:'var(--label-3)'}}>
+                  {s.l}: <strong style={{color:'var(--label)'}}>{s.v}</strong>
                 </span>
               </div>
             ))}
@@ -1199,13 +1196,13 @@ export default function PageDisparos({api: apiProp}) {
         {/* ── Funil da jornada + Insights ── */}
         <div style={{display:'grid',gridTemplateColumns:'1.4fr 1fr',gap:14}}>
           {/* Funil */}
-          <div style={{background:T.bg2,border:`1px solid ${T.sep2}`,borderRadius:14,padding:'14px 18px',boxShadow:'0 12px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04) inset',animation:'chartIn .4s ease'}}>
-            <div style={{fontSize:13,fontWeight:600,color:T.ink1,display:'flex',alignItems:'center',gap:7,marginBottom:14}}>
+          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px',boxShadow:'0 6px 32px rgba(0,0,0,.2), 0 1px 0 rgba(255,255,255,.05) inset',animation:'chartIn .4s ease'}}>
+            <div style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7,marginBottom:14}}>
               <Filter size={14} style={{color:'#7c6af7'}}/>Funil da jornada
-              <span style={{fontSize:10,color:T.ink3,fontWeight:400,marginLeft:'auto'}}>onde estão seus clientes</span>
+              <span style={{fontSize:10,color:'var(--label-4)',fontWeight:400,marginLeft:'auto'}}>onde estão seus clientes</span>
             </div>
             {funil.length===0
-              ? <p style={{fontSize:12,color:T.ink3,textAlign:'center',padding:20,margin:0}}>Sem dados de jornada no período</p>
+              ? <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:20,margin:0}}>Sem dados de jornada no período</p>
               : <div style={{display:'flex',flexDirection:'column',gap:0}}>
                   {funil.map((e,i)=>{
                     const pct = Math.round(e.total/funilMax*100)
@@ -1214,8 +1211,8 @@ export default function PageDisparos({api: apiProp}) {
                       <div key={e.gat} onClick={()=>{ setFiltroGat(e.gat); setLogPg(1) }}
                         title="Filtrar log por esta etapa" style={{display:'flex',alignItems:'center',gap:8,
                         padding:'6px 4px',borderRadius:7,cursor:'pointer',
-                        borderBottom:i<funil.length-1?`1px solid ${T.sep}`:'none'}}
-                        onMouseEnter={ev=>ev.currentTarget.style.background=T.bg3}
+                        borderBottom:i<funil.length-1?'1px solid var(--sep)':'none'}}
+                        onMouseEnter={ev=>ev.currentTarget.style.background='var(--fill)'}
                         onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}>
                         <div style={{width:20,height:20,borderRadius:5,background:`${e.cor}18`,
                           display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
@@ -1223,12 +1220,12 @@ export default function PageDisparos({api: apiProp}) {
                         </div>
                         <div style={{flex:1,minWidth:0}}>
                           <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
-                            <span style={{fontSize:11,color:T.ink1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>{e.label}</span>
+                            <span style={{fontSize:11,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>{e.label}</span>
                             <div style={{display:'flex',gap:6,flexShrink:0,alignItems:'center'}}>
-                              <span style={{fontSize:11,fontWeight:700,color:T.ink1}}>{e.total}</span>
+                              <span style={{fontSize:11,fontWeight:700,color:'var(--label)'}}>{e.total}</span>
                             </div>
                           </div>
-                          <div style={{height:4,borderRadius:99,background:T.bg3,overflow:'hidden'}}>
+                          <div style={{height:5,borderRadius:99,background:'var(--fill)',overflow:'hidden'}}>
                             <div style={{height:'100%',borderRadius:99,background:e.cor,width:`${pct}%`,transition:'width .7s'}}/>
                           </div>
                         </div>
@@ -1239,14 +1236,14 @@ export default function PageDisparos({api: apiProp}) {
             }
           </div>
           {/* Insights */}
-          <div style={{background:T.bg2,border:`1px solid ${T.sep2}`,borderRadius:14,padding:'14px 18px',boxShadow:'0 12px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04) inset',animation:'chartIn .4s ease'}}>
-            <div style={{fontSize:13,fontWeight:600,color:T.ink1,display:'flex',alignItems:'center',gap:7,marginBottom:12}}>
+          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px',boxShadow:'0 6px 32px rgba(0,0,0,.2), 0 1px 0 rgba(255,255,255,.05) inset',animation:'chartIn .4s ease'}}>
+            <div style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7,marginBottom:12}}>
               <Zap size={14} style={{color:'#f59e0b'}}/>Insights
             </div>
             {(() => {
               const visiveis = insights.filter(ins => !insDispensados.includes(ins.txt))
               return visiveis.length===0
-              ? <p style={{fontSize:12,color:T.ink3,textAlign:'center',padding:20,margin:0}}>
+              ? <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:20,margin:0}}>
                   {insights.length>0?'Todos os alertas foram revisados ✓':'Tudo tranquilo por aqui.'}
                 </p>
               : <div style={{display:'flex',flexDirection:'column',gap:8}}>
@@ -1256,7 +1253,7 @@ export default function PageDisparos({api: apiProp}) {
                       <div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',padding:'9px 11px',
                         borderRadius:9,background:m.bg,border:`1px solid ${m.cor}25`}}>
                         <MI size={13} style={{color:m.cor,flexShrink:0,marginTop:2}}/>
-                        <span style={{flex:1,minWidth:0,fontSize:11.5,color:T.ink1,lineHeight:1.5}}>{ins.txt}</span>
+                        <span style={{flex:1,minWidth:0,fontSize:11.5,color:'var(--label)',lineHeight:1.5}}>{ins.txt}</span>
                         <button onClick={()=>setInsDispensados(d=>[...d,ins.txt])}
                           title="Marcar como revisado" style={{
                           flexShrink:0,display:'flex',alignItems:'center',gap:3,padding:'3px 8px',borderRadius:6,
@@ -1273,20 +1270,20 @@ export default function PageDisparos({api: apiProp}) {
         </div>
 
         {/* ── Horários de pico ── */}
-        <div style={{background:T.bg2,border:`1px solid ${T.sep2}`,borderRadius:14,padding:'14px 18px',boxShadow:'0 12px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04) inset',animation:'chartIn .4s ease'}}>
-          <div style={{fontSize:13,fontWeight:600,color:T.ink1,display:'flex',alignItems:'center',gap:7,marginBottom:4}}>
+        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px',boxShadow:'0 6px 32px rgba(0,0,0,.2), 0 1px 0 rgba(255,255,255,.05) inset',animation:'chartIn .4s ease'}}>
+          <div style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7,marginBottom:4}}>
             <Clock size={14} style={{color:'#06b6d4'}}/>Horários de pico
-            {stats?.picoHora!=null&&<span style={{fontSize:10,color:T.ink3,fontWeight:400,marginLeft:'auto'}}>
+            {stats?.picoHora!=null&&<span style={{fontSize:10,color:'var(--label-4)',fontWeight:400,marginLeft:'auto'}}>
               pico às {stats.picoHora}h
             </span>}
           </div>
           <div style={{height:120,marginTop:8}}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats?.porHora||[]} margin={{top:4,right:4,left:-28,bottom:0}}>
-                <CartesianGrid strokeDasharray="3 3" stroke={T.sep} vertical={false}/>
-                <XAxis dataKey="hora" tick={{fontSize:9,fill:T.ink3}} interval={2}
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--sep)" vertical={false}/>
+                <XAxis dataKey="hora" tick={{fontSize:9,fill:'var(--label-4)'}} interval={2}
                   tickFormatter={h=>`${h}h`} axisLine={false} tickLine={false}/>
-                <YAxis tick={{fontSize:9,fill:T.ink3}} axisLine={false} tickLine={false} allowDecimals={false}/>
+                <YAxis tick={{fontSize:9,fill:'var(--label-4)'}} axisLine={false} tickLine={false} allowDecimals={false}/>
                 <Tooltip {...TT} labelFormatter={h=>`${h}:00 - ${h}:59`} formatter={v=>[v,'disparos']}/>
                 <Bar dataKey="total" radius={[3,3,0,0]}>
                   {(stats?.porHora||[]).map((h,i)=>(
@@ -1302,18 +1299,18 @@ export default function PageDisparos({api: apiProp}) {
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
 
           {/* Evolução diária */}
-          <div style={{background:T.bg2,border:`1px solid ${T.sep2}`,borderRadius:14,padding:'14px 18px',boxShadow:'0 12px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04) inset',animation:'chartIn .4s ease'}}>
-            <div style={{fontSize:13,fontWeight:600,color:T.ink1,marginBottom:14,
+          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px',boxShadow:'0 6px 32px rgba(0,0,0,.2), 0 1px 0 rgba(255,255,255,.05) inset',animation:'chartIn .4s ease'}}>
+            <div style={{fontSize:13,fontWeight:600,color:'var(--label)',marginBottom:14,
               display:'flex',alignItems:'center',gap:7}}>
               <BarChart3 size={13} style={{color:'#7c6af7'}}/>Evolução diária
             </div>
             {porDiaChart.length===0
-              ? <p style={{fontSize:12,color:T.ink3,textAlign:'center',padding:24,margin:0}}>Sem dados no período</p>
+              ? <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:24,margin:0}}>Sem dados no período</p>
               : <ResponsiveContainer width="100%" height={160}>
                   <BarChart data={porDiaChart} barGap={2}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={T.sep} vertical={false}/>
-                    <XAxis dataKey="d" tick={{fontSize:9,fill:T.ink3}} tickLine={false} axisLine={false}/>
-                    <YAxis tick={{fontSize:9,fill:T.ink3}} tickLine={false} axisLine={false}/>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--sep)" vertical={false}/>
+                    <XAxis dataKey="d" tick={{fontSize:9,fill:'var(--label-4)'}} tickLine={false} axisLine={false}/>
+                    <YAxis tick={{fontSize:9,fill:'var(--label-4)'}} tickLine={false} axisLine={false}/>
                     <Tooltip {...TT} formatter={(v,n)=>[v,n==='enviados'?'Enviados':'Erros']}/>
                     <Bar dataKey="enviados" fill="#22c55e" radius={[3,3,0,0]} maxBarSize={20}/>
                     <Bar dataKey="erros"    fill="#ef4444" radius={[3,3,0,0]} maxBarSize={20}/>
@@ -1323,13 +1320,13 @@ export default function PageDisparos({api: apiProp}) {
           </div>
 
           {/* Por gatilho */}
-          <div style={{background:T.bg2,border:`1px solid ${T.sep2}`,borderRadius:14,padding:'14px 18px',boxShadow:'0 12px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04) inset',animation:'chartIn .4s ease'}}>
-            <div style={{fontSize:13,fontWeight:600,color:T.ink1,marginBottom:10,
+          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px',boxShadow:'0 6px 32px rgba(0,0,0,.2), 0 1px 0 rgba(255,255,255,.05) inset',animation:'chartIn .4s ease'}}>
+            <div style={{fontSize:13,fontWeight:600,color:'var(--label)',marginBottom:10,
               display:'flex',alignItems:'center',gap:7}}>
               <Zap size={13} style={{color:'#f59e0b'}}/>Por gatilho
             </div>
             {porGatChart.length===0
-              ? <p style={{fontSize:12,color:T.ink3,textAlign:'center',padding:24,margin:0}}>Nenhum disparo no período</p>
+              ? <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:24,margin:0}}>Nenhum disparo no período</p>
               : <div style={{display:'flex',flexDirection:'column',gap:0}}>
                   {porGatChart.slice(0,8).map((g,i)=>{
                     const maxG = Math.max(...porGatChart.map(x=>x.total),1)
@@ -1341,8 +1338,8 @@ export default function PageDisparos({api: apiProp}) {
                       <div key={i} onClick={()=>{ setFiltroGat(gatKey); setLogPg(1) }}
                         title="Filtrar o log por este gatilho" style={{display:'flex',alignItems:'center',gap:8,
                         padding:'6px 4px',borderRadius:7,cursor:'pointer',
-                        borderBottom:i<porGatChart.length-1?`1px solid ${T.sep}`:'none'}}
-                        onMouseEnter={e=>e.currentTarget.style.background=T.bg3}
+                        borderBottom:i<porGatChart.length-1?'1px solid var(--sep)':'none'}}
+                        onMouseEnter={e=>e.currentTarget.style.background='var(--fill)'}
                         onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
                         <div style={{width:20,height:20,borderRadius:5,background:`${g.cor}18`,
                           display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
@@ -1353,12 +1350,12 @@ export default function PageDisparos({api: apiProp}) {
                         </div>
                         <div style={{flex:1,minWidth:0}}>
                           <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
-                            <span style={{fontSize:11,color:T.ink1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>{g.name}</span>
+                            <span style={{fontSize:11,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>{g.name}</span>
                             <div style={{display:'flex',gap:6,flexShrink:0,alignItems:'center'}}>
-                              <span style={{fontSize:11,fontWeight:700,color:T.ink1}}>{g.total}</span>
+                              <span style={{fontSize:11,fontWeight:700,color:'var(--label)'}}>{g.total}</span>
                               {taxaG===null
                                 ? <span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
-                                    color:T.ink3,background:T.bg3}} title="Registrado, mas ainda não enviado (template off)">só log</span>
+                                    color:'var(--label-4)',background:'var(--fill)'}} title="Registrado, mas ainda não enviado (template off)">só log</span>
                                 : <span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
                                     color:taxaG>=90?'#22c55e':taxaG>=70?'#f59e0b':'#ef4444',
                                     background:taxaG>=90?'rgba(34,197,94,.1)':taxaG>=70?'rgba(245,158,11,.1)':'rgba(239,68,68,.1)'}}>
@@ -1367,7 +1364,7 @@ export default function PageDisparos({api: apiProp}) {
                               }
                             </div>
                           </div>
-                          <div style={{height:4,borderRadius:99,background:T.bg3,overflow:'hidden'}}>
+                          <div style={{height:5,borderRadius:99,background:'var(--fill)',overflow:'hidden'}}>
                             <div style={{height:'100%',borderRadius:99,background:g.cor,width:`${pct}%`,transition:'width .5s'}}/>
                           </div>
                         </div>
@@ -1479,20 +1476,20 @@ export default function PageDisparos({api: apiProp}) {
           {/* Paginação */}
           {logPgs>1&&(
             <div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:8,
-              padding:'12px',borderTop:`1px solid ${T.sep}`}}>
+              padding:'12px',borderTop:'1px solid var(--sep)'}}>
               <button onClick={()=>carregarLog(logPg-1)} disabled={logPg===1} style={{
-                padding:'5px 10px',borderRadius:8,border:`1px solid ${T.sep}`,
-                background:T.bg3,cursor:logPg===1?'not-allowed':'pointer',
-                color:T.ink2,opacity:logPg===1?.5:1}}>
+                padding:'5px 10px',borderRadius:8,border:'1px solid var(--sep)',
+                background:'var(--fill)',cursor:logPg===1?'not-allowed':'pointer',
+                color:'var(--label-3)',opacity:logPg===1?.5:1}}>
                 <ChevronLeft size={14}/>
               </button>
-              <span style={{fontSize:12,color:T.ink3}}>
+              <span style={{fontSize:12,color:'var(--label-4)'}}>
                 {logPg} de {logPgs} · {logTotal} disparos
               </span>
               <button onClick={()=>carregarLog(logPg+1)} disabled={logPg===logPgs} style={{
-                padding:'5px 10px',borderRadius:8,border:`1px solid ${T.sep}`,
-                background:T.bg3,cursor:logPg===logPgs?'not-allowed':'pointer',
-                color:T.ink2,opacity:logPg===logPgs?.5:1}}>
+                padding:'5px 10px',borderRadius:8,border:'1px solid var(--sep)',
+                background:'var(--fill)',cursor:logPg===logPgs?'not-allowed':'pointer',
+                color:'var(--label-3)',opacity:logPg===logPgs?.5:1}}>
                 <ChevronRight size={14}/>
               </button>
             </div>
@@ -1530,7 +1527,7 @@ export default function PageDisparos({api: apiProp}) {
         ::-webkit-scrollbar-thumb { background:rgba(255,255,255,.1); border-radius:99px }
         .log-row:hover { background:rgba(255,255,255,.028) !important }
         .log-row:hover .log-actions { opacity:1 !important }
-        .gat-bar:hover { background:T.bg3 !important; border-radius:7px }
+        .gat-bar:hover { background:var(--fill) !important; border-radius:7px }
       `}</style>
     </div>
   )
