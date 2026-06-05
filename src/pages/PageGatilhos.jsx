@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   Zap, Save, Send, RefreshCw, X, Sparkles, Check, Plus,
   FileText, MousePointer, Link as LinkIcon, ShoppingBag,
@@ -9,12 +9,28 @@ import {
   AlertTriangle, CheckCircle, Info, MoreHorizontal, Pencil,
   PlayCircle, PauseCircle, Radio, Wifi, Shield, Globe,
   ArrowRight, SlidersHorizontal, Tag, Repeat, Activity,
-  GripVertical, Timer, Edit3, Send as SendIcon
+  GripVertical, Timer, Edit3, Send as SendIcon,
+  Search, Users, Download, Minus, CheckCircle as CheckCircleIc,
+  Navigation, ArrowUpRight,
 } from 'lucide-react'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 const R   = n => `R$ ${Number(n||0).toFixed(2).replace('.',',')}`
 const fmt = n => Number(n||0).toLocaleString('pt-BR')
+
+// ─── Paleta dark enterprise (idêntica à PageDisparos / PageCampanhas) ──────────
+const T = {
+  bg0:'#08090f', bg1:'#0d1017', bg2:'#111520', bg3:'#161b2c', bg4:'#1c2238',
+  ink1:'#eef0f6', ink2:'#b8bdd4', ink3:'#6b7294', ink4:'#3a3f5c',
+  sep:'rgba(255,255,255,0.05)', sep2:'rgba(255,255,255,0.08)',
+  green:'#00e676', greenDim:'rgba(0,230,118,.08)',  greenBor:'rgba(0,230,118,.25)',
+  blue:'#4f8ef7',  blueDim:'rgba(79,142,247,.08)',   blueBor:'rgba(79,142,247,.25)',
+  amber:'#ffb300', amberDim:'rgba(255,179,0,.08)',   amberBor:'rgba(255,179,0,.25)',
+  red:'#ff4757',   redDim:'rgba(255,71,87,.08)',     redBor:'rgba(255,71,87,.25)',
+  purple:'#a78bfa',purpleDim:'rgba(167,139,250,.08)',purpleBor:'rgba(167,139,250,.25)',
+  cyan:'#06b6d4',  cyanDim:'rgba(6,182,212,.08)',    cyanBor:'rgba(6,182,212,.25)',
+  gray:'rgba(255,255,255,.04)', grayBor:'rgba(255,255,255,.1)',
+}
 
 // Grupos e gatilhos
 const GATILHOS = [
@@ -874,6 +890,118 @@ function PlanodeDisparos({ gatilhos, configs, atividade, onSelect, api }) {
 }
 
 // Helper: tempo relativo (ex: "há 2h", "ontem", "3 dias")
+// ─── COMMAND PALETTE ⌘K para Gatilhos ────────────────────────────────────────
+function CmdGatilhos({open, onClose, gatilhos, configs, onSelect, onToggle, labelDe}) {
+  const [q, setQ] = useState('')
+  const inputRef = React.useRef(null)
+  useEffect(() => { if(open){ setQ(''); setTimeout(()=>inputRef.current?.focus(),50) } },[open])
+
+  const results = q.trim()
+    ? gatilhos.filter(g => labelDe(g).toLowerCase().includes(q.toLowerCase()))
+    : []
+
+  const acoes = [
+    {icon:CheckCircleIc, label:'Ativar todos com template', fn:()=>{ gatilhos.filter(g=>configs[g.id]&&!configs[g.id]?.ativo).forEach(g=>onToggle(g.id)); onClose() }},
+    {icon:X,            label:'Desativar todos', fn:()=>{ gatilhos.filter(g=>configs[g.id]?.ativo).forEach(g=>onToggle(g.id)); onClose() }},
+  ]
+
+  if (!open) return null
+  const bg = 'rgba(13,16,23,0.94)', bdr = 'rgba(255,255,255,0.08)'
+  return (
+    <>
+      <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:200,
+        background:'rgba(0,0,0,.65)',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)'}}/>
+      <div style={{position:'fixed',top:'18%',left:'50%',transform:'translateX(-50%)',
+        width:'min(520px,94vw)',zIndex:201,
+        background:bg, backdropFilter:'blur(24px)', WebkitBackdropFilter:'blur(24px)',
+        border:`1px solid ${bdr}`,borderRadius:16,
+        boxShadow:'0 40px 100px rgba(0,0,0,.85)',animation:'slideup .2s ease'}}>
+        {/* Input */}
+        <div style={{padding:'12px 14px',borderBottom:`1px solid ${bdr}`,
+          display:'flex',alignItems:'center',gap:10}}>
+          <Search size={16} style={{color:'#6b7294',flexShrink:0}}/>
+          <input ref={inputRef} value={q} onChange={e=>setQ(e.target.value)}
+            placeholder="Buscar gatilho ou ação..."
+            onKeyDown={e=>{ if(e.key==='Escape')onClose(); if(e.key==='Enter'&&results.length){onSelect(results[0].id);onClose()} }}
+            style={{flex:1,border:'none',background:'transparent',color:'#eef0f6',
+              fontSize:15,outline:'none',fontFamily:'inherit'}}/>
+          <kbd style={{fontSize:10,padding:'2px 6px',borderRadius:5,flexShrink:0,
+            background:'#1c2238',color:'#6b7294',border:`1px solid ${bdr}`}}>Esc</kbd>
+        </div>
+        {/* Conteúdo */}
+        <div style={{maxHeight:340,overflowY:'auto'}}>
+          {!q && (
+            <div style={{padding:'8px 10px'}}>
+              <div style={{fontSize:9,color:'#3a3f5c',textTransform:'uppercase',letterSpacing:'.07em',padding:'4px 4px 8px'}}>Ações rápidas</div>
+              {acoes.map((a,i)=>(
+                <div key={i} onClick={a.fn}
+                  style={{display:'flex',alignItems:'center',gap:10,padding:'9px 10px',
+                    borderRadius:8,cursor:'pointer',transition:'background .1s'}}
+                  onMouseEnter={e=>e.currentTarget.style.background='#161b2c'}
+                  onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                  <div style={{width:28,height:28,borderRadius:8,background:'#161b2c',
+                    display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    <a.icon size={13} style={{color:'#6b7294'}}/>
+                  </div>
+                  <span style={{flex:1,fontSize:13,color:'#b8bdd4'}}>{a.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {q && results.length===0 && (
+            <div style={{padding:'32px 0',textAlign:'center',color:'#6b7294',fontSize:13}}>
+              Nenhum gatilho para "{q}"
+            </div>
+          )}
+          {results.map((g,i)=>{
+            const cfg  = configs[g.id]
+            const ativo= cfg?.ativo
+            const Icon = g.icon
+            return (
+              <div key={i}
+                style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',
+                  cursor:'pointer',borderTop:`1px solid ${bdr}`,transition:'background .1s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='#161b2c'}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                <div style={{width:34,height:34,borderRadius:9,background:`${g.cor}18`,
+                  border:`0.5px solid ${g.cor}28`,display:'flex',alignItems:'center',
+                  justifyContent:'center',flexShrink:0}}>
+                  <Icon size={15} style={{color:g.cor}}/>
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,color:'#eef0f6',fontWeight:500}}>{labelDe(g)}</div>
+                  <div style={{fontSize:11,color:'#6b7294',marginTop:2}}>
+                    {ativo?'● Ativo':'○ Inativo'} · {g.grupo}
+                  </div>
+                </div>
+                <div style={{display:'flex',gap:6,flexShrink:0}}>
+                  <button onClick={e=>{e.stopPropagation();onSelect(g.id);onClose()}}
+                    style={{padding:'4px 10px',borderRadius:7,border:'1px solid rgba(167,139,250,.25)',
+                      background:'rgba(167,139,250,.08)',color:'#a78bfa',cursor:'pointer',
+                      fontSize:11,fontWeight:600}}>Editar</button>
+                  <button onClick={e=>{e.stopPropagation();onToggle(g.id);onClose()}}
+                    style={{padding:'4px 10px',borderRadius:7,border:`1px solid ${ativo?'rgba(255,71,87,.25)':'rgba(0,230,118,.25)'}`,
+                      background:ativo?'rgba(255,71,87,.08)':'rgba(0,230,118,.08)',
+                      color:ativo?'#ff4757':'#00e676',cursor:'pointer',
+                      fontSize:11,fontWeight:600}}>
+                    {ativo?'Desativar':'Ativar'}
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <div style={{padding:'8px 14px',borderTop:`1px solid ${bdr}`,
+          display:'flex',gap:10,alignItems:'center'}}>
+          <kbd style={{fontSize:10,padding:'1px 6px',borderRadius:4,background:'#1c2238',color:'#3a3f5c',border:`1px solid ${bdr}`}}>↵</kbd>
+          <span style={{fontSize:10,color:'#3a3f5c'}}>editar</span>
+          <span style={{marginLeft:'auto',fontSize:10,color:'#3a3f5c'}}>⌘K para fechar</span>
+        </div>
+      </div>
+    </>
+  )
+}
+
 function tempoRel(iso) {
   if (!iso) return null
   const diff = Date.now() - new Date(iso).getTime()
@@ -886,20 +1014,38 @@ function tempoRel(iso) {
   return `${d}d`
 }
 
-// Sparkline inline (7 barrinhas) usando SVG simples
+// ─── SPARKLINE LINE (substitui barras por polyline com area) ─────────────────
 function SparkCard({ serie=[], cor='#22c55e' }) {
-  const max = Math.max(...serie, 1)
-  const H = 22, W = 4, G = 2
-  const total = serie.reduce((s,v)=>s+v,0)
-  if (total === 0) return null
+  const data = serie
+  if (!data || data.length < 2) return null
+  const max = Math.max(...data, 1)
+  const H = 22, W = 58
+  const pts = data.map((v,i)=>`${(i/(data.length-1))*W},${H-2-(v/max)*(H-6)+2}`).join(' ')
+  const area = `0,${H} ${pts} ${W},${H}`
+  const gid  = `spk${cor.replace(/[^a-z0-9]/gi,'').slice(0,6)}`
+  const lx=W, ly=H-2-(data[data.length-1]/max)*(H-6)+2
   return (
-    <svg width={serie.length*(W+G)-G} height={H} style={{display:'block',flexShrink:0}}>
-      {serie.map((v,i)=>{
-        const h = Math.max(2, Math.round((v/max)*H))
-        return <rect key={i} x={i*(W+G)} y={H-h} width={W} height={h}
-          fill={i===serie.length-1?cor:`${cor}50`} rx={1}/>
-      })}
+    <svg width={W} height={H} style={{display:'block',flexShrink:0}}>
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={cor} stopOpacity=".3"/>
+          <stop offset="100%" stopColor={cor} stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      <polygon points={area} fill={`url(#${gid})`}/>
+      <polyline points={pts} fill="none" stroke={cor} strokeWidth="1.5"
+        strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx={lx} cy={ly} r="2.5" fill={cor}/>
     </svg>
+  )
+}
+
+// ─── SKELETON LOADING ─────────────────────────────────────────────────────────
+function Skel({w='100%', h=16, r=6}) {
+  return (
+    <div style={{width:w, height:h, borderRadius:r,
+      background:`linear-gradient(90deg,${T.bg3} 25%,${T.bg4} 50%,${T.bg3} 75%)`,
+      backgroundSize:'200% 100%', animation:'shimmer 1.5s ease-in-out infinite'}}/>
   )
 }
 
@@ -936,6 +1082,30 @@ export default function PageGatilhos({ api }) {
   const [indicadores, setIndicadores] = useState({})  // indicadores ricos por gatilho
   const [molisesAberta, setMoliseAberta] = useState(false)  // painel de sugestões on/off
 
+  // Bulk operations — seleção multi-card
+  const [selEst, setSelEst] = useState(new Set())
+  const [bulkOp, setBulkOp] = useState(false)
+
+  // Command palette ⌘K
+  const [cmdK, setCmdK] = useState(false)
+
+  // Bulk operations
+  const toggleSelEst = (id) => setSelEst(prev => {
+    const next = new Set(prev); if(next.has(id)) next.delete(id); else next.add(id); return next
+  })
+  const ativarLote  = async () => {
+    for(const id of selEst) {
+      if(!configs[id]?.ativo) await toggleAtivo(id).catch(()=>{})
+    }
+    setSelEst(new Set())
+  }
+  const desativLote = async () => {
+    for(const id of selEst) {
+      if(configs[id]?.ativo) await toggleAtivo(id).catch(()=>{})
+    }
+    setSelEst(new Set())
+  }
+
   const gatilho = GATILHOS.find(g => g.id === selId)
   const config  = configs[selId]
   const isIA    = gatilho?.tipo === 'ia'
@@ -944,6 +1114,19 @@ export default function PageGatilhos({ api }) {
   const labelAtual = labelDe(gatilho)
 
   // ── Carrega templates do banco ─────────────────────────────────────────────
+  // Keyboard shortcuts
+  useEffect(() => {
+    const h = e => {
+      if ((e.metaKey||e.ctrlKey) && e.key==='k') { e.preventDefault(); setCmdK(v=>!v) }
+      if (e.key==='Escape') { setCmdK(false); setSelId(null) }
+      const inp = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
+      if (inp) return
+      if (e.key==='e'||e.key==='E') selEst.size && ativarLote()
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [selEst, ativarLote])  // eslint-disable-line
+
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
@@ -1202,6 +1385,8 @@ export default function PageGatilhos({ api }) {
   return (
     <div style={{display:'flex',flexDirection:'column',height:'100vh',background:'var(--bg)',color:'var(--label)',overflow:'hidden'}}>
       <style>{`
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        @keyframes slideup { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
         @keyframes spin { to { transform: rotate(360deg) } }
         @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
@@ -1209,6 +1394,8 @@ export default function PageGatilhos({ api }) {
         .gat-item { transition: background .1s; }
         .blk-add:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
         .blk-add { transition: all .12s; }
+        .gat-card:hover .gat-cb { opacity:1 !important }
+        .gat-card { transition: all .12s }
       `}</style>
 
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
@@ -1237,27 +1424,38 @@ export default function PageGatilhos({ api }) {
         </div>
       </div>
 
-      {/* ── PAINEL DE PULSO (Fase 2) — indicadores com sparklines ──────────── */}
-      {pulso && !selId && (
-        <div style={{flexShrink:0,background:'var(--bg-2)',borderBottom:'0.5px solid var(--sep)',padding:'7px 20px',display:'flex',gap:7,overflowX:'auto'}}>
-          {[
-            { key:'aprovados',   lbl:'Aprovados',     val:pulso.meta.aprovados,   cor:'#22c55e' },
-            { key:'analise',     lbl:'Em análise',    val:pulso.meta.analise,     cor:'#f59e0b' },
-            { key:'naoEnviados', lbl:'Não enviados',  val:pulso.meta.naoEnviados, cor:'#8696a0' },
-            { key:'rejeitados',  lbl:'Rejeitados',    val:pulso.meta.rejeitados,  cor:'#ef4444' },
-            { key:'disparos',    lbl:'Disparos hoje', val:pulso.disparosHoje,     cor:'#4a9fff' },
-            { key:'emRota',      lbl:'Em rota agora', val:pulso.clientesEmRota,    cor:'#7c6af7' },
-          ].map((c,i)=>(
-            <div key={i} style={{flex:'1 1 0',minWidth:110,background:'var(--bg)',borderRadius:8,padding:'6px 10px',border:'0.5px solid var(--sep)'}}>
-              <div style={{fontSize:9.5,color:'var(--label-4)',marginBottom:2}}>{c.lbl}</div>
-              <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:6}}>
-                <span style={{fontSize:17,fontWeight:600,color:c.cor,lineHeight:1}}>{c.val}</span>
-                {sparks && sparks[c.key] && <Sparkline dados={sparks[c.key]} cor={c.cor} altura={18}/>}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* ── PAINEL DE PULSO — Health cards enterprise T ─────────────────────── */}
+      {pulso && !selId && (() => {
+        const cards = [
+          { key:'aprovados',   lbl:'Aprovados',     val:pulso.meta.aprovados,   cor:T.green  },
+          { key:'analise',     lbl:'Em análise',    val:pulso.meta.analise,     cor:T.amber  },
+          { key:'naoEnviados', lbl:'Não enviados',  val:pulso.meta.naoEnviados, cor:T.ink3   },
+          { key:'rejeitados',  lbl:'Rejeitados',    val:pulso.meta.rejeitados,  cor:T.red    },
+          { key:'disparos',    lbl:'Disparos hoje', val:pulso.disparosHoje,     cor:T.blue   },
+          { key:'emRota',      lbl:'Em rota agora', val:pulso.clientesEmRota,   cor:T.purple },
+        ]
+        return (
+          <div style={{flexShrink:0,background:T.bg2,borderBottom:`1px solid ${T.sep2}`,
+            padding:'8px 20px',display:'flex',gap:8,overflowX:'auto'}}>
+            {cards.map((c,i)=>  {
+              const spk = sparks?.[c.key]
+              return (
+                <div key={i} style={{flex:'1 1 0',minWidth:120,background:T.bg3,borderRadius:10,
+                  padding:'8px 12px',border:`1px solid ${T.sep}`,
+                  boxShadow:'0 2px 8px rgba(0,0,0,.2)'}}>
+                  <div style={{fontSize:9,color:T.ink3,marginBottom:4,textTransform:'uppercase',
+                    letterSpacing:'.06em'}}>{c.lbl}</div>
+                  <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:6}}>
+                    <span style={{fontSize:20,fontWeight:700,color:c.cor,lineHeight:1,
+                      letterSpacing:'-.025em'}}>{c.val}</span>
+                    {spk&&<SparkCard serie={spk} cor={c.cor}/>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )
+      })()}
 
       {/* ── MOLISE COPILOTA (Fase 2) — botão que expande sob demanda ────────── */}
       {(() => {
@@ -1344,7 +1542,16 @@ export default function PageGatilhos({ api }) {
               <input value={busca} onChange={e=>{setBusca(e.target.value);setShowPlano(false)}} placeholder="Buscar gatilho..."
                 style={{flex:1,border:'none',background:'transparent',color:'var(--label)',fontSize:13,outline:'none'}}/>
             </div>
-            <button onClick={()=>setShowPlano(p=>!p)} style={{
+            <button onClick={()=>setCmdK(true)} title="Command Palette (⌘K)"
+            style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:8,
+              fontSize:11,border:'1px solid var(--sep)',background:'none',
+              color:'var(--label-4)',cursor:'pointer'}}>
+            <Search size={12}/>
+            <span>Buscar</span>
+            <kbd style={{fontSize:9,padding:'1px 5px',borderRadius:4,marginLeft:2,
+              background:'var(--fill)',border:'1px solid var(--sep)',color:'var(--label-4)'}}>⌘K</kbd>
+          </button>
+          <button onClick={()=>setShowPlano(p=>!p)} style={{
               display:'flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius:9,
               border:`0.5px solid ${showPlano?'rgba(124,106,247,.4)':'var(--sep)'}`,
               background:showPlano?'rgba(124,106,247,.1)':'var(--bg-2)',
@@ -1392,80 +1599,124 @@ export default function PageGatilhos({ api }) {
                     // Preview do conteúdo: primeiro texto/cabeçalho do gatilho
                     const blocoTexto = (cfg?.blocos||[]).find(b=>b.tipo==='texto'||b.tipo==='cabecalho')
                     const previewTxt = blocoTexto?.conteudo || 'Sem conteúdo configurado'
+                    // ── Insights por card ───────────────────────────
+                    const ind2    = indicadores[g.id]
+                    const env2    = ind2?.enviados || 0
+                    const err2    = ind2?.erros    || 0
+                    const ser2    = ind2?.serie     || []
+                    const ult2    = ind2?.ultimo    || null
+                    const rel2    = tempoRel(ult2)
+                    const tent2   = env2 + err2
+                    const taxa2   = tent2 > 0 ? Math.round(env2/tent2*100) : null
+                    const tCor2   = taxa2===null?T.ink4:taxa2>=70?T.green:taxa2>=30?T.amber:T.red
+                    const tDim2   = taxa2===null?T.gray:taxa2>=70?T.greenDim:taxa2>=30?T.amberDim:T.redDim
+                    const tBor2   = taxa2===null?T.grayBor:taxa2>=70?T.greenBor:taxa2>=30?T.amberBor:T.redBor
+                    const ehCrit2 = ['pedido_entregue','rastreio_em_transito','saiu_entrega','pedido_coletado'].includes(g.id)
+                    const isSel   = selEst.has(g.id)
+
                     return (
-                      <div key={g.id} onClick={()=>setSelId(g.id)} className="gat-card"
-                        style={{background:'var(--bg-2)',borderRadius:11,border:`0.5px solid ${isSelected?g.cor+'60':'var(--sep)'}`,cursor:'pointer',overflow:'hidden',display:'flex',flexDirection:'column'}}>
-                        {/* Faixa de status */}
-                        <div style={{height:3,background:stInfo.cor==='var(--label-4)'?'var(--sep)':stInfo.cor}}/>
+                      <div key={g.id} onClick={()=>!isSel&&setSelId(g.id)} className="gat-card"
+                        style={{background:isSel?T.purpleDim:T.bg2, borderRadius:11,
+                          border:`1px solid ${isSelected?g.cor+'50':isSel?T.purpleBor:T.sep}`,
+                          cursor:'pointer', overflow:'hidden', display:'flex', flexDirection:'column',
+                          transition:'all .12s',
+                          boxShadow:isSelected?`0 2px 16px ${g.cor}20, 0 0 0 2px ${g.cor}15`:'none'}}>
+
+                        {/* Faixa de health no topo */}
+                        <div style={{height:2.5,
+                          background:taxa2===null?T.ink4:taxa2>=70?T.green:taxa2>=30?T.amber:T.red,
+                          borderRadius:'2px 2px 0 0', opacity:taxa2===null?.3:1}}/>
+
                         <div style={{padding:'11px 13px',display:'flex',flexDirection:'column',gap:8,flex:1}}>
-                          {/* Cabeçalho do card */}
+
+                          {/* Cabeçalho */}
                           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-                            <div style={{display:'flex',alignItems:'center',gap:8,minWidth:0}}>
-                              <div style={{width:30,height:30,borderRadius:8,background:`${g.cor}15`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                            <div style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}>
+                              {/* Checkbox bulk */}
+                              <div onClick={e=>{e.stopPropagation();toggleSelEst(g.id)}}
+                                className="gat-cb"
+                                style={{width:15,height:15,borderRadius:4,flexShrink:0,
+                                  background:isSel?T.purple:'transparent',
+                                  border:`1.5px solid ${isSel?T.purple:T.sep2}`,
+                                  display:'flex',alignItems:'center',justifyContent:'center',
+                                  cursor:'pointer',opacity:isSel?1:0,transition:'all .12s'}}>
+                                {isSel&&<Check size={8} style={{color:'#fff'}}/>}
+                              </div>
+                              <div style={{width:30,height:30,borderRadius:8,background:`${g.cor}18`,
+                                border:`0.5px solid ${g.cor}30`,flexShrink:0,
+                                display:'flex',alignItems:'center',justifyContent:'center'}}>
                                 <Icon size={15} style={{color:g.cor}}/>
                               </div>
-                              <span style={{fontSize:12.5,fontWeight:500,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{labelDe(g)}</span>
+                              <span style={{fontSize:12.5,fontWeight:600,color:T.ink1,
+                                overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                                {labelDe(g)}
+                              </span>
                             </div>
-                            {/* Toggle ativo */}
+                            {/* Toggle */}
                             {temTemplate && (
-                              <button onClick={(e)=>{e.stopPropagation(); toggleAtivo(g.id)}} title={ativo?'Ativo':'Inativo'}
-                                style={{position:'relative',width:30,height:17,borderRadius:99,border:'none',cursor:'pointer',background:ativo?'#22c55e':'var(--sep)',flexShrink:0,transition:'background .15s'}}>
-                                <span style={{position:'absolute',width:13,height:13,background:'#fff',borderRadius:'50%',top:2,left:ativo?15:2,transition:'left .15s'}}/>
+                              <button onClick={e=>{e.stopPropagation();toggleAtivo(g.id)}}
+                                title={ativo?'Ativo':'Inativo'}
+                                style={{position:'relative',width:30,height:17,borderRadius:99,border:'none',
+                                  cursor:'pointer',background:ativo?T.green:'rgba(255,255,255,.15)',
+                                  flexShrink:0,transition:'background .15s'}}>
+                                <span style={{position:'absolute',width:13,height:13,background:'#fff',
+                                  borderRadius:'50%',top:2,left:ativo?15:2,transition:'left .15s'}}/>
                               </button>
                             )}
                           </div>
-                          {/* Mini preview da mensagem */}
-                          <div style={{background:'var(--fill)',borderRadius:7,padding:'8px 10px',flex:1,minHeight:42,border:'0.5px solid var(--sep)'}}>
-                            <p style={{fontSize:10.5,color:'var(--label-2)',margin:0,lineHeight:1.5,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>{previewTxt.replace(/\n/g,' ').replace(/\*/g,'')}</p>
+
+                          {/* Preview */}
+                          <div style={{background:T.bg3,borderRadius:7,padding:'7px 10px',
+                            flex:1,minHeight:38,border:`0.5px solid ${T.sep}`}}>
+                            <p style={{fontSize:10.5,color:T.ink2,margin:0,lineHeight:1.5,
+                              display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>
+                              {previewTxt.replace(/\n/g,' ').replace(/\*/g,'')}
+                            </p>
                           </div>
-                          {/* Rodapé rico: indicadores + sparkline */}
-                          {(() => {
-                            const ind = indicadores[g.id]
-                            const erros  = ind?.erros  || 0
-                            const total  = ind?.total   || atividade[g.id] || 0
-                            const serie  = ind?.serie   || []
-                            const ultimo = ind?.ultimo  || null
-                            const rel    = tempoRel(ultimo)
-                            // Alerta de gap: gatilho sem template mas com volume esperado
-                            const ehCritico = ['pedido_entregue','rastreio_em_transito','saiu_entrega','pedido_coletado'].includes(g.id)
-                            const semTemplate = !temTemplate
-                            return (
-                              <div style={{display:'flex',flexDirection:'column',gap:6}}>
-                                {/* Alerta de gap */}
-                                {semTemplate && ehCritico && (
-                                  <div style={{display:'flex',alignItems:'center',gap:5,padding:'4px 8px',
-                                    borderRadius:6,background:'rgba(239,68,68,.08)',border:'0.5px solid rgba(239,68,68,.2)'}}>
-                                    <AlertTriangle size={10} style={{color:'#ef4444',flexShrink:0}}/>
-                                    <span style={{fontSize:9.5,color:'#ef4444'}}>Criar e aprovar na Meta</span>
-                                  </div>
-                                )}
-                                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}}>
-                                  <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
-                                    {/* Badge status Meta */}
-                                    <span style={{fontSize:9,padding:'1px 7px',borderRadius:99,background:stInfo.dim,color:stInfo.cor,fontWeight:500,whiteSpace:'nowrap'}}>{stInfo.lbl}</span>
-                                    {/* Contagem total */}
-                                    {total>0 && <span style={{fontSize:9,color:'var(--label-4)',whiteSpace:'nowrap'}}>{total}/sem</span>}
-                                    {/* Erro */}
-                                    {erros>0 && (
-                                      <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:9,
-                                        color:'#ef4444',padding:'1px 5px',borderRadius:99,
-                                        background:'rgba(239,68,68,.1)',fontWeight:600}}>
-                                        ⚠ {erros} erro{erros>1?'s':''}
-                                      </span>
-                                    )}
-                                    {/* Último disparo */}
-                                    {rel && <span style={{fontSize:9,color:'var(--label-4)'}}>· {rel}</span>}
-                                  </div>
-                                  <div style={{display:'flex',gap:6,alignItems:'center',flexShrink:0}}>
-                                    {/* Sparkline */}
-                                    {serie.length>0 && <SparkCard serie={serie} cor={erros>0?'#ef4444':ativo?'#22c55e':'#f59e0b'}/>}
-                                    {g.tipo==='ia' && <span style={{fontSize:8.5,padding:'1px 5px',borderRadius:99,background:'rgba(124,106,247,.12)',color:'#7c6af7'}}>IA</span>}
-                                    <Pencil size={13} style={{cursor:'pointer',color:'var(--label-4)'}}/>
-                                  </div>
-                                </div>
+
+                          {/* Footer: insights + sparkline ── */}
+                          <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                            {/* Insight crítico */}
+                            {!temTemplate && ehCrit2 && (
+                              <div style={{display:'flex',alignItems:'center',gap:5,padding:'3px 8px',
+                                borderRadius:6,background:T.redDim,border:`0.5px solid ${T.redBor}`}}>
+                                <AlertTriangle size={9} style={{color:T.red,flexShrink:0}}/>
+                                <span style={{fontSize:9,color:T.red,fontWeight:600}}>Criar e aprovar na Meta</span>
                               </div>
-                            )
-                          })()}
+                            )}
+                            {/* Taxa 0% alerta */}
+                            {taxa2===0 && tent2>=3 && (
+                              <div style={{display:'flex',alignItems:'center',gap:5,padding:'3px 8px',
+                                borderRadius:6,background:T.amberDim,border:`0.5px solid ${T.amberBor}`}}>
+                                <AlertTriangle size={9} style={{color:T.amber,flexShrink:0}}/>
+                                <span style={{fontSize:9,color:T.amber,fontWeight:600}}>0% taxa · template inativo</span>
+                              </div>
+                            )}
+                            {/* Row: meta badge + taxa + erros + sparkline */}
+                            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}}>
+                              <div style={{display:'flex',alignItems:'center',gap:4,flexWrap:'wrap',minWidth:0}}>
+                                <span style={{fontSize:9,padding:'1px 6px',borderRadius:99,
+                                  background:stInfo.dim==='var(--fill)'?T.gray:stInfo.dim,
+                                  color:stInfo.cor==='var(--label-4)'?T.ink3:stInfo.cor,
+                                  fontWeight:500,whiteSpace:'nowrap',flexShrink:0}}>{stInfo.lbl}</span>
+                                {taxa2!==null&&(
+                                  <span style={{fontSize:9,padding:'1px 6px',borderRadius:99,
+                                    background:tDim2,color:tCor2,fontWeight:700,
+                                    whiteSpace:'nowrap',flexShrink:0}}>{taxa2}%</span>
+                                )}
+                                {err2>0&&(
+                                  <span style={{fontSize:9,color:T.red,padding:'1px 5px',borderRadius:99,
+                                    background:T.redDim,fontWeight:600,flexShrink:0}}>⚠ {err2}</span>
+                                )}
+                                {rel2&&<span style={{fontSize:9,color:T.ink4,flexShrink:0}}>· {rel2}</span>}
+                              </div>
+                              <div style={{display:'flex',gap:5,alignItems:'center',flexShrink:0}}>
+                                {ser2.length>0&&<SparkCard serie={ser2} cor={err2>0?T.red:ativo?T.green:T.amber}/>}
+                                {g.tipo==='ia'&&<span style={{fontSize:8,padding:'1px 5px',borderRadius:99,
+                                  background:T.purpleDim,color:T.purple,flexShrink:0}}>IA</span>}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )
@@ -1475,9 +1726,59 @@ export default function PageGatilhos({ api }) {
             </div>
           ))}
         </div>
+        {/* ── Bulk actions toolbar ── */}
+        {selEst.size > 0 && !selId && (
+          <div style={{position:'sticky',bottom:0,left:0,right:0,
+            display:'flex',alignItems:'center',gap:10,padding:'10px 16px',
+            background:'rgba(13,16,23,0.96)',
+            backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',
+            borderTop:`1px solid ${T.purpleBor}`,
+            boxShadow:`0 -4px 24px rgba(0,0,0,.5)`,
+            zIndex:25, animation:'slideup .2s ease',flexWrap:'wrap'}}>
+            <div style={{display:'flex',alignItems:'center',gap:7,flexShrink:0}}>
+              <div style={{width:22,height:22,borderRadius:7,background:T.purple,
+                display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <span style={{fontSize:11,fontWeight:700,color:'#fff'}}>{selEst.size}</span>
+              </div>
+              <span style={{fontSize:12,color:T.ink2,fontWeight:500}}>
+                gatilho{selEst.size>1?'s':''} selecionado{selEst.size>1?'s':''}
+              </span>
+            </div>
+            <div style={{flex:1}}/>
+            <button onClick={ativarLote} style={{display:'flex',alignItems:'center',gap:5,
+              padding:'7px 13px',borderRadius:9,border:'none',cursor:'pointer',
+              background:'linear-gradient(135deg,#14532d,#166534)',
+              color:T.green,fontSize:12,fontWeight:600}}>
+              <CheckCircleIc size={13}/>Ativar {selEst.size}
+            </button>
+            <button onClick={desativLote} style={{display:'flex',alignItems:'center',gap:5,
+              padding:'7px 13px',borderRadius:9,border:`1px solid ${T.redBor}`,cursor:'pointer',
+              background:T.redDim,color:T.red,fontSize:12,fontWeight:600}}>
+              <X size={13}/>Desativar {selEst.size}
+            </button>
+            <button onClick={()=>setSelEst(new Set())} style={{
+              width:30,height:30,borderRadius:8,border:`1px solid ${T.sep2}`,
+              background:T.bg3,color:T.ink3,cursor:'pointer',
+              display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <X size={13}/>
+            </button>
+          </div>
+        )}
+
         {selId && (
           <div onClick={()=>setSelId(null)} style={{position:'absolute',inset:0,background:'rgba(0,0,0,.35)',zIndex:30,animation:'fadeIn .15s'}}/>
         )}
+        {/* ── Command Palette ⌘K ── */}
+        <CmdGatilhos
+          open={cmdK}
+          onClose={()=>setCmdK(false)}
+          gatilhos={GATILHOS}
+          configs={configs}
+          onSelect={setSelId}
+          onToggle={toggleAtivo}
+          labelDe={labelDe}
+        />
+
         <div style={{position:'absolute',top:0,right:0,bottom:0,width:selId?'min(1180px,96%)':0,background:'var(--bg)',borderLeft:selId?'0.5px solid var(--sep)':'none',zIndex:31,overflow:'hidden',transition:'width .2s ease',display:'flex',boxShadow:selId?'-8px 0 24px rgba(0,0,0,.15)':'none'}}>
           {selId && (
           <div style={{flex:1,display:'grid',gridTemplateColumns:'1fr 340px',overflow:'hidden',minWidth:1100}}>
@@ -1494,35 +1795,102 @@ export default function PageGatilhos({ api }) {
             />
           ) : (
             <>
-              {/* Header do editor */}
-              <div style={{flexShrink:0,padding:'12px 16px',borderBottom:'0.5px solid var(--sep)',background:'var(--bg-2)'}}>
-                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
-                  <div style={{width:32,height:32,borderRadius:9,background:`${gatilho.cor}15`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                    {gatilho.icon && <gatilho.icon size={15} style={{color:gatilho.cor}}/>}
+              {/* ── Header premium do drawer ── */}
+              {(() => {
+                const indH  = indicadores[selId]
+                const envH  = indH?.enviados || 0
+                const errH  = indH?.erros    || 0
+                const serH  = indH?.serie     || []
+                const ultH  = indH?.ultimo    || null
+                const relH  = tempoRel(ultH)
+                const tentH = envH + errH
+                const taxaH = tentH > 0 ? Math.round(envH/tentH*100) : null
+                const rCor  = taxaH===null?T.ink4:taxaH>=70?T.green:taxaH>=30?T.amber:T.red
+                const CIRC  = 126  // 2π × 20
+                const dashH = taxaH!==null ? Math.round(CIRC*(1-taxaH/100)) : CIRC
+                return (
+                  <div style={{flexShrink:0,borderBottom:`1px solid ${T.sep}`,
+                    background:`linear-gradient(135deg,${gatilho.cor}12 0%,${T.bg3} 60%)`}}>
+                    {/* Linha principal */}
+                    <div style={{padding:'14px 16px 10px',display:'flex',alignItems:'flex-start',gap:12}}>
+                      {/* Ring de saúde */}
+                      <div style={{position:'relative',width:48,height:48,flexShrink:0}}>
+                        <svg width="48" height="48" viewBox="0 0 48 48">
+                          <circle cx="24" cy="24" r="20" fill="none" stroke={T.bg4} strokeWidth="3.5"/>
+                          <circle cx="24" cy="24" r="20" fill="none" stroke={rCor}
+                            strokeWidth="3.5" strokeDasharray={`${CIRC}`}
+                            strokeDashoffset={`${dashH}`}
+                            strokeLinecap="round" transform="rotate(-90 24 24)"
+                            style={{transition:'stroke-dashoffset .8s ease'}}/>
+                        </svg>
+                        <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
+                          alignItems:'center',justifyContent:'center'}}>
+                          {taxaH!==null
+                            ? <span style={{fontSize:11,fontWeight:700,color:rCor,lineHeight:1}}>{taxaH}%</span>
+                            : <gatilho.icon size={14} style={{color:gatilho.cor}}/>}
+                        </div>
+                      </div>
+                      {/* Nome + meta + sparkline */}
+                      <div style={{flex:1,minWidth:0}}>
+                        {editandoNome ? (
+                          <input autoFocus defaultValue={labelAtual}
+                            onBlur={e=>salvarNome(selId, e.target.value)}
+                            onKeyDown={e=>{ if(e.key==='Enter') salvarNome(selId, e.target.value); if(e.key==='Escape') setEditandoNome(false) }}
+                            style={{width:'100%',fontSize:14,fontWeight:700,color:T.ink1,
+                              background:T.bg3,border:`1px solid ${gatilho.cor}60`,
+                              borderRadius:6,padding:'3px 8px',outline:'none'}}/>
+                        ) : (
+                          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3}}>
+                            <span style={{fontSize:15,fontWeight:700,color:T.ink1,
+                              letterSpacing:'-.02em',overflow:'hidden',textOverflow:'ellipsis',
+                              whiteSpace:'nowrap'}}>{labelAtual}</span>
+                            <button onClick={()=>setEditandoNome(true)}
+                              style={{display:'inline-flex',alignItems:'center',justifyContent:'center',
+                                width:20,height:20,borderRadius:5,border:'none',background:'transparent',
+                                cursor:'pointer',color:T.ink3,flexShrink:0}}>
+                              <Pencil size={11}/>
+                            </button>
+                            {nomesCustom[selId]&&<span style={{fontSize:9,padding:'1px 5px',
+                              borderRadius:99,background:`${gatilho.cor}18`,color:gatilho.cor}}>editado</span>}
+                          </div>
+                        )}
+                        <div style={{fontSize:11,color:T.ink3,marginBottom:6,lineHeight:1.4}}>
+                          {gatilho.desc}
+                        </div>
+                        {/* Row: badges + sparkline + stats */}
+                        <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                          <span style={{fontSize:10,padding:'2px 8px',borderRadius:99,flexShrink:0,
+                            background:isIA?T.purpleDim:'rgba(37,211,102,.08)',
+                            color:isIA?T.purple:'#22c55e',
+                            border:`0.5px solid ${isIA?T.purpleBor:'rgba(37,211,102,.2)'}`}}>
+                            {isIA?'✨ Inline IA':'📋 HSM Meta'}
+                          </span>
+                          {tentH>0&&(
+                            <span style={{fontSize:10,color:T.ink3}}>
+                              {tentH} disparo{tentH>1?'s':''}/sem
+                            </span>
+                          )}
+                          {relH&&(
+                            <span style={{fontSize:10,color:T.ink4,display:'flex',alignItems:'center',gap:4}}>
+                              Último: {relH}
+                            </span>
+                          )}
+                          <div style={{marginLeft:'auto',flexShrink:0}}>
+                            {serH.length>0&&<SparkCard serie={serH} cor={taxaH===0?T.red:taxaH&&taxaH>=70?T.green:T.amber}/>}
+                          </div>
+                        </div>
+                      </div>
+                      {/* Fechar */}
+                      <button onClick={()=>setSelId(null)}
+                        style={{width:28,height:28,borderRadius:8,border:`1px solid ${T.sep2}`,
+                          background:T.bg4,cursor:'pointer',display:'flex',alignItems:'center',
+                          justifyContent:'center',color:T.ink3,flexShrink:0}}>
+                        <X size={14}/>
+                      </button>
+                    </div>
                   </div>
-                  <div style={{flex:1,minWidth:0}}>
-                    {editandoNome ? (
-                      <input autoFocus defaultValue={labelAtual}
-                        onBlur={e=>salvarNome(selId, e.target.value)}
-                        onKeyDown={e=>{ if(e.key==='Enter') salvarNome(selId, e.target.value); if(e.key==='Escape') setEditandoNome(false) }}
-                        style={{width:'100%',fontSize:14,fontWeight:600,color:'var(--label)',background:'var(--fill)',border:`1px solid ${gatilho.cor}60`,borderRadius:6,padding:'3px 8px',outline:'none'}}/>
-                    ) : (
-                      <p style={{fontSize:14,fontWeight:600,color:'var(--label)',margin:0,display:'flex',alignItems:'center',gap:6}}>
-                        {labelAtual}
-                        <button onClick={()=>setEditandoNome(true)} title="Editar nome do gatilho"
-                          style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:5,border:'none',background:'transparent',cursor:'pointer',color:'var(--label-4)',flexShrink:0}}>
-                          <Pencil size={11}/>
-                        </button>
-                        {nomesCustom[selId] && <span style={{fontSize:9,padding:'1px 5px',borderRadius:99,background:`${gatilho.cor}15`,color:gatilho.cor,fontWeight:500}}>editado</span>}
-                      </p>
-                    )}
-                    <p style={{fontSize:11,color:'var(--label-4)',margin:0}}>{gatilho.desc}</p>
-                  </div>
-                  {/* Badge tipo */}
-                  <span style={{fontSize:10.5,padding:'2px 8px',borderRadius:99,background:isIA?'rgba(124,106,247,.1)':'rgba(37,211,102,.08)',color:isIA?'#7c6af7':'#22c55e',border:`0.5px solid ${isIA?'rgba(124,106,247,.25)':'rgba(37,211,102,.2)'}`,flexShrink:0}}>
-                    {isIA ? '✨ Inline IA' : '📋 HSM Meta'}
-                  </span>
-                </div>
+                )
+              })()}
 
                 {/* Aviso de disparo manual (não dispara sozinho) */}
                 {gatilho.manual && (
@@ -1543,8 +1911,8 @@ export default function PageGatilhos({ api }) {
                   </div>
                 )}
 
-                {/* Tabs do editor */}
-                <div style={{display:'flex',gap:0}}>
+                {/* ── Tabs do editor ── */}
+                <div style={{padding:'0 16px',display:'flex',gap:0,borderTop:`1px solid ${T.sep}`}}>
                   {[
                     {id:'editor', label:'Editor'},
                     {id:'config', label:'Configuração'},
@@ -1568,7 +1936,6 @@ export default function PageGatilhos({ api }) {
                     </button>
                   ))}
                 </div>
-              </div>
 
               {/* Conteúdo das abas */}
               <div style={{flex:1,overflowY:'auto',padding:'18px 22px'}}>
