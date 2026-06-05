@@ -5,14 +5,14 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import React from 'react'
 import {
-  Zap, Send, AlertCircle, Clock, CheckCircle, RefreshCw,
+  Zap, Send, AlertCircle, Clock, CheckCircle, RefreshCw, Check,
   TrendingUp, Users, XCircle, BarChart3, Activity, Filter,
   ShoppingBag, Truck, CreditCard, Bell, Star, FileText,
   Package, ArrowUpRight, ArrowDownRight, Minus, Search,
   RotateCcw, ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
   Eye, X, Navigation, Hash, Timer, AlertTriangle, ShieldCheck,
   ToggleLeft, ToggleRight, Download, Info, MessageSquare,
-  ExternalLink,
+  ExternalLink, Radio,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -1290,7 +1290,71 @@ function tempoRel(iso) {
 }
 
 // ─── LINHA DO LOG — Enterprise Dark (sistema T) ─────────────────────────────
-function LinhaLog({row, onVerDisparo, onVerCliente}) {
+// ─── LIVE FEED ────────────────────────────────────────────────────────────────
+function LiveFeed({items=[], novos=0, onVerNovos, onItemClick}) {
+  if (!items.length) return null
+  return (
+    <div style={{padding:'10px 14px',borderBottom:`1px solid ${T.sep}`,
+      background:`linear-gradient(180deg,${T.bg3} 0%,${T.bg2} 100%)`}}>
+      {/* Header */}
+      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+        <div style={{display:'flex',alignItems:'center',gap:5}}>
+          <span style={{width:7,height:7,borderRadius:'50%',background:T.green,
+            display:'block',animation:'pulse 2s ease-in-out infinite'}}/>
+          <span style={{fontSize:10,fontWeight:700,color:T.green,
+            textTransform:'uppercase',letterSpacing:'.07em'}}>Ao vivo</span>
+        </div>
+        <span style={{fontSize:10,color:T.ink4}}>últimos disparos</span>
+        {novos > 0 && (
+          <button onClick={onVerNovos} style={{
+            display:'inline-flex',alignItems:'center',gap:4,
+            padding:'2px 9px',borderRadius:99,cursor:'pointer',
+            background:T.greenDim,border:`1px solid ${T.greenBor}`,
+            color:T.green,fontSize:10,fontWeight:700,animation:'fadeIn .3s ease'}}>
+            ↑ {novos} novo{novos>1?'s':''}
+          </button>
+        )}
+      </div>
+      {/* Rows compactas */}
+      <div style={{display:'flex',flexDirection:'column',gap:3}}>
+        {items.slice(0,3).map((row,i)=>{
+          const meta = GATILHO_META[row.gatilho]||{label:row.gatilho,icon:Zap,cor:'#6b7294'}
+          const Ic   = meta.icon||Zap
+          const sCor = row.status==='enviado'?T.green:row.status==='erro'?T.red:T.ink4
+          return (
+            <div key={row.id||i} onClick={()=>onItemClick?.(row)}
+              style={{display:'flex',alignItems:'center',gap:8,padding:'5px 8px',
+                borderRadius:8,cursor:'pointer',transition:'background .1s',
+                animation:`slideup .3s ease ${i*0.05}s both`}}
+              onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'}
+              onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              {/* Status dot */}
+              <div style={{width:6,height:6,borderRadius:'50%',background:sCor,flexShrink:0}}/>
+              {/* Gatilho icon tiny */}
+              <div style={{width:20,height:20,borderRadius:6,flexShrink:0,
+                background:`${meta.cor}18`,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <Ic size={10} style={{color:meta.cor}}/>
+              </div>
+              {/* Info */}
+              <span style={{fontSize:11.5,color:T.ink2,fontWeight:500,flexShrink:0}}>{meta.label}</span>
+              {row.numero_pedido&&<span style={{fontSize:9.5,color:T.purple,flexShrink:0}}>#{row.numero_pedido}</span>}
+              <span style={{fontSize:11,color:T.ink3,overflow:'hidden',textOverflow:'ellipsis',
+                whiteSpace:'nowrap',flex:1}}>{row.nome_cliente||''}</span>
+              {/* Status + tempo */}
+              <span style={{fontSize:10,color:sCor,flexShrink:0,fontWeight:600}}>
+                {row.status==='enviado'?'✓':row.status==='erro'?'✗':'—'}
+              </span>
+              <span style={{fontSize:10,color:T.ink4,flexShrink:0}}>{tempoRel(row.criado_em)}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ─── LINHA DO LOG com suporte a seleção (batch actions) ───────────────────────
+function LinhaLog({row, onVerDisparo, onVerCliente, selecionado, onToggleSel}) {
   const meta  = GATILHO_META[row.gatilho] || {label:row.gatilho, icon:Zap, cor:'#6b7294'}
   const Ic    = meta.icon || Zap
   const rel   = tempoRel(row.criado_em)
@@ -1301,25 +1365,52 @@ function LinhaLog({row, onVerDisparo, onVerCliente}) {
   const SIc       = row.status==='enviado'?CheckCircle:row.status==='erro'?XCircle:row.status==='aguardando'?Clock:Minus
   const origem    = row.origem==='rastreio_job'||row.origem==='job'?'auto':row.origem==='manual_painel'?'manual':row.origem==='manual_reenvio'?'reenvio':null
   const ini       = (row.nome_cliente||'?').split(' ').slice(0,2).map(p=>p[0]||'').join('').toUpperCase()||'?'
+
   return (
-    <div className="log-row" onClick={()=>onVerDisparo?.(row)}
+    <div className="log-row" onClick={()=>selecionado!==undefined?onToggleSel?.(row.id):onVerDisparo?.(row)}
       style={{display:'flex',alignItems:'stretch',cursor:'pointer',
-        borderBottom:`1px solid ${T.sep}`,transition:'background .1s',position:'relative'}}>
+        borderBottom:`1px solid ${T.sep}`,transition:'background .1s',position:'relative',
+        background:selecionado?`${T.purpleDim}`:'transparent'}}>
+
+      {/* Barra de status lateral */}
       <div style={{width:3,flexShrink:0,alignSelf:'stretch',
-        background:row.status==='enviado'?T.green:row.status==='erro'?T.red:'transparent',borderRadius:'0 2px 2px 0'}}/>
+        background:row.status==='enviado'?T.green:row.status==='erro'?T.red:'transparent',
+        borderRadius:'0 2px 2px 0'}}/>
+
+      {/* Checkbox (aparece no hover via CSS, sempre presente no DOM) */}
+      <div className="row-checkbox" onClick={e=>{e.stopPropagation();onToggleSel?.(row.id)}}
+        style={{width:32,flexShrink:0,display:'flex',alignItems:'center',
+          justifyContent:'center',cursor:'pointer',opacity:selecionado?1:0,
+          transition:'opacity .1s'}}>
+        <div style={{width:15,height:15,borderRadius:4,transition:'all .12s',
+          background:selecionado?T.purple:'transparent',
+          border:`1.5px solid ${selecionado?T.purple:T.sep2}`,
+          display:'flex',alignItems:'center',justifyContent:'center'}}>
+          {selecionado&&<Check size={9} style={{color:'#fff'}}/>}
+        </div>
+      </div>
+
+      {/* Avatar do cliente */}
       <div onClick={e=>{e.stopPropagation();onVerCliente?.(row)}} title="Ver perfil do cliente"
-        style={{width:44,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',padding:'0 4px',cursor:'pointer'}}>
-        <div style={{width:30,height:30,borderRadius:'50%',background:`${meta.cor}22`,border:`1px solid ${meta.cor}35`,
-          display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:meta.cor}}>
+        style={{width:40,flexShrink:0,display:'flex',alignItems:'center',
+          justifyContent:'center',padding:'0 4px',cursor:'pointer'}}>
+        <div style={{width:30,height:30,borderRadius:'50%',background:`${meta.cor}22`,
+          border:`1px solid ${meta.cor}35`,display:'flex',alignItems:'center',
+          justifyContent:'center',fontSize:11,fontWeight:700,color:meta.cor}}>
           {ini}
         </div>
       </div>
-      <div style={{width:36,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',padding:'12px 0'}}>
-        <div style={{width:28,height:28,borderRadius:8,background:`${meta.cor}18`,border:`0.5px solid ${meta.cor}30`,
-          display:'flex',alignItems:'center',justifyContent:'center'}}>
+
+      {/* Ícone do gatilho */}
+      <div style={{width:36,flexShrink:0,display:'flex',alignItems:'center',
+        justifyContent:'center',padding:'12px 0'}}>
+        <div style={{width:28,height:28,borderRadius:8,background:`${meta.cor}18`,
+          border:`0.5px solid ${meta.cor}30`,display:'flex',alignItems:'center',justifyContent:'center'}}>
           <Ic size={13} style={{color:meta.cor}}/>
         </div>
       </div>
+
+      {/* Info central */}
       <div style={{flex:1,minWidth:0,padding:'11px 10px 11px 6px'}}>
         <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
           <span style={{fontSize:12.5,fontWeight:600,color:T.ink1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{meta.label}</span>
@@ -1333,18 +1424,30 @@ function LinhaLog({row, onVerDisparo, onVerCliente}) {
           {row.erro_msg&&<><span style={{color:T.ink4}}>·</span><span style={{color:T.red,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:200}}>{row.erro_msg}</span></>}
         </div>
       </div>
-      <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',justifyContent:'center',gap:5,padding:'0 14px',flexShrink:0}}>
-        <div style={{display:'inline-flex',alignItems:'center',gap:4,padding:'3px 9px',borderRadius:99,background:statusDim,border:`0.5px solid ${statusBor}`}}>
+
+      {/* Status + tempo */}
+      <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',
+        justifyContent:'center',gap:5,padding:'0 14px',flexShrink:0}}>
+        <div style={{display:'inline-flex',alignItems:'center',gap:4,padding:'3px 9px',
+          borderRadius:99,background:statusDim,border:`0.5px solid ${statusBor}`}}>
           <SIc size={9} style={{color:statusCor}}/>
-          <span style={{fontSize:9.5,fontWeight:700,color:statusCor,textTransform:'uppercase',letterSpacing:'.04em'}}>{statusLbl}</span>
+          <span style={{fontSize:9.5,fontWeight:700,color:statusCor,
+            textTransform:'uppercase',letterSpacing:'.04em'}}>{statusLbl}</span>
         </div>
         <span style={{fontSize:10.5,color:T.ink4}}>{rel||fmtDH(row.criado_em)}</span>
       </div>
-      <div className="log-actions" style={{display:'flex',alignItems:'center',padding:'0 10px 0 0',gap:4,opacity:0,transition:'opacity .1s',flexShrink:0}}>
+
+      {/* Ações hover */}
+      <div className="log-actions" style={{display:'flex',alignItems:'center',
+        padding:'0 10px 0 0',gap:4,opacity:0,transition:'opacity .1s',flexShrink:0}}>
         <button onClick={e=>{e.stopPropagation();onVerCliente?.(row)}} title="Perfil"
-          style={{width:26,height:26,borderRadius:7,border:`1px solid ${T.sep2}`,background:T.bg3,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:T.ink3}}><Users size={11}/></button>
-        <button onClick={()=>onVerDisparo?.(row)} title="Detalhes"
-          style={{width:26,height:26,borderRadius:7,border:`1px solid ${T.sep2}`,background:T.bg3,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:T.ink3}}><Eye size={11}/></button>
+          style={{width:26,height:26,borderRadius:7,border:`1px solid ${T.sep2}`,
+            background:T.bg3,cursor:'pointer',display:'flex',alignItems:'center',
+            justifyContent:'center',color:T.ink3}}><Users size={11}/></button>
+        <button onClick={e=>{e.stopPropagation();onVerDisparo?.(row)}} title="Detalhes"
+          style={{width:26,height:26,borderRadius:7,border:`1px solid ${T.sep2}`,
+            background:T.bg3,cursor:'pointer',display:'flex',alignItems:'center',
+            justifyContent:'center',color:T.ink3}}><Eye size={11}/></button>
       </div>
     </div>
   )
@@ -1366,6 +1469,15 @@ export default function PageDisparos({api: apiProp}) {
 
   // Command palette
   const [cmdOpen, setCmdOpen] = useState(false)
+
+  // Batch actions — seleção multi-linha no log
+  const [selecionados, setSelecionados] = useState(new Set())
+  const [reenviandoLote, setReenvLote]  = useState(false)
+
+  // Live feed — rastrea novos disparos entre polls
+  const [liveFeedItems,  setLiveFeed]   = useState([])
+  const [novosCount,     setNovos]      = useState(0)
+  const prevLogIds = useRef(new Set())
 
   // Drawer lateral (detalhe do disparo OU perfil do cliente)
   const [drawer, setDrawer] = useState(null)  // {tipo:'disparo'|'cliente', dados}
@@ -1411,10 +1523,22 @@ export default function PageDisparos({api: apiProp}) {
       const r = await fetch(`${api}/api/dashboard/disparos-log?${params}`)
       if (r.ok) {
         const d = await r.json()
-        setLog(d.disparos||[])
+        const novos = d.disparos||[]
+        setLog(novos)
         setLogTotal(d.total||0)
         setLogPgs(d.paginas||1)
         setLogPg(pg)
+        // Live feed: top 3 da página 1
+        if (pg === 1) {
+          setLiveFeed(novos.slice(0,3))
+          // Detectar novos itens desde o último load
+          const novosIds = new Set(novos.map(r=>r.id))
+          const qtdNovos = novos.filter(r=>!prevLogIds.current.has(r.id)).length
+          if (prevLogIds.current.size > 0 && qtdNovos > 0) {
+            setNovos(v => v + qtdNovos)
+          }
+          prevLogIds.current = novosIds
+        }
       }
     } catch {}
     setLoadLog(false)
@@ -1462,6 +1586,32 @@ export default function PageDisparos({api: apiProp}) {
   const reenviar = async(id) => {
     const r = await fetch(`${api}/api/dashboard/disparos-reenviar/${id}`,{method:'POST'})
     if (!r.ok) throw new Error('Falha ao reenviar')
+    await carregarLog(logPg)
+  }
+
+  // Batch actions
+  const toggleSel = (id) => setSelecionados(prev => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    return next
+  })
+
+  const selecionarTodos = () => {
+    const reenviaveis = log.filter(r=>r.status==='ignorado'||r.status==='erro')
+    setSelecionados(new Set(reenviaveis.map(r=>r.id)))
+  }
+
+  const limparSelecao = () => setSelecionados(new Set())
+
+  const reenviarLote = async () => {
+    if (!selecionados.size) return
+    setReenvLote(true)
+    for (const id of selecionados) {
+      await fetch(`${api}/api/dashboard/disparos-reenviar/${id}`,{method:'POST'}).catch(()=>{})
+    }
+    setSelecionados(new Set())
+    setReenvLote(false)
     await carregarLog(logPg)
   }
 
@@ -1912,40 +2062,104 @@ export default function PageDisparos({api: apiProp}) {
             </div>
           </div>
 
-          {/* Linhas */}
-          <div style={{minHeight:120,maxHeight:'calc(100vh - 420px)',overflowY:'auto',overflowX:'hidden',
-            background:T.bg1}}>
-          {log.length===0&&!loadLog
-            ? <div style={{padding:48,textAlign:'center',color:T.ink4}}>
+          {/* ── LIVE FEED — disparos em tempo real ── */}
+          <LiveFeed
+            items={liveFeedItems}
+            novos={novosCount}
+            onVerNovos={()=>{ setNovos(0); carregarLog(1) }}
+            onItemClick={r=>setDrawer({tipo:'disparo',dados:r})}
+          />
+
+          {/* ── Linhas do log ── */}
+          <div style={{minHeight:120,maxHeight:'calc(100vh - 440px)',overflowY:'auto',
+            overflowX:'hidden',background:T.bg1,position:'relative'}}>
+
+            {log.length===0&&!loadLog&&(
+              <div style={{padding:48,textAlign:'center',color:T.ink4}}>
                 <Zap size={32} style={{opacity:.15,marginBottom:12}}/><br/>
                 <p style={{fontSize:13,margin:0,color:T.ink3}}>Nenhum disparo encontrado.</p>
                 <p style={{fontSize:11,margin:'6px 0 0'}}>Verifique os filtros ou aguarde novos eventos.</p>
               </div>
-            : log.map((row,i)=>(
-                <LinhaLog key={row.id||i} row={row}
-                  onVerDisparo={r=>setDrawer({tipo:'disparo',dados:r})}
-                  onVerCliente={r=>setDrawer({tipo:'cliente',dados:r})}/>
-              ))
-          }
+            )}
+
+            {log.map((row,i)=>(
+              <LinhaLog key={row.id||i} row={row}
+                onVerDisparo={r=>setDrawer({tipo:'disparo',dados:r})}
+                onVerCliente={r=>setDrawer({tipo:'cliente',dados:r})}
+                selecionado={selecionados.has(row.id)}
+                onToggleSel={toggleSel}/>
+            ))}
+
+            {/* ── Batch toolbar flutuante (aparece quando há seleção) ── */}
+            {selecionados.size > 0 && (
+              <div style={{position:'sticky',bottom:0,left:0,right:0,zIndex:10,
+                display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',
+                padding:'10px 16px',
+                background:`rgba(13,16,23,0.96)`,
+                backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',
+                borderTop:`1px solid ${T.purpleBor}`,
+                boxShadow:`0 -6px 24px rgba(0,0,0,.5), 0 0 0 1px ${T.purpleBor} inset`,
+                animation:'slideup .2s ease'}}>
+
+                {/* Count badge */}
+                <div style={{display:'flex',alignItems:'center',gap:7,flexShrink:0}}>
+                  <div style={{width:22,height:22,borderRadius:7,background:T.purple,
+                    display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <span style={{fontSize:11,fontWeight:700,color:'#fff'}}>{selecionados.size}</span>
+                  </div>
+                  <span style={{fontSize:12,color:T.ink2,fontWeight:500}}>
+                    selecionado{selecionados.size>1?'s':''}
+                  </span>
+                </div>
+
+                <button onClick={selecionarTodos} style={{
+                  display:'flex',alignItems:'center',gap:5,padding:'5px 11px',
+                  borderRadius:8,border:`1px solid ${T.sep2}`,background:T.bg3,
+                  color:T.ink3,cursor:'pointer',fontSize:11,fontWeight:500}}>
+                  Todos reenvíaveis
+                </button>
+
+                <div style={{flex:1}}/>
+
+                <button disabled={reenviandoLote} onClick={reenviarLote} style={{
+                  display:'flex',alignItems:'center',gap:6,padding:'7px 14px',
+                  borderRadius:9,border:'none',cursor:reenviandoLote?'wait':'pointer',
+                  background:reenviandoLote?T.purpleDim:'linear-gradient(135deg,#5b21b6,#9333ea)',
+                  color:reenviandoLote?T.purple:'#fff',fontSize:12,fontWeight:600,
+                  transition:'all .15s'}}>
+                  {reenviandoLote
+                    ? <><RefreshCw size={12} style={{animation:'spin .7s linear infinite'}}/>Enviando...</>
+                    : <><Send size={12}/>Reenviar {selecionados.size} selecionado{selecionados.size>1?'s':''}</>}
+                </button>
+
+                <button onClick={limparSelecao} style={{
+                  width:30,height:30,borderRadius:8,border:`1px solid ${T.sep2}`,
+                  background:T.bg3,color:T.ink3,cursor:'pointer',
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  flexShrink:0}}>
+                  <X size={13}/>
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Paginação */}
+          {/* ── Paginação ── */}
           {logPgs>1&&(
             <div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:8,
-              padding:'12px',borderTop:'1px solid var(--sep)'}}>
+              padding:'12px',borderTop:`1px solid ${T.sep}`}}>
               <button onClick={()=>carregarLog(logPg-1)} disabled={logPg===1} style={{
-                padding:'5px 10px',borderRadius:8,border:'1px solid var(--sep)',
-                background:'var(--fill)',cursor:logPg===1?'not-allowed':'pointer',
-                color:'var(--label-3)',opacity:logPg===1?.5:1}}>
+                padding:'5px 10px',borderRadius:8,border:`1px solid ${T.sep}`,
+                background:T.bg3,cursor:logPg===1?'not-allowed':'pointer',
+                color:T.ink2,opacity:logPg===1?.5:1}}>
                 <ChevronLeft size={14}/>
               </button>
-              <span style={{fontSize:12,color:'var(--label-4)'}}>
+              <span style={{fontSize:12,color:T.ink3}}>
                 {logPg} de {logPgs} · {logTotal} disparos
               </span>
               <button onClick={()=>carregarLog(logPg+1)} disabled={logPg===logPgs} style={{
-                padding:'5px 10px',borderRadius:8,border:'1px solid var(--sep)',
-                background:'var(--fill)',cursor:logPg===logPgs?'not-allowed':'pointer',
-                color:'var(--label-3)',opacity:logPg===logPgs?.5:1}}>
+                padding:'5px 10px',borderRadius:8,border:`1px solid ${T.sep}`,
+                background:T.bg3,cursor:logPg===logPgs?'not-allowed':'pointer',
+                color:T.ink2,opacity:logPg===logPgs?.5:1}}>
                 <ChevronRight size={14}/>
               </button>
             </div>
@@ -1997,6 +2211,7 @@ export default function PageDisparos({api: apiProp}) {
         ::-webkit-scrollbar-thumb { background:rgba(255,255,255,.1); border-radius:99px }
         .log-row:hover { background:rgba(255,255,255,.028) !important }
         .log-row:hover .log-actions { opacity:1 !important }
+        .log-row:hover .row-checkbox { opacity:1 !important }
         .gat-bar:hover { background:var(--fill) !important; border-radius:7px }
         details summary::-webkit-details-marker { display:none }
       `}</style>
