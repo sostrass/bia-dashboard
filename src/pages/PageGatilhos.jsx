@@ -35,7 +35,7 @@ const T = {
 // Grupos e gatilhos
 const GATILHOS = [
   // ── 1. Compra & Pagamento ──────────────────────────────────────────────
-  { id:'pedido_criado',       label:'Pedido Criado',         grupo:'Compra & Pagamento', tipo:'bling', icon:ShoppingBag, cor:'#00d4aa', situacao:'manual',  desc:'Pedido recém-criado (use Pagamento Pendente para o status Aberto)', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}','{{link_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{endereco_entrega}}','{{endereco_faturamento}}'] },
+  { id:'pedido_criado',       label:'Pedido Criado',         grupo:'Compra & Pagamento', tipo:'bling', icon:ShoppingBag, cor:'#00d4aa', situacao:'order.created', desc:'Disparo automático quando um novo pedido é criado no Bling (webhook order.created — status Em Aberto)', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}','{{link_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{endereco_entrega}}','{{endereco_faturamento}}'] },
   { id:'pagamento_aprovado',  label:'Pagamento Aprovado',    grupo:'Compra & Pagamento', tipo:'bling', icon:CreditCard,  cor:'#4a9fff', situacao:'sit=15',  desc:'Pedido em Em Andamento (pagamento confirmado)', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{link_pedido}}'] },
   { id:'pagamento_pendente',  label:'Pagamento Pendente',    grupo:'Compra & Pagamento', tipo:'bling', icon:Clock,       cor:'#f59e0b', situacao:'sit=6',   desc:'Pedido em Aberto (aguardando pagamento)', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{link_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
 
@@ -346,6 +346,9 @@ function manualGatilho(g) {
   }
   if (s === 'auto-ia') {
     return { tipo:'Inteligência (IA)', quando:'Dispara automaticamente quando a IA detecta a condição (ex: cliente inativo, recompra).' }
+  }
+  if (s === 'order.created') {
+    return { tipo:'Automático (Bling)', quando:'Dispara via webhook quando um novo pedido é criado no Bling — status *Em Aberto* (situação 6). Todos os canais de venda.' }
   }
   if (s === 'manual') {
     return { tipo:'Manual', quando:'Não dispara sozinho. Você aciona quando quiser.' }
@@ -1409,13 +1412,225 @@ function Skel({w='100%', h=16, r=6}) {
 }
 
 
+
+// ─── PAINEL MOLISE — copiloto de automações ────────────────────────────────
+function MolisePanel({ sugestoes, sugestoesFechadas, onDismiss, onGoto, onClose }) {
+  const visíveis = sugestoes.filter(s => !sugestoesFechadas[s.id||s.titulo])
+  const prioMap = {
+    alta:   {cor:T.red,   dim:T.redDim,   bor:T.redBor,   Ic:AlertTriangle, lbl:'CRÍTICO'},
+    media:  {cor:T.amber, dim:T.amberDim, bor:T.amberBor, Ic:Clock,         lbl:'ATENÇÃO'},
+    baixa:  {cor:T.blue,  dim:T.blueDim,  bor:T.blueBor,  Ic:Star,          lbl:'MELHORIA'},
+  }
+  const tipoIcon = {
+    template_inativo: AlertTriangle,
+    meta_pendente:    CheckCircle,
+    gap_atividade:    Activity,
+    reengajamento:    Brain,
+    custo_alto:       CreditCard,
+  }
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div onClick={onClose}
+        style={{position:'fixed',inset:0,zIndex:400,
+          background:'rgba(0,0,0,.55)',backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)'}}/>
+
+      {/* Painel */}
+      <div style={{position:'fixed',top:0,right:0,bottom:0,width:440,zIndex:401,
+        background:T.bg1,borderLeft:`1px solid ${T.sep2}`,
+        display:'flex',flexDirection:'column',overflow:'hidden',
+        boxShadow:'-24px 0 64px rgba(0,0,0,.6)',
+        animation:'slideFromRight .3s cubic-bezier(.2,.8,.2,1)'}}>
+
+        {/* Header */}
+        <div style={{flexShrink:0,padding:'20px 24px 16px',
+          background:`linear-gradient(135deg,${T.purpleDim},${T.bg2})`,
+          borderBottom:`1px solid ${T.sep}`}}>
+          <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12}}>
+            <div style={{width:40,height:40,borderRadius:12,
+              background:`linear-gradient(135deg,${T.purple}30,${T.purple}15)`,
+              border:`1px solid ${T.purpleBor}`,
+              display:'flex',alignItems:'center',justifyContent:'center',
+              boxShadow:`0 4px 16px ${T.purple}20`,flexShrink:0}}>
+              <Brain size={20} style={{color:T.purple}}/>
+            </div>
+            <div style={{flex:1}}>
+              <p style={{fontSize:16,fontWeight:700,color:T.ink1,margin:0,letterSpacing:'-.02em'}}>
+                Molise
+              </p>
+              <p style={{fontSize:11,color:T.ink3,margin:0}}>Copiloto de automações</p>
+            </div>
+            <button onClick={onClose}
+              style={{width:30,height:30,borderRadius:8,border:`1px solid ${T.sep2}`,
+                background:T.bg4,cursor:'pointer',display:'flex',alignItems:'center',
+                justifyContent:'center',color:T.ink3,flexShrink:0}}>
+              <X size={14}/>
+            </button>
+          </div>
+          <div style={{padding:'10px 14px',borderRadius:10,background:'rgba(167,139,250,.08)',
+            border:`1px solid ${T.purpleBor}`}}>
+            <p style={{fontSize:12,color:T.ink2,margin:0,lineHeight:1.6}}>
+              Analisei seus gatilhos e encontrei{' '}
+              <span style={{fontWeight:700,color:T.purple}}>{visíveis.length} oportunidade{visíveis.length!==1?'s':''}</span>
+              {' '}para melhorar a performance das suas automações.
+            </p>
+          </div>
+        </div>
+
+        {/* Lista de sugestões */}
+        <div style={{flex:1,overflowY:'auto',padding:'14px'}}>
+          {visíveis.length===0 ? (
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',
+              justifyContent:'center',padding:'60px 0',gap:12}}>
+              <div style={{width:48,height:48,borderRadius:14,background:T.greenDim,
+                border:`1px solid ${T.greenBor}`,display:'flex',alignItems:'center',
+                justifyContent:'center'}}>
+                <CheckCircle size={22} style={{color:T.green}}/>
+              </div>
+              <p style={{fontSize:13,fontWeight:600,color:T.ink2,margin:0}}>
+                Tudo em ordem!
+              </p>
+              <p style={{fontSize:11,color:T.ink4,textAlign:'center',margin:0}}>
+                Você resolveu todas as sugestões da Molise.
+              </p>
+            </div>
+          ) : (
+            visíveis.map((s,i)=>{
+              const prio  = prioMap[s.prioridade||'media'] || prioMap.media
+              const {cor,dim,bor,Ic,lbl} = prio
+              const TIco  = tipoIcon[s.tipo] || Sparkles
+              const key   = s.id || s.titulo || i
+              return (
+                <div key={key} style={{marginBottom:10,borderRadius:12,
+                  background:T.bg2,border:`1px solid ${T.sep2}`,overflow:'hidden',
+                  animation:'fadeIn .3s ease'}}>
+
+                  {/* Top color strip */}
+                  <div style={{height:2.5,background:`linear-gradient(90deg,${cor},${cor}40)`}}/>
+
+                  <div style={{padding:'12px 14px'}}>
+                    {/* Header da sugestão */}
+                    <div style={{display:'flex',alignItems:'flex-start',gap:10,marginBottom:10}}>
+                      <div style={{width:32,height:32,borderRadius:9,background:dim,
+                        border:`1px solid ${bor}`,display:'flex',alignItems:'center',
+                        justifyContent:'center',flexShrink:0}}>
+                        <TIco size={15} style={{color:cor}}/>
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:5}}>
+                          <span style={{fontSize:9,padding:'1px 7px',borderRadius:99,
+                            background:`${cor}20`,color:cor,fontWeight:700,letterSpacing:'.04em'}}>
+                            {lbl}
+                          </span>
+                          {s.gatilho&&(
+                            <span style={{fontSize:9,color:T.ink4,
+                              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                              {s.gatilho}
+                            </span>
+                          )}
+                        </div>
+                        <p style={{fontSize:13,fontWeight:700,color:T.ink1,margin:'0 0 5px',lineHeight:1.35}}>
+                          {s.titulo}
+                        </p>
+                        {s.descricao&&(
+                          <p style={{fontSize:11,color:T.ink2,margin:0,lineHeight:1.6}}>
+                            {s.descricao}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Impacto (se tiver) */}
+                    {s.impacto&&(
+                      <div style={{padding:'8px 11px',borderRadius:8,marginBottom:10,
+                        background:T.bg3,border:`1px solid ${T.sep}`}}>
+                        <p style={{fontSize:11,color:T.ink2,margin:0,lineHeight:1.5}}>
+                          💡 {s.impacto}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Ações */}
+                    <div style={{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}}>
+                      {s.gatilho&&onGoto&&(
+                        <button onClick={()=>{onGoto(s.gatilho);onClose()}}
+                          style={{display:'flex',alignItems:'center',gap:5,padding:'6px 13px',
+                            borderRadius:8,border:'none',cursor:'pointer',fontSize:11,fontWeight:700,
+                            background:`linear-gradient(135deg,${T.purple}cc,#7c3aed)`,
+                            color:'#fff',boxShadow:`0 2px 8px ${T.purple}30`}}>
+                          <Zap size={11}/>Abrir gatilho
+                        </button>
+                      )}
+                      {s.acao==='submeter_meta'&&(
+                        <button style={{display:'flex',alignItems:'center',gap:5,padding:'6px 13px',
+                          borderRadius:8,cursor:'pointer',fontSize:11,fontWeight:600,
+                          background:T.blueDim,border:`1px solid ${T.blueBor}`,color:T.blue}}>
+                          <ArrowUpRight size={11}/>Submeter Meta
+                        </button>
+                      )}
+                      <button onClick={()=>onDismiss(key)}
+                        style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:4,
+                          padding:'5px 10px',borderRadius:7,cursor:'pointer',fontSize:10.5,
+                          background:'transparent',border:`1px solid ${T.sep}`,
+                          color:T.ink3,fontWeight:500}}>
+                        <CheckCircle size={10}/>Entendi
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{flexShrink:0,padding:'12px 20px',borderTop:`1px solid ${T.sep}`,
+          display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <span style={{fontSize:10,color:T.ink4}}>
+            Atualizado automaticamente
+          </span>
+          <span style={{fontSize:10,color:T.purple,fontWeight:600}}>
+            {visíveis.length} pendente{visíveis.length!==1?'s':''}
+          </span>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ─── SIDEBAR DE NAVEGAÇÃO ─────────────────────────────────────────────────────
 function GatilhoSidebar({ gatilhos, configs, indicadores, selId, onSelect, labelDe,
                           insightsGat, insDismiss, toggleAtivo, custos }) {
-  const [busca, setBusca] = useState('')
+  const [busca,   setBusca]   = useState('')
   const [collapsed, setCollapsed] = useState({})
-
   const toggle = (g) => setCollapsed(c => ({...c,[g]:!c[g]}))
+
+  // Drag-and-drop para reordenar gatilhos dentro do grupo
+  const [ordemLocal, setOrdemLocal] = useState(()=>{
+    try { return JSON.parse(localStorage.getItem('gat-sidebar-ordem')||'{}') } catch { return {} }
+  })
+  const dragRef = useRef({grupo:null,idx:null})
+
+  const getOrdem = (grupo, itens) => {
+    const o = ordemLocal[grupo]
+    if (!o) return itens
+    return [...itens].sort((a,b)=>{
+      const ia=o.indexOf(a.id), ib=o.indexOf(b.id)
+      return (ia===-1?999:ia) - (ib===-1?999:ib)
+    })
+  }
+  const onDragStart = (grupo,idx) => { dragRef.current = {grupo,idx} }
+  const onDrop = (grupo,idx) => {
+    const {grupo:sg, idx:si} = dragRef.current
+    if (sg!==grupo || si===idx) return
+    const itens = getOrdem(grupo, gatilhos.filter(g=>g.grupo===grupo&&(!busca||labelDe(g).toLowerCase().includes(busca.toLowerCase()))))
+    const nova  = itens.map(g=>g.id)
+    const [m]   = nova.splice(si,1); nova.splice(idx,0,m)
+    const next  = {...ordemLocal,[grupo]:nova}
+    setOrdemLocal(next)
+    try { localStorage.setItem('gat-sidebar-ordem', JSON.stringify(next)) } catch {}
+  }
 
   return (
     <div style={{width:264,flexShrink:0,background:T.bg1,
@@ -1458,7 +1673,7 @@ function GatilhoSidebar({ gatilhos, configs, indicadores, selId, onSelect, label
                   background:T.red,flexShrink:0,animation:'pulse 1.5s ease infinite'}}/>}
               </button>
 
-              {!isCollapsed && itens.map(g => {
+              {!isCollapsed && getOrdem(grupo, itens).map((g, idx) => {
                 const cfg   = configs[g.id]
                 const ativo = cfg?.ativo
                 const ind   = indicadores[g.id]
@@ -1470,13 +1685,24 @@ function GatilhoSidebar({ gatilhos, configs, indicadores, selId, onSelect, label
                 const custo = custos?.porGatilho?.[g.id]
                 const Icon  = g.icon
                 return (
-                  <div key={g.id} onClick={()=>onSelect(selId===g.id?null:g.id)}
-                    style={{display:'flex',alignItems:'center',gap:7,padding:'5px 12px',
+                  <div key={g.id}
+                    draggable
+                    onDragStart={()=>onDragStart(grupo,idx)}
+                    onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag-over')}}
+                    onDragLeave={e=>e.currentTarget.classList.remove('drag-over')}
+                    onDrop={e=>{e.currentTarget.classList.remove('drag-over');onDrop(grupo,idx)}}
+                    onClick={()=>onSelect(selId===g.id?null:g.id)}
+                    className="gat-sidebar-item"
+                    style={{display:'flex',alignItems:'center',gap:7,padding:'5px 10px 5px 12px',
                       cursor:'pointer',transition:'all .1s',
                       background:isAct?`linear-gradient(90deg,${g.cor}15,${T.bg3})`:'transparent',
                       borderLeft:`2px solid ${isAct?g.cor:'transparent'}`}}
                     onMouseEnter={e=>{if(!isAct)e.currentTarget.style.background=T.bg2}}
                     onMouseLeave={e=>{if(!isAct)e.currentTarget.style.background='transparent'}}>
+
+                    {/* Drag handle */}
+                    <GripVertical size={10} className="drag-handle"
+                      style={{color:T.ink4,flexShrink:0,opacity:0,cursor:'grab'}}/>
 
                     {/* Health dot com glow */}
                     <div style={{width:7,height:7,borderRadius:'50%',flexShrink:0,
@@ -1507,14 +1733,12 @@ function GatilhoSidebar({ gatilhos, configs, indicadores, selId, onSelect, label
                         </span>
                       )}
                       {cfg&&(
-                        <button onClick={e=>{e.stopPropagation();toggleAtivo(g.id)}}
-                          style={{width:24,height:13,borderRadius:99,flexShrink:0,border:'none',
-                            cursor:'pointer',position:'relative',transition:'background .15s',
-                            background:ativo?T.green:'rgba(255,255,255,.12)'}}>
-                          <span style={{position:'absolute',width:11,height:11,
-                            background:'#fff',borderRadius:'50%',top:1,
-                            left:ativo?11:1,transition:'left .15s'}}/>
-                        </button>
+                        <div onClick={e=>{e.stopPropagation();toggleAtivo(g.id)}}
+                          title={ativo?'Ativo — clique para desativar':'Inativo — clique para ativar'}
+                          style={{width:8,height:8,borderRadius:'50%',flexShrink:0,
+                            cursor:'pointer',transition:'all .2s',
+                            background:ativo?T.green:'rgba(255,255,255,.2)',
+                            boxShadow:ativo?`0 0 6px ${T.green}80`:'none'}}/>
                       )}
                     </div>
                   </div>
@@ -1550,23 +1774,28 @@ function GatilhoDashboard({ pulso, sparks, jornada, insightsGat, insDismiss, set
 
       {/* KPIs */}
       {pulso && (
-        <div style={{padding:'16px 20px 0',display:'flex',gap:10,flexWrap:'nowrap',overflowX:'auto'}}>
+        <div style={{padding:'14px 20px 0',display:'grid',
+          gridTemplateColumns:'repeat(6,1fr)',gap:8}}>
           {[
             {l:'Aprovados',    v:pulso.meta.aprovados,   cor:T.green,  spk:'aprovados'},
             {l:'Em análise',   v:pulso.meta.analise,     cor:T.amber,  spk:'analise'},
-            {l:'Não enviados', v:pulso.meta.naoEnviados,  cor:T.ink3,   spk:'naoEnviados'},
+            {l:'Não enviados', v:pulso.meta.naoEnviados, cor:T.ink2,   spk:'naoEnviados'},
             {l:'Rejeitados',   v:pulso.meta.rejeitados,  cor:T.red,    spk:'rejeitados'},
             {l:'Disparos hoje',v:pulso.disparosHoje,     cor:T.blue,   spk:'disparos'},
-            {l:'Em rota agora',v:pulso.clientesEmRota,   cor:T.purple, spk:'emRota'},
+            {l:'Em rota',      v:pulso.clientesEmRota,   cor:T.purple, spk:'emRota'},
           ].map((c,i)=>(
-            <div key={i} style={{flex:'1 1 0',minWidth:110,background:T.bg2,borderRadius:11,
-              padding:'10px 14px',border:`1px solid ${T.sep}`,boxShadow:'0 2px 8px rgba(0,0,0,.2)'}}>
-              <div style={{fontSize:9,color:T.ink3,textTransform:'uppercase',
-                letterSpacing:'.07em',marginBottom:5}}>{c.l}</div>
-              <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:8}}>
-                <span style={{fontSize:22,fontWeight:700,color:c.cor,lineHeight:1,
-                  letterSpacing:'-.03em'}}>{c.v}</span>
-                {sparks?.[c.spk]&&<SparkCard serie={sparks[c.spk]} cor={c.cor}/>}
+            <div key={i} style={{background:T.bg2,borderRadius:10,overflow:'hidden',
+              border:`1px solid ${T.sep}`,boxShadow:'0 2px 8px rgba(0,0,0,.2)'}}>
+              <div style={{height:2.5,background:`linear-gradient(90deg,${c.cor},${c.cor}40)`}}/>
+              <div style={{padding:'10px 13px'}}>
+                <div style={{fontSize:8.5,color:T.ink4,textTransform:'uppercase',
+                  letterSpacing:'.08em',marginBottom:5,fontWeight:600}}>{c.l}</div>
+                <div style={{display:'flex',alignItems:'flex-end',
+                  justifyContent:'space-between',gap:6}}>
+                  <span style={{fontSize:20,fontWeight:800,color:c.cor,lineHeight:1,
+                    letterSpacing:'-.04em'}}>{c.v}</span>
+                  {sparks?.[c.spk]&&<SparkCard serie={sparks[c.spk]} cor={c.cor}/>}
+                </div>
               </div>
             </div>
           ))}
@@ -1718,9 +1947,17 @@ function GatilhoDashboard({ pulso, sparks, jornada, insightsGat, insDismiss, set
         <div style={{background:T.bg2,borderRadius:13,border:`1px solid ${T.sep2}`,
           overflow:'hidden',display:'flex',flexDirection:'column'}}>
           <div style={{padding:'12px 16px',borderBottom:`1px solid ${T.sep}`,
-            display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
-            <CreditCard size={13} style={{color:T.amber}}/>
-            <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>Custos</span>
+            display:'flex',alignItems:'center',gap:8,flexShrink:0,
+            background:`linear-gradient(90deg,${T.bg3},${T.bg2})`}}>
+            <div style={{width:28,height:28,borderRadius:8,background:T.amberDim,
+              border:`1px solid ${T.amberBor}`,display:'flex',alignItems:'center',
+              justifyContent:'center',flexShrink:0}}>
+              <CreditCard size={13} style={{color:T.amber}}/>
+            </div>
+            <div>
+              <span style={{fontSize:12,fontWeight:700,color:T.ink1,display:'block'}}>Custos</span>
+              <span style={{fontSize:9,color:T.ink4}}>estimativa Meta (US$0,0085/msg)</span>
+            </div>
             <div style={{marginLeft:'auto',display:'flex',gap:4}}>
               {['7d','30d','90d'].map(p=>(
                 <button key={p} onClick={()=>onSetPeriodo(p)}
@@ -1904,6 +2141,7 @@ export default function PageGatilhos({ api }) {
   const [atividade, setAtividade] = useState({})  // envios por gatilho (7 dias)
   const [indicadores, setIndicadores] = useState({})  // indicadores ricos por gatilho
   const [molisesAberta, setMoliseAberta] = useState(false)  // painel de sugestões on/off
+  const [sugFechMap, setSugFechMap] = useState({})  // { id: true } — sugestões dispensadas
 
   // ── Meta Analytics + Custos ────────────────────────────────────────────────
   const [metaStats,      setMetaStats]    = useState({})   // { [gatilhoId]: dados Meta }
@@ -2361,6 +2599,8 @@ export default function PageGatilhos({ api }) {
         @keyframes pulse   { 0%,100%{opacity:1} 50%{opacity:.4} }
         @keyframes slideFromRight { from{transform:translateX(24px);opacity:0} to{transform:translateX(0);opacity:1} }
         .gat-card:hover .gat-cb { opacity:1 !important }
+        .gat-sidebar-item:hover .drag-handle { opacity:0.6 !important }
+        .gat-sidebar-item.drag-over { background: rgba(167,139,250,.12) !important; border-left-color: #a78bfa !important; }
         .gat-card { transition: all .12s }
         ::-webkit-scrollbar{width:4px;height:4px}
         ::-webkit-scrollbar-track{background:transparent}
@@ -3049,6 +3289,17 @@ export default function PageGatilhos({ api }) {
             <X size={13}/>
           </button>
         </div>
+      )}
+
+      {/* Molise Panel */}
+      {molisesAberta&&(
+        <MolisePanel
+          sugestoes={sugestoes}
+          sugestoesFechadas={sugFechMap}
+          onDismiss={key=>setSugFechMap(m=>({...m,[key]:true}))}
+          onGoto={id=>{setSelId(id);setMoliseAberta(false)}}
+          onClose={()=>setMoliseAberta(false)}
+        />
       )}
 
       {/* ⌘K */}
