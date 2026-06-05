@@ -10,7 +10,7 @@ import {
   ShoppingBag, Truck, CreditCard, Bell, Star, FileText,
   Package, ArrowUpRight, ArrowDownRight, Minus, Search,
   RotateCcw, ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
-  Eye, X, Navigation, Hash, Timer, AlertTriangle, ShieldCheck,
+  Eye, X, Navigation, Hash, Timer, AlertTriangle, ShieldCheck, MapPin,
   ToggleLeft, ToggleRight, Download, Info, MessageSquare,
   ExternalLink, Radio, Settings,
 } from 'lucide-react'
@@ -56,6 +56,26 @@ const GATILHO_META = {
   avaliar_pedido:           { label:'Avaliação',                icon:Star,          cor:'#f87171' },
   estorno_realizado:        { label:'Estorno',                  icon:RotateCcw,     cor:'#f97316' },
   pix_pendente:             { label:'PIX Pendente',             icon:CreditCard,    cor:'#22c55e' },
+  // Gatilhos de rastreio adicionais
+  pagamento_pendente:       { label:'Pag. Pendente',            icon:CreditCard,    cor:'#f59e0b' },
+  pedido_coletado:          { label:'Pedido Coletado',          icon:Package,       cor:'#4a9fff' },
+  nao_entrou_unidade:       { label:'Não Entrou Unidade',       icon:AlertTriangle, cor:'#f97316' },
+  tentativa_entrega:        { label:'Tentativa Entrega',        icon:Clock,         cor:'#f59e0b' },
+  aguardando_retirada:      { label:'Aguardando Retirada',      icon:Navigation,    cor:'#8b5cf6' },
+  pacote_devolvido:         { label:'Pacote Devolvido',         icon:RotateCcw,     cor:'#ef4444' },
+  reengajamento:            { label:'Reengajamento',            icon:RefreshCw,     cor:'#a78bfa' },
+}
+
+const CANAL_META = {
+  loja:         { label:'Loja',       cor:'#00d4aa', emoji:'🛍️' },
+  bling:        { label:'Loja',       cor:'#00d4aa', emoji:'🛍️' },
+  nuvemshop:    { label:'Nuvemshop',  cor:'#4a9fff', emoji:'🌐' },
+  shopee:       { label:'Shopee',     cor:'#f97316', emoji:'🟠' },
+  mercadolivre: { label:'Merc.Livre', cor:'#f59e0b', emoji:'🛒' },
+  shein:        { label:'Shein',      cor:'#ec4899', emoji:'🌸' },
+  tiktokshop:   { label:'TikTok',     cor:'#6b7280', emoji:'🎵' },
+  rastreio:     { label:'Rastreio',   cor:'#06b6d4', emoji:'📡' },
+  rastreio_job: { label:'Rastreio',   cor:'#06b6d4', emoji:'📡' },
 }
 
 const STATUS_META = {
