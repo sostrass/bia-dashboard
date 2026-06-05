@@ -20,6 +20,20 @@ import {
 
 const BASE = import.meta.env?.VITE_API_URL || ''
 
+// ─── Paleta dark enterprise (mesma base do PageCampanhas) ─────────────────────
+const T = {
+  bg0:'#08090f', bg1:'#0d1017', bg2:'#111520', bg3:'#161b2c', bg4:'#1c2238',
+  ink1:'#eef0f6', ink2:'#b8bdd4', ink3:'#6b7294', ink4:'#3a3f5c',
+  sep:'rgba(255,255,255,0.05)', sep2:'rgba(255,255,255,0.08)',
+  green:'#00e676', greenDim:'rgba(0,230,118,0.08)', greenBor:'rgba(0,230,118,0.2)',
+  blue:'#4f8ef7',  blueDim:'rgba(79,142,247,0.08)',  blueBor:'rgba(79,142,247,0.2)',
+  amber:'#ffb300', amberDim:'rgba(255,179,0,0.08)',  amberBor:'rgba(255,179,0,0.2)',
+  red:'#ff4757',   redDim:'rgba(255,71,87,0.08)',    redBor:'rgba(255,71,87,0.2)',
+  purple:'#a78bfa',purpleDim:'rgba(167,139,250,0.08)',purpleBor:'rgba(167,139,250,0.2)',
+  cyan:'#06b6d4',  cyanDim:'rgba(6,182,212,0.08)',   cyanBor:'rgba(6,182,212,0.2)',
+  gray:'rgba(107,114,128,.15)', grayBor:'rgba(107,114,128,.2)',
+}
+
 // ─── METADADOS DOS GATILHOS ───────────────────────────────────────────────────
 const GATILHO_META = {
   pagamento_aprovado:       { label:'Pagamento Aprovado',       icon:CreditCard,    cor:'#4a9fff' },
@@ -586,146 +600,62 @@ function tempoRel(iso) {
   return `${d}d`
 }
 
-// ─── LINHA DO LOG — design Enterprise ────────────────────────────────────────
-function Iniciais2({nome, size=30, cor='#7c6af7'}) {
-  const ini = (nome||'?').split(' ').slice(0,2).map(p=>p[0]||'').join('').toUpperCase()||'?'
-  return (
-    <div style={{width:size,height:size,borderRadius:'50%',flexShrink:0,
-      background:`${cor}22`,border:`1.5px solid ${cor}30`,
-      display:'flex',alignItems:'center',justifyContent:'center',
-      fontSize:size*.36,fontWeight:700,color:cor,letterSpacing:'.5px',userSelect:'none'}}>
-      {ini}
-    </div>
-  )
-}
-
+// ─── LINHA DO LOG — Enterprise Dark (sistema T) ─────────────────────────────
 function LinhaLog({row, onVerDisparo, onVerCliente}) {
-  const meta  = GATILHO_META[row.gatilho] || {label:row.gatilho, icon:Zap, cor:'#6b7280'}
-  const smeta = STATUS_META[row.status]   || STATUS_META.ignorado
+  const meta  = GATILHO_META[row.gatilho] || {label:row.gatilho, icon:Zap, cor:'#6b7294'}
   const Ic    = meta.icon || Zap
-  const SIc   = smeta.icon
   const rel   = tempoRel(row.criado_em)
-  const [hov, setHov] = useState(false)
-
-  const origemTag = row.origem==='rastreio_job'||row.origem==='job' ? 'auto'
-    : row.origem==='manual_painel' ? 'manual'
-    : row.origem==='manual_reenvio' ? 'reenvio'
-    : null
-
+  const statusCor = row.status==='enviado'?T.green:row.status==='erro'?T.red:row.status==='aguardando'?T.amber:'#6b7294'
+  const statusDim = row.status==='enviado'?T.greenDim:row.status==='erro'?T.redDim:row.status==='aguardando'?T.amberDim:T.gray
+  const statusBor = row.status==='enviado'?T.greenBor:row.status==='erro'?T.redBor:row.status==='aguardando'?T.amberBor:T.grayBor
+  const statusLbl = row.status==='enviado'?'Enviado':row.status==='erro'?'Erro':row.status==='aguardando'?'Aguardando':'Ignorado'
+  const SIc       = row.status==='enviado'?CheckCircle:row.status==='erro'?XCircle:row.status==='aguardando'?Clock:Minus
+  const origem    = row.origem==='rastreio_job'||row.origem==='job'?'auto':row.origem==='manual_painel'?'manual':row.origem==='manual_reenvio'?'reenvio':null
+  const ini       = (row.nome_cliente||'?').split(' ').slice(0,2).map(p=>p[0]||'').join('').toUpperCase()||'?'
   return (
-    <div className="log-row"
-      onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
-      style={{
-        display:'flex',alignItems:'center',gap:0,
-        padding:0,cursor:'pointer',
-        borderBottom:'0.5px solid var(--sep)',
-        background:row.status==='erro'?'rgba(239,68,68,.025)':hov?'var(--fill)':'transparent',
-        transition:'background .08s',position:'relative',
-      }}>
-
-      {/* Barra lateral de status (3px) */}
-      <div style={{width:3,alignSelf:'stretch',flexShrink:0,
-        background:row.status==='enviado'?'#22c55e':row.status==='erro'?'#ef4444':'transparent',
-        borderRadius:'0 1px 1px 0'}}/>
-
-      {/* Conteúdo principal */}
-      <div style={{flex:1,display:'flex',alignItems:'center',gap:11,padding:'10px 14px',minWidth:0}}>
-
-        {/* Avatar do cliente */}
-        <div onClick={e=>{e.stopPropagation();onVerCliente?.(row)}} title="Ver perfil do cliente">
-          <Iniciais2 nome={row.nome_cliente} size={32} cor={meta.cor}/>
+    <div className="log-row" onClick={()=>onVerDisparo?.(row)}
+      style={{display:'flex',alignItems:'stretch',cursor:'pointer',
+        borderBottom:`1px solid ${T.sep}`,transition:'background .1s',position:'relative'}}>
+      <div style={{width:3,flexShrink:0,alignSelf:'stretch',
+        background:row.status==='enviado'?T.green:row.status==='erro'?T.red:'transparent',borderRadius:'0 2px 2px 0'}}/>
+      <div onClick={e=>{e.stopPropagation();onVerCliente?.(row)}} title="Ver perfil do cliente"
+        style={{width:44,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',padding:'0 4px',cursor:'pointer'}}>
+        <div style={{width:30,height:30,borderRadius:'50%',background:`${meta.cor}22`,border:`1px solid ${meta.cor}35`,
+          display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:meta.cor}}>
+          {ini}
         </div>
-
-        {/* Ícone do gatilho */}
-        <div style={{width:32,height:32,borderRadius:9,flexShrink:0,
-          background:`${meta.cor}15`,border:`0.5px solid ${meta.cor}25`,
+      </div>
+      <div style={{width:36,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',padding:'12px 0'}}>
+        <div style={{width:28,height:28,borderRadius:8,background:`${meta.cor}18`,border:`0.5px solid ${meta.cor}30`,
           display:'flex',alignItems:'center',justifyContent:'center'}}>
-          <Ic size={14} style={{color:meta.cor}}/>
+          <Ic size={13} style={{color:meta.cor}}/>
         </div>
-
-        {/* Info central */}
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3,flexWrap:'nowrap'}}>
-            <span style={{fontSize:12.5,fontWeight:600,color:'var(--label)',
-              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-              {meta.label}
-            </span>
-            {row.numero_pedido&&(
-              <span style={{fontSize:9.5,padding:'1px 7px',borderRadius:99,flexShrink:0,
-                background:'rgba(124,106,247,.1)',color:'#a78bfa',
-                border:'0.5px solid rgba(124,106,247,.2)',fontWeight:600}}>
-                #{row.numero_pedido}
-              </span>
-            )}
-            {origemTag&&(
-              <span style={{fontSize:9,padding:'1px 6px',borderRadius:99,flexShrink:0,
-                background:'var(--fill)',color:'var(--label-4)',
-                border:'0.5px solid var(--sep)'}}>
-                {origemTag}
-              </span>
-            )}
-            {row.delay_min>0&&(
-              <span style={{fontSize:9,padding:'1px 6px',borderRadius:99,flexShrink:0,
-                background:'rgba(245,158,11,.08)',color:'#f59e0b'}}>
-                +{row.delay_min}min
-              </span>
-            )}
-          </div>
-          <div style={{display:'flex',alignItems:'center',gap:6,fontSize:10.5}}>
-            <span style={{color:'var(--label-3)',overflow:'hidden',textOverflow:'ellipsis',
-              whiteSpace:'nowrap',maxWidth:160}}>
-              {row.nome_cliente||'—'}
-            </span>
-            <span style={{color:'var(--sep)'}}>·</span>
-            <span style={{color:'var(--label-4)',fontFamily:'monospace',flexShrink:0}}>
-              {fmtTel(row.telefone)}
-            </span>
-            {row.erro_msg&&(
-              <>
-                <span style={{color:'var(--sep)'}}>·</span>
-                <span style={{color:'#ef4444',fontSize:10,
-                  overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:180}}>
-                  {row.erro_msg}
-                </span>
-              </>
-            )}
-          </div>
+      </div>
+      <div style={{flex:1,minWidth:0,padding:'11px 10px 11px 6px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
+          <span style={{fontSize:12.5,fontWeight:600,color:T.ink1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{meta.label}</span>
+          {row.numero_pedido&&<span style={{fontSize:9.5,padding:'1px 7px',borderRadius:99,flexShrink:0,background:T.purpleDim,color:T.purple,border:`0.5px solid ${T.purpleBor}`,fontWeight:600}}>#{row.numero_pedido}</span>}
+          {origem&&<span style={{fontSize:9,padding:'1px 6px',borderRadius:99,flexShrink:0,background:T.bg4,color:T.ink3,border:`0.5px solid ${T.sep2}`}}>{origem}</span>}
+          {row.delay_min>0&&<span style={{fontSize:9,padding:'1px 6px',borderRadius:99,flexShrink:0,background:T.amberDim,color:T.amber}}>+{row.delay_min}min</span>}
         </div>
-
-        {/* Direita: status + tempo + ações */}
-        <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
-          {/* Status pill */}
-          <div style={{display:'inline-flex',alignItems:'center',gap:4,
-            padding:'3px 9px',borderRadius:99,
-            background:smeta.bg,border:`0.5px solid ${smeta.cor}25`}}>
-            <SIc size={9} style={{color:smeta.cor}}/>
-            <span style={{fontSize:9.5,fontWeight:700,color:smeta.cor,
-              textTransform:'uppercase',letterSpacing:'.04em'}}>
-              {smeta.label}
-            </span>
-          </div>
-          {/* Tempo */}
-          <span style={{fontSize:10.5,color:'var(--label-4)',minWidth:28,textAlign:'right'}}>
-            {rel||fmtDH(row.criado_em)}
-          </span>
-          {/* Ações (visíveis no hover) */}
-          <div style={{display:'flex',gap:3,opacity:hov?1:0,transition:'opacity .1s'}}>
-            <button onClick={e=>{e.stopPropagation();onVerCliente?.(row)}}
-              title="Perfil do cliente"
-              style={{width:26,height:26,borderRadius:7,border:'0.5px solid var(--sep)',
-                background:'var(--bg-2)',cursor:'pointer',display:'flex',
-                alignItems:'center',justifyContent:'center',color:'var(--label-4)'}}>
-              <Users size={11}/>
-            </button>
-            <button onClick={()=>onVerDisparo?.(row)}
-              title="Ver detalhes"
-              style={{width:26,height:26,borderRadius:7,border:'0.5px solid var(--sep)',
-                background:'var(--bg-2)',cursor:'pointer',display:'flex',
-                alignItems:'center',justifyContent:'center',color:'var(--label-4)'}}>
-              <Eye size={11}/>
-            </button>
-          </div>
+        <div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:T.ink3}}>
+          <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:180}}>{row.nome_cliente||'—'}</span>
+          {row.telefone&&<><span style={{color:T.ink4}}>·</span><span style={{fontFamily:'monospace',flexShrink:0,color:T.ink4}}>{fmtTel(row.telefone)}</span></>}
+          {row.erro_msg&&<><span style={{color:T.ink4}}>·</span><span style={{color:T.red,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:200}}>{row.erro_msg}</span></>}
         </div>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',justifyContent:'center',gap:5,padding:'0 14px',flexShrink:0}}>
+        <div style={{display:'inline-flex',alignItems:'center',gap:4,padding:'3px 9px',borderRadius:99,background:statusDim,border:`0.5px solid ${statusBor}`}}>
+          <SIc size={9} style={{color:statusCor}}/>
+          <span style={{fontSize:9.5,fontWeight:700,color:statusCor,textTransform:'uppercase',letterSpacing:'.04em'}}>{statusLbl}</span>
+        </div>
+        <span style={{fontSize:10.5,color:T.ink4}}>{rel||fmtDH(row.criado_em)}</span>
+      </div>
+      <div className="log-actions" style={{display:'flex',alignItems:'center',padding:'0 10px 0 0',gap:4,opacity:0,transition:'opacity .1s',flexShrink:0}}>
+        <button onClick={e=>{e.stopPropagation();onVerCliente?.(row)}} title="Perfil"
+          style={{width:26,height:26,borderRadius:7,border:`1px solid ${T.sep2}`,background:T.bg3,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:T.ink3}}><Users size={11}/></button>
+        <button onClick={()=>onVerDisparo?.(row)} title="Detalhes"
+          style={{width:26,height:26,borderRadius:7,border:`1px solid ${T.sep2}`,background:T.bg3,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:T.ink3}}><Eye size={11}/></button>
       </div>
     </div>
   )
@@ -1186,72 +1116,77 @@ export default function PageDisparos({api: apiProp}) {
         </div>
 
         {/* ── Log de disparos ── */}
-        <div style={{background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:14,
-          overflow:'hidden',boxShadow:'0 4px 24px rgba(0,0,0,.22), 0 1px 0 rgba(255,255,255,.04) inset'}}>
+        <div style={{background:T.bg1,border:`1px solid ${T.sep2}`,borderRadius:14,
+          overflow:'hidden',boxShadow:'0 8px 32px rgba(0,0,0,.5)'}}>
 
-          {/* Header do log */}
-          <div style={{padding:'14px 16px',borderBottom:'0.5px solid var(--sep)',
-            background:'var(--bg-3)',display:'flex',flexDirection:'column',gap:10}}>
+          {/* Header */}
+          <div style={{padding:'14px 16px',borderBottom:`1px solid ${T.sep}`,
+            background:T.bg2,display:'flex',flexDirection:'column',gap:10}}>
 
-            {/* Linha 1: título + busca */}
+            {/* Título + busca */}
             <div style={{display:'flex',alignItems:'center',gap:10}}>
-              <span style={{fontSize:13,fontWeight:600,color:'var(--label)',
-                display:'flex',alignItems:'center',gap:7,letterSpacing:'-.01em'}}>
-                <Activity size={14} style={{color:'#7c6af7'}}/>Log de disparos
+              <Activity size={14} style={{color:T.purple}}/>
+              <span style={{fontSize:13,fontWeight:600,color:T.ink1,letterSpacing:'-.01em'}}>
+                Log de disparos
               </span>
               <span style={{fontSize:10,padding:'2px 8px',borderRadius:99,
-                background:'rgba(124,106,247,.1)',color:'#a78bfa',
-                border:'0.5px solid rgba(124,106,247,.2)',fontWeight:600}}>
+                background:T.purpleDim,color:T.purple,border:`0.5px solid ${T.purpleBor}`,fontWeight:600}}>
                 {logTotal}
               </span>
-              {loadLog&&<RefreshCw size={11} style={{color:'var(--label-4)',animation:'spin 1s linear infinite'}}/>}
+              {loadLog&&<RefreshCw size={11} style={{color:T.ink4,animation:'spin 1s linear infinite'}}/>}
               <div style={{flex:1}}/>
-              <div style={{position:'relative',boxShadow:'0 1px 8px rgba(0,0,0,.15)'}}>
+              {/* Busca */}
+              <div style={{position:'relative',boxShadow:`0 0 0 1px ${T.sep2},0 2px 12px rgba(0,0,0,.3)`}}>
                 <Search size={12} style={{position:'absolute',left:10,top:'50%',
-                  transform:'translateY(-50%)',color:'var(--label-4)',pointerEvents:'none'}}/>
+                  transform:'translateY(-50%)',color:T.ink4,pointerEvents:'none'}}/>
                 <input value={buscaInput} onChange={e=>setBuscaInput(e.target.value)}
                   onKeyDown={e=>e.key==='Enter'&&setBusca(buscaInput)}
                   placeholder="Nome, tel, pedido..." style={{
                     padding:'7px 30px 7px 30px',borderRadius:9,
-                    border:'0.5px solid var(--sep)',background:'var(--bg)',
-                    color:'var(--label)',fontSize:12,width:200,outline:'none'}}/>
+                    border:`1px solid ${T.sep2}`,background:T.bg3,
+                    color:T.ink1,fontSize:12,width:200,outline:'none',
+                    fontFamily:'"DM Sans",system-ui'}}/>
                 {buscaInput&&(
                   <button onClick={()=>{setBuscaInput('');setBusca('')}} style={{
                     position:'absolute',right:8,top:'50%',transform:'translateY(-50%)',
-                    background:'none',border:'none',cursor:'pointer',
-                    color:'var(--label-4)',padding:0,display:'flex'}}>
+                    background:'none',border:'none',cursor:'pointer',color:T.ink4,padding:0,display:'flex'}}>
                     <X size={11}/>
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Linha 2: chips de status + filtro gatilho */}
+            {/* Filtros: chips status + select gatilho (corrigido) */}
             <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
               {[
-                {id:'todos',     label:'Todos',       cor:'var(--label-4)'},
-                {id:'enviado',   label:'Enviados',    cor:'#22c55e'},
-                {id:'ignorado',  label:'Ignorados',   cor:'#6b7280'},
-                {id:'erro',      label:'Erros',       cor:'#ef4444'},
-                {id:'aguardando',label:'Aguardando',  cor:'#f59e0b'},
-              ].map(chip=>(
-                <button key={chip.id} onClick={()=>setFiltroSt(chip.id)} style={{
-                  display:'inline-flex',alignItems:'center',gap:4,
-                  padding:'3px 10px',borderRadius:99,cursor:'pointer',
-                  border:`0.5px solid ${filtroSt===chip.id?chip.cor+'70':'var(--sep)'}`,
-                  background:filtroSt===chip.id?`${chip.cor}14`:'transparent',
-                  color:filtroSt===chip.id?chip.cor:'var(--label-4)',
-                  fontSize:11,fontWeight:filtroSt===chip.id?600:400,
-                  transition:'all .12s'}}>
-                  {chip.label}
-                </button>
-              ))}
-              <div style={{width:'0.5px',height:14,background:'var(--sep)',margin:'0 4px'}}/>
+                {id:'todos',     label:'Todos'},
+                {id:'enviado',   label:'Enviados',   cor:T.green,  dim:T.greenDim,  bor:T.greenBor},
+                {id:'ignorado',  label:'Ignorados',  cor:'#6b7294',dim:T.gray,       bor:T.grayBor},
+                {id:'erro',      label:'Erros',      cor:T.red,    dim:T.redDim,    bor:T.redBor},
+                {id:'aguardando',label:'Aguardando', cor:T.amber,  dim:T.amberDim,  bor:T.amberBor},
+              ].map(chip=>{
+                const ativo = filtroSt===chip.id
+                return (
+                  <button key={chip.id} onClick={()=>setFiltroSt(chip.id)} style={{
+                    display:'inline-flex',alignItems:'center',gap:4,
+                    padding:'4px 11px',borderRadius:99,cursor:'pointer',
+                    border:`1px solid ${ativo?(chip.bor||T.sep2):T.sep}`,
+                    background:ativo?(chip.dim||T.bg4):T.bg3,
+                    color:ativo?(chip.cor||T.ink1):T.ink3,
+                    fontSize:11,fontWeight:ativo?600:400,
+                    transition:'all .12s'}}>
+                    {chip.label}
+                  </button>
+                )
+              })}
+              <div style={{width:'1px',height:14,background:T.sep2,margin:'0 4px'}}/>
+              {/* Select de gatilho — CORRIGIDO (com background e cor visíveis) */}
               <select value={filtroGat} onChange={e=>setFiltroGat(e.target.value)} style={{
-                fontSize:11,padding:'3px 8px',borderRadius:8,
-                border:'0.5px solid var(--sep)',background:'transparent',
-                color:filtroGat==='todos'?'var(--label-4)':'#7c6af7',
-                cursor:'pointer',outline:'none'}}>
+                fontSize:11,padding:'4px 10px',borderRadius:8,
+                border:`1px solid ${filtroGat!=='todos'?T.purpleBor:T.sep}`,
+                background:filtroGat!=='todos'?T.purpleDim:T.bg3,
+                color:filtroGat!=='todos'?T.purple:T.ink3,
+                cursor:'pointer',outline:'none',appearance:'auto'}}>
                 <option value="todos">Todos gatilhos</option>
                 {gatilhosUsados.map(g=>(
                   <option key={g} value={g}>{GATILHO_META[g]?.label||g}</option>
@@ -1260,12 +1195,13 @@ export default function PageDisparos({api: apiProp}) {
             </div>
           </div>
 
-          {/* Linhas — scroll próprio garantido */}
-          <div style={{minHeight:120,maxHeight:'calc(100vh - 420px)',overflowY:'auto',overflowX:'hidden'}}>
+          {/* Linhas */}
+          <div style={{minHeight:120,maxHeight:'calc(100vh - 420px)',overflowY:'auto',overflowX:'hidden',
+            background:T.bg1}}>
           {log.length===0&&!loadLog
-            ? <div style={{padding:48,textAlign:'center',color:'var(--label-4)'}}>
+            ? <div style={{padding:48,textAlign:'center',color:T.ink4}}>
                 <Zap size={32} style={{opacity:.15,marginBottom:12}}/><br/>
-                <p style={{fontSize:13,margin:0}}>Nenhum disparo encontrado.</p>
+                <p style={{fontSize:13,margin:0,color:T.ink3}}>Nenhum disparo encontrado.</p>
                 <p style={{fontSize:11,margin:'6px 0 0'}}>Verifique os filtros ou aguarde novos eventos.</p>
               </div>
             : log.map((row,i)=>(
@@ -1328,7 +1264,8 @@ export default function PageDisparos({api: apiProp}) {
         ::-webkit-scrollbar       { width:4px; height:4px }
         ::-webkit-scrollbar-track { background:transparent }
         ::-webkit-scrollbar-thumb { background:rgba(255,255,255,.1); border-radius:99px }
-        .log-row:hover { background:rgba(255,255,255,.025) !important }
+        .log-row:hover { background:rgba(255,255,255,.028) !important }
+        .log-row:hover .log-actions { opacity:1 !important }
         .gat-bar:hover { background:var(--fill) !important; border-radius:7px }
       `}</style>
     </div>
