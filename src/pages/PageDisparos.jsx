@@ -12,7 +12,7 @@ import {
   RotateCcw, ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
   Eye, X, Navigation, Hash, Timer, AlertTriangle, ShieldCheck,
   ToggleLeft, ToggleRight, Download, Info, MessageSquare,
-  ExternalLink, Radio,
+  ExternalLink, Radio, Settings,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -483,7 +483,7 @@ function EventoCard({d, onReenviar, reenviados, setReenviados}) {
   )
 }
 
-function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilho, onReenviar }) {
+function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilho, onReenviar, stats, insights }) {
   const [cli, setCli]             = useState(null)
   const [loadCli, setLoad]        = useState(false)
   const [reenviados, setReenviados] = useState([])
@@ -582,90 +582,146 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
 
           {/* ── DETALHE DO DISPARO ── */}
           {tipo==='disparo' && dados && (() => {
-            const Ic   = meta?.icon || Zap
-            const SIc  = smeta?.icon || Minus
+            const Ic    = meta?.icon || Zap
+            const SIc   = smeta?.icon || Minus
             const isIgn = dados.status === 'ignorado'
             const isErr = dados.status === 'erro'
             const isOk  = dados.status === 'enviado'
             const isAg  = dados.status === 'aguardando'
 
-            // Intelligence contextual
-            const intel = isIgn
-              ? { sev:'critico', msg: dados.erro_msg==='Gatilho inativo'
-                  ? `O template "${dados.gatilho}" está inativo. Nenhuma mensagem foi enviada para este cliente.`
-                  : (dados.erro_msg||'Disparo registrado mas não enviado.'),
-                  acao:'Ativar em Gatilhos' }
-              : isErr
-              ? { sev:'erro', msg:`Falha no envio: ${dados.erro_msg||'Erro na API WhatsApp.'}`, acao:'Ver logs técnicos' }
-              : isAg
-              ? { sev:'aviso', msg:`Agendado para ${dados.delay_min}min após o evento. Aguardando execução.`, acao:null }
-              : isOk
-              ? { sev:'ok', msg:'Mensagem enviada e entregue com sucesso.', acao:null }
+            // Insight do backend para este gatilho (para pegar clientes afetados)
+            const gatInsight = (insights||[]).find(i=>i.gatilho===dados.gatilho)
+            const tempoStr   = tempoRel(dados.criado_em) || fmtDH(dados.criado_em)
+
+            // Taxa de entrega deste gatilho vs média do sistema
+            const gatStats  = (stats?.porGatilho||[]).find(g=>g.gatilho===dados.gatilho)
+            const envG      = parseInt(gatStats?.enviados||0)
+            const errG      = parseInt(gatStats?.erros||0)
+            const tentG     = envG + errG
+            const taxaGat   = tentG > 0 ? Math.round(envG/tentG*100) : null
+            const ativasMedia= (stats?.porGatilho||[]).filter(g=>{
+              const e=parseInt(g.enviados||0),er=parseInt(g.erros||0); return (e+er)>0
+            })
+            const mediaSys  = ativasMedia.length > 0
+              ? Math.round(ativasMedia.reduce((acc,g)=>{
+                  const e=parseInt(g.enviados||0),er=parseInt(g.erros||0),t=e+er
+                  return t>0 ? acc+e/t*100 : acc
+                },0)/ativasMedia.length)
               : null
 
-            const intelCfg = {
-              critico: {cor:T.red,   dim:T.redDim,   bor:T.redBor,   Icon:AlertTriangle, titulo:'Ação necessária'},
-              erro:    {cor:T.red,   dim:T.redDim,   bor:T.redBor,   Icon:XCircle,       titulo:'Erro de envio'},
-              aviso:   {cor:T.amber, dim:T.amberDim, bor:T.amberBor, Icon:Clock,         titulo:'Aguardando'},
-              ok:      {cor:T.green, dim:T.greenDim, bor:T.greenBor, Icon:CheckCircle,   titulo:'Entregue'},
-            }[intel?.sev] || {cor:T.ink3, dim:T.gray, bor:T.grayBor, Icon:Info, titulo:'Informação'}
+            // Intelligence contextual com impacto quantificado
+            const intel = isIgn ? {
+              sev:'critico',
+              titulo:'Template inativo — cliente nunca notificado',
+              msg: `${meta?.label} ${tempoStr} sem notificação.${
+                gatInsight?.clientes ? ` Além deste, **${gatInsight.clientes}** pedidos nas últimas 2 semanas no mesmo estado.` : ''
+              }`,
+              acao:'Ativar template',
+            } : isErr ? {
+              sev:'erro',
+              titulo:'Erro de envio',
+              msg: dados.erro_msg || 'Falha na API WhatsApp.',
+              acao:'Ver logs técnicos',
+            } : isAg ? {
+              sev:'aviso',
+              titulo:'Aguardando envio',
+              msg:`Agendado para +${dados.delay_min}min após o evento. Será enviado automaticamente.`,
+              acao:null,
+            } : isOk ? {
+              sev:'ok',
+              titulo:'Entregue com sucesso',
+              msg:'Mensagem enviada e entregue ao cliente.',
+              acao:null,
+            } : null
 
-            // Journey stages
+            const intelCor = {
+              critico:{cor:T.red,  dim:T.redDim,  bor:T.redBor,  Icon:AlertTriangle},
+              erro:   {cor:T.red,  dim:T.redDim,  bor:T.redBor,  Icon:XCircle},
+              aviso:  {cor:T.amber,dim:T.amberDim,bor:T.amberBor,Icon:Clock},
+              ok:     {cor:T.green,dim:T.greenDim,bor:T.greenBor,Icon:CheckCircle},
+            }[intel?.sev] || {cor:T.ink3,dim:T.gray,bor:T.grayBor,Icon:Info}
+
+            // Journey stages com timestamps dos disparos reais
             const JOURNEY = [
-              {id:'pedido_criado',      lbl:'Criado',   short:'Criado'},
               {id:'pagamento_aprovado', lbl:'Pago',     short:'Pago'},
-              {id:'em_separacao',       lbl:'Sep.',     short:'Sep.'},
+              {id:'em_separacao',       lbl:'Separado', short:'Sep.'},
               {id:'pedido_enviado',     lbl:'Enviado',  short:'Env.'},
               {id:'pedido_entregue',    lbl:'Entregue', short:'Entregue'},
+              {id:'avaliar_pedido',     lbl:'Avaliação',short:'Aval.'},
             ]
             const stSt   = sid => (ordemDisp||[]).find(x=>x.gatilho===sid)?.status || 'pendente'
+            const stTime = sid => {
+              const d = (ordemDisp||[]).find(x=>x.gatilho===sid)
+              if (!d?.criado_em) return null
+              return new Date(d.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+            }
             const stCor  = s => s==='enviado'?T.green:s==='ignorado'?T.amber:s==='erro'?T.red:null
             const stBor  = s => s==='enviado'?T.greenBor:s==='ignorado'?T.amberBor:s==='erro'?T.redBor:'rgba(255,255,255,.1)'
             const stDim  = s => s==='enviado'?T.greenDim:s==='ignorado'?T.amberDim:s==='erro'?T.redDim:'rgba(255,255,255,.04)'
             const curIdx = JOURNEY.findIndex(s=>s.id===dados.gatilho)
 
-            const doR = async () => {
-              setEnvR(true)
-              try { await onReenviar?.(dados.id); setJaR(true) } catch {}
-              setEnvR(false)
-            }
+            // Linha de status da jornada (ex: "04/06 · ENTREGUE SEM NOTIF.")
+            const journeyStatus = isIgn
+              ? `${new Date(dados.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} · ${meta?.label?.toUpperCase()} SEM NOTIF.`
+              : isErr
+              ? `${new Date(dados.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} · ERRO NO ENVIO`
+              : isOk
+              ? `${new Date(dados.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} · ENTREGUE`
+              : null
+
+            const doR = async () => { setEnvR(true); try{ await onReenviar?.(dados.id); setJaR(true) }catch{}; setEnvR(false) }
 
             return (
-              <div style={{display:'flex',flexDirection:'column',animation:'fadeIn .25s ease'}}>
+              <div style={{display:'flex',flexDirection:'column',animation:'fadeIn .25s ease',height:'100%'}}>
 
-                {/* ── Header gradiente pela cor do gatilho ── */}
-                <div style={{padding:'16px',
+                {/* ── Header gradiente ── */}
+                <div style={{padding:'16px',flexShrink:0,
                   background:`linear-gradient(135deg,${meta?.cor}18 0%,${T.bg3} 65%)`,
-                  borderBottom:`1px solid ${meta?.cor}20`,
-                  display:'flex',alignItems:'flex-start',gap:12}}>
-                  <div style={{width:44,height:44,borderRadius:12,background:`${meta?.cor}18`,
-                    border:`1.5px solid ${meta?.cor}35`,flexShrink:0,
-                    display:'flex',alignItems:'center',justifyContent:'center',
-                    boxShadow:`0 4px 20px ${meta?.cor}20`}}>
-                    <Ic size={22} style={{color:meta?.cor}}/>
-                  </div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:15,fontWeight:700,color:T.ink1,
-                      letterSpacing:'-.02em',marginBottom:6}}>{meta?.label}</div>
-                    <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
-                      <span style={{fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:700,
-                        background:smeta?.bg,color:smeta?.cor,
-                        border:`0.5px solid ${smeta?.cor}30`,letterSpacing:'.03em'}}>
-                        {smeta?.label}
-                      </span>
-                      {dados.origem&&<span style={{fontSize:10,padding:'2px 7px',borderRadius:99,
-                        background:T.bg4,color:T.ink3,border:`0.5px solid ${T.sep2}`}}>
-                        {dados.origem==='rastreio_job'||dados.origem==='job'?'job auto':dados.origem}
-                      </span>}
-                      {dados.numero_pedido&&<span style={{fontSize:10,padding:'2px 8px',borderRadius:99,
-                        background:T.purpleDim,color:T.purple,
-                        border:`0.5px solid ${T.purpleBor}`,fontWeight:600}}>
-                        #{dados.numero_pedido}
-                      </span>}
-                      <span style={{fontSize:10,color:T.ink4,marginLeft:'auto'}}>
-                        {tempoRel(dados.criado_em)||fmtDH(dados.criado_em)}
-                      </span>
+                  borderBottom:`1px solid ${meta?.cor}20`}}>
+                  {/* Linha 1: ícone + título + tempo */}
+                  <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:10}}>
+                    <div style={{width:44,height:44,borderRadius:12,flexShrink:0,
+                      background:`${meta?.cor}18`,border:`1.5px solid ${meta?.cor}35`,
+                      display:'flex',alignItems:'center',justifyContent:'center',
+                      boxShadow:`0 4px 20px ${meta?.cor}20`}}>
+                      <Ic size={22} style={{color:meta?.cor}}/>
                     </div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:17,fontWeight:700,color:T.ink1,letterSpacing:'-.025em'}}>
+                        {meta?.label}
+                      </div>
+                    </div>
+                    <span style={{fontSize:10.5,color:T.ink4,flexShrink:0}}>
+                      ● {tempoStr}
+                    </span>
+                  </div>
+                  {/* Linha 2: badges */}
+                  <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
+                    <span style={{fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:600,
+                      background:smeta?.bg,color:smeta?.cor,border:`0.5px solid ${smeta?.cor}30`,
+                      display:'flex',alignItems:'center',gap:4}}>
+                      {React.createElement(SIc,{size:8})}
+                      {smeta?.label}
+                    </span>
+                    {(dados.origem==='rastreio_job'||dados.origem==='job')&&(
+                      <span style={{fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:600,
+                        background:'rgba(6,182,212,.12)',color:'#06b6d4',border:'0.5px solid rgba(6,182,212,.3)'}}>
+                        job auto
+                      </span>
+                    )}
+                    {dados.numero_pedido&&(
+                      <span style={{fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:700,
+                        background:T.purpleDim,color:T.purple,border:`0.5px solid ${T.purpleBor}`}}>
+                        #{dados.numero_pedido}
+                      </span>
+                    )}
+                    {dados.nome_cliente&&(
+                      <span style={{fontSize:10,padding:'2px 9px',borderRadius:99,fontWeight:600,
+                        background:'rgba(251,146,60,.12)',color:'#fb923c',border:'0.5px solid rgba(251,146,60,.3)',
+                        maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                        {dados.nome_cliente.split(' ').slice(0,2).join(' ')}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -674,72 +730,147 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
 
                     {/* ── Intelligence card ── */}
                     {intel && (() => {
-                      const {cor,dim,bor,Icon,titulo} = intelCfg
+                      const {cor,dim,bor,Icon} = intelCor
+                      // Parse bold em msg: **texto** → <strong>
+                      const renderMsg = (txt) => {
+                        const parts = txt.split(/(\*\*[^*]+\*\*)/)
+                        return parts.map((p,i)=>
+                          p.startsWith('**')
+                            ? <strong key={i} style={{color:cor}}>{p.slice(2,-2)}</strong>
+                            : p
+                        )
+                      }
                       return (
-                        <div style={{borderRadius:10,padding:'11px 13px',
-                          background:dim,border:`1px solid ${bor}`,
-                          display:'flex',gap:10,alignItems:'flex-start'}}>
-                          <Icon size={16} style={{color:cor,flexShrink:0,marginTop:1}}/>
+                        <div style={{borderRadius:11,padding:'13px 14px',background:dim,
+                          border:`1px solid ${bor}`,display:'flex',gap:10,alignItems:'flex-start'}}>
+                          <Icon size={18} style={{color:cor,flexShrink:0,marginTop:2}}/>
                           <div style={{flex:1}}>
-                            <div style={{fontSize:11.5,fontWeight:700,color:cor,marginBottom:4}}>
-                              {titulo}
+                            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:5}}>
+                              <div style={{fontSize:13,fontWeight:700,color:cor,lineHeight:1.35}}>
+                                {intel.titulo}
+                              </div>
+                              <span style={{fontSize:9,padding:'1px 7px',borderRadius:99,marginLeft:8,flexShrink:0,
+                                background:`${cor}20`,color:cor,fontWeight:700,letterSpacing:'.05em'}}>
+                                {intel.sev==='critico'?'CRÍTICO':intel.sev==='erro'?'ERRO':intel.sev==='aviso'?'AVISO':'OK'}
+                              </span>
                             </div>
-                            <div style={{fontSize:11,color:T.ink2,lineHeight:1.55,marginBottom:intel.acao?8:0}}>
-                              {intel.msg}
+                            <div style={{fontSize:12,color:T.ink2,lineHeight:1.6,marginBottom:intel.acao?10:0}}>
+                              {renderMsg(intel.msg)}
                             </div>
                             {intel.acao&&(
-                              <button style={{display:'inline-flex',alignItems:'center',gap:5,
-                                padding:'4px 11px',borderRadius:6,border:'none',cursor:'pointer',
-                                fontSize:11,fontWeight:600,
-                                background:'linear-gradient(135deg,#5b21b6,#9333ea)',color:'#fff'}}>
-                                <Zap size={10}/>{intel.acao}
-                              </button>
+                              <div style={{display:'flex',gap:8}}>
+                                <button style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',
+                                  gap:6,padding:'8px',borderRadius:8,
+                                  border:`1px solid ${T.sep2}`,background:T.bg3,
+                                  color:T.ink1,cursor:'pointer',fontSize:12,fontWeight:600}}>
+                                  <Settings size={13}/>{intel.acao} ↗
+                                </button>
+                                <button disabled={jaReenv||enviandoR} onClick={doR}
+                                  style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',
+                                  gap:6,padding:'8px',borderRadius:8,
+                                  border:`1px solid ${T.sep2}`,background:T.bg3,
+                                  color:jaReenv?T.green:T.ink1,cursor:'pointer',fontSize:12,fontWeight:600}}>
+                                  {enviandoR?<RefreshCw size={12} style={{animation:'spin .7s linear infinite'}}/>
+                                   :jaReenv?<><CheckCircle size={12}/>Enviado!</>
+                                   :<><Send size={13}/>Enviar agora</>}
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
                       )
                     })()}
 
-                    {/* ── Journey mini-map animado ── */}
-                    <div style={{padding:'11px 13px',borderRadius:10,
-                      background:T.bg3,border:`1px solid ${T.sep}`}}>
-                      <div style={{fontSize:9,color:T.ink3,textTransform:'uppercase',
-                        letterSpacing:'.07em',marginBottom:10,
-                        display:'flex',alignItems:'center',gap:5}}>
-                        <Navigation size={10}/>
-                        Jornada {dados.numero_pedido?`· pedido #${dados.numero_pedido}`:''}
-                        {!(ordemDisp||[]).length&&<span style={{color:T.ink4,fontWeight:400}}> · carregando...</span>}
+                    {/* ── Taxa de entrega vs média ── */}
+                    {(taxaGat !== null || mediaSys !== null) && (
+                      <div style={{borderRadius:10,padding:'10px 13px',
+                        background:'rgba(79,142,247,.06)',border:'1px solid rgba(79,142,247,.18)',
+                        display:'flex',alignItems:'center',gap:10}}>
+                        <Activity size={14} style={{color:'#4f8ef7',flexShrink:0}}/>
+                        <span style={{fontSize:12,color:T.ink2}}>
+                          Taxa de entrega notificada este mês:&nbsp;
+                          <strong style={{color:taxaGat===null?T.red:taxaGat>=70?T.green:T.amber}}>
+                            {taxaGat===null?'0%':`${taxaGat}%`}
+                          </strong>
+                          {mediaSys!==null&&<>
+                            &nbsp;·&nbsp;Média do sistema:&nbsp;
+                            <strong style={{color:T.green}}>{mediaSys}%</strong>
+                          </>}
+                        </span>
                       </div>
+                    )}
+
+                    {/* ── Journey mini-map com timestamps ── */}
+                    <div style={{padding:'12px 13px',borderRadius:10,background:T.bg3,border:`1px solid ${T.sep}`}}>
+                      {/* Header da jornada */}
+                      <div style={{display:'flex',alignItems:'center',
+                        justifyContent:'space-between',marginBottom:12}}>
+                        <div style={{display:'flex',alignItems:'center',gap:5,
+                          fontSize:9,color:T.ink3,textTransform:'uppercase',letterSpacing:'.07em'}}>
+                          <Navigation size={10}/>
+                          JORNADA DO PEDIDO {dados.numero_pedido?`#${dados.numero_pedido}`:''}
+                        </div>
+                        {journeyStatus&&(
+                          <span style={{fontSize:9,color:isIgn||isErr?T.amber:T.green,
+                            fontWeight:600,letterSpacing:'.04em',textTransform:'uppercase'}}>
+                            {journeyStatus}
+                          </span>
+                        )}
+                      </div>
+                      {/* Nós com timestamps */}
                       <div style={{display:'flex',alignItems:'flex-start'}}>
                         {JOURNEY.map((st,si)=>{
                           const s    = stSt(st.id)
                           const isCur= st.id === dados.gatilho
                           const cor2 = stCor(s) || (isCur ? T.amber : null)
+                          const time = stTime(st.id)
                           const DotIc= s==='enviado'?CheckCircle:s==='erro'?XCircle:isCur?Navigation:null
+                          // Label especial para o nó atual ignorado
+                          const lblBottom = isCur && isIgn ? 'sem notif.' : null
                           const lineColor = si < curIdx
-                            ? `linear-gradient(90deg,${T.green}60,${T.green}40)`
-                            : 'rgba(255,255,255,.06)'
+                            ? T.green
+                            : 'rgba(255,255,255,.08)'
                           return (
                             <React.Fragment key={st.id}>
                               <div style={{display:'flex',flexDirection:'column',
-                                alignItems:'center',gap:3,flex:1}}>
-                                <div style={{width:22,height:22,borderRadius:'50%',
+                                alignItems:'center',gap:2,flex:1,minWidth:0}}>
+                                {/* Nó */}
+                                <div style={{width:24,height:24,borderRadius:'50%',
                                   background:stDim(s)||(isCur?T.amberDim:'rgba(255,255,255,.04)'),
                                   border:`2px solid ${stBor(s)||(isCur?T.amberBor:'rgba(255,255,255,.1)')}`,
                                   display:'flex',alignItems:'center',justifyContent:'center',
-                                  animation:isCur&&!isOk?'pulse 2s ease-in-out infinite':undefined}}>
-                                  {DotIc&&<DotIc size={9} style={{color:cor2||T.ink4}}/>}
+                                  animation:isCur&&!isOk?'pulse 2s ease-in-out infinite':undefined,
+                                  boxShadow:cor2?`0 0 8px ${cor2}40`:undefined}}>
+                                  {DotIc?<DotIc size={10} style={{color:cor2||T.ink4}}/>:null}
                                 </div>
-                                <span style={{fontSize:7.5,textAlign:'center',lineHeight:1.3,
+                                {/* Label */}
+                                <span style={{fontSize:8.5,textAlign:'center',lineHeight:1.25,
                                   color:isCur?cor2||T.amber:cor2?cor2:T.ink4,
-                                  fontWeight:isCur?700:400}}>
+                                  fontWeight:isCur?700:400,maxWidth:48,
+                                  overflow:'hidden',textOverflow:'ellipsis'}}>
                                   {st.lbl}
                                 </span>
+                                {/* Sub-label para ignorado */}
+                                {lblBottom&&(
+                                  <span style={{fontSize:7.5,color:T.amber,fontWeight:600,
+                                    textAlign:'center',lineHeight:1.2}}>
+                                    {lblBottom}
+                                  </span>
+                                )}
+                                {/* Timestamp real */}
+                                {time&&(
+                                  <span style={{fontSize:8.5,color:T.ink4,fontFamily:'monospace',
+                                    letterSpacing:'-.02em'}}>
+                                    {time}
+                                  </span>
+                                )}
                               </div>
                               {si < JOURNEY.length-1 && (
-                                <div style={{height:1,flex:1,
-                                  background:lineColor,
-                                  marginTop:10,flexShrink:0}}/>
+                                <div style={{height:2,flex:1,alignSelf:'flex-start',marginTop:11,flexShrink:0,
+                                  background:si < curIdx
+                                    ? `linear-gradient(90deg,${T.green}80,${T.green}40)`
+                                    : 'rgba(255,255,255,.07)',
+                                  borderRadius:99}}/>
                               )}
                             </React.Fragment>
                           )
@@ -747,37 +878,13 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                       </div>
                     </div>
 
-                    {/* ── Fields 2×2 compact grid ── */}
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:1,
-                      borderRadius:10,overflow:'hidden',border:`1px solid ${T.sep}`}}>
-                      <div style={{padding:'9px 12px',background:T.bg2,
-                        display:'flex',flexDirection:'column',gap:2}}>
-                        <span style={{fontSize:9,color:T.ink3,textTransform:'uppercase',letterSpacing:'.05em'}}>Cliente</span>
-                        <span style={{fontSize:12,color:T.ink1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{dados.nome_cliente||'—'}</span>
-                      </div>
-                      <div style={{padding:'9px 12px',background:T.bg2,
-                        display:'flex',flexDirection:'column',gap:2}}>
-                        <span style={{fontSize:9,color:T.ink3,textTransform:'uppercase',letterSpacing:'.05em'}}>Telefone</span>
-                        <span style={{fontSize:12,color:T.ink1,fontFamily:'monospace'}}>{fmtTel(dados.telefone||'')}</span>
-                      </div>
-                      <div style={{padding:'9px 12px',background:T.bg0,
-                        display:'flex',flexDirection:'column',gap:2}}>
-                        <span style={{fontSize:9,color:T.ink3,textTransform:'uppercase',letterSpacing:'.05em'}}>Data · Delay</span>
-                        <span style={{fontSize:12,color:T.ink1}}>{fmtDH(dados.criado_em)} · {dados.delay_min>0?`+${dados.delay_min}min`:'imediato'}</span>
-                      </div>
-                      <div style={{padding:'9px 12px',background:T.bg0,
-                        display:'flex',flexDirection:'column',gap:2}}>
-                        <span style={{fontSize:9,color:T.ink3,textTransform:'uppercase',letterSpacing:'.05em'}}>ID</span>
-                        <span style={{fontSize:12,color:T.purple,fontFamily:'monospace'}}>#{dados.id||'—'}</span>
-                      </div>
-                    </div>
-
                     {/* ── Diagnóstico técnico colapsável ── */}
                     <details style={{borderRadius:9,overflow:'hidden',border:`1px solid ${T.sep}`}}>
                       <summary style={{padding:'9px 12px',background:T.bg3,cursor:'pointer',
-                        fontSize:10,color:T.ink3,textTransform:'uppercase',letterSpacing:'.06em',
+                        fontSize:10,color:T.ink3,textTransform:'uppercase',letterSpacing:'.07em',
                         display:'flex',alignItems:'center',gap:6,userSelect:'none',listStyle:'none'}}>
-                        <Hash size={11}/>Diagnóstico técnico
+                        <ChevronRight size={10} style={{transition:'transform .2s'}}/>
+                        DIAGNÓSTICO TÉCNICO
                         <ChevronDown size={10} style={{marginLeft:'auto'}}/>
                       </summary>
                       <div style={{background:T.bg2}}>
@@ -787,7 +894,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                           {l:'Origem',    v:dados.origem||'bling',              ok:true},
                           {l:'Status',    v:dados.status,                       ok:dados.status==='enviado'},
                           {l:'Erro',      v:dados.erro_msg||'—',               ok:!dados.erro_msg},
-                          {l:'Delay',     v:dados.delay_min>0?`${dados.delay_min}min`:'imediato', ok:true},
+                          {l:'Delay',     v:dados.delay_min>0?`+${dados.delay_min}min`:'imediato', ok:true},
                         ].map((f,i)=>(
                           <div key={i} style={{display:'flex',alignItems:'center',gap:10,
                             padding:'7px 12px',borderTop:`1px solid ${T.sep}`}}>
@@ -801,39 +908,62 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                       </div>
                     </details>
 
+                    {/* ── Grid 2×2 ── */}
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:1,
+                      borderRadius:10,overflow:'hidden',border:`1px solid ${T.sep}`}}>
+                      {[
+                        {l:'CLIENTE',       v:dados.nome_cliente||'—',                  bg:T.bg2},
+                        {l:'TELEFONE',      v:fmtTel(dados.telefone||''),                bg:T.bg2, mono:true},
+                        {l:'DATA / DELAY',  v:`${fmtDH(dados.criado_em)} · ${dados.delay_min>0?`+${dados.delay_min}min`:'imediato'}`, bg:T.bg0},
+                        {l:'ID DO REGISTRO',v:`#${dados.id||'—'}`,                      bg:T.bg0, col:T.purple},
+                      ].map((f,i)=>(
+                        <div key={i} style={{padding:'9px 12px',background:f.bg,
+                          display:'flex',flexDirection:'column',gap:2}}>
+                          <span style={{fontSize:8.5,color:T.ink3,textTransform:'uppercase',
+                            letterSpacing:'.06em'}}>{f.l}</span>
+                          <span style={{fontSize:12,color:f.col||T.ink1,
+                            fontFamily:f.mono?'monospace':'inherit',
+                            overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                            {f.v}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
                   </div>
                 </div>
 
                 {/* ── Actions footer ── */}
-                <div style={{flexShrink:0,padding:'10px 14px',borderTop:`1px solid ${T.sep}`,
-                  background:T.bg2,display:'flex',flexDirection:'column',gap:7}}>
-                  <button disabled={jaReenv||enviandoR} onClick={doR} style={{padding:'11px',borderRadius:10,
-                    border:'none',fontSize:13,fontWeight:600,cursor:jaReenv?'default':'pointer',
-                    background:jaReenv?T.greenDim:'linear-gradient(135deg,#5b21b6,#9333ea)',
-                    color:jaReenv?T.green:'#fff',
-                    display:'flex',alignItems:'center',justifyContent:'center',gap:7}}>
+                <div style={{flexShrink:0,padding:'12px 14px',borderTop:`1px solid ${T.sep}`,
+                  background:T.bg2,display:'flex',flexDirection:'column',gap:8}}>
+                  {/* Primário */}
+                  <button disabled={jaReenv||enviandoR} onClick={doR}
+                    style={{padding:'12px',borderRadius:10,
+                    border:`1px solid ${jaReenv?T.greenBor:T.sep2}`,
+                    background:jaReenv?T.greenDim:T.bg3,
+                    color:jaReenv?T.green:T.ink1,fontSize:13,fontWeight:600,cursor:jaReenv?'default':'pointer',
+                    display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
                     {enviandoR?<><RefreshCw size={13} style={{animation:'spin .7s linear infinite'}}/>Enviando...</>
-                     :jaReenv?<><CheckCircle size={13}/>Enviado!</>
-                     :<><Send size={13}/>Enviar agora</>}
+                     :jaReenv?<><CheckCircle size={13}/>Mensagem enviada!</>
+                     :<><Send size={13}/>Enviar mensagem agora</>}
                   </button>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:7}}>
-                    {dados.numero_pedido&&(
-                      <button onClick={()=>window.open(`https://whatsapp-sostrass.up.railway.app/pedido/${dados.numero_pedido}`,'_blank')}
-                        style={{padding:'9px',borderRadius:9,border:`1px solid ${T.sep2}`,
-                        background:T.bg3,color:T.ink2,cursor:'pointer',fontSize:11.5,
-                        display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-                        <Package size={12}/>Ver pedido
-                      </button>
-                    )}
-                    {dados.telefone&&(
-                      <button onClick={()=>onFiltrarGatilho?.('__cliente__',dados.telefone)}
-                        style={{padding:'9px',borderRadius:9,
-                        border:`1px solid ${T.purpleBor}`,background:T.purpleDim,
-                        color:T.purple,cursor:'pointer',fontSize:11.5,
-                        display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-                        <Users size={12}/>Ver perfil
-                      </button>
-                    )}
+                  {/* Secundários */}
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                    <button onClick={()=>onVerPedido?.(dados.numero_pedido)}
+                      style={{padding:'10px',borderRadius:9,
+                      border:`1px solid ${T.sep2}`,background:T.bg3,
+                      color:T.ink2,cursor:'pointer',fontSize:12,fontWeight:500,
+                      display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                      <ExternalLink size={12}/>Ver pedido
+                    </button>
+                    <button onClick={()=>onFiltrarGatilho?.('__cliente__',dados.telefone)}
+                      style={{padding:'10px',borderRadius:9,
+                      border:`1px solid ${T.purpleBor}`,
+                      background:'linear-gradient(135deg,rgba(91,33,182,.3),rgba(147,51,234,.2))',
+                      color:T.purple,cursor:'pointer',fontSize:12,fontWeight:600,
+                      display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                      <Users size={12}/>Ver perfil completo
+                    </button>
                   </div>
                 </div>
               </div>
@@ -876,15 +1006,28 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
             const ndDim = s => s==='enviado'?T.greenDim : s==='ignorado'?T.amberDim : s==='erro'?T.redDim : 'rgba(255,255,255,.04)'
             const ndIco = s => s==='enviado'?CheckCircle : s==='ignorado'?AlertTriangle : s==='erro'?XCircle : null
 
-            // ── Insight ───────────────────────────────────────────────────
+            // ── Insight cliente-específico ─────────────────────────────
             const todasIgn   = total > 0 && ignorados === total
+            const nomeFirst  = (cli?.resumo?.nome||'Este cliente').split(' ')[0]
+            // Gatilho mais ignorado para este cliente
+            const maisIgnMap = (cli?.disparos||[]).reduce((acc,d)=>{
+              if (d.status==='ignorado') acc[d.gatilho]=(acc[d.gatilho]||0)+1
+              return acc
+            },{})
+            const gatMaisIgn = Object.entries(maisIgnMap).sort((a,b)=>b[1]-a[1])[0]?.[0]
             const insightTxt = todasIgn
-              ? `${total} disparo${total>1?'s':''} registrado${total>1?'s':''} — templates inativos. Caio nunca recebeu uma mensagem.`
+              ? `${nomeFirst} nunca recebeu uma mensagem — ${pedidos.length} pedido${pedidos.length>1?'s':''}, 0 notificações.`
               : erros > 0
-              ? `${erros} erro${erros>1?'s':''} de envio. Verifique conectividade da API WhatsApp.`
+              ? `${erros} erro${erros>1?'s':''} de envio para ${nomeFirst}. Verifique a API WhatsApp.`
               : score < 50
-              ? `Taxa de entrega baixa (${score}%). Revise os templates ativos.`
+              ? `Taxa de entrega baixa (${score}%) para ${nomeFirst}. Revise os templates ativos.`
               : null
+            // Para o render com code inline
+            const insightRich = todasIgn && gatMaisIgn ? {
+              nomeFirst,
+              pedidos: pedidos.length,
+              gatilho: gatMaisIgn,
+            } : null
 
             // ── Timeline filtrada e agrupada ──────────────────────────────
             const dispFilt = selPed==='todos'
@@ -978,34 +1121,42 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                     {/* ── INSIGHT INTELIGENTE ── */}
                     {insightTxt && (
                       <div style={{padding:'10px 14px',borderBottom:`1px solid ${T.sep}`}}>
-                        <div style={{borderRadius:10,padding:'10px 12px',
+                        <div style={{borderRadius:10,padding:'12px 14px',
                           background:T.amberDim,border:`1px solid ${T.amberBor}`,
-                          display:'flex',gap:10,alignItems:'flex-start'}}>
-                          <Activity size={15} style={{color:T.amber,flexShrink:0,marginTop:1}}/>
+                          display:'flex',gap:11,alignItems:'flex-start'}}>
+                          {/* Brain icon */}
+                          <div style={{width:30,height:30,borderRadius:9,flexShrink:0,
+                            background:'rgba(251,146,60,.15)',border:'1px solid rgba(251,146,60,.3)',
+                            display:'flex',alignItems:'center',justifyContent:'center',fontSize:15}}>
+                            🧠
+                          </div>
                           <div style={{flex:1}}>
-                            <div style={{fontSize:11.5,fontWeight:700,color:T.amber,marginBottom:4}}>
-                              Inteligência do disparo
+                            <div style={{fontSize:13,fontWeight:700,color:T.amber,marginBottom:6,lineHeight:1.3}}>
+                              {insightRich
+                                ? `${insightRich.nomeFirst} nunca recebeu uma mensagem`
+                                : 'Inteligência do disparo'}
                             </div>
-                            <div style={{fontSize:10.5,color:T.ink2,lineHeight:1.55,marginBottom:8}}>
-                              {insightTxt}
+                            <div style={{fontSize:12,color:T.ink2,lineHeight:1.65,marginBottom:10}}>
+                              {insightRich ? (
+                                <span>
+                                  {insightRich.pedidos} pedido{insightRich.pedidos>1?'s':''} entregues, 0 notificações. O template{' '}
+                                  <code style={{fontSize:11,padding:'1px 6px',borderRadius:4,
+                                    background:'rgba(255,255,255,.1)',color:T.ink1,fontFamily:'monospace'}}>
+                                    {insightRich.gatilho}
+                                  </code>
+                                  {' '}está inativo.
+                                </span>
+                              ) : insightTxt}
                             </div>
-                            <div style={{display:'flex',gap:6}}>
-                              <button onClick={()=>window.open(`https://whatsapp-sostrass.up.railway.app/admin/gatilhos`,'_blank')}
-                                style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',
-                                borderRadius:7,border:'none',cursor:'pointer',fontSize:10.5,fontWeight:600,
+                            <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
+                              <button onClick={async()=>{
+                                const alvo=(cli?.disparos||[]).filter(d=>d.status==='ignorado'||d.status==='erro')
+                                for(const d of alvo) await onReenviar?.(d.id)
+                              }} style={{display:'inline-flex',alignItems:'center',gap:6,padding:'7px 13px',
+                                borderRadius:8,border:'none',cursor:'pointer',fontSize:12,fontWeight:600,
                                 background:'linear-gradient(135deg,#5b21b6,#9333ea)',color:'#fff'}}>
-                                <Zap size={11}/>Ativar templates
+                                <Send size={11}/>Corrigir e reenviar tudo ↗
                               </button>
-                              {selPed!=='todos'&&(
-                                <button onClick={async()=>{
-                                  const alvo=dispFilt.filter(d=>d.status==='ignorado'||d.status==='erro')
-                                  for(const d of alvo) await onReenviar?.(d.id)
-                                }} style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',
-                                  borderRadius:7,border:`1px solid ${T.amberBor}`,cursor:'pointer',
-                                  fontSize:10.5,fontWeight:600,background:T.amberDim,color:T.amber}}>
-                                  <Send size={11}/>Reenviar todos
-                                </button>
-                              )}
                             </div>
                           </div>
                         </div>
@@ -1073,6 +1224,26 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                                   )
                                 })}
                               </div>
+                              {/* Status text do pedido */}
+                              {(() => {
+                                const dispP0 = (cli?.disparos||[]).filter(d=>String(d.numero_pedido)===String(p0))
+                                const lastEnv = dispP0.find(d=>d.status==='enviado')
+                                const hasIgn  = dispP0.some(d=>d.status==='ignorado')
+                                const lastGat = dispP0[0]?.gatilho
+                                const lastMeta= GATILHO_META[lastGat]
+                                if (!lastMeta) return null
+                                const statusTxt = lastEnv
+                                  ? `${lastMeta.label} · entregue`
+                                  : hasIgn
+                                  ? `${lastMeta.label} · aguardando notif.`
+                                  : null
+                                return statusTxt ? (
+                                  <div style={{fontSize:9.5,color:hasIgn&&!lastEnv?T.amber:T.green,
+                                    marginTop:6,fontWeight:500,textAlign:'center',lineHeight:1.3}}>
+                                    {statusTxt}
+                                  </div>
+                                ) : null
+                              })()}
                             </div>
                           )
                         })()}
@@ -1218,9 +1389,11 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                                       <CheckCircle size={10}/>ok
                                     </span>
                                   : <button onClick={()=>onReenviar?.(d.id)}
-                                      style={{padding:'2px 9px',borderRadius:6,flexShrink:0,
-                                        background:T.purpleDim,border:`1px solid ${T.purpleBor}`,
-                                        color:T.purple,fontSize:9.5,fontWeight:600,cursor:'pointer'}}>
+                                      style={{padding:'4px 0 4px 12px',flexShrink:0,
+                                        background:'transparent',border:'none',
+                                        color:T.ink1,fontSize:14,fontWeight:700,
+                                        cursor:'pointer',letterSpacing:'-.01em',
+                                        borderLeft:`2px solid ${T.sep2}`}}>
                                       Enviar
                                     </button>
                                 )}
@@ -2189,6 +2362,8 @@ export default function PageDisparos({api: apiProp}) {
           tipo={drawer.tipo}
           dados={drawer.dados}
           api={api}
+          stats={stats}
+          insights={insightsBE}
           onClose={()=>setDrawer(null)}
           onVerPedido={num=>{ window.open(`https://whatsapp-sostrass.up.railway.app/pedido/${num}`,'_blank') }}
           onReenviar={reenviar}
