@@ -9,9 +9,10 @@ import {
   TrendingUp, Users, XCircle, BarChart3, Activity, Filter,
   ShoppingBag, Truck, CreditCard, Bell, Star, FileText,
   Package, ArrowUpRight, ArrowDownRight, Minus, Search,
-  RotateCcw, ChevronLeft, ChevronRight, Eye, X, Navigation,
-  Hash, Timer, AlertTriangle, ShieldCheck, ToggleLeft,
-  ToggleRight, Download, Info, MessageSquare, ExternalLink,
+  RotateCcw, ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
+  Eye, X, Navigation, Hash, Timer, AlertTriangle, ShieldCheck,
+  ToggleLeft, ToggleRight, Download, Info, MessageSquare,
+  ExternalLink,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -79,12 +80,65 @@ const fmtD  = ts => ts ? new Date(ts).toLocaleDateString('pt-BR',{day:'2-digit',
 
 const TT = {contentStyle:{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:8,fontSize:11,color:'var(--label)'}}
 
-// ─── KPI CARD ─────────────────────────────────────────────────────────────────
-function KCard({icon:Ic, label, value, sub, cor='#7c6af7', trend, spark}) {
+// ─── SKELETON ─────────────────────────────────────────────────────────────────
+function Skeleton({w='100%', h=20, r=8}) {
   return (
-    <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,
-      padding:'16px 16px',display:'flex',flexDirection:'column',gap:10,
-      position:'relative',overflow:'hidden',
+    <div style={{width:w, height:h, borderRadius:r, overflow:'hidden',
+      background:`linear-gradient(90deg,${T.bg3} 25%,${T.bg4} 50%,${T.bg3} 75%)`,
+      backgroundSize:'200% 100%', animation:'shimmer 1.5s ease-in-out infinite'}}/>
+  )
+}
+
+// ─── SPARKLINE 7 DIAS ─────────────────────────────────────────────────────────
+function Spark7({data=[], cor='#a78bfa', h=28, w=72}) {
+  if (!data || data.length < 2) return null
+  const max = Math.max(...data, 1)
+  const pts = data.map((v,i) => `${(i/(data.length-1))*w},${h-2-(v/max)*(h-6)+2}`).join(' ')
+  const area = `0,${h} ${pts} ${w},${h}`
+  const gid = `sg${cor.replace(/[^a-z0-9]/gi,'')}`
+  const lastX = w, lastY = h-2-(data[data.length-1]/max)*(h-6)+2
+  return (
+    <svg width={w} height={h} style={{display:'block', flexShrink:0}}>
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={cor} stopOpacity=".35"/>
+          <stop offset="100%" stopColor={cor} stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      <polygon points={area} fill={`url(#${gid})`}/>
+      <polyline points={pts} fill="none" stroke={cor} strokeWidth="1.5"
+        strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx={lastX} cy={lastY} r="2.5" fill={cor}/>
+    </svg>
+  )
+}
+
+// ─── KCARD ATUALIZADO com countUp + sparkline ─────────────────────────────────
+function KCard({icon:Ic, label, value, sub, cor='#7c6af7', trend, spark}) {
+  const numVal = (typeof value === 'number') ? value : (parseInt(String(value||''))||0)
+  const [disp, setDisp] = useState(0)
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    if (value === undefined || value === null) { setDisp(0); return }
+    if (!numVal && numVal !== 0) { setReady(true); return }
+    const t0 = Date.now(), dur = 700
+    const tick = () => {
+      const prog = Math.min((Date.now()-t0)/dur, 1)
+      const ease = 1 - Math.pow(1-prog, 3)
+      setDisp(Math.round(ease * numVal))
+      if (prog < 1) requestAnimationFrame(tick)
+      else setReady(true)
+    }
+    requestAnimationFrame(tick)
+  }, [numVal]) // eslint-disable-line
+
+  const displayVal = (typeof value === 'number' || (!isNaN(parseInt(String(value||''))) && value !== null && value !== ''))
+    ? disp : (value ?? '—')
+
+  return (
+    <div style={{background:'var(--bg-2)', border:'1px solid var(--sep)', borderRadius:14,
+      padding:'16px 16px', display:'flex', flexDirection:'column', gap:10,
+      position:'relative', overflow:'hidden',
       boxShadow:'0 4px 24px rgba(0,0,0,.18), 0 1px 0 rgba(255,255,255,.04) inset'}}>
       <div style={{position:'absolute',top:0,right:0,width:80,height:80,
         background:`radial-gradient(circle at 100% 0%,${cor}22 0%,transparent 70%)`,pointerEvents:'none'}}/>
@@ -93,7 +147,7 @@ function KCard({icon:Ic, label, value, sub, cor='#7c6af7', trend, spark}) {
           border:`1px solid ${cor}30`,display:'flex',alignItems:'center',justifyContent:'center'}}>
           <Ic size={16} style={{color:cor}}/>
         </div>
-        {trend!==undefined && (
+        {trend !== undefined && (
           <div style={{display:'flex',alignItems:'center',gap:3,fontSize:11,fontWeight:600,
             color:trend>0?'#22c55e':trend<0?'#ef4444':'var(--label-4)'}}>
             {trend>0?<ArrowUpRight size={11}/>:trend<0?<ArrowDownRight size={11}/>:<Minus size={11}/>}
@@ -101,14 +155,230 @@ function KCard({icon:Ic, label, value, sub, cor='#7c6af7', trend, spark}) {
           </div>
         )}
       </div>
-      <div>
-        <div style={{fontSize:26,fontWeight:700,color:'var(--label)',lineHeight:1.1,letterSpacing:'-.025em'}}>{value??'—'}</div>
+      <div style={{flex:1}}>
+        <div style={{fontSize:26,fontWeight:700,color:'var(--label)',lineHeight:1.1,letterSpacing:'-.025em'}}>
+          {displayVal}
+        </div>
         <div style={{fontSize:11,color:'var(--label-4)',marginTop:3}}>{label}</div>
-        {sub && <div style={{fontSize:10,color:'var(--label-4)',marginTop:2}}>{sub}</div>}
+        {sub&&<div style={{fontSize:10,color:'var(--label-4)',marginTop:2}}>{sub}</div>}
+      </div>
+      {spark && spark.length > 1 && (
+        <div style={{marginTop:'auto', paddingTop:4}}>
+          <Spark7 data={spark} cor={cor} h={28} w={80}/>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── INSIGHT CARD multi-nível ─────────────────────────────────────────────────
+function InsightCard({ins, onDismiss}) {
+  const [detail, setDetail] = useState(false)
+  const cfg = {
+    critico:     {cor:T.red,   dim:T.redDim,   bor:T.redBor,   icon:AlertTriangle, lbl:'CRÍTICO'},
+    aviso:       {cor:T.amber, dim:T.amberDim, bor:T.amberBor, icon:Clock,         lbl:'ATENÇÃO'},
+    oportunidade:{cor:T.blue,  dim:T.blueDim,  bor:T.blueBor,  icon:Star,          lbl:'OPORTUNIDADE'},
+    positivo:    {cor:T.green, dim:T.greenDim, bor:T.greenBor, icon:TrendingUp,    lbl:'POSITIVO'},
+  }[ins.tipo] || {cor:T.ink3, dim:T.gray, bor:T.grayBor, icon:Info, lbl:'INFO'}
+  const Ic = cfg.icon
+  return (
+    <div style={{borderRadius:11,padding:'12px 14px',background:cfg.dim,
+      border:`1px solid ${cfg.bor}`,animation:'fadeIn .3s ease'}}>
+      <div style={{display:'flex',alignItems:'flex-start',gap:10}}>
+        <div style={{width:32,height:32,borderRadius:9,background:`${cfg.cor}18`,
+          border:`1px solid ${cfg.bor}`,display:'flex',alignItems:'center',
+          justifyContent:'center',flexShrink:0,marginTop:1}}>
+          <Ic size={15} style={{color:cfg.cor}}/>
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:5,flexWrap:'wrap'}}>
+            <span style={{fontSize:9,padding:'1px 7px',borderRadius:99,
+              background:`${cfg.cor}20`,color:cfg.cor,fontWeight:700,letterSpacing:'.04em'}}>
+              {cfg.lbl}
+            </span>
+            {ins.clientes>0&&(
+              <span style={{fontSize:10,color:T.ink3,display:'flex',alignItems:'center',gap:3}}>
+                <Users size={9}/>{ins.clientes} clientes
+              </span>
+            )}
+            {ins.total>0&&!ins.clientes&&(
+              <span style={{fontSize:10,color:T.ink4}}>{ins.total} disparos</span>
+            )}
+          </div>
+          <div style={{fontSize:12.5,fontWeight:600,color:T.ink1,marginBottom:5,lineHeight:1.4}}>
+            {ins.titulo}
+          </div>
+          {detail&&(
+            <div style={{fontSize:11,color:T.ink2,lineHeight:1.6,marginBottom:8,
+              animation:'fadeIn .2s ease'}}>
+              {ins.desc}
+            </div>
+          )}
+          <div style={{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap',marginTop:7}}>
+            {ins.acao&&(
+              <button style={{display:'inline-flex',alignItems:'center',gap:5,
+                padding:'5px 11px',borderRadius:7,border:'none',cursor:'pointer',
+                fontSize:11,fontWeight:600,
+                background:'linear-gradient(135deg,#5b21b6,#9333ea)',color:'#fff'}}>
+                <Zap size={10}/>Resolver agora
+              </button>
+            )}
+            <button onClick={()=>setDetail(v=>!v)} style={{display:'inline-flex',
+              alignItems:'center',gap:4,padding:'5px 10px',borderRadius:7,cursor:'pointer',
+              fontSize:10.5,background:'transparent',border:`1px solid ${cfg.bor}`,
+              color:cfg.cor,fontWeight:500}}>
+              {detail?<ChevronUp size={10}/>:<ChevronDown size={10}/>}
+              {detail?'Menos':'Detalhes'}
+            </button>
+            <button onClick={onDismiss} style={{marginLeft:'auto',display:'inline-flex',
+              alignItems:'center',gap:4,padding:'5px 10px',borderRadius:7,cursor:'pointer',
+              fontSize:10.5,background:'transparent',border:`1px solid ${T.sep}`,
+              color:T.ink3,fontWeight:500}}>
+              <CheckCircle size={10}/>Entendi
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
 }
+
+// ─── COMMAND PALETTE ──────────────────────────────────────────────────────────
+function CmdPalette({open, onClose, log=[], onOpenDisparo, onOpenCliente,
+  onReload, onExport, onFiltrarErros}) {
+  const [q, setQ] = useState('')
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (open) { setQ(''); setTimeout(()=>inputRef.current?.focus(),50) }
+  }, [open])
+
+  const results = useMemo(() => {
+    if (!q.trim()) return []
+    const term = q.toLowerCase()
+    const seen = new Set()
+    return log.filter(r => {
+      const key = r.telefone
+      if (seen.has(key)) return false
+      seen.add(key)
+      return (r.nome_cliente||'').toLowerCase().includes(term)
+        || (r.telefone||'').includes(term)
+        || (r.numero_pedido||'').includes(term)
+    }).slice(0,7)
+  }, [q, log])
+
+  const acoes = [
+    {icon:RefreshCw, label:'Recarregar dados', kbd:'R', fn:()=>{onReload?.();onClose()}},
+    {icon:Download,  label:'Exportar CSV',     kbd:'E', fn:()=>{onExport?.();onClose()}},
+    {icon:Filter,    label:'Filtrar só erros', kbd:'', fn:()=>{onFiltrarErros?.();onClose()}},
+  ]
+
+  if (!open) return null
+  return (
+    <>
+      <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:200,
+        background:'rgba(0,0,0,.65)',
+        backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)'}}/>
+      <div style={{position:'fixed',top:'18%',left:'50%',transform:'translateX(-50%)',
+        width:'min(560px,94vw)',zIndex:201,
+        background:'rgba(13,16,23,0.94)',
+        backdropFilter:'blur(24px)', WebkitBackdropFilter:'blur(24px)',
+        border:`1px solid ${T.sep2}`,borderRadius:16,
+        boxShadow:'0 40px 100px rgba(0,0,0,.85), 0 0 0 1px rgba(255,255,255,.05) inset',
+        animation:'slideup .2s ease'}}>
+
+        {/* Busca */}
+        <div style={{padding:'12px 14px',borderBottom:`1px solid ${T.sep}`,
+          display:'flex',alignItems:'center',gap:10}}>
+          <Search size={16} style={{color:T.ink3,flexShrink:0}}/>
+          <input ref={inputRef} value={q} onChange={e=>setQ(e.target.value)}
+            placeholder="Buscar cliente, pedido, número..."
+            onKeyDown={e=>{
+              if(e.key==='Escape') onClose()
+              if(e.key==='Enter' && results.length) { onOpenDisparo?.(results[0]); onClose() }
+            }}
+            style={{flex:1,border:'none',background:'transparent',color:T.ink1,
+              fontSize:15,outline:'none',fontFamily:'inherit'}}/>
+          <kbd style={{fontSize:10,padding:'2px 6px',borderRadius:5,flexShrink:0,
+            background:T.bg4,color:T.ink3,border:`1px solid ${T.sep2}`}}>Esc</kbd>
+        </div>
+
+        {/* Resultados */}
+        <div style={{maxHeight:340,overflowY:'auto'}}>
+          {!q && (
+            <div style={{padding:'8px 10px'}}>
+              <div style={{fontSize:9,color:T.ink4,textTransform:'uppercase',
+                letterSpacing:'.07em',padding:'4px 4px 8px'}}>Ações rápidas</div>
+              {acoes.map((a,i)=>(
+                <div key={i} onClick={a.fn}
+                  style={{display:'flex',alignItems:'center',gap:10,padding:'9px 10px',
+                    borderRadius:8,cursor:'pointer',transition:'background .1s'}}
+                  onMouseEnter={e=>e.currentTarget.style.background=T.bg3}
+                  onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                  <div style={{width:28,height:28,borderRadius:8,background:T.bg3,
+                    display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    <a.icon size={13} style={{color:T.ink3}}/>
+                  </div>
+                  <span style={{flex:1,fontSize:13,color:T.ink2}}>{a.label}</span>
+                  {a.kbd&&<kbd style={{fontSize:10,padding:'1px 6px',borderRadius:4,
+                    background:T.bg4,color:T.ink3,border:`1px solid ${T.sep2}`}}>{a.kbd}</kbd>}
+                </div>
+              ))}
+            </div>
+          )}
+          {q && results.length===0&&(
+            <div style={{padding:'32px 0',textAlign:'center',color:T.ink3,fontSize:13}}>
+              Nenhum resultado para "{q}"
+            </div>
+          )}
+          {results.map((r,i)=>{
+            const meta = GATILHO_META[r.gatilho]||{label:r.gatilho,icon:Zap,cor:'#6b7294'}
+            const Ic2 = meta.icon
+            return (
+              <div key={i} onClick={()=>{onOpenDisparo?.(r);onClose()}}
+                style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',
+                  cursor:'pointer',borderTop:`1px solid ${T.sep}`,transition:'background .1s'}}
+                onMouseEnter={e=>e.currentTarget.style.background=T.bg3}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                <div style={{width:34,height:34,borderRadius:9,background:`${meta.cor}18`,
+                  border:`0.5px solid ${meta.cor}28`,display:'flex',alignItems:'center',
+                  justifyContent:'center',flexShrink:0}}>
+                  <Ic2 size={15} style={{color:meta.cor}}/>
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,color:T.ink1,fontWeight:500,
+                    overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                    {r.nome_cliente||'—'}
+                  </div>
+                  <div style={{fontSize:11,color:T.ink3,display:'flex',gap:8,marginTop:2}}>
+                    <span>{meta.label}</span>
+                    {r.numero_pedido&&<span>· #{r.numero_pedido}</span>}
+                    <span style={{marginLeft:'auto',color:T.ink4}}>{tempoRel(r.criado_em)}</span>
+                  </div>
+                </div>
+                <ChevronRight size={14} style={{color:T.ink4,flexShrink:0}}/>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Footer */}
+        <div style={{padding:'8px 14px',borderTop:`1px solid ${T.sep}`,
+          display:'flex',gap:10,alignItems:'center'}}>
+          <kbd style={{fontSize:10,padding:'1px 6px',borderRadius:4,
+            background:T.bg4,color:T.ink4,border:`1px solid ${T.sep2}`}}>↑↓</kbd>
+          <span style={{fontSize:10,color:T.ink4}}>navegar</span>
+          <kbd style={{fontSize:10,padding:'1px 6px',borderRadius:4,
+            background:T.bg4,color:T.ink4,border:`1px solid ${T.sep2}`}}>↵</kbd>
+          <span style={{fontSize:10,color:T.ink4}}>abrir</span>
+          <span style={{marginLeft:'auto',fontSize:10,color:T.ink4}}>⌘K para fechar</span>
+        </div>
+      </div>
+    </>
+  )
+}
+
+
 
 // ─── DRAWER LATERAL: detalhe do disparo OU perfil do cliente ──────────────────
 // ─── DRAWER ENTERPRISE ────────────────────────────────────────────────────────
@@ -217,22 +487,26 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
   const [cli, setCli]             = useState(null)
   const [loadCli, setLoad]        = useState(false)
   const [reenviados, setReenviados] = useState([])
-  // Estados do detalhe do disparo (precisam estar no topo, fora de qualquer IIFE)
   const [jaReenv,    setJaR]      = useState(false)
   const [enviandoR,  setEnvR]     = useState(false)
-  // Seletor de pedido para clientes recorrentes
   const [selPed,     setSelPed]   = useState('todos')
-  // Envio manual
   const [gatManual, setGatManual] = useState('')
   const [pedManual, setPedManual] = useState(dados?.numero_pedido||'')
   const [enviandoMan, setEnvMan]  = useState(false)
   const [envManOk, setEnvManOk]   = useState(false)
+  // Journey map: disparos do pedido para mostrar sequência no Modal 1
+  const [ordemDisp, setOrdemDisp] = useState([])
 
   useEffect(() => {
     if (tipo==='cliente' && dados?.telefone) {
       setLoad(true); setCli(null)
       fetch(`${api}/api/dashboard/disparos-cliente/${encodeURIComponent(dados.telefone)}`)
         .then(r=>r.json()).then(d=>{ setCli(d); setLoad(false) }).catch(()=>setLoad(false))
+    }
+    if (tipo==='disparo' && dados?.numero_pedido) {
+      setOrdemDisp([])
+      fetch(`${api}/api/dashboard/disparos-pedido/${dados.numero_pedido}`)
+        .then(r=>r.json()).then(d=>setOrdemDisp(d.disparos||[])).catch(()=>{})
     }
     if (dados?.numero_pedido) setPedManual(dados.numero_pedido)
   }, [tipo, dados, api])
@@ -257,7 +531,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
   return (
     <>
       <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:60,
-        backdropFilter:'blur(2px)',animation:'fadeIn .2s ease'}}/>
+        backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',animation:'fadeIn .2s ease'}}/>
       <div style={{position:'fixed',top:0,right:0,bottom:0,width:'min(480px,94vw)',zIndex:61,
         display:'flex',flexDirection:'column',animation:'slideIn .3s cubic-bezier(.2,.8,.2,1)',
         background:'var(--bg-2)',borderLeft:'0.5px solid var(--sep)',
@@ -307,109 +581,265 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
         <div style={{flex:1,minHeight:0,overflowY:'auto',padding:'16px 20px'}}>
 
           {/* ── DETALHE DO DISPARO ── */}
-          {tipo==='disparo' && dados && (()=>{
-            // Não usar hooks aqui — jaReenv/enviandoR estão no topo do componente
-            const Ic=meta.icon||Zap, SIc=smeta.icon
-            const falhou  = dados.status==='erro'
-            const ignorado= dados.status==='ignorado'
-            const doR = async() => { setEnvR(true); try{ await onReenviar?.(dados.id); setJaR(true) }catch{}; setEnvR(false) }
+          {tipo==='disparo' && dados && (() => {
+            const Ic   = meta?.icon || Zap
+            const SIc  = smeta?.icon || Minus
+            const isIgn = dados.status === 'ignorado'
+            const isErr = dados.status === 'erro'
+            const isOk  = dados.status === 'enviado'
+            const isAg  = dados.status === 'aguardando'
+
+            // Intelligence contextual
+            const intel = isIgn
+              ? { sev:'critico', msg: dados.erro_msg==='Gatilho inativo'
+                  ? `O template "${dados.gatilho}" está inativo. Nenhuma mensagem foi enviada para este cliente.`
+                  : (dados.erro_msg||'Disparo registrado mas não enviado.'),
+                  acao:'Ativar em Gatilhos' }
+              : isErr
+              ? { sev:'erro', msg:`Falha no envio: ${dados.erro_msg||'Erro na API WhatsApp.'}`, acao:'Ver logs técnicos' }
+              : isAg
+              ? { sev:'aviso', msg:`Agendado para ${dados.delay_min}min após o evento. Aguardando execução.`, acao:null }
+              : isOk
+              ? { sev:'ok', msg:'Mensagem enviada e entregue com sucesso.', acao:null }
+              : null
+
+            const intelCfg = {
+              critico: {cor:T.red,   dim:T.redDim,   bor:T.redBor,   Icon:AlertTriangle, titulo:'Ação necessária'},
+              erro:    {cor:T.red,   dim:T.redDim,   bor:T.redBor,   Icon:XCircle,       titulo:'Erro de envio'},
+              aviso:   {cor:T.amber, dim:T.amberDim, bor:T.amberBor, Icon:Clock,         titulo:'Aguardando'},
+              ok:      {cor:T.green, dim:T.greenDim, bor:T.greenBor, Icon:CheckCircle,   titulo:'Entregue'},
+            }[intel?.sev] || {cor:T.ink3, dim:T.gray, bor:T.grayBor, Icon:Info, titulo:'Informação'}
+
+            // Journey stages
+            const JOURNEY = [
+              {id:'pedido_criado',      lbl:'Criado',   short:'Criado'},
+              {id:'pagamento_aprovado', lbl:'Pago',     short:'Pago'},
+              {id:'em_separacao',       lbl:'Sep.',     short:'Sep.'},
+              {id:'pedido_enviado',     lbl:'Enviado',  short:'Env.'},
+              {id:'pedido_entregue',    lbl:'Entregue', short:'Entregue'},
+            ]
+            const stSt   = sid => (ordemDisp||[]).find(x=>x.gatilho===sid)?.status || 'pendente'
+            const stCor  = s => s==='enviado'?T.green:s==='ignorado'?T.amber:s==='erro'?T.red:null
+            const stBor  = s => s==='enviado'?T.greenBor:s==='ignorado'?T.amberBor:s==='erro'?T.redBor:'rgba(255,255,255,.1)'
+            const stDim  = s => s==='enviado'?T.greenDim:s==='ignorado'?T.amberDim:s==='erro'?T.redDim:'rgba(255,255,255,.04)'
+            const curIdx = JOURNEY.findIndex(s=>s.id===dados.gatilho)
+
+            const doR = async () => {
+              setEnvR(true)
+              try { await onReenviar?.(dados.id); setJaR(true) } catch {}
+              setEnvR(false)
+            }
+
             return (
-              <div style={{display:'flex',flexDirection:'column',gap:14}}>
-                {/* hero do disparo */}
-                <div style={{padding:'16px',borderRadius:14,background:'var(--bg-3)',
-                  border:'0.5px solid var(--sep)',display:'flex',gap:14,alignItems:'flex-start'}}>
-                  <div style={{width:52,height:52,borderRadius:14,flexShrink:0,
-                    background:`linear-gradient(135deg,${meta.cor}30,${meta.cor}10)`,
-                    border:`1.5px solid ${meta.cor}40`,
-                    display:'flex',alignItems:'center',justifyContent:'center'}}>
-                    <Ic size={24} style={{color:meta.cor}}/>
+              <div style={{display:'flex',flexDirection:'column',animation:'fadeIn .25s ease'}}>
+
+                {/* ── Header gradiente pela cor do gatilho ── */}
+                <div style={{padding:'16px',
+                  background:`linear-gradient(135deg,${meta?.cor}18 0%,${T.bg3} 65%)`,
+                  borderBottom:`1px solid ${meta?.cor}20`,
+                  display:'flex',alignItems:'flex-start',gap:12}}>
+                  <div style={{width:44,height:44,borderRadius:12,background:`${meta?.cor}18`,
+                    border:`1.5px solid ${meta?.cor}35`,flexShrink:0,
+                    display:'flex',alignItems:'center',justifyContent:'center',
+                    boxShadow:`0 4px 20px ${meta?.cor}20`}}>
+                    <Ic size={22} style={{color:meta?.cor}}/>
                   </div>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:16,fontWeight:700,color:'var(--label)',marginBottom:6}}>{meta.label}</div>
-                    <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                      <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'3px 10px',
-                        borderRadius:99,background:smeta.bg,border:`0.5px solid ${smeta.cor}30`}}>
-                        {React.createElement(SIc,{size:9,style:{color:smeta.cor}})}
-                        <span style={{fontSize:10,fontWeight:700,color:smeta.cor}}>{smeta.label}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:15,fontWeight:700,color:T.ink1,
+                      letterSpacing:'-.02em',marginBottom:6}}>{meta?.label}</div>
+                    <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
+                      <span style={{fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:700,
+                        background:smeta?.bg,color:smeta?.cor,
+                        border:`0.5px solid ${smeta?.cor}30`,letterSpacing:'.03em'}}>
+                        {smeta?.label}
                       </span>
-                      {dados.origem==='rastreio_job'&&<span style={{display:'inline-flex',alignItems:'center',gap:3,padding:'3px 10px',
-                        borderRadius:99,background:'rgba(6,182,212,.1)',border:'0.5px solid rgba(6,182,212,.2)'}}>
-                        <span style={{fontSize:10,fontWeight:600,color:'#06b6d4'}}>job automático</span>
+                      {dados.origem&&<span style={{fontSize:10,padding:'2px 7px',borderRadius:99,
+                        background:T.bg4,color:T.ink3,border:`0.5px solid ${T.sep2}`}}>
+                        {dados.origem==='rastreio_job'||dados.origem==='job'?'job auto':dados.origem}
                       </span>}
+                      {dados.numero_pedido&&<span style={{fontSize:10,padding:'2px 8px',borderRadius:99,
+                        background:T.purpleDim,color:T.purple,
+                        border:`0.5px solid ${T.purpleBor}`,fontWeight:600}}>
+                        #{dados.numero_pedido}
+                      </span>}
+                      <span style={{fontSize:10,color:T.ink4,marginLeft:'auto'}}>
+                        {tempoRel(dados.criado_em)||fmtDH(dados.criado_em)}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* erro destacado */}
-                {dados.erro_msg && (
-                  <div style={{padding:'12px 14px',borderRadius:10,
-                    background:'rgba(239,68,68,.06)',border:'0.5px solid rgba(239,68,68,.3)',
-                    display:'flex',gap:10,alignItems:'flex-start'}}>
-                    <AlertCircle size={15} style={{color:'#ef4444',flexShrink:0,marginTop:1}}/>
-                    <div>
-                      <div style={{fontSize:11,fontWeight:700,color:'#ef4444',marginBottom:3}}>Erro no disparo</div>
-                      <div style={{fontSize:11.5,color:'#ef4444',lineHeight:1.5,opacity:.85}}>{dados.erro_msg}</div>
-                    </div>
-                  </div>
-                )}
+                <div style={{flex:1,overflowY:'auto'}}>
+                  <div style={{padding:'12px 14px',display:'flex',flexDirection:'column',gap:10}}>
 
-                {/* campos agrupados */}
-                <div style={{borderRadius:12,overflow:'hidden',border:'0.5px solid var(--sep)'}}>
-                  {[
-                    ['👤 Cliente',   dados.nome_cliente||'—'],
-                    ['📱 Telefone',  fmtTel(dados.telefone)],
-                    ['🛒 Pedido',    dados.numero_pedido?`#${dados.numero_pedido}`:'—'],
-                    ['📋 Template',  dados.template_nome||dados.gatilho],
-                    ['⚡ Gatilho',   dados.gatilho],
-                    ['🕐 Data',      new Date(dados.criado_em).toLocaleString('pt-BR')],
-                    ['⏱ Delay',     dados.delay_min>0?`${dados.delay_min} min`:'Imediato'],
-                    ['🔑 ID',        `#${dados.id}`],
-                  ].map(([k,v],i,arr)=>(
-                    <div key={k} style={{display:'flex',justifyContent:'space-between',gap:16,
-                      padding:'10px 14px',alignItems:'center',
-                      borderBottom:i<arr.length-1?'0.5px solid var(--sep)':'none',
-                      background:i%2===0?'transparent':'var(--fill)'}}>
-                      <span style={{fontSize:11,color:'var(--label-4)',flexShrink:0}}>{k}</span>
-                      <span style={{fontSize:11.5,color:'var(--label)',fontWeight:500,textAlign:'right',
-                        wordBreak:'break-all',maxWidth:'60%'}}>{v}</span>
+                    {/* ── Intelligence card ── */}
+                    {intel && (() => {
+                      const {cor,dim,bor,Icon,titulo} = intelCfg
+                      return (
+                        <div style={{borderRadius:10,padding:'11px 13px',
+                          background:dim,border:`1px solid ${bor}`,
+                          display:'flex',gap:10,alignItems:'flex-start'}}>
+                          <Icon size={16} style={{color:cor,flexShrink:0,marginTop:1}}/>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:11.5,fontWeight:700,color:cor,marginBottom:4}}>
+                              {titulo}
+                            </div>
+                            <div style={{fontSize:11,color:T.ink2,lineHeight:1.55,marginBottom:intel.acao?8:0}}>
+                              {intel.msg}
+                            </div>
+                            {intel.acao&&(
+                              <button style={{display:'inline-flex',alignItems:'center',gap:5,
+                                padding:'4px 11px',borderRadius:6,border:'none',cursor:'pointer',
+                                fontSize:11,fontWeight:600,
+                                background:'linear-gradient(135deg,#5b21b6,#9333ea)',color:'#fff'}}>
+                                <Zap size={10}/>{intel.acao}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })()}
+
+                    {/* ── Journey mini-map animado ── */}
+                    <div style={{padding:'11px 13px',borderRadius:10,
+                      background:T.bg3,border:`1px solid ${T.sep}`}}>
+                      <div style={{fontSize:9,color:T.ink3,textTransform:'uppercase',
+                        letterSpacing:'.07em',marginBottom:10,
+                        display:'flex',alignItems:'center',gap:5}}>
+                        <Navigation size={10}/>
+                        Jornada {dados.numero_pedido?`· pedido #${dados.numero_pedido}`:''}
+                        {!(ordemDisp||[]).length&&<span style={{color:T.ink4,fontWeight:400}}> · carregando...</span>}
+                      </div>
+                      <div style={{display:'flex',alignItems:'flex-start'}}>
+                        {JOURNEY.map((st,si)=>{
+                          const s    = stSt(st.id)
+                          const isCur= st.id === dados.gatilho
+                          const cor2 = stCor(s) || (isCur ? T.amber : null)
+                          const DotIc= s==='enviado'?CheckCircle:s==='erro'?XCircle:isCur?Navigation:null
+                          const lineColor = si < curIdx
+                            ? `linear-gradient(90deg,${T.green}60,${T.green}40)`
+                            : 'rgba(255,255,255,.06)'
+                          return (
+                            <React.Fragment key={st.id}>
+                              <div style={{display:'flex',flexDirection:'column',
+                                alignItems:'center',gap:3,flex:1}}>
+                                <div style={{width:22,height:22,borderRadius:'50%',
+                                  background:stDim(s)||(isCur?T.amberDim:'rgba(255,255,255,.04)'),
+                                  border:`2px solid ${stBor(s)||(isCur?T.amberBor:'rgba(255,255,255,.1)')}`,
+                                  display:'flex',alignItems:'center',justifyContent:'center',
+                                  animation:isCur&&!isOk?'pulse 2s ease-in-out infinite':undefined}}>
+                                  {DotIc&&<DotIc size={9} style={{color:cor2||T.ink4}}/>}
+                                </div>
+                                <span style={{fontSize:7.5,textAlign:'center',lineHeight:1.3,
+                                  color:isCur?cor2||T.amber:cor2?cor2:T.ink4,
+                                  fontWeight:isCur?700:400}}>
+                                  {st.lbl}
+                                </span>
+                              </div>
+                              {si < JOURNEY.length-1 && (
+                                <div style={{height:1,flex:1,
+                                  background:lineColor,
+                                  marginTop:10,flexShrink:0}}/>
+                              )}
+                            </React.Fragment>
+                          )
+                        })}
+                      </div>
                     </div>
-                  ))}
+
+                    {/* ── Fields 2×2 compact grid ── */}
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:1,
+                      borderRadius:10,overflow:'hidden',border:`1px solid ${T.sep}`}}>
+                      <div style={{padding:'9px 12px',background:T.bg2,
+                        display:'flex',flexDirection:'column',gap:2}}>
+                        <span style={{fontSize:9,color:T.ink3,textTransform:'uppercase',letterSpacing:'.05em'}}>Cliente</span>
+                        <span style={{fontSize:12,color:T.ink1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{dados.nome_cliente||'—'}</span>
+                      </div>
+                      <div style={{padding:'9px 12px',background:T.bg2,
+                        display:'flex',flexDirection:'column',gap:2}}>
+                        <span style={{fontSize:9,color:T.ink3,textTransform:'uppercase',letterSpacing:'.05em'}}>Telefone</span>
+                        <span style={{fontSize:12,color:T.ink1,fontFamily:'monospace'}}>{fmtTel(dados.telefone||'')}</span>
+                      </div>
+                      <div style={{padding:'9px 12px',background:T.bg0,
+                        display:'flex',flexDirection:'column',gap:2}}>
+                        <span style={{fontSize:9,color:T.ink3,textTransform:'uppercase',letterSpacing:'.05em'}}>Data · Delay</span>
+                        <span style={{fontSize:12,color:T.ink1}}>{fmtDH(dados.criado_em)} · {dados.delay_min>0?`+${dados.delay_min}min`:'imediato'}</span>
+                      </div>
+                      <div style={{padding:'9px 12px',background:T.bg0,
+                        display:'flex',flexDirection:'column',gap:2}}>
+                        <span style={{fontSize:9,color:T.ink3,textTransform:'uppercase',letterSpacing:'.05em'}}>ID</span>
+                        <span style={{fontSize:12,color:T.purple,fontFamily:'monospace'}}>#{dados.id||'—'}</span>
+                      </div>
+                    </div>
+
+                    {/* ── Diagnóstico técnico colapsável ── */}
+                    <details style={{borderRadius:9,overflow:'hidden',border:`1px solid ${T.sep}`}}>
+                      <summary style={{padding:'9px 12px',background:T.bg3,cursor:'pointer',
+                        fontSize:10,color:T.ink3,textTransform:'uppercase',letterSpacing:'.06em',
+                        display:'flex',alignItems:'center',gap:6,userSelect:'none',listStyle:'none'}}>
+                        <Hash size={11}/>Diagnóstico técnico
+                        <ChevronDown size={10} style={{marginLeft:'auto'}}/>
+                      </summary>
+                      <div style={{background:T.bg2}}>
+                        {[
+                          {l:'Template',  v:dados.template_nome||dados.gatilho, ok:true},
+                          {l:'Gatilho',   v:dados.gatilho,                      ok:true},
+                          {l:'Origem',    v:dados.origem||'bling',              ok:true},
+                          {l:'Status',    v:dados.status,                       ok:dados.status==='enviado'},
+                          {l:'Erro',      v:dados.erro_msg||'—',               ok:!dados.erro_msg},
+                          {l:'Delay',     v:dados.delay_min>0?`${dados.delay_min}min`:'imediato', ok:true},
+                        ].map((f,i)=>(
+                          <div key={i} style={{display:'flex',alignItems:'center',gap:10,
+                            padding:'7px 12px',borderTop:`1px solid ${T.sep}`}}>
+                            <div style={{width:6,height:6,borderRadius:'50%',flexShrink:0,
+                              background:f.ok?T.green:T.red}}/>
+                            <span style={{fontSize:10.5,color:T.ink3,width:72,flexShrink:0}}>{f.l}</span>
+                            <span style={{fontSize:10.5,color:T.ink2,fontFamily:'monospace',
+                              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+
+                  </div>
                 </div>
 
-                {/* ações */}
-                <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                  {(falhou||ignorado) && (
-                    <button disabled={jaReenv||enviandoR} onClick={doR} style={{
-                      display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'11px',borderRadius:11,
-                      border:`0.5px solid ${jaReenv?'#22c55e':'#a78bfa'}`,
-                      background:jaReenv?'rgba(34,197,94,.1)':'rgba(167,139,250,.1)',
-                      color:jaReenv?'#22c55e':'#a78bfa',cursor:jaReenv?'default':'pointer',
-                      fontSize:12.5,fontWeight:600}}>
-                      {enviandoR?<><RefreshCw size={12} style={{animation:'spin .7s linear infinite'}}/>Reenviando...</>
-                       :jaReenv?<><CheckCircle size={12}/>Reenviado com sucesso</>
-                       :<><RotateCcw size={12}/>{falhou?'Reenviar disparo':'Enviar agora'}</>}
-                    </button>
-                  )}
-                  {dados.numero_pedido && (
-                    <button onClick={()=>onVerPedido?.(dados.numero_pedido)} style={{
-                      display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'11px',borderRadius:11,
-                      border:'0.5px solid var(--sep)',background:'var(--fill)',
-                      color:'var(--label-3)',cursor:'pointer',fontSize:12,fontWeight:500}}>
-                      <Package size={13}/>Ver pedido #{dados.numero_pedido}
-                    </button>
-                  )}
-                  {dados.telefone && (
-                    <button onClick={()=>onFiltrarGatilho?.('__cliente__', dados.telefone)} style={{
-                      display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'11px',borderRadius:11,
-                      border:'0.5px solid rgba(124,106,247,.3)',background:'rgba(124,106,247,.07)',
-                      color:'#a78bfa',cursor:'pointer',fontSize:12,fontWeight:500}}>
-                      <Users size={13}/>Ver perfil completo deste cliente
-                    </button>
-                  )}
+                {/* ── Actions footer ── */}
+                <div style={{flexShrink:0,padding:'10px 14px',borderTop:`1px solid ${T.sep}`,
+                  background:T.bg2,display:'flex',flexDirection:'column',gap:7}}>
+                  <button disabled={jaReenv||enviandoR} onClick={doR} style={{padding:'11px',borderRadius:10,
+                    border:'none',fontSize:13,fontWeight:600,cursor:jaReenv?'default':'pointer',
+                    background:jaReenv?T.greenDim:'linear-gradient(135deg,#5b21b6,#9333ea)',
+                    color:jaReenv?T.green:'#fff',
+                    display:'flex',alignItems:'center',justifyContent:'center',gap:7}}>
+                    {enviandoR?<><RefreshCw size={13} style={{animation:'spin .7s linear infinite'}}/>Enviando...</>
+                     :jaReenv?<><CheckCircle size={13}/>Enviado!</>
+                     :<><Send size={13}/>Enviar agora</>}
+                  </button>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:7}}>
+                    {dados.numero_pedido&&(
+                      <button onClick={()=>window.open(`https://whatsapp-sostrass.up.railway.app/pedido/${dados.numero_pedido}`,'_blank')}
+                        style={{padding:'9px',borderRadius:9,border:`1px solid ${T.sep2}`,
+                        background:T.bg3,color:T.ink2,cursor:'pointer',fontSize:11.5,
+                        display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                        <Package size={12}/>Ver pedido
+                      </button>
+                    )}
+                    {dados.telefone&&(
+                      <button onClick={()=>onFiltrarGatilho?.('__cliente__',dados.telefone)}
+                        style={{padding:'9px',borderRadius:9,
+                        border:`1px solid ${T.purpleBor}`,background:T.purpleDim,
+                        color:T.purple,cursor:'pointer',fontSize:11.5,
+                        display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                        <Users size={12}/>Ver perfil
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )
           })()}
+
 
           {/* ── PERFIL DO CLIENTE — Ultra Premium ── */}
           {tipo==='cliente' && (() => {
@@ -929,6 +1359,14 @@ export default function PageDisparos({api: apiProp}) {
   const [loadSt,  setLoadSt]  = useState(true)
   const [periodo, setPeriodo] = useState('7d')
 
+  // Insights inteligentes
+  const [insightsBE,   setInsightsBE]   = useState([])
+  const [loadIns,      setLoadIns]      = useState(false)
+  const [insDispBE,    setInsDispBE]    = useState([])
+
+  // Command palette
+  const [cmdOpen, setCmdOpen] = useState(false)
+
   // Drawer lateral (detalhe do disparo OU perfil do cliente)
   const [drawer, setDrawer] = useState(null)  // {tipo:'disparo'|'cliente', dados}
   // Insights dispensados (marcados como "entendi") — por texto
@@ -992,6 +1430,35 @@ export default function PageDisparos({api: apiProp}) {
     return()=>clearInterval(polRef.current)
   },[autoRef,carregarStats,carregarLog,logPg])
 
+  // Buscar insights inteligentes do backend
+  useEffect(()=>{
+    setLoadIns(true)
+    fetch(`${api}/api/dashboard/insights`)
+      .then(r=>r.json())
+      .then(d=>{ setInsightsBE(d.insights||[]); setLoadIns(false) })
+      .catch(()=>setLoadIns(false))
+  },[api,periodo])
+
+  // Keyboard shortcuts
+  useEffect(()=>{
+    const handler = e => {
+      // ⌘K / Ctrl+K — command palette
+      if ((e.metaKey||e.ctrlKey) && e.key==='k') {
+        e.preventDefault()
+        setCmdOpen(v=>!v)
+        return
+      }
+      if (e.key==='Escape') { setCmdOpen(false); return }
+      // Só quando NÃO está em input/textarea
+      const inInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement
+      if (inInput) return
+      if (e.key==='r'||e.key==='R') { carregarStats(); carregarLog(1) }
+      if (e.key==='e'||e.key==='E') exportarCSV()
+    }
+    window.addEventListener('keydown', handler)
+    return ()=>window.removeEventListener('keydown', handler)
+  },[carregarStats,carregarLog]) // eslint-disable-line
+
   const reenviar = async(id) => {
     const r = await fetch(`${api}/api/dashboard/disparos-reenviar/${id}`,{method:'POST'})
     if (!r.ok) throw new Error('Falha ao reenviar')
@@ -1035,6 +1502,19 @@ export default function PageDisparos({api: apiProp}) {
   }))
   const gatilhosUsados = [...new Set((stats?.porGatilho||[]).map(g=>g.gatilho))]
 
+  // Dados de sparkline: série dos últimos 7 dias por métrica
+  const spark7 = useMemo(() => {
+    const dias = (stats?.porDia||[]).slice(-7)
+    return {
+      total:    dias.map(d=>(parseInt(d.enviados)||0)+(parseInt(d.erros)||0)+(parseInt(d.ignorados)||0)),
+      enviados: dias.map(d=>parseInt(d.enviados)||0),
+      erros:    dias.map(d=>parseInt(d.erros)||0),
+      clientes: dias.map(d=>parseInt(d.clientes_unicos)||0),
+      ultimas:  [],
+      aguardando:[],
+    }
+  },[stats])
+
   // FUNIL DA JORNADA — etapas na ordem do fluxo físico do pedido.
   const _byGat = Object.fromEntries((stats?.porGatilho||[]).map(g=>[g.gatilho,{total:parseInt(g.total)||0,enviados:parseInt(g.enviados)||0}]))
   const ETAPAS_FUNIL = [
@@ -1050,40 +1530,9 @@ export default function PageDisparos({api: apiProp}) {
   // iniciais ainda não disparam). A barra é proporcional ao maior volume.
   const funilMax = Math.max(...funil.map(e=>e.total), 1)
 
-  // INSIGHTS automáticos — lê os dados e gera avisos úteis.
-  // IMPORTANTE: "ignorado" NÃO é falha (é template off / sem telefone).
-  // Só conta como falha o status "erro".
-  const insights = []
-  ;(stats?.porGatilho||[]).forEach(g=>{
-    const env=parseInt(g.enviados)||0, err=parseInt(g.erros)||0
-    const tent = env+err
-    if (tent>=5) {
-      const txErr = Math.round(err/tent*100)
-      if (txErr >= 30) insights.push({ tipo:'alerta', txt:`"${GATILHO_META[g.gatilho]?.label||g.gatilho}" com ${txErr}% de erro real (${err} de ${tent} enviados).` })
-    }
-  })
-  // Aviso sobre ignorados (a maioria, no seu caso): gatilhos desativados
-  if (ignorados>0 && total>0) {
-    const pctIgn = Math.round(ignorados/total*100)
-    if (pctIgn >= 50) insights.push({ tipo:'info', txt:`${pctIgn}% dos disparos foram só registrados (não enviados) — são gatilhos desativados aguardando ativação. Normal enquanto você orquestra o fluxo.` })
-  }
-  if (taxa!==null && taxa>=90 && tentados>=3) insights.push({ tipo:'bom', txt:`Taxa de entrega de ${taxa}% nos ${tentados} disparos efetivos — saudável.` })
-  else if (taxa!==null && taxa<70 && tentados>=3) insights.push({ tipo:'alerta', txt:`Taxa de entrega de ${taxa}% — verifique os erros.` })
-  if ((parseInt(t.ultimas_24h)||0)===0 && total>0) insights.push({ tipo:'info', txt:'Nenhum disparo nas últimas 24h.' })
-  // Gatilho mais ativo
-  const _ord = [...(stats?.porGatilho||[])].sort((a,b)=>(parseInt(b.total)||0)-(parseInt(a.total)||0))
-  if (_ord[0] && (parseInt(_ord[0].total)||0)>=10) {
-    insights.push({ tipo:'info', txt:`Gatilho mais ativo: "${GATILHO_META[_ord[0].gatilho]?.label||_ord[0].gatilho}" (${_ord[0].total} registros).` })
-  }
-  if (stats?.picoHora!=null) {
-    insights.push({ tipo:'info', txt:`Horário de pico: a maioria dos disparos sai por volta das ${stats.picoHora}h.` })
-  }
-  if (aguardando>5) insights.push({ tipo:'alerta', txt:`${aguardando} disparos aguardando na fila — verifique se estão saindo.` })
-  const INS_META = {
-    alerta:{ cor:'#f59e0b', bg:'rgba(245,158,11,.1)', icon:AlertTriangle },
-    bom:   { cor:'#22c55e', bg:'rgba(34,197,94,.1)',  icon:CheckCircle },
-    info:  { cor:'#4a9fff', bg:'rgba(74,159,255,.1)', icon:Info },
-  }
+  // Insights vindos do backend (/api/dashboard/insights)
+  // insightsBE é atualizado no useEffect acima
+  // insDispBE armazena IDs de insights dispensados pelo usuário
 
   return (
     <div style={{position:'absolute',inset:0,overflowY:'auto',overflowX:'hidden',background:'var(--bg)',fontFamily:'"DM Sans", system-ui, sans-serif'}}>
@@ -1115,6 +1564,15 @@ export default function PageDisparos({api: apiProp}) {
             color:autoRef?'#22c55e':'var(--label-4)',cursor:'pointer'}}>
             {autoRef?<ToggleRight size={13}/>:<ToggleLeft size={13}/>}
             Live {autoRef&&<span style={{width:6,height:6,borderRadius:'50%',background:'#22c55e',animation:'pulse 1.5s ease infinite'}}/>}
+          </button>
+          {/* ⌘K Command Palette */}
+          <button onClick={()=>setCmdOpen(true)} title="Command palette (⌘K)" style={{
+            display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:8,fontSize:11,
+            border:'1px solid var(--sep)',background:'none',color:'var(--label-4)',cursor:'pointer'}}>
+            <Search size={12}/>
+            <span>Buscar</span>
+            <kbd style={{fontSize:9,padding:'1px 5px',borderRadius:4,marginLeft:2,
+              background:'var(--fill)',border:'1px solid var(--sep)',color:'var(--label-4)'}}>⌘K</kbd>
           </button>
           {/* Período */}
           <div style={{display:'flex',gap:2,padding:'3px',borderRadius:10,background:'var(--fill)',border:'1px solid var(--sep)',boxShadow:'0 1px 4px rgba(0,0,0,.12)'}}>
@@ -1148,10 +1606,10 @@ export default function PageDisparos({api: apiProp}) {
 
         {/* ── KPIs ── */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:10}}>
-          <KCard icon={Send}      label="Total disparos"     value={total}     cor="#7c6af7" sub={`últimos ${stats?.dias||7} dias`}/>
-          <KCard icon={CheckCircle}label="Enviados"           value={enviados}  cor="#22c55e" sub={taxa===null?'sem envios ainda':`taxa ${taxa}%`} trend={taxa===null?undefined:taxa>=90?5:taxa>=70?0:-5}/>
-          <KCard icon={XCircle}   label="Erros"              value={erros}     cor="#ef4444" trend={erros>0?-1:0}/>
-          <KCard icon={Users}     label="Clientes alcançados" value={parseInt(t.clientes_unicos)||0} cor="#4a9fff"/>
+          <KCard icon={Send}      label="Total disparos"     value={total}     cor="#7c6af7" sub={`últimos ${stats?.dias||7} dias`} spark={spark7.total}/>
+          <KCard icon={CheckCircle}label="Enviados"           value={enviados}  cor="#22c55e" sub={taxa===null?'sem envios ainda':`taxa ${taxa}%`} trend={taxa===null?undefined:taxa>=90?5:taxa>=70?0:-5} spark={spark7.enviados}/>
+          <KCard icon={XCircle}   label="Erros"              value={erros}     cor="#ef4444" trend={erros>0?-1:0} spark={spark7.erros}/>
+          <KCard icon={Users}     label="Clientes alcançados" value={parseInt(t.clientes_unicos)||0} cor="#4a9fff" spark={spark7.clientes}/>
           <KCard icon={Activity}  label="Últimas 24h"        value={parseInt(t.ultimas_24h)||0} cor="#a78bfa"/>
           <KCard icon={Clock}     label="Aguardando"          value={aguardando} cor="#f59e0b"/>
         </div>
@@ -1235,37 +1693,35 @@ export default function PageDisparos({api: apiProp}) {
                 </div>
             }
           </div>
-          {/* Insights */}
-          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px',boxShadow:'0 6px 32px rgba(0,0,0,.2), 0 1px 0 rgba(255,255,255,.05) inset',animation:'chartIn .4s ease'}}>
-            <div style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7,marginBottom:12}}>
-              <Zap size={14} style={{color:'#f59e0b'}}/>Insights
+          {/* ── Insights inteligentes multi-nível ── */}
+          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,
+            padding:'16px 20px',boxShadow:'0 6px 32px rgba(0,0,0,.2), 0 1px 0 rgba(255,255,255,.05) inset',
+            animation:'chartIn .4s ease',display:'flex',flexDirection:'column',gap:10}}>
+            <div style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7}}>
+              <Activity size={14} style={{color:T.amber}}/>Insights
+              {loadIns&&<RefreshCw size={11} style={{color:'var(--label-4)',animation:'spin 1s linear infinite'}}/>}
+              {!loadIns&&insightsBE.filter(i=>!insDispBE.includes(i.id)).length>0&&(
+                <span style={{fontSize:10,padding:'1px 7px',borderRadius:99,
+                  background:T.redDim,color:T.red,border:`1px solid ${T.redBor}`,fontWeight:700}}>
+                  {insightsBE.filter(i=>!insDispBE.includes(i.id)).length}
+                </span>
+              )}
             </div>
-            {(() => {
-              const visiveis = insights.filter(ins => !insDispensados.includes(ins.txt))
-              return visiveis.length===0
-              ? <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:20,margin:0}}>
-                  {insights.length>0?'Todos os alertas foram revisados ✓':'Tudo tranquilo por aqui.'}
-                </p>
-              : <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                  {visiveis.slice(0,5).map((ins,i)=>{
-                    const m=INS_META[ins.tipo]||INS_META.info, MI=m.icon
-                    return (
-                      <div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',padding:'9px 11px',
-                        borderRadius:9,background:m.bg,border:`1px solid ${m.cor}25`}}>
-                        <MI size={13} style={{color:m.cor,flexShrink:0,marginTop:2}}/>
-                        <span style={{flex:1,minWidth:0,fontSize:11.5,color:'var(--label)',lineHeight:1.5}}>{ins.txt}</span>
-                        <button onClick={()=>setInsDispensados(d=>[...d,ins.txt])}
-                          title="Marcar como revisado" style={{
-                          flexShrink:0,display:'flex',alignItems:'center',gap:3,padding:'3px 8px',borderRadius:6,
-                          border:`1px solid ${m.cor}50`,background:`${m.cor}15`,color:m.cor,cursor:'pointer',
-                          fontSize:10,fontWeight:600,whiteSpace:'nowrap',alignSelf:'flex-start'}}>
-                          <CheckCircle size={10}/>Entendi
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-            })()}
+            {loadIns&&<div style={{display:'flex',flexDirection:'column',gap:8}}>
+              <Skeleton h={76} r={10}/><Skeleton h={76} r={10}/>
+            </div>}
+            {!loadIns&&insightsBE.filter(i=>!insDispBE.includes(i.id)).length===0&&(
+              <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:'16px 0',margin:0}}>
+                {insightsBE.length>0?'✓ Todos os alertas foram revisados':'✓ Tudo tranquilo por aqui.'}
+              </p>
+            )}
+            {!loadIns&&insightsBE
+              .filter(i=>!insDispBE.includes(i.id))
+              .map(ins=>(
+                <InsightCard key={ins.id} ins={ins}
+                  onDismiss={()=>setInsDispBE(d=>[...d,ins.id])}/>
+              ))
+            }
           </div>
         </div>
 
@@ -1501,7 +1957,19 @@ export default function PageDisparos({api: apiProp}) {
 
       </div>
 
-      {/* Drawer lateral */}
+      {/* ── Command Palette ⌘K ── */}
+      <CmdPalette
+        open={cmdOpen}
+        onClose={()=>setCmdOpen(false)}
+        log={log}
+        onOpenDisparo={r=>{ setCmdOpen(false); setDrawer({tipo:'disparo',dados:r}) }}
+        onOpenCliente={r=>{ setCmdOpen(false); setDrawer({tipo:'cliente',dados:r}) }}
+        onReload={()=>{ carregarStats(); carregarLog(1) }}
+        onExport={exportarCSV}
+        onFiltrarErros={()=>{ setFiltroSt('erro'); setLogPg(1) }}
+      />
+
+      {/* ── Drawer lateral ── */}
       {drawer && (
         <DrawerDetalhe
           tipo={drawer.tipo}
@@ -1518,16 +1986,19 @@ export default function PageDisparos({api: apiProp}) {
 
       <style>{`
         @keyframes spin     { to { transform: rotate(360deg) } }
-        @keyframes pulse    { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes pulse    { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.4)} }
         @keyframes slideIn  { from{transform:translateX(100%)} to{transform:translateX(0)} }
+        @keyframes slideup  { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
         @keyframes fadeIn   { from{opacity:0} to{opacity:1} }
         @keyframes chartIn  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes shimmer  { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
         ::-webkit-scrollbar       { width:4px; height:4px }
         ::-webkit-scrollbar-track { background:transparent }
         ::-webkit-scrollbar-thumb { background:rgba(255,255,255,.1); border-radius:99px }
         .log-row:hover { background:rgba(255,255,255,.028) !important }
         .log-row:hover .log-actions { opacity:1 !important }
         .gat-bar:hover { background:var(--fill) !important; border-radius:7px }
+        details summary::-webkit-details-marker { display:none }
       `}</style>
     </div>
   )
