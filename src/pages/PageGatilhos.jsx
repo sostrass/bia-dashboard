@@ -519,6 +519,31 @@ function PreviewWA({ blocos=[], label='' }) {
 }
 
 
+// ── Contador de caracteres com semáforo visual ────────────────────────────────
+// limites oficiais Meta: cabeçalho=60, corpo=1024, rodapé=60, botão=25/20
+function CharCount({ text='', limit }) {
+  const len = (text||'').length
+  if (len === 0) return null
+  const pct  = len / limit
+  const cor  = pct >= 1 ? T.red : pct >= 0.85 ? T.amber : T.ink4
+  const dim  = pct >= 1 ? T.redDim : pct >= 0.85 ? T.amberDim : 'transparent'
+  const over = len > limit
+  return (
+    <div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:6}}>
+      {pct >= 0.85 && (
+        <span style={{fontSize:9,fontWeight:700,color:cor}}>
+          {over ? `⚠ ${len-limit} acima do limite` : `${limit-len} restantes`}
+        </span>
+      )}
+      <span style={{fontSize:10,fontWeight:700,color:cor,
+        background:dim,padding:'1px 6px',borderRadius:4,
+        fontVariantNumeric:'tabular-nums'}}>
+        {len}/{limit}
+      </span>
+    </div>
+  )
+}
+
 // ── Bloco individual ──────────────────────────────────────────────────────────
 function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate }) {
   const [aberto,setAberto]=useState(true)
@@ -565,23 +590,177 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
       </div>
       {aberto&&(
         <div style={{padding:16,display:"flex",flexDirection:"column",gap:12}}>
-          {b.tipo==='cabecalho'&&<><input id={`bloco-${b.id}`} value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Emoji + título" style={sty}/><div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}><EmojiPicker onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/><VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/></div></>}
-          {b.tipo==='texto'&&<><textarea id={`bloco-${b.id}`} value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Texto... Use *negrito*" rows={7} style={{...sty,resize:'vertical',minHeight:140,lineHeight:1.7}}/><div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}><EmojiPicker onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/><VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/></div></>}
-          {b.tipo==='rodape'&&<input value={b.conteudo||''} onChange={e=>onChange({...b,conteudo:e.target.value})} placeholder="Ex: Mensagem automática — não responda." style={sty}/>}
-          {b.tipo==='imagem'&&<><input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})} placeholder="URL ou {{foto_produto}}" style={{...sty,fontFamily:'monospace',fontSize:12}}/><VarPills vars={['{{foto_produto}}',...vars.filter(v=>v.includes('foto'))]} onInsert={v=>onChange({...b,url:(b.url||'')+v})}/><input value={b.legenda||''} onChange={e=>onChange({...b,legenda:e.target.value})} placeholder="Legenda (opcional)" style={{...sty,fontSize:12}}/></>}
+
+          {/* CABEÇALHO — limite Meta: 60 chars */}
+          {b.tipo==='cabecalho'&&(
+            <div style={{display:'flex',flexDirection:'column',gap:6}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:2}}>
+                <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--label-4)'}}>
+                  Cabeçalho <span style={{fontWeight:400,letterSpacing:0,textTransform:'none'}}>— título em negrito no topo</span>
+                </span>
+                <span style={{fontSize:9,color:'var(--label-4)'}}>limite: 60 chars</span>
+              </div>
+              <input id={`bloco-${b.id}`} value={b.conteudo||''} maxLength={70}
+                onChange={e=>onChange({...b,conteudo:e.target.value})}
+                placeholder="Emoji + título breve"
+                style={{...sty,
+                  borderColor:(b.conteudo||'').length>55?((b.conteudo||'').length>=60?T.red:T.amber):'var(--sep)'
+                }}/>
+              <CharCount text={b.conteudo} limit={60}/>
+              {(b.conteudo||'').length>60&&(
+                <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 10px',borderRadius:7,background:T.redDim,border:`1px solid ${T.redBor}`}}>
+                  <AlertTriangle size={11} style={{color:T.red,flexShrink:0}}/>
+                  <span style={{fontSize:11,color:T.red,fontWeight:600}}>Cabeçalho excede 60 caracteres — a Meta vai rejeitar o template.</span>
+                </div>
+              )}
+              <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+                <EmojiPicker onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/>
+                <VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/>
+              </div>
+            </div>
+          )}
+
+          {/* TEXTO (CORPO) — limite Meta: 1024 chars */}
+          {b.tipo==='texto'&&(
+            <div style={{display:'flex',flexDirection:'column',gap:6}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:2}}>
+                <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--label-4)'}}>
+                  Corpo <span style={{fontWeight:400,letterSpacing:0,textTransform:'none'}}>— *negrito* _itálico_ {{variável}}</span>
+                </span>
+                <span style={{fontSize:9,color:'var(--label-4)'}}>limite: 1024 chars</span>
+              </div>
+              <textarea id={`bloco-${b.id}`} value={b.conteudo||''}
+                onChange={e=>onChange({...b,conteudo:e.target.value})}
+                placeholder="Olá *{{nome_cliente}}*!..."
+                rows={7} style={{...sty,resize:'vertical',minHeight:140,lineHeight:1.7,
+                  borderColor:(b.conteudo||'').length>900?((b.conteudo||'').length>=1024?T.red:T.amber):'var(--sep)'
+                }}/>
+              <CharCount text={b.conteudo} limit={1024}/>
+              {(b.conteudo||'').length>=1024&&(
+                <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 10px',borderRadius:7,background:T.redDim,border:`1px solid ${T.redBor}`}}>
+                  <AlertTriangle size={11} style={{color:T.red,flexShrink:0}}/>
+                  <span style={{fontSize:11,color:T.red,fontWeight:600}}>Corpo excede 1024 caracteres — a Meta vai rejeitar o template.</span>
+                </div>
+              )}
+              <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+                <EmojiPicker onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/>
+                <VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/>
+              </div>
+            </div>
+          )}
+
+          {/* RODAPÉ — limite Meta: 60 chars */}
+          {b.tipo==='rodape'&&(
+            <div style={{display:'flex',flexDirection:'column',gap:6}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:2}}>
+                <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--label-4)'}}>
+                  Rodapé <span style={{fontWeight:400,letterSpacing:0,textTransform:'none'}}>— aparece em itálico, menor</span>
+                </span>
+                <span style={{fontSize:9,color:'var(--label-4)'}}>limite: 60 chars</span>
+              </div>
+              <input value={b.conteudo||''} maxLength={70}
+                onChange={e=>onChange({...b,conteudo:e.target.value})}
+                placeholder="Ex: Mensagem automática — não responda."
+                style={{...sty,
+                  borderColor:(b.conteudo||'').length>50?((b.conteudo||'').length>=60?T.red:T.amber):'var(--sep)'
+                }}/>
+              <CharCount text={b.conteudo} limit={60}/>
+              {(b.conteudo||'').length>60&&(
+                <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 10px',borderRadius:7,background:T.redDim,border:`1px solid ${T.redBor}`}}>
+                  <AlertTriangle size={11} style={{color:T.red,flexShrink:0}}/>
+                  <span style={{fontSize:11,color:T.red,fontWeight:600}}>Rodapé excede 60 caracteres — a Meta vai rejeitar o template.</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* IMAGEM */}
+          {b.tipo==='imagem'&&(
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              <input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})}
+                placeholder="URL da imagem ou {{foto_produto}}"
+                style={{...sty,fontFamily:'monospace',fontSize:12}}/>
+              <VarPills vars={['{{foto_produto}}',...vars.filter(v=>v.includes('foto'))]}
+                onInsert={v=>onChange({...b,url:(b.url||'')+v})}/>
+              <input value={b.legenda||''} onChange={e=>onChange({...b,legenda:e.target.value})}
+                placeholder="Legenda (opcional)" style={{...sty,fontSize:12}}/>
+            </div>
+          )}
+
           {b.tipo==='video'&&<input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})} placeholder="URL do vídeo" style={{...sty,fontFamily:'monospace',fontSize:12}}/>}
           {b.tipo==='audio'&&<input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})} placeholder="URL do áudio" style={{...sty,fontFamily:'monospace',fontSize:12}}/>}
-          {b.tipo==='botao'&&<>
-            <input value={b.texto||''} onChange={e=>onChange({...b,texto:e.target.value})} placeholder="Texto do botão (máx. 20)" maxLength={20} style={sty}/>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
-              {[['url','🔗 Link'],['reply','💬 Resposta'],['tel','📞 Ligar']].map(([v,l])=>(
-                <button key={v} onClick={()=>onChange({...b,acao:v})} style={{padding:"6px 4px",borderRadius:7,fontSize:10,fontWeight:500,cursor:"pointer",background:b.acao===v?'var(--accent-dim)':'var(--bg)',color:b.acao===v?'var(--accent)':'var(--label-3)',border:b.acao===v?'1px solid var(--accent-border)':'1px solid var(--sep)'}}>{l}</button>
-              ))}
+
+          {/* BOTÃO — limite: 25 chars (URL/CTA) ou 20 chars (reply) */}
+          {b.tipo==='botao'&&(
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              <div>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:4}}>
+                  <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--label-4)'}}>Texto do botão</span>
+                  <span style={{fontSize:9,color:'var(--label-4)'}}>limite: {b.acao==='reply'?20:25} chars</span>
+                </div>
+                <input value={b.texto||''} maxLength={b.acao==='reply'?25:30}
+                  onChange={e=>onChange({...b,texto:e.target.value})}
+                  placeholder={`Texto (máx. ${b.acao==='reply'?20:25} chars)`}
+                  style={{...sty,
+                    borderColor:(b.texto||'').length>(b.acao==='reply'?18:22)?((b.texto||'').length>=(b.acao==='reply'?20:25)?T.red:T.amber):'var(--sep)'
+                  }}/>
+                <CharCount text={b.texto} limit={b.acao==='reply'?20:25}/>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+                {[['reply','💬 Resposta'],['url','🔗 Link'],['tel','📞 Ligar']].map(([v,l])=>(
+                  <button key={v} onClick={()=>onChange({...b,acao:v})}
+                    style={{padding:"7px 4px",borderRadius:7,fontSize:10,fontWeight:600,cursor:"pointer",
+                      background:b.acao===v?'var(--accent-dim)':'var(--bg)',
+                      color:b.acao===v?'var(--accent)':'var(--label-3)',
+                      border:b.acao===v?'1px solid var(--accent-border)':'1px solid var(--sep)'}}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+              {(b.acao==='url'||b.acao==='tel')&&(
+                <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                  <input value={b.valor||''} onChange={e=>onChange({...b,valor:e.target.value})}
+                    placeholder={b.acao==='tel'?'55119... (com DDI)':'https://...'}
+                    style={{...sty,fontFamily:'monospace',fontSize:11}}/>
+                  {b.acao==='url'&&<VarPills vars={vars} onInsert={v=>onChange({...b,valor:(b.valor||'')+v})}/>}
+                </div>
+              )}
             </div>
-            {(b.acao==='url'||b.acao==='tel')&&<><input value={b.valor||''} onChange={e=>onChange({...b,valor:e.target.value})} placeholder={b.acao==='tel'?'Número':'URL'} style={{...sty,fontFamily:'monospace',fontSize:11}}/>{b.acao==='url'&&<VarPills vars={vars} onInsert={v=>onChange({...b,valor:(b.valor||'')+v})}/>}</>}
-          </>}
-          {b.tipo==='link'&&<><input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})} placeholder="URL" style={{...sty,fontFamily:'monospace',fontSize:12}}/><VarPills vars={vars} onInsert={v=>onChange({...b,url:(b.url||'')+v})}/></>}
-          {b.tipo==='ligar'&&<><input value={b.texto||''} onChange={e=>onChange({...b,texto:e.target.value})} placeholder="Texto do botão" maxLength={20} style={sty}/><input value={b.valor||''} onChange={e=>onChange({...b,valor:e.target.value})} placeholder="Número telefone" style={{...sty,fontFamily:'monospace',fontSize:12}}/></>}
+          )}
+
+          {b.tipo==='link'&&(
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              <div>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:4}}>
+                  <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--label-4)'}}>Texto do link</span>
+                  <span style={{fontSize:9,color:'var(--label-4)'}}>limite: 25 chars</span>
+                </div>
+                <input value={b.texto||''} onChange={e=>onChange({...b,texto:e.target.value})}
+                  placeholder="Texto do link" maxLength={30} style={sty}/>
+                <CharCount text={b.texto} limit={25}/>
+              </div>
+              <input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})}
+                placeholder="URL" style={{...sty,fontFamily:'monospace',fontSize:12}}/>
+              <VarPills vars={vars} onInsert={v=>onChange({...b,url:(b.url||'')+v})}/>
+            </div>
+          )}
+
+          {b.tipo==='ligar'&&(
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              <div>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:4}}>
+                  <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--label-4)'}}>Texto do botão</span>
+                  <span style={{fontSize:9,color:'var(--label-4)'}}>limite: 20 chars</span>
+                </div>
+                <input value={b.texto||''} onChange={e=>onChange({...b,texto:e.target.value})}
+                  placeholder="Ligar agora" maxLength={25} style={sty}/>
+                <CharCount text={b.texto} limit={20}/>
+              </div>
+              <input value={b.valor||''} onChange={e=>onChange({...b,valor:e.target.value})}
+                placeholder="55119... (com DDI)" style={{...sty,fontFamily:'monospace',fontSize:12}}/>
+            </div>
+          )}
+
         </div>
       )}
     </div>
@@ -1229,6 +1408,470 @@ function Skel({w='100%', h=16, r=6}) {
   )
 }
 
+
+// ─── SIDEBAR DE NAVEGAÇÃO ─────────────────────────────────────────────────────
+function GatilhoSidebar({ gatilhos, configs, indicadores, selId, onSelect, labelDe,
+                          insightsGat, insDismiss, toggleAtivo, custos }) {
+  const [busca, setBusca] = useState('')
+  const [collapsed, setCollapsed] = useState({})
+
+  const toggle = (g) => setCollapsed(c => ({...c,[g]:!c[g]}))
+
+  return (
+    <div style={{width:264,flexShrink:0,background:T.bg1,
+      borderRight:`1px solid ${T.sep}`,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+
+      {/* Busca */}
+      <div style={{padding:'12px 12px 8px',borderBottom:`1px solid ${T.sep}`,flexShrink:0}}>
+        <div style={{display:'flex',alignItems:'center',gap:7,padding:'7px 10px',
+          borderRadius:8,background:T.bg2,border:`1px solid ${T.sep2}`}}>
+          <Search size={12} style={{color:T.ink4,flexShrink:0}}/>
+          <input value={busca} onChange={e=>setBusca(e.target.value)}
+            placeholder="Buscar gatilho..."
+            style={{flex:1,border:'none',background:'transparent',color:T.ink1,
+              fontSize:12,outline:'none'}}/>
+          {busca&&<button onClick={()=>setBusca('')}
+            style={{background:'none',border:'none',cursor:'pointer',color:T.ink4,
+              display:'flex',padding:0}}><X size={10}/></button>}
+        </div>
+      </div>
+
+      {/* Lista */}
+      <div style={{flex:1,overflowY:'auto',paddingBottom:8}}>
+        {GRUPOS_ORDEM.map(grupo => {
+          const itens = gatilhos.filter(g=>g.grupo===grupo&&(!busca||labelDe(g).toLowerCase().includes(busca.toLowerCase())))
+          if (!itens.length) return null
+          const isCollapsed = collapsed[grupo]
+          const ativos = itens.filter(g=>configs[g.id]?.ativo).length
+          const hasCrit = itens.some(g=>insightsGat?.some(i=>i.gatilho===g.id&&!insDismiss?.has(i.id)&&(i.tipo==='critico'||i.tipo==='aviso')))
+          return (
+            <div key={grupo}>
+              <button onClick={()=>toggle(grupo)} style={{
+                display:'flex',alignItems:'center',gap:6,width:'100%',
+                padding:'9px 12px 4px',border:'none',background:'transparent',cursor:'pointer'}}>
+                {isCollapsed?<ChevronRight size={9} style={{color:T.ink4,flexShrink:0}}/>
+                            :<ChevronDown size={9} style={{color:T.ink4,flexShrink:0}}/>}
+                <span style={{fontSize:9,fontWeight:700,textTransform:'uppercase',
+                  letterSpacing:'.09em',color:T.ink4,flex:1,textAlign:'left'}}>{grupo}</span>
+                <span style={{fontSize:9,color:T.ink4}}>{ativos}/{itens.length}</span>
+                {hasCrit&&<div style={{width:5,height:5,borderRadius:'50%',
+                  background:T.red,flexShrink:0,animation:'pulse 1.5s ease infinite'}}/>}
+              </button>
+
+              {!isCollapsed && itens.map(g => {
+                const cfg   = configs[g.id]
+                const ativo = cfg?.ativo
+                const ind   = indicadores[g.id]
+                const env   = ind?.enviados||0, err=ind?.erros||0, tent=env+err
+                const taxa  = tent>0?Math.round(env/tent*100):null
+                const rCor  = taxa===null?T.ink4:taxa>=70?T.green:taxa>=30?T.amber:T.red
+                const isAct = selId===g.id
+                const crit  = insightsGat?.some(i=>i.gatilho===g.id&&!insDismiss?.has(i.id)&&i.tipo==='critico')
+                const custo = custos?.porGatilho?.[g.id]
+                const Icon  = g.icon
+                return (
+                  <div key={g.id} onClick={()=>onSelect(selId===g.id?null:g.id)}
+                    style={{display:'flex',alignItems:'center',gap:7,padding:'5px 12px',
+                      cursor:'pointer',transition:'all .1s',
+                      background:isAct?`linear-gradient(90deg,${g.cor}15,${T.bg3})`:'transparent',
+                      borderLeft:`2px solid ${isAct?g.cor:'transparent'}`}}
+                    onMouseEnter={e=>{if(!isAct)e.currentTarget.style.background=T.bg2}}
+                    onMouseLeave={e=>{if(!isAct)e.currentTarget.style.background='transparent'}}>
+
+                    {/* Health dot com glow */}
+                    <div style={{width:7,height:7,borderRadius:'50%',flexShrink:0,
+                      background:cfg?rCor:'rgba(255,255,255,.12)',
+                      boxShadow:taxa!==null&&taxa>=70?`0 0 5px ${T.green}60`:'none'}}/>
+
+                    {/* Icon */}
+                    <div style={{width:24,height:24,borderRadius:7,flexShrink:0,
+                      background:`${g.cor}18`,border:`0.5px solid ${g.cor}28`,
+                      display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      <Icon size={12} style={{color:g.cor}}/>
+                    </div>
+
+                    {/* Nome */}
+                    <span style={{flex:1,fontSize:11.5,fontWeight:isAct?600:400,
+                      color:isAct?T.ink1:T.ink2,overflow:'hidden',
+                      textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0}}>
+                      {labelDe(g)}
+                    </span>
+
+                    {/* Métricas + toggle */}
+                    <div style={{display:'flex',alignItems:'center',gap:5,flexShrink:0}}>
+                      {crit&&<div style={{width:5,height:5,borderRadius:'50%',background:T.red}}/>}
+                      {custo&&<span style={{fontSize:8.5,color:T.ink4}}>${custo.custo}</span>}
+                      {taxa!==null&&(
+                        <span style={{fontSize:9,fontWeight:700,color:rCor,minWidth:22,textAlign:'right'}}>
+                          {taxa}%
+                        </span>
+                      )}
+                      {cfg&&(
+                        <button onClick={e=>{e.stopPropagation();toggleAtivo(g.id)}}
+                          style={{width:24,height:13,borderRadius:99,flexShrink:0,border:'none',
+                            cursor:'pointer',position:'relative',transition:'background .15s',
+                            background:ativo?T.green:'rgba(255,255,255,.12)'}}>
+                          <span style={{position:'absolute',width:11,height:11,
+                            background:'#fff',borderRadius:'50%',top:1,
+                            left:ativo?11:1,transition:'left .15s'}}/>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Footer */}
+      <div style={{padding:'8px 12px',borderTop:`1px solid ${T.sep}`,flexShrink:0,
+        display:'flex',alignItems:'center',gap:8}}>
+        <span style={{fontSize:9,color:T.ink4,flex:1}}>
+          {gatilhos.filter(g=>configs[g.id]?.ativo).length} ativos
+          {' '}de {gatilhos.length} total
+        </span>
+        {custos&&(
+          <span style={{fontSize:9,color:T.amber,fontWeight:600}}>
+            US${custos.totalCusto}/mês
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── DASHBOARD — tela inicial quando nenhum gatilho selecionado ───────────────
+function GatilhoDashboard({ pulso, sparks, jornada, insightsGat, insDismiss, setInsDismiss,
+                            onGoto, atividadeRecente, custos, custosPeriodo, onSetPeriodo }) {
+  return (
+    <div style={{flex:1,overflowY:'auto',background:T.bg0}}>
+
+      {/* KPIs */}
+      {pulso && (
+        <div style={{padding:'16px 20px 0',display:'flex',gap:10,flexWrap:'nowrap',overflowX:'auto'}}>
+          {[
+            {l:'Aprovados',    v:pulso.meta.aprovados,   cor:T.green,  spk:'aprovados'},
+            {l:'Em análise',   v:pulso.meta.analise,     cor:T.amber,  spk:'analise'},
+            {l:'Não enviados', v:pulso.meta.naoEnviados,  cor:T.ink3,   spk:'naoEnviados'},
+            {l:'Rejeitados',   v:pulso.meta.rejeitados,  cor:T.red,    spk:'rejeitados'},
+            {l:'Disparos hoje',v:pulso.disparosHoje,     cor:T.blue,   spk:'disparos'},
+            {l:'Em rota agora',v:pulso.clientesEmRota,   cor:T.purple, spk:'emRota'},
+          ].map((c,i)=>(
+            <div key={i} style={{flex:'1 1 0',minWidth:110,background:T.bg2,borderRadius:11,
+              padding:'10px 14px',border:`1px solid ${T.sep}`,boxShadow:'0 2px 8px rgba(0,0,0,.2)'}}>
+              <div style={{fontSize:9,color:T.ink3,textTransform:'uppercase',
+                letterSpacing:'.07em',marginBottom:5}}>{c.l}</div>
+              <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:8}}>
+                <span style={{fontSize:22,fontWeight:700,color:c.cor,lineHeight:1,
+                  letterSpacing:'-.03em'}}>{c.v}</span>
+                {sparks?.[c.spk]&&<SparkCard serie={sparks[c.spk]} cor={c.cor}/>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Insights */}
+      {insightsGat.filter(i=>!insDismiss.has(i.id)).length>0&&(
+        <div style={{margin:'16px 20px 0',padding:'14px 16px',borderRadius:13,
+          background:T.bg2,border:`1px solid ${T.sep2}`,boxShadow:'0 4px 20px rgba(0,0,0,.25)'}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+            <Activity size={14} style={{color:T.amber}}/>
+            <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>Inteligência dos Gatilhos</span>
+            <span style={{fontSize:10,padding:'1px 7px',borderRadius:99,
+              background:T.redDim,color:T.red,border:`1px solid ${T.redBor}`,fontWeight:700}}>
+              {insightsGat.filter(i=>!insDismiss.has(i.id)&&i.tipo==='critico').length>0
+                ?`${insightsGat.filter(i=>!insDismiss.has(i.id)&&i.tipo==='critico').length} crítico${insightsGat.filter(i=>!insDismiss.has(i.id)&&i.tipo==='critico').length>1?'s':''}`
+                :`${insightsGat.filter(i=>!insDismiss.has(i.id)).length} alertas`}
+            </span>
+            <button onClick={()=>setInsDismiss(new Set(insightsGat.map(i=>i.id)))}
+              style={{marginLeft:'auto',fontSize:10,color:T.ink4,background:'transparent',
+                cursor:'pointer',padding:'3px 8px',borderRadius:6,border:`1px solid ${T.sep}`}}>
+              Dispensar todos
+            </button>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:9}}>
+            {insightsGat.filter(i=>!insDismiss.has(i.id)).map(ins=>(
+              <InsightCardGat key={ins.id} ins={ins}
+                onDismiss={()=>setInsDismiss(d=>new Set([...d,ins.id]))}
+                onGoto={onGoto}/>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Jornada */}
+      {jornada && (
+        <div style={{margin:'16px 20px 0',padding:'14px 18px',borderRadius:13,
+          background:T.bg2,border:`1px solid ${T.sep2}`}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
+            <Navigation size={13} style={{color:T.blue}}/>
+            <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>Jornada do Cliente — agora</span>
+            <span style={{fontSize:11,color:T.ink3,marginLeft:'auto'}}>
+              {Object.values(jornada.etapas||{}).reduce((a,b)=>a+b,0)} em andamento
+            </span>
+          </div>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:4}}>
+            {[
+              {id:'compra',  lbl:'Compra',    icon:ShoppingBag, cor:T.purple},
+              {id:'preparo', lbl:'Preparo',   icon:Package,     cor:T.blue},
+              {id:'envio',   lbl:'Envio',     icon:Truck,       cor:T.green},
+              {id:'pos',     lbl:'Pós-venda', icon:RefreshCw,   cor:T.amber},
+              {id:'ia',      lbl:'IA',        icon:Brain,       cor:T.purple},
+            ].map((e,i,arr)=>{
+              const n = jornada.etapas?.[e.id]||0
+              const ativo = n>0
+              const EIcon = e.icon
+              return (
+                <div key={e.id} style={{display:'flex',alignItems:'center',flex:i<arr.length-1?1:'0 0 auto'}}>
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,flexShrink:0}}>
+                    <div style={{width:36,height:36,borderRadius:'50%',flexShrink:0,
+                      background:ativo?`linear-gradient(135deg,${e.cor}40,${e.cor}20)`:`${T.bg4}`,
+                      border:`2px solid ${ativo?e.cor:T.sep}`,
+                      display:'flex',alignItems:'center',justifyContent:'center',
+                      boxShadow:ativo?`0 4px 12px ${e.cor}30`:'none'}}>
+                      <EIcon size={16} style={{color:ativo?e.cor:T.ink4}}/>
+                    </div>
+                    <span style={{fontSize:18,fontWeight:700,color:ativo?e.cor:T.ink4,lineHeight:1}}>
+                      {n||'—'}
+                    </span>
+                    <span style={{fontSize:9,color:ativo?e.cor:T.ink4,textAlign:'center'}}>{e.lbl}</span>
+                  </div>
+                  {i<arr.length-1&&<div style={{flex:1,height:2,background:n>0?`linear-gradient(90deg,${e.cor}40,transparent)`:T.sep,margin:'0 4px',marginBottom:14}}/>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Grid: Feed Atividade + Custos */}
+      <div style={{margin:'16px 20px 20px',display:'grid',
+        gridTemplateColumns:'1fr 320px',gap:12}}>
+
+        {/* Feed de atividade ao vivo */}
+        <div style={{background:T.bg2,borderRadius:13,border:`1px solid ${T.sep2}`,
+          overflow:'hidden'}}>
+          <div style={{padding:'12px 16px',borderBottom:`1px solid ${T.sep}`,
+            display:'flex',alignItems:'center',gap:8}}>
+            <div style={{width:7,height:7,borderRadius:'50%',background:T.green,
+              animation:'pulse 2s ease infinite'}}/>
+            <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>Atividade ao vivo</span>
+            <span style={{fontSize:10,color:T.ink4,marginLeft:'auto'}}>últimos 15 disparos</span>
+          </div>
+          <div style={{maxHeight:320,overflowY:'auto'}}>
+            {atividadeRecente.length===0?(
+              <div style={{padding:'32px',textAlign:'center',color:T.ink4}}>
+                <Activity size={20} style={{opacity:.2,display:'block',margin:'0 auto 8px'}}/>
+                <p style={{fontSize:11,margin:0}}>Aguardando disparos...</p>
+              </div>
+            ):(
+              atividadeRecente.map((d,i)=>{
+                const sCor = d.status==='enviado'?T.green:d.status==='erro'?T.red:T.amber
+                const gat  = GATILHOS.find(x=>x.id===d.gatilho)
+                const GIco = gat?.icon
+                return (
+                  <div key={i} onClick={()=>onGoto(d.gatilho)}
+                    style={{display:'flex',alignItems:'center',gap:10,padding:'9px 16px',
+                      borderBottom:`1px solid ${T.sep}`,cursor:'pointer',
+                      transition:'background .1s'}}
+                    onMouseEnter={e=>e.currentTarget.style.background=T.bg3}
+                    onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                    {/* Status dot */}
+                    <div style={{width:6,height:6,borderRadius:'50%',flexShrink:0,background:sCor,
+                      boxShadow:d.status==='enviado'?`0 0 4px ${T.green}60`:'none'}}/>
+                    {/* Cliente */}
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:'flex',alignItems:'center',gap:6}}>
+                        <span style={{fontSize:11.5,fontWeight:600,color:T.ink1,
+                          overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                          {d.nome_cliente||'—'}
+                        </span>
+                        {d.numero_pedido&&(
+                          <span style={{fontSize:9,color:T.ink4,flexShrink:0}}>#{d.numero_pedido}</span>
+                        )}
+                      </div>
+                      {gat&&(
+                        <div style={{display:'flex',alignItems:'center',gap:4,marginTop:1}}>
+                          {GIco&&<GIco size={9} style={{color:gat.cor,flexShrink:0}}/>}
+                          <span style={{fontSize:9.5,color:T.ink3}}>{gat.label}</span>
+                        </div>
+                      )}
+                    </div>
+                    {/* Status badge */}
+                    <span style={{fontSize:9,padding:'1px 6px',borderRadius:99,flexShrink:0,
+                      background:`${sCor}18`,color:sCor,fontWeight:600}}>
+                      {d.status==='enviado'?'Enviado':d.status==='erro'?'Erro':'Ignorado'}
+                    </span>
+                    {/* Tempo */}
+                    <span style={{fontSize:9,color:T.ink4,flexShrink:0}}>{tempoRel(d.criado_em)}</span>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Custos */}
+        <div style={{background:T.bg2,borderRadius:13,border:`1px solid ${T.sep2}`,
+          overflow:'hidden',display:'flex',flexDirection:'column'}}>
+          <div style={{padding:'12px 16px',borderBottom:`1px solid ${T.sep}`,
+            display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+            <CreditCard size={13} style={{color:T.amber}}/>
+            <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>Custos</span>
+            <div style={{marginLeft:'auto',display:'flex',gap:4}}>
+              {['7d','30d','90d'].map(p=>(
+                <button key={p} onClick={()=>onSetPeriodo(p)}
+                  style={{fontSize:9,padding:'2px 7px',borderRadius:6,border:'none',cursor:'pointer',
+                    fontWeight:600,
+                    background:custosPeriodo===p?T.amber:T.bg4,
+                    color:custosPeriodo===p?T.bg0:T.ink4}}>
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+          {custos?(
+            <div style={{flex:1,overflowY:'auto'}}>
+              {/* Total */}
+              <div style={{padding:'14px 16px',borderBottom:`1px solid ${T.sep}`}}>
+                <p style={{fontSize:9,color:T.ink4,textTransform:'uppercase',letterSpacing:'.07em',margin:'0 0 4px'}}>
+                  Total — {custosPeriodo}
+                </p>
+                <p style={{fontSize:24,fontWeight:700,color:T.amber,margin:0,letterSpacing:'-.03em'}}>
+                  US${custos.totalCusto}
+                </p>
+                <p style={{fontSize:10,color:T.ink3,margin:'3px 0 0'}}>
+                  {custos.totalEnviados} mensagens entregues
+                </p>
+              </div>
+              {/* Por gatilho */}
+              {Object.entries(custos.porGatilho||{})
+                .sort((a,b)=>b[1].enviados-a[1].enviados)
+                .slice(0,8)
+                .map(([id,c])=>{
+                  const gat=GATILHOS.find(x=>x.id===id)
+                  const GIco=gat?.icon
+                  return (
+                    <div key={id} onClick={()=>onGoto(id)}
+                      style={{display:'flex',alignItems:'center',gap:8,padding:'7px 16px',
+                        borderBottom:`1px solid ${T.sep}`,cursor:'pointer',transition:'background .1s'}}
+                      onMouseEnter={e=>e.currentTarget.style.background=T.bg3}
+                      onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                      {GIco&&<GIco size={11} style={{color:gat.cor,flexShrink:0}}/>}
+                      <span style={{flex:1,fontSize:11,color:T.ink2,overflow:'hidden',
+                        textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                        {gat?.label||id}
+                      </span>
+                      <span style={{fontSize:10,color:T.amber,fontWeight:600,flexShrink:0}}>
+                        US${c.custo}
+                      </span>
+                      <span style={{fontSize:9,color:T.ink4,flexShrink:0}}>
+                        {c.enviados} env.
+                      </span>
+                    </div>
+                  )
+              })}
+            </div>
+          ):(
+            <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+              <p style={{fontSize:11,color:T.ink4,textAlign:'center'}}>
+                Configure o backend para ver os custos
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── META ANALYTICS CARD — no preview column ─────────────────────────────────
+function MetaAnalyticsCard({ stats }) {
+  if (!stats) return null
+  if (!stats.disponivel) return (
+    <div style={{padding:'12px 16px',borderTop:`1px solid ${T.sep}`,background:T.bg2}}>
+      <p style={{fontSize:9,color:T.ink4,textAlign:'center',margin:0}}>
+        {stats.erro||'Meta Analytics não configurado'}
+      </p>
+    </div>
+  )
+  const CIRC = 94  // 2π × 15
+  const rd = stats.taxaLeitura!==null ? Math.round(CIRC*(1-(stats.taxaLeitura||0)/100)) : CIRC
+  const rb = stats.benchmarkLeitura!==null ? Math.round(CIRC*(1-(stats.benchmarkLeitura||73)/100)) : CIRC
+  const lCor = stats.taxaLeitura>=stats.benchmarkLeitura?T.green:stats.taxaLeitura>=60?T.amber:T.red
+  return (
+    <div style={{flexShrink:0,borderTop:`1px solid ${T.sep}`,background:T.bg2,padding:'12px 16px'}}>
+      <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10}}>
+        <Star size={11} style={{color:T.amber}}/>
+        <span style={{fontSize:9,fontWeight:700,textTransform:'uppercase',
+          letterSpacing:'.07em',color:T.ink3}}>Meta Analytics — 7 dias</span>
+      </div>
+      {/* Stats grid */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:10}}>
+        {[
+          {l:'Enviadas',  v:stats.totalSent||0,       cor:T.ink2},
+          {l:'Entregues', v:stats.totalDelivered||0,   cor:T.blue},
+          {l:'Lidas',     v:stats.totalRead||0,        cor:T.green},
+          {l:'Custo/msg', v:stats.custoPorMsg?`$${stats.custoPorMsg}`:'—', cor:T.amber},
+        ].map(s=>(
+          <div key={s.l} style={{textAlign:'center',background:T.bg3,borderRadius:8,padding:'7px 4px',
+            border:`1px solid ${T.sep}`}}>
+            <p style={{fontSize:15,fontWeight:700,color:s.cor,margin:0,lineHeight:1,
+              letterSpacing:'-.02em'}}>{s.v}</p>
+            <p style={{fontSize:8,color:T.ink4,margin:'3px 0 0',textTransform:'uppercase',
+              letterSpacing:'.06em'}}>{s.l}</p>
+          </div>
+        ))}
+      </div>
+      {/* Taxa leitura vs benchmark */}
+      {stats.taxaLeitura!==null&&(
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          {/* Ring */}
+          <div style={{position:'relative',width:44,height:44,flexShrink:0}}>
+            <svg width="44" height="44" viewBox="0 0 44 44">
+              <circle cx="22" cy="22" r="15" fill="none" stroke={T.bg4} strokeWidth="3"/>
+              {/* benchmark */}
+              <circle cx="22" cy="22" r="15" fill="none" stroke={`${T.ink4}50`}
+                strokeWidth="3" strokeDasharray={`${CIRC}`} strokeDashoffset={`${rb}`}
+                strokeLinecap="round" transform="rotate(-90 22 22)"/>
+              {/* você */}
+              <circle cx="22" cy="22" r="15" fill="none" stroke={lCor}
+                strokeWidth="3" strokeDasharray={`${CIRC}`} strokeDashoffset={`${rd}`}
+                strokeLinecap="round" transform="rotate(-90 22 22)"
+                style={{transition:'stroke-dashoffset .8s ease'}}/>
+            </svg>
+            <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <span style={{fontSize:10,fontWeight:700,color:lCor}}>{stats.taxaLeitura}%</span>
+            </div>
+          </div>
+          <div style={{flex:1}}>
+            <p style={{fontSize:11,fontWeight:600,color:T.ink1,margin:'0 0 3px'}}>
+              Taxa de leitura
+            </p>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+              <span style={{fontSize:10,color:lCor,fontWeight:600}}>
+                {stats.taxaLeitura}% você
+              </span>
+              <span style={{fontSize:10,color:T.ink4}}>
+                vs {stats.benchmarkLeitura}% mercado
+              </span>
+            </div>
+            <div style={{marginTop:5,height:4,borderRadius:99,background:T.bg4,position:'relative'}}>
+              <div style={{position:'absolute',left:0,top:0,height:'100%',borderRadius:99,
+                background:lCor,width:`${Math.min(100,stats.taxaLeitura)}%`,
+                transition:'width .8s ease'}}/>
+              <div style={{position:'absolute',top:0,height:'100%',width:2,background:T.ink4,
+                left:`${stats.benchmarkLeitura}%`,transform:'translateX(-50%)'}}/>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 export default function PageGatilhos({ api }) {
   // ── Estado ─────────────────────────────────────────────────────────────────
   const [selId,       setSelId]     = useState(null)
@@ -1261,6 +1904,12 @@ export default function PageGatilhos({ api }) {
   const [atividade, setAtividade] = useState({})  // envios por gatilho (7 dias)
   const [indicadores, setIndicadores] = useState({})  // indicadores ricos por gatilho
   const [molisesAberta, setMoliseAberta] = useState(false)  // painel de sugestões on/off
+
+  // ── Meta Analytics + Custos ────────────────────────────────────────────────
+  const [metaStats,      setMetaStats]    = useState({})   // { [gatilhoId]: dados Meta }
+  const [atividadeRecente,setAtivRecente] = useState([])   // feed ao vivo — todos os gatilhos
+  const [custos,          setCustos]     = useState(null)  // breakdown de custos
+  const [custosPeriodo,   setCustosPer]  = useState('30d') // período selecionado
 
   // Bulk operations — seleção multi-card
   const [selEst, setSelEst] = useState(new Set())
@@ -1401,6 +2050,38 @@ export default function PageGatilhos({ api }) {
   const labelAtual = labelDe(gatilho)
 
   // ── Carrega templates do banco ─────────────────────────────────────────────
+  // Meta analytics quando gatilho selecionado
+  useEffect(()=>{
+    if (!selId) return
+    const cached = metaStats[selId]
+    if (cached) return  // já carregou
+    fetch(`${api}/api/templates/${selId}/meta-analytics`)
+      .then(r=>r.json())
+      .then(d=>setMetaStats(prev=>({...prev,[selId]:d})))
+      .catch(()=>setMetaStats(prev=>({...prev,[selId]:{disponivel:false,erro:'Erro de conexão'}})))
+  }, [selId, api])  // eslint-disable-line
+
+  // Feed de atividade ao vivo
+  useEffect(()=>{
+    const fetchAct = () => {
+      fetch(`${api}/api/dashboard/disparos-log?limite=15`)
+        .then(r=>r.json())
+        .then(d=>setAtivRecente(d.disparos||[]))
+        .catch(()=>{})
+    }
+    fetchAct()
+    const timer = setInterval(fetchAct, 30000)
+    return ()=>clearInterval(timer)
+  }, [api])
+
+  // Custos
+  useEffect(()=>{
+    fetch(`${api}/api/dashboard/custos?periodo=${custosPeriodo}`)
+      .then(r=>r.json())
+      .then(d=>setCustos(d))
+      .catch(()=>{})
+  }, [api, custosPeriodo])
+
   // Keyboard shortcuts
   useEffect(() => {
     const h = e => {
@@ -1668,521 +2349,138 @@ export default function PageGatilhos({ api }) {
 
   const totalAtivos = Object.values(configs).filter(c => c.ativo).length
 
-  // ── RENDER ─────────────────────────────────────────────────────────────────
+  // ── RENDER (novo layout: sidebar + main area) ────────────────────────────
   return (
-    <div style={{display:'flex',flexDirection:'column',height:'100vh',background:'var(--bg)',color:'var(--label)',overflow:'hidden'}}>
+    <div style={{display:'flex',flexDirection:'column',height:'100vh',
+      background:T.bg0,color:T.ink1,overflow:'hidden'}}>
       <style>{`
         @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
         @keyframes slideup { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes spin { to { transform: rotate(360deg) } }
-        @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
-        .gat-item:hover { background: var(--fill) !important; }
-        .gat-item { transition: background .1s; }
-        .blk-add:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
-        .blk-add { transition: all .12s; }
+        @keyframes spin    { to{transform:rotate(360deg)} }
+        @keyframes fadeIn  { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes pulse   { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes slideFromRight { from{transform:translateX(24px);opacity:0} to{transform:translateX(0);opacity:1} }
         .gat-card:hover .gat-cb { opacity:1 !important }
         .gat-card { transition: all .12s }
+        ::-webkit-scrollbar{width:4px;height:4px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:99px}
       `}</style>
 
-      {/* ── HEADER ─────────────────────────────────────────────────────────── */}
-      <div style={{flexShrink:0,background:'var(--bg-2)',borderBottom:'0.5px solid var(--sep)',padding:'14px 20px'}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:16}}>
-          <div style={{display:'flex',alignItems:'center',gap:12}}>
-            <div style={{width:38,height:38,borderRadius:10,background:'linear-gradient(135deg,rgba(37,211,102,.2),rgba(0,212,170,.15))',display:'flex',alignItems:'center',justifyContent:'center',border:'0.5px solid rgba(37,211,102,.3)',flexShrink:0}}>
-              <Zap size={18} style={{color:'#25D366'}}/>
-            </div>
-            <div>
-              <h1 style={{fontSize:16,fontWeight:600,color:'var(--label)',margin:0,letterSpacing:'-.3px',display:'flex',alignItems:'center',gap:8}}>
-                Central de Automações
-                <span style={{fontSize:11,padding:'1px 8px',borderRadius:99,background:'rgba(37,211,102,.1)',color:'#22c55e',border:'0.5px solid rgba(37,211,102,.25)',fontWeight:500}}>
-                  {totalAtivos} ativo{totalAtivos!==1?'s':''}
-                </span>
-              </h1>
-              <p style={{fontSize:11.5,color:'var(--label-4)',margin:0}}>Templates de mensagem — Bling HSM + Inteligência IA</p>
-            </div>
+      {/* ── PAGE HEADER ─────────────────────────────────────────── */}
+      <div style={{flexShrink:0,background:T.bg1,borderBottom:`1px solid ${T.sep}`,
+        padding:'0 20px',display:'flex',alignItems:'center',gap:16,height:52}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:30,height:30,borderRadius:9,flexShrink:0,
+            background:'linear-gradient(135deg,rgba(37,211,102,.25),rgba(0,212,170,.15))',
+            border:'1px solid rgba(37,211,102,.35)',
+            display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <Zap size={15} style={{color:'#25D366'}}/>
           </div>
-          {/* Ações header */}
-          {selId && dirty && (
-            <button onClick={salvar} disabled={salvando} style={{display:'flex',alignItems:'center',gap:6,padding:'8px 16px',borderRadius:9,border:'0.5px solid rgba(37,211,102,.3)',background:'rgba(37,211,102,.08)',color:'#22c55e',cursor:'pointer',fontSize:13,fontWeight:600,flexShrink:0}}>
-              {salvando ? <><RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/> Salvando...</> : salvoOk ? <><Check size={13}/> Salvo!</> : <><Save size={13}/> Salvar</>}
-            </button>
-          )}
+          <div>
+            <p style={{fontSize:13,fontWeight:700,color:T.ink1,margin:0,letterSpacing:'-.02em'}}>Gatilhos WhatsApp</p>
+            <p style={{fontSize:9.5,color:T.ink4,margin:0}}>
+              {totalAtivos} ativos · {GATILHOS.length} total · Meta Business
+            </p>
+          </div>
         </div>
+        <div style={{flex:1}}/>
+        {/* Live indicator */}
+        {pulso&&pulso.clientesEmRota>0&&(
+          <div style={{display:'flex',alignItems:'center',gap:5,padding:'4px 10px',
+            borderRadius:99,background:T.greenDim,border:`1px solid ${T.greenBor}`}}>
+            <div style={{width:6,height:6,borderRadius:'50%',background:T.green,animation:'pulse 2s ease infinite'}}/>
+            <span style={{fontSize:10,fontWeight:600,color:T.green}}>{pulso.clientesEmRota} em rota</span>
+          </div>
+        )}
+        {/* Molise sugestões */}
+        {sugestoes.length>0&&(
+          <button onClick={()=>setMoliseAberta(v=>!v)}
+            style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:8,
+              fontSize:11,border:`1px solid ${T.purpleBor}`,background:T.purpleDim,
+              color:T.purple,cursor:'pointer',fontWeight:600}}>
+            <Sparkles size={12}/>Molise sugere {sugestoes.length} melhoria{sugestoes.length>1?'s':''}
+          </button>
+        )}
+        <button onClick={()=>setCmdK(true)}
+          style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:8,
+            fontSize:11,border:`1px solid ${T.sep}`,background:'none',
+            color:T.ink3,cursor:'pointer'}}>
+          <Search size={12}/><span>Buscar</span>
+          <kbd style={{fontSize:9,padding:'1px 5px',borderRadius:4,
+            background:T.bg4,border:`1px solid ${T.sep}`,color:T.ink4}}>⌘K</kbd>
+        </button>
+        <button onClick={()=>setShowPlano(p=>!p)}
+          style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:8,
+            fontSize:11,background:showPlano?T.purpleDim:'none',
+            border:`1px solid ${showPlano?T.purpleBor:T.sep}`,
+            color:showPlano?T.purple:T.ink3,cursor:'pointer',fontWeight:showPlano?600:400}}>
+          <SlidersHorizontal size={12}/>Plano
+        </button>
       </div>
 
-      {/* ── PAINEL DE PULSO — Health cards enterprise T ─────────────────────── */}
-      {pulso && !selId && (() => {
-        const cards = [
-          { key:'aprovados',   lbl:'Aprovados',     val:pulso.meta.aprovados,   cor:T.green  },
-          { key:'analise',     lbl:'Em análise',    val:pulso.meta.analise,     cor:T.amber  },
-          { key:'naoEnviados', lbl:'Não enviados',  val:pulso.meta.naoEnviados, cor:T.ink3   },
-          { key:'rejeitados',  lbl:'Rejeitados',    val:pulso.meta.rejeitados,  cor:T.red    },
-          { key:'disparos',    lbl:'Disparos hoje', val:pulso.disparosHoje,     cor:T.blue   },
-          { key:'emRota',      lbl:'Em rota agora', val:pulso.clientesEmRota,   cor:T.purple },
-        ]
-        return (
-          <div style={{flexShrink:0,background:T.bg2,borderBottom:`1px solid ${T.sep2}`,
-            padding:'8px 20px',display:'flex',gap:8,overflowX:'auto'}}>
-            {cards.map((c,i)=>  {
-              const spk = sparks?.[c.key]
-              return (
-                <div key={i} style={{flex:'1 1 0',minWidth:120,background:T.bg3,borderRadius:10,
-                  padding:'8px 12px',border:`1px solid ${T.sep}`,
-                  boxShadow:'0 2px 8px rgba(0,0,0,.2)'}}>
-                  <div style={{fontSize:9,color:T.ink3,marginBottom:4,textTransform:'uppercase',
-                    letterSpacing:'.06em'}}>{c.lbl}</div>
-                  <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:6}}>
-                    <span style={{fontSize:20,fontWeight:700,color:c.cor,lineHeight:1,
-                      letterSpacing:'-.025em'}}>{c.val}</span>
-                    {spk&&<SparkCard serie={spk} cor={c.cor}/>}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )
-      })()}
+      {/* ── MAIN: Sidebar + Content ─────────────────────────────── */}
+      <div style={{flex:1,display:'flex',overflow:'hidden'}}>
 
-      {/* ── MOLISE COPILOTA (Fase 2) — botão que expande sob demanda ────────── */}
-      {(() => {
-        const ativas = sugestoes.filter(s=>!sugestoesFechadas[s.titulo])
-        if (!ativas.length || selId) return null
-        return (
-          <div style={{flexShrink:0,background:'var(--bg-2)',borderBottom:'0.5px solid var(--sep)',padding:'6px 20px'}}>
-            <button onClick={()=>setMoliseAberta(a=>!a)}
-              style={{display:'flex',alignItems:'center',gap:7,padding:'5px 12px',borderRadius:8,background:'rgba(124,106,247,.1)',border:'0.5px solid rgba(124,106,247,.25)',cursor:'pointer',color:'#7c6af7',fontSize:11.5,fontWeight:500}}>
-              <Sparkles size={13}/> Molise sugere {ativas.length} melhoria{ativas.length>1?'s':''}
-              {molisesAberta ? <ChevronUp size={12}/> : <ChevronDown size={12}/>}
-            </button>
-            {molisesAberta && (
-              <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:8}}>
-                {ativas.slice(0,4).map((s,i)=>{
-                  const cor = s.tipo==='erro'?'#ef4444':s.tipo==='aviso'?'#f59e0b':'#7c6af7'
-                  const dim = s.tipo==='erro'?'rgba(239,68,68,.08)':s.tipo==='aviso'?'rgba(245,158,11,.08)':'rgba(124,106,247,.08)'
-                  return (
-                    <div key={i} style={{display:'flex',alignItems:'flex-start',gap:9,background:dim,border:`0.5px solid ${cor}33`,borderRadius:9,padding:'9px 12px'}}>
-                      <Sparkles size={14} style={{color:cor,flexShrink:0,marginTop:1}}/>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:11.5,fontWeight:500,color:'var(--label)',lineHeight:1.4}}><span style={{color:cor}}>Molise:</span> {s.titulo}</div>
-                        <div style={{fontSize:10.5,color:'var(--label-3)',lineHeight:1.45,marginTop:2}}>{s.texto}</div>
-                        {s.gatilho && (
-                          <button onClick={()=>{ setSelId(s.gatilho); if(s.acao==='gerar') setTimeout(()=>gerarIA(),300) }}
-                            style={{marginTop:6,fontSize:10,padding:'3px 10px',borderRadius:7,background:cor,color:'#fff',border:'none',cursor:'pointer',fontWeight:500}}>
-                            {s.acao==='gerar'?'Gerar com a Molise':s.acao==='revisar'?'Revisar gatilho':s.acao==='submeter'?'Abrir e submeter':'Abrir gatilho'}
-                          </button>
-                        )}
-                      </div>
-                      <button onClick={()=>setSugFechadas(f=>({...f,[s.titulo]:true}))} title="Dispensar"
-                        style={{background:'transparent',border:'none',cursor:'pointer',color:'var(--label-4)',flexShrink:0,padding:2}}>
-                        <X size={13}/>
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        )
-      })()}
-
-      {/* ── JORNADA (Fase 2) — linha do tempo: clientes por etapa agora ──────── */}
-      {jornada && !selId && (
-        <div style={{flexShrink:0,background:'var(--bg-2)',borderBottom:'0.5px solid var(--sep)',padding:'12px 20px'}}>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:4}}>
-            {[
-              { id:'compra',  lbl:'Compra',    icon:ShoppingBag, cor:'#7c6af7' },
-              { id:'preparo', lbl:'Preparo',   icon:Package,     cor:'#4a9fff' },
-              { id:'envio',   lbl:'Envio',     icon:Truck,       cor:'#1D9E75' },
-              { id:'pos',     lbl:'Pós-venda', icon:RefreshCw,   cor:'#f59e0b' },
-              { id:'ia',      lbl:'IA',        icon:Brain,       cor:'#a78bfa' },
-            ].map((e,i,arr)=>{
-              const n = jornada.etapas[e.id] || 0
-              const ativo = n > 0
-              const EIcon = e.icon
-              return (
-                <div key={e.id} style={{display:'flex',alignItems:'center',flex:i<arr.length-1?1:'0 0 auto'}}>
-                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,flexShrink:0}}>
-                    <span style={{fontSize:15,fontWeight:600,color:ativo?e.cor:'var(--label-4)',lineHeight:1}}>{n}</span>
-                    <div style={{width:30,height:30,borderRadius:'50%',background:ativo?e.cor:'var(--fill)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                      <EIcon size={14} style={{color:ativo?'#fff':'var(--label-4)'}}/>
-                    </div>
-                    <span style={{fontSize:9.5,color:ativo?e.cor:'var(--label-4)',fontWeight:ativo?500:400}}>{e.lbl}</span>
-                  </div>
-                  {i<arr.length-1 && <div style={{flex:1,height:2,background:'var(--sep)',margin:'0 4px',marginBottom:14}}/>}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      <div style={{flex:1,display:'flex',overflow:'hidden',position:'relative'}}>
-
-        {/* ── GRADE DE CARDS (Centro de Operações) ────────────────────────── */}
-        <div style={{flex:1,overflowY:'auto',padding:'14px 20px',background:'var(--bg)'}}>
-
-          {/* Barra de busca + botão Plano */}
-          <div style={{marginBottom:14,display:'flex',gap:8,alignItems:'center'}}>
-            <div style={{flex:1,maxWidth:320,display:'flex',alignItems:'center',gap:7,padding:'8px 11px',borderRadius:9,border:'0.5px solid var(--sep)',background:'var(--bg-2)'}}>
-              <Activity size={13} style={{color:'var(--label-4)',flexShrink:0}}/>
-              <input value={busca} onChange={e=>{setBusca(e.target.value);setShowPlano(false)}} placeholder="Buscar gatilho..."
-                style={{flex:1,border:'none',background:'transparent',color:'var(--label)',fontSize:13,outline:'none'}}/>
-            </div>
-            <button onClick={()=>setCmdK(true)} title="Command Palette (⌘K)"
-            style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',borderRadius:8,
-              fontSize:11,border:'1px solid var(--sep)',background:'none',
-              color:'var(--label-4)',cursor:'pointer'}}>
-            <Search size={12}/>
-            <span>Buscar</span>
-            <kbd style={{fontSize:9,padding:'1px 5px',borderRadius:4,marginLeft:2,
-              background:'var(--fill)',border:'1px solid var(--sep)',color:'var(--label-4)'}}>⌘K</kbd>
-          </button>
-          <button onClick={()=>setShowPlano(p=>!p)} style={{
-              display:'flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius:9,
-              border:`0.5px solid ${showPlano?'rgba(124,106,247,.4)':'var(--sep)'}`,
-              background:showPlano?'rgba(124,106,247,.1)':'var(--bg-2)',
-              color:showPlano?'#7c6af7':'var(--label-3)',cursor:'pointer',fontSize:12,fontWeight:500,
-              whiteSpace:'nowrap'}}>
-              <SlidersHorizontal size={13}/>Plano
-            </button>
-          </div>
-
-          {/* ── INSIGHTS INTELIGENTES MULTI-NÍVEL ── */}
-          {!showPlano && !selId && insightsGat.filter(i=>!insDismiss.has(i.id)).length > 0 && (
-            <div style={{marginBottom:20,padding:'14px 16px',borderRadius:13,
-              background:T.bg2,border:`1px solid ${T.sep2}`,
-              boxShadow:'0 4px 20px rgba(0,0,0,.25)'}}>
-              {/* Header */}
-              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
-                <Activity size={14} style={{color:T.amber}}/>
-                <span style={{fontSize:12,fontWeight:700,color:T.ink1,letterSpacing:'-.01em'}}>
-                  Inteligência dos Gatilhos
-                </span>
-                <span style={{fontSize:10,padding:'1px 7px',borderRadius:99,
-                  background:T.redDim,color:T.red,border:`1px solid ${T.redBor}`,fontWeight:700}}>
-                  {insightsGat.filter(i=>!insDismiss.has(i.id)&&i.tipo==='critico').length > 0
-                    ? `${insightsGat.filter(i=>!insDismiss.has(i.id)&&i.tipo==='critico').length} crítico${insightsGat.filter(i=>!insDismiss.has(i.id)&&i.tipo==='critico').length>1?'s':''}`
-                    : `${insightsGat.filter(i=>!insDismiss.has(i.id)).length} alertas`
-                  }
-                </span>
-                <button onClick={()=>setInsDismiss(new Set(insightsGat.map(i=>i.id)))}
-                  style={{marginLeft:'auto',fontSize:10,color:T.ink4,background:'transparent',
-                    cursor:'pointer',padding:'3px 8px',borderRadius:6,
-                    border:`1px solid ${T.sep}`}}>
-                  Dispensar todos
-                </button>
-              </div>
-              {/* Cards de insight */}
-              <div style={{display:'flex',flexDirection:'column',gap:9}}>
-                {insightsGat
-                  .filter(i=>!insDismiss.has(i.id))
-                  .map(ins=>(
-                    <InsightCardGat
-                      key={ins.id}
-                      ins={ins}
-                      onDismiss={()=>setInsDismiss(d=>new Set([...d,ins.id]))}
-                      onGoto={id=>{setSelId(id);setShowPlano(false)}}
-                    />
-                  ))
-                }
-              </div>
-            </div>
-          )}
-
-          {/* Plano de Disparos (quando ativo) */}
-          {showPlano && (
-            <PlanodeDisparos
-              gatilhos={GATILHOS}
-              configs={configs}
-              atividade={atividade}
-              onSelect={id=>{ setSelId(id); setShowPlano(false) }}
-              api={api}
-            />
-          )}
-
-          {/* Grade agrupada por jornada (quando Plano não está ativo) */}
-          {!showPlano && gruposFiltrados.map(grupo => (
-            <div key={grupo.nome} style={{marginBottom:18}}>
-              <button onClick={()=>setGrupoAb(p=>({...p,[grupo.nome]:!p[grupo.nome]}))}
-                style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0',marginBottom:10,
-                  border:'none',background:'transparent',cursor:'pointer',width:'100%'}}>
-                <div style={{height:1,width:14,background:T.sep2,flexShrink:0}}/>
-                <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',
-                  letterSpacing:'.1em',color:T.ink3,whiteSpace:'nowrap'}}>{grupo.nome}</span>
-                <span style={{fontSize:9.5,color:T.ink4,background:T.bg3,padding:'1px 8px',
-                  borderRadius:99,border:`1px solid ${T.sep}`,flexShrink:0,fontWeight:600}}>
-                  {grupo.itens.length}
-                </span>
-                <div style={{flex:1,height:1,background:T.sep}}/>
-                {grupoAberto[grupo.nome]===false
-                  ? <ChevronDown size={12} style={{color:T.ink4,flexShrink:0}}/>
-                  : <ChevronUp size={12} style={{color:T.ink4,flexShrink:0}}/>}
-              </button>
-
-              {grupoAberto[grupo.nome]!==false && (
-                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))',gap:10}}>
-                  {grupo.itens.map(g => {
-                    const cfg = configs[g.id]
-                    const ativo = cfg?.ativo
-                    const temTemplate = !!cfg
-                    const Icon = g.icon
-                    const isSelected = selId === g.id
-                    const mst = (cfg?.meta_template_status || '').toUpperCase()
-                    const stInfo = mst==='APPROVED' ? { cor:'#22c55e', lbl:'Aprovado', dim:'rgba(34,197,94,.12)' }
-                      : (mst==='PENDING'||mst==='IN_APPEAL') ? { cor:'#f59e0b', lbl:'Em análise', dim:'rgba(245,158,11,.12)' }
-                      : mst==='REJECTED' ? { cor:'#ef4444', lbl:'Rejeitado', dim:'rgba(239,68,68,.12)' }
-                      : temTemplate ? { cor:'var(--label-4)', lbl:'Rascunho', dim:'var(--fill)' }
-                      : { cor:'var(--label-4)', lbl:'Sem template', dim:'var(--fill)' }
-                    // Preview do conteúdo: primeiro texto/cabeçalho do gatilho
-                    const blocoTexto = (cfg?.blocos||[]).find(b=>b.tipo==='texto'||b.tipo==='cabecalho')
-                    const previewTxt = blocoTexto?.conteudo || 'Sem conteúdo configurado'
-                    // ── Insights por card ───────────────────────────
-                    const ind2    = indicadores[g.id]
-                    const env2    = ind2?.enviados || 0
-                    const err2    = ind2?.erros    || 0
-                    const ser2    = ind2?.serie     || []
-                    const ult2    = ind2?.ultimo    || null
-                    const rel2    = tempoRel(ult2)
-                    const tent2   = env2 + err2
-                    const taxa2   = tent2 > 0 ? Math.round(env2/tent2*100) : null
-                    const tCor2   = taxa2===null?T.ink4:taxa2>=70?T.green:taxa2>=30?T.amber:T.red
-                    const tDim2   = taxa2===null?T.gray:taxa2>=70?T.greenDim:taxa2>=30?T.amberDim:T.redDim
-                    const tBor2   = taxa2===null?T.grayBor:taxa2>=70?T.greenBor:taxa2>=30?T.amberBor:T.redBor
-                    const ehCrit2 = ['pedido_entregue','rastreio_em_transito','saiu_entrega','pedido_coletado'].includes(g.id)
-                    const isSel   = selEst.has(g.id)
-
-                    return (
-                      <div key={g.id} onClick={()=>!isSel&&setSelId(g.id)} className="gat-card"
-                        style={{background:isSel?T.purpleDim:T.bg2, borderRadius:11,
-                          border:`1px solid ${isSelected?g.cor+'50':isSel?T.purpleBor:T.sep}`,
-                          cursor:'pointer', overflow:'hidden', display:'flex', flexDirection:'column',
-                          transition:'all .12s',
-                          boxShadow:isSelected?`0 2px 16px ${g.cor}20, 0 0 0 2px ${g.cor}15`:'none'}}>
-
-                        {/* Faixa de health no topo com gradiente */}
-                        <div style={{height:3.5,
-                          background:taxa2===null
-                            ?`linear-gradient(90deg,${T.ink4}40,${T.ink4}20)`
-                            :taxa2>=70
-                              ?`linear-gradient(90deg,${T.green},${T.green}60)`
-                              :taxa2>=30
-                                ?`linear-gradient(90deg,${T.amber},${T.amber}60)`
-                                :`linear-gradient(90deg,${T.red},${T.red}60)`,
-                          borderRadius:'3px 3px 0 0'}}/>
-
-                        <div style={{padding:'11px 13px',display:'flex',flexDirection:'column',gap:8,flex:1}}>
-
-                          {/* Cabeçalho */}
-                          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-                            <div style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}>
-                              {/* Mini ring de saúde */}
-                              {taxa2!==null && (
-                                <div style={{position:'relative',width:24,height:24,flexShrink:0}}>
-                                  <svg width="24" height="24" viewBox="0 0 24 24">
-                                    <circle cx="12" cy="12" r="9" fill="none" stroke={T.bg4} strokeWidth="2.5"/>
-                                    <circle cx="12" cy="12" r="9" fill="none" stroke={tCor2}
-                                      strokeWidth="2.5"
-                                      strokeDasharray="57"
-                                      strokeDashoffset={`${Math.round(57*(1-taxa2/100))}`}
-                                      strokeLinecap="round"
-                                      transform="rotate(-90 12 12)"
-                                      style={{transition:'stroke-dashoffset .8s ease'}}/>
-                                  </svg>
-                                  <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                                    <span style={{fontSize:6,fontWeight:700,color:tCor2,lineHeight:1}}>{taxa2}</span>
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Checkbox bulk */}
-                              <div onClick={e=>{e.stopPropagation();toggleSelEst(g.id)}}
-                                className="gat-cb"
-                                style={{width:15,height:15,borderRadius:4,flexShrink:0,
-                                  background:isSel?T.purple:'transparent',
-                                  border:`1.5px solid ${isSel?T.purple:T.sep2}`,
-                                  display:'flex',alignItems:'center',justifyContent:'center',
-                                  cursor:'pointer',opacity:isSel?1:0,transition:'all .12s'}}>
-                                {isSel&&<Check size={8} style={{color:'#fff'}}/>}
-                              </div>
-                              <div style={{width:34,height:34,borderRadius:10,
-                                background:`linear-gradient(135deg,${g.cor}28,${g.cor}12)`,
-                                border:`1px solid ${g.cor}40`,flexShrink:0,
-                                display:'flex',alignItems:'center',justifyContent:'center',
-                                boxShadow:`0 2px 8px ${g.cor}18`}}>
-                                <Icon size={16} style={{color:g.cor}}/>
-                              </div>
-                              <div style={{minWidth:0,flex:1}}>
-                                <span style={{fontSize:12.5,fontWeight:700,color:T.ink1,
-                                  display:'block',overflow:'hidden',textOverflow:'ellipsis',
-                                  whiteSpace:'nowrap',letterSpacing:'-.01em'}}>
-                                  {labelDe(g)}
-                                </span>
-                                {g.grupo&&<span style={{fontSize:9,color:T.ink4}}>{g.grupo}</span>}
-                              </div>
-                            </div>
-                            {/* Toggle */}
-                            {temTemplate && (
-                              <button onClick={e=>{e.stopPropagation();toggleAtivo(g.id)}}
-                                title={ativo?'Ativo':'Inativo'}
-                                style={{position:'relative',width:30,height:17,borderRadius:99,border:'none',
-                                  cursor:'pointer',background:ativo?T.green:'rgba(255,255,255,.15)',
-                                  flexShrink:0,transition:'background .15s'}}>
-                                <span style={{position:'absolute',width:13,height:13,background:'#fff',
-                                  borderRadius:'50%',top:2,left:ativo?15:2,transition:'left .15s'}}/>
-                              </button>
-                            )}
-                          </div>
-
-                          {/* Preview — bolha WA com bold rendering */}
-                          <div style={{background:'#0d1a22',borderRadius:9,
-                            padding:'9px 10px 7px',flex:1,minHeight:44,
-                            border:'1px solid rgba(255,255,255,.07)',position:'relative',overflow:'hidden'}}>
-                            {/* Borda esquerda colorida — cor do gatilho */}
-                            <div style={{position:'absolute',top:0,left:0,width:3,height:'100%',
-                              background:`linear-gradient(to bottom,${g.cor},${g.cor}40)`,
-                              borderRadius:'3px 0 0 3px'}}/>
-                            <p style={{fontSize:10.5,color:'#e9edef',margin:0,lineHeight:1.55,
-                              paddingLeft:9,
-                              display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',
-                              overflow:'hidden'}}
-                              dangerouslySetInnerHTML={{__html:
-                                (previewTxt||'Sem mensagem configurada')
-                                  .replace(/</g,'&lt;')
-                                  .replace(/\n.*[\s\S]*/,'')
-                                  .replace(/\*([^*]+)\*/g,'<strong style="color:#fff">$1</strong>')
-                                  .replace(/^(.{0,90}).*$/,'$1')
-                              }}/>
-                            {blocoTexto && (
-                              <div style={{display:'flex',justifyContent:'flex-end',gap:3,
-                                marginTop:4,paddingLeft:9,alignItems:'center'}}>
-                                <span style={{fontSize:8,color:'#8696a0'}}>{rel2||'nunca'}</span>
-                                <span style={{fontSize:10,color:ativo?'#53bdeb':'rgba(255,255,255,.15)'}}>✓✓</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Footer: insights + sparkline ── */}
-                          <div style={{display:'flex',flexDirection:'column',gap:5}}>
-                            {/* Insight crítico */}
-                            {!temTemplate && ehCrit2 && (
-                              <div style={{display:'flex',alignItems:'center',gap:5,padding:'3px 8px',
-                                borderRadius:6,background:T.redDim,border:`0.5px solid ${T.redBor}`}}>
-                                <AlertTriangle size={9} style={{color:T.red,flexShrink:0}}/>
-                                <span style={{fontSize:9,color:T.red,fontWeight:600}}>Criar e aprovar na Meta</span>
-                              </div>
-                            )}
-                            {/* Taxa 0% alerta */}
-                            {taxa2===0 && tent2>=3 && (
-                              <div style={{display:'flex',alignItems:'center',gap:5,padding:'3px 8px',
-                                borderRadius:6,background:T.amberDim,border:`0.5px solid ${T.amberBor}`}}>
-                                <AlertTriangle size={9} style={{color:T.amber,flexShrink:0}}/>
-                                <span style={{fontSize:9,color:T.amber,fontWeight:600}}>0% taxa · template inativo</span>
-                              </div>
-                            )}
-                            {/* Row: meta badge + taxa + erros + sparkline */}
-                            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}}>
-                              <div style={{display:'flex',alignItems:'center',gap:4,flexWrap:'wrap',minWidth:0}}>
-                                <span style={{fontSize:9,padding:'1px 6px',borderRadius:99,
-                                  background:stInfo.dim==='var(--fill)'?T.gray:stInfo.dim,
-                                  color:stInfo.cor==='var(--label-4)'?T.ink3:stInfo.cor,
-                                  fontWeight:500,whiteSpace:'nowrap',flexShrink:0}}>{stInfo.lbl}</span>
-                                {taxa2!==null&&(
-                                  <span style={{fontSize:9,padding:'1px 6px',borderRadius:99,
-                                    background:tDim2,color:tCor2,fontWeight:700,
-                                    whiteSpace:'nowrap',flexShrink:0}}>{taxa2}%</span>
-                                )}
-                                {err2>0&&(
-                                  <span style={{fontSize:9,color:T.red,padding:'1px 5px',borderRadius:99,
-                                    background:T.redDim,fontWeight:600,flexShrink:0}}>⚠ {err2}</span>
-                                )}
-                                {rel2&&<span style={{fontSize:9,color:T.ink4,flexShrink:0}}>· {rel2}</span>}
-                              </div>
-                              <div style={{display:'flex',gap:5,alignItems:'center',flexShrink:0}}>
-                                {ser2.length>0&&<SparkCard serie={ser2} cor={err2>0?T.red:ativo?T.green:T.amber}/>}
-                                {g.tipo==='ia'&&<span style={{fontSize:8,padding:'1px 5px',borderRadius:99,
-                                  background:T.purpleDim,color:T.purple,flexShrink:0}}>IA</span>}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-        {/* ── Bulk actions toolbar ── */}
-        {selEst.size > 0 && !selId && (
-          <div style={{position:'sticky',bottom:0,left:0,right:0,
-            display:'flex',alignItems:'center',gap:10,padding:'10px 16px',
-            background:'rgba(13,16,23,0.96)',
-            backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',
-            borderTop:`1px solid ${T.purpleBor}`,
-            boxShadow:`0 -4px 24px rgba(0,0,0,.5)`,
-            zIndex:25, animation:'slideup .2s ease',flexWrap:'wrap'}}>
-            <div style={{display:'flex',alignItems:'center',gap:7,flexShrink:0}}>
-              <div style={{width:22,height:22,borderRadius:7,background:T.purple,
-                display:'flex',alignItems:'center',justifyContent:'center'}}>
-                <span style={{fontSize:11,fontWeight:700,color:'#fff'}}>{selEst.size}</span>
-              </div>
-              <span style={{fontSize:12,color:T.ink2,fontWeight:500}}>
-                gatilho{selEst.size>1?'s':''} selecionado{selEst.size>1?'s':''}
-              </span>
-            </div>
-            <div style={{flex:1}}/>
-            <button onClick={ativarLote} style={{display:'flex',alignItems:'center',gap:5,
-              padding:'7px 13px',borderRadius:9,border:'none',cursor:'pointer',
-              background:'linear-gradient(135deg,#14532d,#166534)',
-              color:T.green,fontSize:12,fontWeight:600}}>
-              <CheckCircleIc size={13}/>Ativar {selEst.size}
-            </button>
-            <button onClick={desativLote} style={{display:'flex',alignItems:'center',gap:5,
-              padding:'7px 13px',borderRadius:9,border:`1px solid ${T.redBor}`,cursor:'pointer',
-              background:T.redDim,color:T.red,fontSize:12,fontWeight:600}}>
-              <X size={13}/>Desativar {selEst.size}
-            </button>
-            <button onClick={()=>setSelEst(new Set())} style={{
-              width:30,height:30,borderRadius:8,border:`1px solid ${T.sep2}`,
-              background:T.bg3,color:T.ink3,cursor:'pointer',
-              display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              <X size={13}/>
-            </button>
-          </div>
-        )}
-
-        {selId && (
-          <div onClick={()=>setSelId(null)} style={{position:'absolute',inset:0,background:'rgba(0,0,0,.35)',zIndex:30,animation:'fadeIn .15s'}}/>
-        )}
-        {/* ── Command Palette ⌘K ── */}
-        <CmdGatilhos
-          open={cmdK}
-          onClose={()=>setCmdK(false)}
+        {/* LEFT SIDEBAR */}
+        <GatilhoSidebar
           gatilhos={GATILHOS}
           configs={configs}
-          onSelect={setSelId}
-          onToggle={toggleAtivo}
+          indicadores={indicadores}
+          selId={selId}
+          onSelect={id=>{ setSelId(id); setShowPlano(false) }}
           labelDe={labelDe}
+          insightsGat={insightsGat}
+          insDismiss={insDismiss}
+          toggleAtivo={toggleAtivo}
+          custos={custos}
         />
 
-        <div style={{position:'absolute',top:0,right:0,bottom:0,width:selId?'min(1180px,96%)':0,background:'var(--bg)',borderLeft:selId?'0.5px solid var(--sep)':'none',zIndex:31,overflow:'hidden',transition:'width .2s ease',display:'flex',boxShadow:selId?'-8px 0 24px rgba(0,0,0,.15)':'none'}}>
-          {selId && (
-          <div style={{flex:1,display:'grid',gridTemplateColumns:'1fr 340px',overflow:'hidden',minWidth:1100}}>
+        {/* MAIN CONTENT */}
+        <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
 
-        {/* ── COLUNA 2: Editor ────────────────────────────────────────────── */}
-        <div style={{display:'flex',flexDirection:'column',overflow:'hidden',borderRight:'0.5px solid var(--sep)'}}>
-          {!selId ? (
-            <PlanodeDisparos
-              gatilhos={GATILHOS}
-              configs={configs}
-              atividade={atividade}
-              onSelect={setSelId}
-              api={api}
+          {/* Plano de Disparos overlay */}
+          {showPlano && (
+            <div style={{position:'absolute',inset:0,zIndex:50,background:T.bg0,
+              display:'flex',flexDirection:'column',overflow:'hidden'}}>
+              <div style={{flexShrink:0,padding:'14px 20px',borderBottom:`1px solid ${T.sep}`,
+                display:'flex',alignItems:'center',gap:10}}>
+                <SlidersHorizontal size={14} style={{color:T.purple}}/>
+                <span style={{fontSize:13,fontWeight:700,color:T.ink1}}>Plano de Disparos</span>
+                <button onClick={()=>setShowPlano(false)}
+                  style={{marginLeft:'auto',padding:'5px 12px',borderRadius:8,border:`1px solid ${T.sep}`,
+                    background:'none',color:T.ink2,cursor:'pointer',fontSize:12}}>
+                  <X size={13}/>
+                </button>
+              </div>
+              <PlanodeDisparos gatilhos={GATILHOS} configs={configs}
+                atividade={atividade}
+                onSelect={id=>{setSelId(id);setShowPlano(false)}} api={api}/>
+            </div>
+          )}
+
+          {/* Dashboard (sem seleção) */}
+          {!selId && (
+            <GatilhoDashboard
+              pulso={pulso} sparks={sparks} jornada={jornada}
+              insightsGat={insightsGat} insDismiss={insDismiss}
+              setInsDismiss={setInsDismiss}
+              onGoto={id=>{setSelId(id);setShowPlano(false)}}
+              atividadeRecente={atividadeRecente}
+              custos={custos}
+              custosPeriodo={custosPeriodo}
+              onSetPeriodo={p=>{setCustosPer(p)}}
             />
-          ) : (
-            <>
+          )}
+
+          {/* Editor Studio (com seleção) */}
+          {selId && (
+            <div style={{flex:1,display:'grid',gridTemplateColumns:'1fr 340px',
+              overflow:'hidden',animation:'slideFromRight .25s ease'}}>
+
+              {/* ── COLUNA EDITOR ────────────────────────────────── */}
+              <div style={{display:'flex',flexDirection:'column',overflow:'hidden',
+                borderRight:`1px solid ${T.sep}`}}>
               {/* ── Header premium do drawer ── */}
               {(() => {
                 const indH  = indicadores[selId]
@@ -2631,26 +2929,11 @@ export default function PageGatilhos({ api }) {
                 )}
 
               </div>
-            </>
-          )}
-        </div>
-
-        {/* ── COLUNA 3: Preview premium ───────────────────────────────────── */}
-        <div style={{display:'flex',flexDirection:'column',overflow:'hidden',
-          background:`linear-gradient(160deg,${T.bg1} 0%,${T.bg0} 100%)`}}>
-          {!selId ? (
-            <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',
-              justifyContent:'center',gap:12,padding:24}}>
-              <div style={{width:48,height:48,borderRadius:14,background:T.bg3,
-                display:'flex',alignItems:'center',justifyContent:'center',opacity:.4}}>
-                <Eye size={22} style={{color:T.ink3}}/>
               </div>
-              <p style={{fontSize:12,color:T.ink4,textAlign:'center'}}>
-                Selecione um gatilho para ver o preview da mensagem
-              </p>
-            </div>
-          ) : (
-            <>
+
+              {/* ── COLUNA PREVIEW ────────────────────────────────── */}
+              <div style={{display:'flex',flexDirection:'column',overflow:'hidden',
+                background:`linear-gradient(160deg,${T.bg1} 0%,${T.bg0} 100%)`}}>
               {/* Header contextual do preview */}
               <div style={{flexShrink:0,padding:'14px 16px',
                 background:`linear-gradient(135deg,${gatilho?.cor}15 0%,${T.bg2} 70%)`,
@@ -2720,17 +3003,69 @@ export default function PageGatilhos({ api }) {
                   </button>
                 </div>
               )}
-            </>
-          )}
-        </div>
 
-          </div>
+                {/* Meta Analytics */}
+                <MetaAnalyticsCard stats={metaStats[selId]}/>
+
+              </div>
+            </div>
           )}
+
         </div>
       </div>
+
+      {/* Bulk toolbar */}
+      {selEst.size>0&&(
+        <div style={{position:'fixed',bottom:0,left:0,right:0,
+          display:'flex',alignItems:'center',gap:10,padding:'10px 20px',
+          background:'rgba(13,16,23,0.96)',backdropFilter:'blur(12px)',
+          WebkitBackdropFilter:'blur(12px)',borderTop:`1px solid ${T.purpleBor}`,
+          boxShadow:'0 -4px 24px rgba(0,0,0,.5)',zIndex:100,
+          animation:'slideup .2s ease',flexWrap:'wrap'}}>
+          <div style={{display:'flex',alignItems:'center',gap:7,flexShrink:0}}>
+            <div style={{width:22,height:22,borderRadius:7,background:T.purple,
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <span style={{fontSize:11,fontWeight:700,color:'#fff'}}>{selEst.size}</span>
+            </div>
+            <span style={{fontSize:12,color:T.ink2,fontWeight:500}}>
+              gatilho{selEst.size>1?'s':''} selecionado{selEst.size>1?'s':''}
+            </span>
+          </div>
+          <div style={{flex:1}}/>
+          <button onClick={ativarLote} style={{display:'flex',alignItems:'center',gap:5,
+            padding:'7px 13px',borderRadius:9,border:'none',cursor:'pointer',
+            background:'linear-gradient(135deg,#14532d,#166534)',
+            color:T.green,fontSize:12,fontWeight:600}}>
+            <CheckCircleIc size={13}/>Ativar {selEst.size}
+          </button>
+          <button onClick={desativLote} style={{display:'flex',alignItems:'center',gap:5,
+            padding:'7px 13px',borderRadius:9,border:`1px solid ${T.redBor}`,cursor:'pointer',
+            background:T.redDim,color:T.red,fontSize:12,fontWeight:600}}>
+            <X size={13}/>Desativar {selEst.size}
+          </button>
+          <button onClick={()=>setSelEst(new Set())} style={{width:30,height:30,borderRadius:8,
+            border:`1px solid ${T.sep2}`,background:T.bg3,color:T.ink3,cursor:'pointer',
+            display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <X size={13}/>
+          </button>
+        </div>
+      )}
+
+      {/* ⌘K */}
+      <CmdGatilhos open={cmdK} onClose={()=>setCmdK(false)} gatilhos={GATILHOS}
+        configs={configs} onSelect={setSelId} onToggle={toggleAtivo} labelDe={labelDe}/>
+
+      {/* Modal novo gatilho */}
+      {showPlano && false && (
+        <ModalGatilho modo="novo" api={api}
+          onClose={()=>setShowPlano(false)}
+          onSave={g=>{setShowPlano(false);setSelId(g.id)}}/>
+      )}
+
     </div>
   )
 }
+
 
 function ModalGatilho({modo,existente,api,onClose,onSave}){
   const [form,setForm]=useState({id:existente?.id||'',label:existente?.label||'',string:existente?.situacao||'',desc:existente?.desc||''})
