@@ -409,183 +409,440 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
             )
           })()}
 
-          {/* ── PERFIL DO CLIENTE ── */}
-          {tipo==='cliente' && (
-            <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              {loadCli && (
-                <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:10,
-                  padding:'48px 0',color:'var(--label-4)'}}>
-                  <RefreshCw size={18} style={{animation:'spin 1s linear infinite'}}/>
-                  <span style={{fontSize:12}}>Carregando histórico...</span>
-                </div>
-              )}
-              {cli && (
-                <>
-                  {/* Hero do cliente */}
-                  <div style={{padding:'16px',borderRadius:14,background:'var(--bg-3)',
-                    border:'0.5px solid var(--sep)',display:'flex',gap:14,alignItems:'center'}}>
-                    <Iniciais nome={cli.resumo?.nome} size={52}/>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:16,fontWeight:700,color:'var(--label)',
-                        marginBottom:2,letterSpacing:'-.02em'}}>
-                        {cli.resumo?.nome||'Cliente'}
+          {/* ── PERFIL DO CLIENTE — Ultra Premium ── */}
+          {tipo==='cliente' && (() => {
+            // ── Métricas base ─────────────────────────────────────────────
+            const total    = cli?.resumo?.total    || 0
+            const enviados = cli?.resumo?.enviados || 0
+            const erros    = cli?.resumo?.erros    || 0
+            const ignorados= total - enviados - erros
+            const pedidos  = cli?.resumo?.pedidos  || []
+
+            // Saúde: % de disparos enviados com sucesso
+            const score    = total > 0 ? Math.round(enviados / total * 100) : 0
+            const CIRC     = 138  // 2π × r(22)
+            const dashOff  = Math.round(CIRC * (1 - score / 100))
+            const rCor     = score > 70 ? T.green : score > 30 ? T.amber : T.red
+            const rDim     = score > 70 ? T.greenDim : score > 30 ? T.amberDim : T.redDim
+            const rBor     = score > 70 ? T.greenBor : score > 30 ? T.amberBor : T.redBor
+            const scLbl    = score === 0 ? 'Crítico' : score < 30 ? 'Em risco' : score < 70 ? 'Atenção' : 'Saudável'
+
+            // ── Journey helpers ───────────────────────────────────────────
+            const STAGES = [
+              {id:'pedido_criado',      lbl:'Criado'},
+              {id:'pagamento_aprovado', lbl:'Pago'},
+              {id:'em_separacao',       lbl:'Sep.'},
+              {id:'pedido_enviado',     lbl:'Enviado'},
+              {id:'pedido_entregue',    lbl:'Entregue'},
+            ]
+            const stFor = (pid, sid) => {
+              const d = (cli?.disparos||[]).find(x=>String(x.numero_pedido)===String(pid)&&x.gatilho===sid)
+              return d ? d.status : 'pendente'
+            }
+            const ndCor = s => s==='enviado'?T.green : s==='ignorado'?T.amber : s==='erro'?T.red : null
+            const ndBor = s => s==='enviado'?T.greenBor : s==='ignorado'?T.amberBor : s==='erro'?T.redBor : 'rgba(255,255,255,.1)'
+            const ndDim = s => s==='enviado'?T.greenDim : s==='ignorado'?T.amberDim : s==='erro'?T.redDim : 'rgba(255,255,255,.04)'
+            const ndIco = s => s==='enviado'?CheckCircle : s==='ignorado'?AlertTriangle : s==='erro'?XCircle : null
+
+            // ── Insight ───────────────────────────────────────────────────
+            const todasIgn   = total > 0 && ignorados === total
+            const insightTxt = todasIgn
+              ? `${total} disparo${total>1?'s':''} registrado${total>1?'s':''} — templates inativos. Caio nunca recebeu uma mensagem.`
+              : erros > 0
+              ? `${erros} erro${erros>1?'s':''} de envio. Verifique conectividade da API WhatsApp.`
+              : score < 50
+              ? `Taxa de entrega baixa (${score}%). Revise os templates ativos.`
+              : null
+
+            // ── Timeline filtrada e agrupada ──────────────────────────────
+            const dispFilt = selPed==='todos'
+              ? (cli?.disparos||[])
+              : (cli?.disparos||[]).filter(d=>String(d.numero_pedido)===String(selPed))
+
+            const grpMap = {}
+            dispFilt.forEach(d => {
+              const dt = new Date(d.criado_em)
+              const hoje  = new Date()
+              const ontem = new Date(hoje); ontem.setDate(hoje.getDate()-1)
+              const k = dt.toDateString()===hoje.toDateString() ? 'Hoje'
+                : dt.toDateString()===ontem.toDateString() ? 'Ontem'
+                : dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})
+              ;(grpMap[k] = grpMap[k]||[]).push(d)
+            })
+            const grps = Object.entries(grpMap)
+
+            return (
+              <div style={{display:'flex',flexDirection:'column',gap:0,animation:'fadeIn .25s ease'}}>
+                {loadCli && (
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:10,
+                    padding:'48px 0',color:T.ink3}}>
+                    <RefreshCw size={18} style={{animation:'spin 1s linear infinite',color:T.purple}}/>
+                    <span style={{fontSize:12}}>Carregando histórico...</span>
+                  </div>
+                )}
+                {cli && (
+                  <>
+                    {/* ── HERO: anel de saúde + nome + badges ── */}
+                    <div style={{padding:'14px 16px',display:'flex',alignItems:'center',gap:14,
+                      background:'linear-gradient(135deg,#0e0830,#160d4a,#111520)',
+                      borderBottom:`1px solid rgba(167,139,250,.1)`}}>
+                      {/* Anel SVG */}
+                      <div style={{position:'relative',width:52,height:52,flexShrink:0}}>
+                        <svg width="52" height="52" viewBox="0 0 52 52" aria-label={`Saúde do cliente: ${score}%`}>
+                          <circle cx="26" cy="26" r="22" fill="none" stroke={T.bg4} strokeWidth="4.5"/>
+                          <circle cx="26" cy="26" r="22" fill="none" stroke={rCor}
+                            strokeWidth="4.5" strokeDasharray={`${CIRC}`} strokeDashoffset={`${dashOff}`}
+                            strokeLinecap="round" transform="rotate(-90 26 26)"
+                            style={{transition:'stroke-dashoffset .8s ease'}}/>
+                        </svg>
+                        <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
+                          alignItems:'center',justifyContent:'center'}}>
+                          <span style={{fontSize:13,fontWeight:700,color:rCor,lineHeight:1}}>{score}%</span>
+                          <span style={{fontSize:7,color:T.ink4,marginTop:1}}>{scLbl}</span>
+                        </div>
                       </div>
-                      <div style={{fontSize:12,color:'var(--label-4)',fontFamily:'monospace',marginBottom:6}}>
-                        {fmtTel(dados.telefone)}
+                      {/* Nome + info */}
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:15,fontWeight:700,color:T.ink1,
+                          letterSpacing:'-.025em',marginBottom:4}}>
+                          {cli.resumo?.nome || 'Cliente'}
+                        </div>
+                        <div style={{fontSize:10.5,color:T.ink3,fontFamily:'monospace',marginBottom:6}}>
+                          {fmtTel(dados.telefone)}
+                        </div>
+                        <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+                          {score===0&&<span style={{fontSize:9.5,padding:'2px 8px',borderRadius:99,
+                            background:T.redDim,color:T.red,border:`1px solid ${T.redBor}`,fontWeight:600}}>
+                            Cliente em risco
+                          </span>}
+                          {cli.resumo?.ultimo_contato&&<span style={{fontSize:9.5,color:T.ink4,
+                            display:'flex',alignItems:'center',gap:4}}>
+                            <Clock size={10}/>
+                            {tempoRel(cli.resumo.ultimo_contato)||fmtDH(cli.resumo.ultimo_contato)}
+                          </span>}
+                        </div>
                       </div>
-                      {cli.resumo?.ultimo_contato&&(
-                        <div style={{fontSize:10.5,color:'var(--label-4)',display:'flex',alignItems:'center',gap:4}}>
-                          <Clock size={10}/>Último contato: {tempoRel(cli.resumo.ultimo_contato)||fmtDH(cli.resumo.ultimo_contato)}
+                    </div>
+
+                    {/* ── STATS 4 colunas ── */}
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',
+                      borderBottom:`1px solid ${T.sep}`}}>
+                      {[
+                        {lbl:'Disparos', val:total,    cor:T.ink1},
+                        {lbl:'Enviados', val:enviados,  cor:enviados>0?T.green:T.red},
+                        {lbl:'Ignorados',val:ignorados, cor:ignorados>0?T.amber:T.ink3},
+                        {lbl:'Pedidos',  val:pedidos.length, cor:T.purple},
+                      ].map((s,i)=>(
+                        <div key={i} style={{padding:'10px 0',textAlign:'center',
+                          borderRight:i<3?`1px solid rgba(255,255,255,.04)`:'none'}}>
+                          <div style={{fontSize:20,fontWeight:700,color:s.cor,
+                            letterSpacing:'-.03em',lineHeight:1}}>{s.val}</div>
+                          <div style={{fontSize:8,color:T.ink3,textTransform:'uppercase',
+                            letterSpacing:'.05em',marginTop:3}}>{s.lbl}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* ── INSIGHT INTELIGENTE ── */}
+                    {insightTxt && (
+                      <div style={{padding:'10px 14px',borderBottom:`1px solid ${T.sep}`}}>
+                        <div style={{borderRadius:10,padding:'10px 12px',
+                          background:T.amberDim,border:`1px solid ${T.amberBor}`,
+                          display:'flex',gap:10,alignItems:'flex-start'}}>
+                          <Activity size={15} style={{color:T.amber,flexShrink:0,marginTop:1}}/>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:11.5,fontWeight:700,color:T.amber,marginBottom:4}}>
+                              Inteligência do disparo
+                            </div>
+                            <div style={{fontSize:10.5,color:T.ink2,lineHeight:1.55,marginBottom:8}}>
+                              {insightTxt}
+                            </div>
+                            <div style={{display:'flex',gap:6}}>
+                              <button onClick={()=>window.open(`https://whatsapp-sostrass.up.railway.app/admin/gatilhos`,'_blank')}
+                                style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',
+                                borderRadius:7,border:'none',cursor:'pointer',fontSize:10.5,fontWeight:600,
+                                background:'linear-gradient(135deg,#5b21b6,#9333ea)',color:'#fff'}}>
+                                <Zap size={11}/>Ativar templates
+                              </button>
+                              {selPed!=='todos'&&(
+                                <button onClick={async()=>{
+                                  const alvo=dispFilt.filter(d=>d.status==='ignorado'||d.status==='erro')
+                                  for(const d of alvo) await onReenviar?.(d.id)
+                                }} style={{display:'flex',alignItems:'center',gap:5,padding:'5px 11px',
+                                  borderRadius:7,border:`1px solid ${T.amberBor}`,cursor:'pointer',
+                                  fontSize:10.5,fontWeight:600,background:T.amberDim,color:T.amber}}>
+                                  <Send size={11}/>Reenviar todos
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── ORDER CARDS COM MINI JORNADA ── */}
+                    {pedidos.length > 0 && (
+                      <div style={{padding:'10px 14px',borderBottom:`1px solid ${T.sep}`}}>
+                        <div style={{fontSize:9,color:T.ink3,textTransform:'uppercase',
+                          letterSpacing:'.07em',marginBottom:8}}>
+                          Pedidos · toque para filtrar
+                        </div>
+
+                        {/* Card grande: pedido mais recente */}
+                        {(() => {
+                          const p0 = pedidos[0]
+                          const isActive = selPed===String(p0)
+                          const qtd = (cli.disparos||[]).filter(d=>String(d.numero_pedido)===String(p0)).length
+                          return (
+                            <div onClick={()=>setSelPed(isActive?'todos':String(p0))}
+                              style={{background:isActive?`${T.purpleDim}`:`${T.bg2}`,
+                                border:`1px solid ${isActive?T.purpleBor:T.sep}`,
+                                borderRadius:12,padding:'10px 12px',cursor:'pointer',
+                                transition:'all .15s',marginBottom:6}}>
+                              <div style={{display:'flex',alignItems:'center',
+                                justifyContent:'space-between',marginBottom:8}}>
+                                <span style={{fontSize:12,fontWeight:700,
+                                  color:isActive?T.purple:T.ink2}}>#{p0}</span>
+                                <div style={{display:'flex',alignItems:'center',gap:6}}>
+                                  <span style={{fontSize:9,padding:'1px 7px',borderRadius:99,
+                                    background:enviados>0?T.greenDim:T.redDim,
+                                    color:enviados>0?T.green:T.red,
+                                    border:`1px solid ${enviados>0?T.greenBor:T.redBor}`}}>
+                                    {(cli.disparos||[]).filter(d=>String(d.numero_pedido)===String(p0)&&d.status==='enviado').length}/{qtd} enviados
+                                  </span>
+                                </div>
+                              </div>
+                              {/* Mini jornada */}
+                              <div style={{display:'flex',alignItems:'center',gap:0}}>
+                                {STAGES.map((st,si)=>{
+                                  const s = stFor(p0, st.id)
+                                  const Ico = ndIco(s)
+                                  return (
+                                    <React.Fragment key={st.id}>
+                                      <div style={{display:'flex',flexDirection:'column',
+                                        alignItems:'center',gap:3,flex:1}}>
+                                        <div style={{width:18,height:18,borderRadius:'50%',
+                                          background:ndDim(s),
+                                          border:`1.5px solid ${ndBor(s)}`,
+                                          display:'flex',alignItems:'center',justifyContent:'center'}}>
+                                          {Ico && <Ico size={8} style={{color:ndCor(s)}}/>}
+                                        </div>
+                                        <span style={{fontSize:7,color:ndCor(s)||T.ink4,
+                                          textAlign:'center',lineHeight:1.2}}>{st.lbl}</span>
+                                      </div>
+                                      {si < STAGES.length-1 && (
+                                        <div style={{width:8,height:1,
+                                          background:ndCor(stFor(p0,st.id))
+                                            ? `${ndCor(stFor(p0,st.id))}50`
+                                            :'rgba(255,255,255,.06)',
+                                          flexShrink:0,marginBottom:14}}/>
+                                      )}
+                                    </React.Fragment>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        })()}
+
+                        {/* Cards menores: outros pedidos em grid 2 colunas */}
+                        {pedidos.length > 1 && (
+                          <div style={{display:'grid',
+                            gridTemplateColumns:`repeat(${Math.min(pedidos.slice(1).length,2)},1fr)`,
+                            gap:6}}>
+                            {pedidos.slice(1,3).map(p=>{
+                              const isA = selPed===String(p)
+                              const qtd = (cli.disparos||[]).filter(d=>String(d.numero_pedido)===String(p)).length
+                              const envP= (cli.disparos||[]).filter(d=>String(d.numero_pedido)===String(p)&&d.status==='enviado').length
+                              return (
+                                <div key={p} onClick={()=>setSelPed(isA?'todos':String(p))}
+                                  style={{background:isA?T.purpleDim:T.bg2,
+                                    border:`1px solid ${isA?T.purpleBor:T.sep}`,
+                                    borderRadius:10,padding:'8px 10px',cursor:'pointer',
+                                    transition:'all .15s'}}>
+                                  <div style={{display:'flex',alignItems:'center',
+                                    justifyContent:'space-between',marginBottom:5}}>
+                                    <span style={{fontSize:11,fontWeight:700,
+                                      color:isA?T.purple:T.ink3}}>#{p}</span>
+                                    <span style={{fontSize:8.5,color:envP>0?T.green:T.red}}>
+                                      {envP}/{qtd}
+                                    </span>
+                                  </div>
+                                  {/* Mini jornada compacta */}
+                                  <div style={{display:'flex',alignItems:'center',gap:2}}>
+                                    {STAGES.map((st,si)=>{
+                                      const s=stFor(p,st.id)
+                                      return (
+                                        <React.Fragment key={st.id}>
+                                          <div style={{width:10,height:10,borderRadius:'50%',
+                                            background:ndDim(s),
+                                            border:`1px solid ${ndBor(s)}`,flexShrink:0}}/>
+                                          {si<STAGES.length-1&&<div style={{flex:1,height:1,
+                                            background:ndCor(s)?`${ndCor(s)}40`:'rgba(255,255,255,.05)'}}/>}
+                                        </React.Fragment>
+                                      )
+                                    })}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+
+                        {/* Chip "Todos" quando múltiplos pedidos */}
+                        {pedidos.length > 1 && (
+                          <button onClick={()=>setSelPed('todos')}
+                            style={{marginTop:6,width:'100%',padding:'5px',borderRadius:8,
+                              border:`1px solid ${selPed==='todos'?T.purpleBor:T.sep}`,
+                              background:selPed==='todos'?T.purpleDim:'transparent',
+                              color:selPed==='todos'?T.purple:T.ink4,
+                              fontSize:10.5,cursor:'pointer',fontWeight:selPed==='todos'?600:400}}>
+                            Todos os pedidos ({pedidos.length})
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ── TIMELINE ULTRA-COMPACTA AGRUPADA ── */}
+                    <div style={{flex:1,overflowY:'auto'}}>
+                      {grps.length===0 && (
+                        <div style={{padding:'32px 0',textAlign:'center',color:T.ink4}}>
+                          <MessageSquare size={24} style={{opacity:.2,marginBottom:8}}/>
+                          <div style={{fontSize:12,color:T.ink3}}>Nenhum disparo para este pedido</div>
                         </div>
                       )}
-                    </div>
-                  </div>
-
-                  {/* Stats */}
-                  <div style={{display:'flex',gap:8}}>
-                    <StatCard label="Disparos" value={cli.resumo?.total||0}/>
-                    <StatCard label="Enviados" value={cli.resumo?.enviados||0} cor="#22c55e"/>
-                    <StatCard label="Erros" value={cli.resumo?.erros||0} cor="#ef4444"/>
-                    <StatCard label="Pedidos" value={cli.resumo?.pedidos?.length||0} cor="#a78bfa"/>
-                  </div>
-
-                  {/* Seletor de pedido — para clientes recorrentes */}
-                  {(() => {
-                    const pedidos = cli.resumo?.pedidos || []
-                    const disparosFiltrados = selPed==='todos'
-                      ? (cli.disparos||[])
-                      : (cli.disparos||[]).filter(d=>String(d.numero_pedido)===String(selPed))
-
-                    return (
-                      <>
-                        {pedidos.length > 1 && (
-                          <div>
-                            <div style={{fontSize:10.5,fontWeight:600,color:'var(--label-4)',
-                              textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>
-                              Filtrar por pedido
-                            </div>
-                            <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-                              <button onClick={()=>setSelPed('todos')} style={{
-                                padding:'4px 12px',borderRadius:99,cursor:'pointer',fontSize:11,fontWeight:600,
-                                border:`0.5px solid ${selPed==='todos'?'rgba(124,106,247,.5)':'var(--sep)'}`,
-                                background:selPed==='todos'?'rgba(124,106,247,.1)':'transparent',
-                                color:selPed==='todos'?'#a78bfa':'var(--label-4)'}}>
-                                Todos ({pedidos.length})
-                              </button>
-                              {pedidos.map(p=>{
-                                const qtd = (cli.disparos||[]).filter(d=>String(d.numero_pedido)===String(p)).length
-                                const temErro = (cli.disparos||[]).some(d=>String(d.numero_pedido)===String(p)&&d.status==='erro')
-                                return (
-                                  <button key={p} onClick={()=>setSelPed(String(p))} style={{
-                                    padding:'4px 12px',borderRadius:99,cursor:'pointer',fontSize:11,fontWeight:600,
-                                    border:`0.5px solid ${selPed===String(p)?'rgba(124,106,247,.5)':temErro?'rgba(239,68,68,.3)':'var(--sep)'}`,
-                                    background:selPed===String(p)?'rgba(124,106,247,.1)':'transparent',
-                                    color:selPed===String(p)?'#a78bfa':temErro?'#ef4444':'var(--label-4)',
-                                    display:'flex',alignItems:'center',gap:5}}>
-                                    #{p}
-                                    <span style={{fontSize:9,opacity:.7}}>({qtd})</span>
-                                    {temErro&&<span title="Tem erro" style={{width:6,height:6,borderRadius:'50%',background:'#ef4444',flexShrink:0}}/>}
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Ver pedido links */}
-                        {selPed!=='todos' && (
-                          <div style={{display:'flex',gap:8}}>
-                            <button onClick={()=>window.open(`https://whatsapp-sostrass.up.railway.app/pedido/${selPed}`,'_blank')}
-                              style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
-                                padding:'8px',borderRadius:9,border:'0.5px solid var(--sep)',
-                                background:'var(--fill)',color:'var(--label-3)',cursor:'pointer',fontSize:11,fontWeight:500}}>
-                              <Package size={12}/>Ver pedido #{selPed}
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Timeline */}
-                        <div>
-                          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
-                            <span style={{fontSize:11,fontWeight:700,textTransform:'uppercase',
-                              letterSpacing:'.06em',color:'var(--label-4)'}}>
-                              Linha do tempo ({disparosFiltrados.length})
+                      {grps.map(([dt, evts])=>(
+                        <div key={dt}>
+                          {/* Cabeçalho de data */}
+                          <div style={{padding:'6px 16px 3px',display:'flex',
+                            alignItems:'center',justifyContent:'space-between',
+                            position:'sticky',top:0,background:T.bg2,zIndex:1,
+                            borderBottom:`1px solid ${T.sep}`}}>
+                            <span style={{fontSize:8.5,color:T.ink4,textTransform:'uppercase',
+                              letterSpacing:'.07em',display:'flex',alignItems:'center',gap:5}}>
+                              <Clock size={9}/>{dt} · {evts.length} evento{evts.length>1?'s':''}
                             </span>
-                            {cli.resumo?.erros>0&&selPed==='todos'&&(
-                              <span style={{fontSize:10,padding:'2px 8px',borderRadius:99,
-                                background:'rgba(239,68,68,.1)',color:'#ef4444',fontWeight:600}}>
-                                {cli.resumo.erros} com erro
-                              </span>
+                            {evts.some(d=>d.status==='ignorado'||d.status==='erro')&&(
+                              <button onClick={async()=>{
+                                const al=evts.filter(d=>d.status==='ignorado'||d.status==='erro')
+                                for(const d of al) await onReenviar?.(d.id)
+                              }} style={{fontSize:9,color:T.purple,background:T.purpleDim,
+                                border:`1px solid ${T.purpleBor}`,borderRadius:5,
+                                padding:'2px 8px',cursor:'pointer',fontWeight:600}}>
+                                ↗ Reenviar
+                              </button>
                             )}
                           </div>
-                          <div>
-                            {disparosFiltrados.length===0 && (
-                              <div style={{textAlign:'center',padding:'32px 0',color:'var(--label-4)'}}>
-                                <MessageSquare size={28} style={{opacity:.2,marginBottom:8}}/>
-                                <div style={{fontSize:12}}>Nenhum disparo para este pedido.</div>
-                              </div>
-                            )}
-                            {disparosFiltrados.map((d,i)=>(
-                              <EventoCard key={d.id||i} d={d}
-                                onReenviar={onReenviar} reenviados={reenviados} setReenviados={setReenviados}/>
-                            ))}
-                          </div>
-                        </div>
-                      </>
-                    )
-                  })()}
 
-                  {/* Envio manual */}
-                  <div style={{borderRadius:13,border:'0.5px solid rgba(124,106,247,.3)',
-                    background:'rgba(124,106,247,.04)',overflow:'hidden'}}>
-                    <div style={{padding:'12px 14px',borderBottom:'0.5px solid rgba(124,106,247,.15)',
-                      display:'flex',alignItems:'center',gap:7}}>
-                      <Send size={13} style={{color:'#a78bfa'}}/>
-                      <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>Enviar gatilho manualmente</span>
-                      <span style={{fontSize:10,color:'var(--label-4)',marginLeft:'auto'}}>p/ gaps de sequência</span>
+                          {/* Linhas de eventos */}
+                          {evts.map((d,i)=>{
+                            const m   = GATILHO_META[d.gatilho]||{label:d.gatilho,icon:Zap,cor:'#6b7294'}
+                            const Ic  = m.icon
+                            const sc  = d.status==='enviado'?T.green:d.status==='erro'?T.red:d.status==='aguardando'?T.amber:T.ink4
+                            const sdim= d.status==='enviado'?T.greenDim:d.status==='erro'?T.redDim:d.status==='aguardando'?T.amberDim:T.gray
+                            const sbr = d.status==='enviado'?T.greenBor:d.status==='erro'?T.redBor:d.status==='aguardando'?T.amberBor:T.grayBor
+                            const sl  = d.status==='enviado'?'Enviado':d.status==='erro'?'Erro':d.status==='aguardando'?'Aguardando':'Ignorado'
+                            const podeEnv = d.status==='ignorado'||d.status==='erro'
+                            const jaEnv   = reenviados.includes(d.id)
+                            return (
+                              <div key={d.id||i}
+                                style={{display:'flex',alignItems:'center',gap:8,
+                                  padding:'7px 16px',borderBottom:`1px solid ${T.sep}`,
+                                  background:'transparent',transition:'background .1s',cursor:'default'}}
+                                onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.02)'}
+                                onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                                {/* Hora */}
+                                <span style={{fontSize:9.5,color:T.ink4,width:42,flexShrink:0,
+                                  fontFamily:'monospace'}}>
+                                  {new Date(d.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
+                                </span>
+                                {/* Ícone */}
+                                <div style={{width:22,height:22,borderRadius:7,flexShrink:0,
+                                  background:`${m.cor}18`,border:`0.5px solid ${m.cor}28`,
+                                  display:'flex',alignItems:'center',justifyContent:'center'}}>
+                                  <Ic size={10} style={{color:m.cor}}/>
+                                </div>
+                                {/* Nome + pedido */}
+                                <div style={{flex:1,minWidth:0}}>
+                                  <span style={{fontSize:11.5,color:T.ink2,
+                                    overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
+                                    display:'block'}}>{m.label}</span>
+                                  {selPed==='todos'&&d.numero_pedido&&(
+                                    <span style={{fontSize:9,color:T.ink4}}>#{d.numero_pedido}</span>
+                                  )}
+                                </div>
+                                {/* Status pill */}
+                                <div style={{display:'inline-flex',alignItems:'center',gap:3,
+                                  padding:'2px 7px',borderRadius:99,flexShrink:0,
+                                  background:sdim,border:`0.5px solid ${sbr}`}}>
+                                  <span style={{fontSize:9,fontWeight:700,color:sc,
+                                    textTransform:'uppercase',letterSpacing:'.03em'}}>{sl}</span>
+                                </div>
+                                {/* Botão enviar */}
+                                {podeEnv && (
+                                  jaEnv
+                                  ? <span style={{fontSize:9.5,color:T.green,flexShrink:0,display:'flex',
+                                      alignItems:'center',gap:3}}>
+                                      <CheckCircle size={10}/>ok
+                                    </span>
+                                  : <button onClick={()=>onReenviar?.(d.id)}
+                                      style={{padding:'2px 9px',borderRadius:6,flexShrink:0,
+                                        background:T.purpleDim,border:`1px solid ${T.purpleBor}`,
+                                        color:T.purple,fontSize:9.5,fontWeight:600,cursor:'pointer'}}>
+                                      Enviar
+                                    </button>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ))}
                     </div>
-                    <div style={{padding:'12px 14px',display:'flex',flexDirection:'column',gap:8}}>
-                      <div>
-                        <div style={{fontSize:10.5,color:'var(--label-4)',marginBottom:4}}>Gatilho</div>
-                        <select value={gatManual} onChange={e=>setGatManual(e.target.value)} style={{
-                          width:'100%',padding:'8px 10px',borderRadius:8,fontSize:12,
-                          border:'0.5px solid var(--sep)',background:'var(--bg)',color:'var(--label)'}}>
+
+                    {/* ── FOOTER: envio manual compacto ── */}
+                    <div style={{flexShrink:0,borderTop:`1px solid ${T.sep}`,
+                      padding:'10px 14px',background:T.bg2,display:'flex',
+                      flexDirection:'column',gap:8}}>
+                      <div style={{display:'flex',gap:7}}>
+                        <select value={gatManual} onChange={e=>setGatManual(e.target.value)}
+                          style={{flex:1,padding:'8px 10px',borderRadius:9,fontSize:12,
+                            border:`1px solid ${T.sep2}`,background:T.bg3,color:T.ink2,
+                            outline:'none',appearance:'auto'}}>
                           <option value="">Selecione o gatilho...</option>
                           {Object.entries(GATILHO_META).map(([k,v])=>(
                             <option key={k} value={k}>{v.label}</option>
                           ))}
                         </select>
-                      </div>
-                      <div>
-                        <div style={{fontSize:10.5,color:'var(--label-4)',marginBottom:4}}>Nº do pedido (opcional)</div>
                         <input value={pedManual} onChange={e=>setPedManual(e.target.value)}
-                          placeholder="Ex: 231514" style={{
-                          width:'100%',padding:'8px 10px',borderRadius:8,fontSize:12,
-                          border:'0.5px solid var(--sep)',background:'var(--bg)',
-                          color:'var(--label)',boxSizing:'border-box'}}/>
+                          placeholder="Pedido" style={{width:80,padding:'8px 10px',
+                            borderRadius:9,fontSize:12,border:`1px solid ${T.sep2}`,
+                            background:T.bg3,color:T.ink2,outline:'none'}}/>
                       </div>
-                      <button disabled={!gatManual||enviandoMan} onClick={enviarManual} style={{
-                        padding:'10px',borderRadius:9,fontSize:12.5,fontWeight:600,
-                        cursor:gatManual?'pointer':'not-allowed',border:'none',
-                        background:envManOk?'rgba(34,197,94,.15)':gatManual?'linear-gradient(90deg,#6d28d9,#a855f7)':'var(--fill)',
-                        color:envManOk?'#22c55e':gatManual?'#fff':'var(--label-4)',
-                        display:'flex',alignItems:'center',justifyContent:'center',gap:7,
-                        opacity:!gatManual?.6:1}}>
-                        {enviandoMan?<><RefreshCw size={12} style={{animation:'spin .7s linear infinite'}}/>Enviando...</>
-                         :envManOk?<><CheckCircle size={12}/>Gatilho enviado!</>
-                         :<><Send size={12}/>Enviar para este cliente</>}
+                      <button disabled={!gatManual||enviandoMan} onClick={enviarManual}
+                        style={{width:'100%',padding:'10px',borderRadius:10,border:'none',
+                          fontSize:12.5,fontWeight:600,cursor:gatManual?'pointer':'not-allowed',
+                          background:envManOk?T.greenDim:gatManual?'linear-gradient(135deg,#5b21b6,#9333ea)':T.bg4,
+                          color:envManOk?T.green:gatManual?'#fff':T.ink4,
+                          display:'flex',alignItems:'center',justifyContent:'center',gap:7,
+                          opacity:!gatManual?.6:1,transition:'all .15s'}}>
+                        {enviandoMan
+                          ? <><RefreshCw size={12} style={{animation:'spin .7s linear infinite'}}/>Enviando...</>
+                          : envManOk
+                          ? <><CheckCircle size={12}/>Enviado com sucesso!</>
+                          : <><Send size={12}/>Enviar para este cliente</>}
                       </button>
                     </div>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+                  </>
+                )}
+              </div>
+            )
+          })()}
         </div>
       </div>
     </>
   )
 }
+
 
 function tempoRel(iso) {
   if (!iso) return null
