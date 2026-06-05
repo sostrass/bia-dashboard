@@ -1688,11 +1688,24 @@ export default function PageGatilhos({ api }) {
                     {/* Delay */}
                     <div style={{padding:'12px 14px',borderRadius:10,border:'0.5px solid var(--sep)',background:'var(--bg-2)'}}>
                       <p style={{fontSize:13,fontWeight:600,color:'var(--label)',margin:'0 0 4px'}}>Delay de envio</p>
-                      <p style={{fontSize:11.5,color:'var(--label-4)',margin:'0 0 10px'}}>Esperar X minutos após o evento antes de enviar</p>
-                      <div style={{display:'flex',gap:5}}>
-                        {[0,5,10,15,30,60].map(min => (
+                      <p style={{fontSize:11.5,color:'var(--label-4)',margin:'0 0 10px'}}>
+                        {selId==='produto_embalado'
+                          ? 'Quanto tempo após a separação para enviar a mensagem de embalado'
+                          : selId==='avaliar_pedido'
+                          ? 'Quantos dias após a entrega para pedir avaliação'
+                          : selId==='pagamento_pendente'
+                          ? 'Delay mínimo de 10s aplicado automaticamente (evita sobreposição com Pedido Criado)'
+                          : 'Esperar X minutos após o evento antes de enviar'}
+                      </p>
+                      <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
+                        {(selId==='produto_embalado'
+                          ? [0,30,45,60,90,120]
+                          : selId==='avaliar_pedido'
+                          ? [0,1440,2880,4320,7200]  // 0, 1d, 2d, 3d, 5d
+                          : [0,5,10,15,30,60]
+                        ).map(min => (
                           <button key={min} onClick={()=>salvarDelay(selId,min)} style={{flex:1,padding:'6px 4px',borderRadius:7,border:`0.5px solid ${delays[selId]===min||(!delays[selId]&&min===0)?gatilho.cor+'60':'var(--sep)'}`,background:delays[selId]===min||(!delays[selId]&&min===0)?`${gatilho.cor}12`:'transparent',color:delays[selId]===min||(!delays[selId]&&min===0)?gatilho.cor:'var(--label-4)',cursor:'pointer',fontSize:11.5,fontWeight:delays[selId]===min||(!delays[selId]&&min===0)?700:400}}>
-                            {min===0?'Imediato':`${min}min`}
+                            {min===0?'Imediato':min>=1440?`${min/1440}d`:`${min}min`}
                           </button>
                         ))}
                       </div>
