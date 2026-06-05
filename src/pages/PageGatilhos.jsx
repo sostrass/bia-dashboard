@@ -625,7 +625,7 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
             <div style={{display:'flex',flexDirection:'column',gap:6}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:2}}>
                 <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--label-4)'}}>
-                  Corpo <span style={{fontWeight:400,letterSpacing:0,textTransform:'none'}}>— *negrito* _itálico_ {{variável}}</span>
+                  Corpo <span style={{fontWeight:400,letterSpacing:0,textTransform:'none'}}>{'— *negrito* _itálico_ {{variável}}'}</span>
                 </span>
                 <span style={{fontSize:9,color:'var(--label-4)'}}>limite: 1024 chars</span>
               </div>
