@@ -1305,6 +1305,8 @@ export default function PageGatilhos({ api }) {
 
   // Insights computados client-side a partir de indicadores + configs
   const insightsGat = useMemo(()=>{
+    // labelDe inline para evitar TDZ (a const labelDe é declarada depois no componente)
+    const _lbl = (g) => (g && (nomesCustom[g.id] || g.label)) || ''
     const result = []
 
     // 1. Taxa 0% — template inativo (crítico)
@@ -1319,7 +1321,7 @@ export default function PageGatilhos({ api }) {
       if (tot > 0 && taxa === 0) {
         result.push({
           id:`taxa0_${g.id}`, tipo:'critico', gatilho:g.id,
-          titulo:`${labelDe(g)} — 0% de entrega`,
+          titulo:`${_lbl(g)} — 0% de entrega`,
           desc:`${tot} disparo${tot>1?'s':''} registrados mas nenhum enviado. O template está inativo — nenhum cliente recebeu esta mensagem.`,
           afetados:tot, dias:0,
           score: tot * 10,
@@ -1331,7 +1333,7 @@ export default function PageGatilhos({ api }) {
         if (diasSem >= 5 && taxa > 0) {
           result.push({
             id:`gap_${g.id}`, tipo:'aviso', gatilho:g.id,
-            titulo:`${labelDe(g)} — sem disparo há ${diasSem} dias`,
+            titulo:`${_lbl(g)} — sem disparo há ${diasSem} dias`,
             desc:`Este gatilho tinha atividade mas está parado. Verifique se o webhook do Bling está configurado.`,
             afetados:0, dias:diasSem,
             score: diasSem * 3,
@@ -1359,7 +1361,7 @@ export default function PageGatilhos({ api }) {
         const g = GATILHOS.find(x=>x.id===id)
         if (g) result.push({
           id:`sem_tpl_${id}`, tipo:'critico', gatilho:id,
-          titulo:`${labelDe(g)} — sem template configurado`,
+          titulo:`${_lbl(g)} — sem template configurado`,
           desc:`Gatilho de alto volume sem template. Configure e aprove na Meta para começar a notificar clientes automaticamente.`,
           afetados:0, dias:0,
           score: 80,
@@ -1380,7 +1382,7 @@ export default function PageGatilhos({ api }) {
       const gBest = GATILHOS.find(x=>x.id===best.id)
       result.push({
         id:`top_${best.id}`, tipo:'positivo', gatilho:best.id,
-        titulo:`${best.taxa}% taxa de entrega — ${labelDe(gBest)}`,
+        titulo:`${best.taxa}% taxa de entrega — ${_lbl(gBest)}`,
         desc:`Melhor performance entre os gatilhos ativos. ${best.env} de ${best.tent} disparos entregues com sucesso.`,
         afetados:0, dias:0, score:0,
       })
