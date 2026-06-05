@@ -41,8 +41,8 @@ const GATILHOS = [
 
   // ── 2. Preparação & Nota ───────────────────────────────────────────────
   { id:'em_separacao',        label:'Em Separação',          grupo:'Preparação & Nota', tipo:'bling', icon:Layers,      cor:'#8b5cf6', situacao:'sit=9', desc:'Pedido em Atendido (separação/embalagem) — automático', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
-  { id:'produto_embalado',    label:'Produto Embalado',      grupo:'Preparação & Nota', tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'#EMBALADO',  manual:true, desc:'Comando manual no Bling: #EMBALADO', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}'] },
-  { id:'em_andamento',        label:'Em Andamento',          grupo:'Preparação & Nota', tipo:'bling', icon:RefreshCw,   cor:'#8b5cf6', situacao:'manual',  desc:'Informativo/manual (o status Em Andamento dispara Pagamento Aprovado)', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  { id:'produto_embalado',    label:'Produto Embalado',      grupo:'Preparação & Nota', tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'#EMBALADO',  desc:'Disparo via comando #EMBALADO nas observações internas do pedido no Bling', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}'] },
+  { id:'em_andamento',        label:'Em Andamento (info)',    grupo:'Preparação & Nota', tipo:'bling', icon:RefreshCw,   cor:'#8b5cf6', situacao:'manual',  manual:true, desc:'Gatilho informativo — sit=15 (Em Andamento) já dispara Pagamento Aprovado automaticamente. Use este apenas para comunicados extras.', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
   { id:'nfe_pendente',        label:'NF-e Pendente',         grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#f59e0b', situacao:'nfe=1',   desc:'Nota emitida, aguardando autorização da SEFAZ', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}'] },
   { id:'nfe_rejeitada',       label:'NF-e Rejeitada',        grupo:'Preparação & Nota', tipo:'bling', icon:AlertTriangle, cor:'#ef4444', situacao:'nfe=4',   desc:'Nota rejeitada pela SEFAZ (uso interno/aviso)', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}'] },
   { id:'nfe_emitida',         label:'NF-e Emitida',          grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#06b6d4', situacao:'nfe=5',   desc:'Nota autorizada pela SEFAZ — DANFE disponível', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{numero_nfe}}','{{link_nfe}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
@@ -65,6 +65,10 @@ const GATILHOS = [
   { id:'devolucao',           label:'Devolução',             grupo:'Pós-venda',     tipo:'bling', icon:RefreshCw,   cor:'#f87171', situacao:'sit=36',  desc:'Pedido devolvido', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}'] },
   { id:'avaliar_pedido',      label:'Avaliação Pós-venda',   grupo:'Pós-venda',     tipo:'bling', icon:Star,        cor:'#f87171', situacao:'manual',  manual:true, desc:'Satisfação após entrega', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{link_acompanhamento}}'] },
   { id:'boas_vindas',         label:'Boas-vindas',           grupo:'Pós-venda',     tipo:'bling', icon:Star,        cor:'#e879f9', situacao:'manual',  manual:true, desc:'Primeiro contato no WhatsApp', variaveis:['{{nome_cliente}}','{{nome_loja}}'] },
+
+  // ── 4b. Comandos Manuais (observações internas do Bling) ─────────────
+  { id:'pix_pendente',      label:'PIX Pendente',      grupo:'Pós-venda',     tipo:'bling', icon:CreditCard, cor:'#06b6d4', situacao:'#PIX',    manual:true, desc:'Comando #PIX nas observações internas — pagamento via PIX aguardando confirmação', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{link_pedido}}'] },
+  { id:'estorno_realizado', label:'Estorno Realizado',  grupo:'Pós-venda',     tipo:'bling', icon:RefreshCw,  cor:'#f97316', situacao:'#ESTORNO', manual:true, desc:'Comando #ESTORNO nas observações internas — reembolso processado', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}'] },
 
   // ── 5. Inteligência (Bia) — inline, sem aprovação Meta ─────────────────
   { id:'avise_me',            label:'Produto Disponível',    grupo:'Inteligência',  tipo:'bling', icon:Bell,        cor:'#fb923c', situacao:'#AVISE',  manual:true, desc:'Produto voltou ao estoque (#AVISE)', variaveis:['{{nome_cliente}}','{{nome_produto}}','{{preco_produto}}','{{link_produto}}'] },
@@ -190,6 +194,20 @@ const PADROES = {
     cab:'',
     corpo:'Oi *{{nome_cliente}}*! Seja bem-vinda(o) à *{{nome_loja}}*! 🎉\n\nSou a Molise, consultora da loja. Tô aqui pra te ajudar a encontrar tudo que precisar — strass, bijuterias, artesanato e muito mais!\n\nComo posso te ajudar hoje?',
     rod:'',
+    bts:[]
+  },
+
+  pix_pendente: {
+    cab:'⏳ Pagamento PIX pendente',
+    corpo:'Oi *{{nome_cliente}}*! Seu pedido *#{{numero_pedido}}* está aguardando o pagamento via *PIX*.\n\nTotal: *{{valor_total}}*\n\nConfirme o pagamento no seu banco para garantir o pedido!',
+    rod:'Precisa de ajuda? É só responder.',
+    bts:[{texto:'Pagar agora',acao:'url',valor:'{{link_pedido}}'},{texto:'Preciso de ajuda',acao:'reply',valor:'Ajuda com pagamento PIX'}]
+  },
+
+  estorno_realizado: {
+    cab:'✅ Estorno confirmado',
+    corpo:'Oi *{{nome_cliente}}*! O reembolso do pedido *#{{numero_pedido}}* foi processado.\n\n💰 Valor: *{{valor_total}}*\n\nO valor aparece em até 5 dias úteis na sua conta.',
+    rod:'Qualquer dúvida é só responder.',
     bts:[]
   },
 
@@ -349,6 +367,12 @@ function manualGatilho(g) {
   }
   if (s === 'order.created') {
     return { tipo:'Automático (Bling)', quando:'Dispara via webhook quando um novo pedido é criado no Bling — status *Em Aberto* (situação 6). Todos os canais de venda.' }
+  }
+  if (s === '#PIX') {
+    return { tipo:'Comando manual (Bling)', quando:'Dispara quando você escreve *#PIX* nas observações internas do pedido no Bling. Útil para notificar sobre pagamento via PIX aguardando confirmação.' }
+  }
+  if (s === '#ESTORNO') {
+    return { tipo:'Comando manual (Bling)', quando:'Dispara quando você escreve *#ESTORNO* nas observações internas do pedido no Bling. Confirma reembolso processado para o cliente.' }
   }
   if (s === 'manual') {
     return { tipo:'Manual', quando:'Não dispara sozinho. Você aciona quando quiser.' }
@@ -3035,6 +3059,74 @@ export default function PageGatilhos({ api }) {
                         ))}
                       </div>
                     </div>
+
+                    {/* ── Fluxo completo de disparos (timeline) ── */}
+                    {(() => {
+                      const FLUXO = [
+                        {id:'pedido_criado',       lbl:'Pedido Criado',     sit:'order.created', delay:'imediato', cor:T.cyan   },
+                        {id:'pagamento_pendente',   lbl:'Pag. Pendente',     sit:'sit=6',         delay:'imediato', cor:T.amber  },
+                        {id:'pix_pendente',         lbl:'PIX Pendente',      sit:'#PIX',          delay:'imediato', cor:T.cyan   },
+                        {id:'pagamento_aprovado',   lbl:'Pag. Aprovado',     sit:'sit=15',        delay:'rec: 2min',cor:T.blue   },
+                        {id:'em_separacao',         lbl:'Em Separação',      sit:'sit=9',         delay:'rec: 5min',cor:T.purple },
+                        {id:'produto_embalado',     lbl:'Prod. Embalado',    sit:'#EMBALADO',     delay:'rec: 30min',cor:T.cyan  },
+                        {id:'nfe_pendente',         lbl:'NF-e Pendente',     sit:'nfe=1',         delay:'imediato', cor:T.amber  },
+                        {id:'nfe_emitida',          lbl:'NF-e Emitida',      sit:'nfe=5',         delay:'rec: 1min', cor:T.ink2  },
+                        {id:'pedido_enviado',       lbl:'Pedido Enviado',    sit:'sit=27',        delay:'imediato', cor:T.purple },
+                        {id:'pedido_coletado',      lbl:'Coletado',          sit:'auto',          delay:'imediato', cor:T.blue   },
+                        {id:'rastreio_em_transito', lbl:'Em Trânsito',       sit:'auto',          delay:'imediato', cor:T.blue   },
+                        {id:'saiu_entrega',         lbl:'Saiu p/ Entrega',   sit:'auto/#SAIU',    delay:'imediato', cor:T.amber  },
+                        {id:'pedido_entregue',      lbl:'Entregue',          sit:'sit=30/auto',   delay:'rec: 30min',cor:T.green },
+                        {id:'cancelamento',         lbl:'Cancelado',         sit:'sit=12',        delay:'imediato', cor:T.ink3   },
+                        {id:'estorno_realizado',    lbl:'Estorno',           sit:'#ESTORNO',      delay:'imediato', cor:T.orange },
+                      ]
+                      return (
+                        <div style={{padding:'12px 14px',borderRadius:10,
+                          border:`1px solid ${T.sep}`,background:T.bg2}}>
+                          <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:10}}>
+                            <Timer size={13} style={{color:T.blue}}/>
+                            <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>Fluxo completo de disparos</span>
+                          </div>
+                          <div style={{position:'relative'}}>
+                            <div style={{position:'absolute',left:7,top:8,bottom:8,width:1,
+                              background:T.sep}}/>
+                            {FLUXO.map((f)=>{
+                              const isThis = f.id===selId
+                              const cfg2   = configs[f.id]
+                              const ativo2 = cfg2?.ativo
+                              return (
+                                <div key={f.id}
+                                  onClick={()=>{if(!isThis){setSelId(f.id);setAba('config')}}}
+                                  style={{display:'flex',alignItems:'center',gap:8,
+                                    padding:'3px 0 3px 20px',position:'relative',
+                                    cursor:isThis?'default':'pointer',
+                                    opacity:isThis?1:0.55,transition:'opacity .12s'}}
+                                  onMouseEnter={e=>e.currentTarget.style.opacity=1}
+                                  onMouseLeave={e=>{if(!isThis)e.currentTarget.style.opacity=0.55}}>
+                                  <div style={{position:'absolute',left:4,width:7,height:7,
+                                    borderRadius:'50%',flexShrink:0,
+                                    background:isThis?f.cor:ativo2?T.green:T.sep2,
+                                    border:`1px solid ${isThis?f.cor:T.sep2}`,
+                                    boxShadow:isThis?`0 0 0 3px ${f.cor}20`:'none'}}/>
+                                  <span style={{fontSize:10.5,fontWeight:isThis?700:400,
+                                    color:isThis?f.cor:T.ink2,flex:1}}>
+                                    {f.lbl}
+                                  </span>
+                                  <span style={{fontSize:8.5,color:T.ink4}}>{f.sit}</span>
+                                  <span style={{fontSize:9,fontWeight:600,
+                                    color:f.delay.startsWith('rec:')?T.amber:T.ink4,
+                                    minWidth:64,textAlign:'right'}}>
+                                    {f.delay}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                          <p style={{fontSize:9,color:T.ink4,marginTop:6,lineHeight:1.5}}>
+                            <span style={{color:T.amber,fontWeight:600}}>rec:</span> delay recomendado para evitar sobreposição de mensagens
+                          </p>
+                        </div>
+                      )
+                    })()}
 
                     {/* Situação Bling */}
                     {gatilho.situacao && (
