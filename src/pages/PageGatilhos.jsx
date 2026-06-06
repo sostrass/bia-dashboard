@@ -2746,7 +2746,7 @@ export default function PageGatilhos({ api }) {
 
           {/* Editor Studio (com seleção) */}
           {selId && (
-            <div style={{flex:1,display:'grid',gridTemplateColumns:'1fr 340px',
+            <div style={{flex:1,minHeight:0,display:'grid',gridTemplateColumns:'1fr 340px',
               overflow:'hidden',animation:'slideFromRight .25s ease'}}>
 
               {/* ── COLUNA EDITOR ────────────────────────────────── */}
