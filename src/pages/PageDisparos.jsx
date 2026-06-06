@@ -145,57 +145,92 @@ function Spark7({data=[], cor='#a78bfa', h=28, w=72}) {
 }
 
 // ─── KCARD ATUALIZADO com countUp + sparkline ─────────────────────────────────
-function KCard({icon:Ic, label, value, sub, cor='#7c6af7', trend, spark}) {
-  const numVal = (typeof value === 'number') ? value : (parseInt(String(value||''))||0)
+function KCard({icon:Ic, label, value, sub, cor='#7c6af7', trend, spark, alert=false}) {
+  const numVal = typeof value==='number' ? value : (parseInt(String(value||''))||0)
   const [disp, setDisp] = useState(0)
-  const [ready, setReady] = useState(false)
   useEffect(() => {
-    if (value === undefined || value === null) { setDisp(0); return }
-    if (!numVal && numVal !== 0) { setReady(true); return }
-    const t0 = Date.now(), dur = 700
-    const tick = () => {
-      const prog = Math.min((Date.now()-t0)/dur, 1)
-      const ease = 1 - Math.pow(1-prog, 3)
-      setDisp(Math.round(ease * numVal))
-      if (prog < 1) requestAnimationFrame(tick)
-      else setReady(true)
+    if (!numVal && numVal!==0) return
+    const t0=Date.now(), dur=800
+    const tick=()=>{
+      const p=Math.min((Date.now()-t0)/dur,1)
+      setDisp(Math.round((1-Math.pow(1-p,4))*numVal))
+      if(p<1) requestAnimationFrame(tick)
     }
     requestAnimationFrame(tick)
-  }, [numVal]) // eslint-disable-line
-
-  const displayVal = (typeof value === 'number' || (!isNaN(parseInt(String(value||''))) && value !== null && value !== ''))
-    ? disp : (value ?? '—')
+  },[numVal])
+  const displayVal = (typeof value==='number'||(!isNaN(parseInt(String(value||'')))&&value!==null&&value!==''))
+    ? disp : (value??'—')
 
   return (
-    <div style={{background:'var(--bg-2)', border:'1px solid var(--sep)', borderRadius:14,
-      padding:'16px 16px', display:'flex', flexDirection:'column', gap:10,
+    <div style={{
+      background:`linear-gradient(135deg,${T.bg2} 0%,${T.bg3} 100%)`,
+      border:`1px solid ${alert?cor+'55':T.sep2}`,
+      borderRadius:16, padding:'18px 16px',
+      display:'flex', flexDirection:'column', gap:12,
       position:'relative', overflow:'hidden',
-      boxShadow:'0 4px 24px rgba(0,0,0,.18), 0 1px 0 rgba(255,255,255,.04) inset'}}>
-      <div style={{position:'absolute',top:0,right:0,width:80,height:80,
-        background:`radial-gradient(circle at 100% 0%,${cor}22 0%,transparent 70%)`,pointerEvents:'none'}}/>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-        <div style={{width:34,height:34,borderRadius:10,background:`${cor}18`,
-          border:`1px solid ${cor}30`,display:'flex',alignItems:'center',justifyContent:'center'}}>
-          <Ic size={16} style={{color:cor}}/>
+      boxShadow:alert
+        ?`0 0 0 1px ${cor}22, 0 8px 32px rgba(0,0,0,.3), 0 0 40px ${cor}10`
+        :`0 8px 32px rgba(0,0,0,.25), 0 1px 0 rgba(255,255,255,.04) inset`,
+      transition:'transform .2s, box-shadow .2s',
+    }}
+    onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=`0 16px 48px rgba(0,0,0,.4), 0 0 40px ${cor}18`}}
+    onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow=alert?`0 0 0 1px ${cor}22, 0 8px 32px rgba(0,0,0,.3)`:`0 8px 32px rgba(0,0,0,.25), 0 1px 0 rgba(255,255,255,.04) inset`}}>
+
+      {/* Blob decorativo */}
+      <div style={{position:'absolute',top:-24,right:-24,width:100,height:100,borderRadius:'50%',
+        background:`radial-gradient(circle,${cor}25 0%,transparent 70%)`,pointerEvents:'none',filter:'blur(8px)'}}/>
+
+      {/* Topo: ícone + trend */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',position:'relative'}}>
+        <div style={{width:36,height:36,borderRadius:11,
+          background:`linear-gradient(135deg,${cor}28,${cor}14)`,
+          border:`1px solid ${cor}35`,
+          display:'flex',alignItems:'center',justifyContent:'center',
+          boxShadow:`0 4px 12px ${cor}20`}}>
+          <Ic size={17} style={{color:cor}}/>
         </div>
-        {trend !== undefined && (
-          <div style={{display:'flex',alignItems:'center',gap:3,fontSize:11,fontWeight:600,
-            color:trend>0?'#22c55e':trend<0?'#ef4444':'var(--label-4)'}}>
-            {trend>0?<ArrowUpRight size={11}/>:trend<0?<ArrowDownRight size={11}/>:<Minus size={11}/>}
+        {trend!==undefined&&(
+          <div style={{display:'flex',alignItems:'center',gap:3,fontSize:11,fontWeight:700,
+            padding:'3px 8px',borderRadius:99,
+            background:trend>0?T.greenDim:trend<0?T.redDim:T.gray,
+            border:`1px solid ${trend>0?T.greenBor:trend<0?T.redBor:T.grayBor}`,
+            color:trend>0?T.green:trend<0?T.red:T.ink4}}>
+            {trend>0?<ArrowUpRight size={10}/>:trend<0?<ArrowDownRight size={10}/>:<Minus size={10}/>}
             {trend!==0&&`${Math.abs(trend)}%`}
           </div>
         )}
+        {alert&&<span style={{fontSize:8,padding:'2px 7px',borderRadius:99,
+          background:`${cor}18`,color:cor,border:`1px solid ${cor}35`,fontWeight:700,letterSpacing:'.06em'}}>
+          ATENÇÃO
+        </span>}
       </div>
-      <div style={{flex:1}}>
-        <div style={{fontSize:26,fontWeight:700,color:'var(--label)',lineHeight:1.1,letterSpacing:'-.025em'}}>
+
+      {/* Valor + label */}
+      <div style={{position:'relative'}}>
+        <div style={{fontSize:32,fontWeight:800,letterSpacing:'-.04em',lineHeight:1,
+          color:T.ink1,
+          textShadow:`0 0 32px ${cor}35`}}>
           {displayVal}
         </div>
-        <div style={{fontSize:11,color:'var(--label-4)',marginTop:3}}>{label}</div>
-        {sub&&<div style={{fontSize:10,color:'var(--label-4)',marginTop:2}}>{sub}</div>}
+        <div style={{fontSize:11,color:T.ink3,marginTop:5,fontWeight:500}}>{label}</div>
+        {sub&&<div style={{fontSize:10,color:T.ink4,marginTop:2}}>{sub}</div>}
       </div>
-      {spark && spark.length > 1 && (
-        <div style={{marginTop:'auto', paddingTop:4}}>
-          <Spark7 data={spark} cor={cor} h={28} w={80}/>
+
+      {/* Sparkline expandida */}
+      {spark&&spark.length>1&&(
+        <div style={{marginTop:'auto',height:36,position:'relative'}}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={spark.map((v,i)=>({i,v}))} margin={{top:4,right:0,left:0,bottom:0}}>
+              <defs>
+                <linearGradient id={`sk-${label.replace(/\s/g,'')}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor={cor} stopOpacity={0.4}/>
+                  <stop offset="95%" stopColor={cor} stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <Area dataKey="v" stroke={cor} strokeWidth={1.5} dot={false}
+                fill={`url(#sk-${label.replace(/\s/g,'')})`} fillOpacity={1}/>
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       )}
     </div>
@@ -2165,77 +2200,377 @@ export default function PageDisparos({api: apiProp}) {
           <KCard icon={Clock}     label="Aguardando"          value={aguardando} cor="#f59e0b"/>
         </div>
 
-        {/* ── Taxa global ── */}
-        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px',boxShadow:'0 6px 32px rgba(0,0,0,.2), 0 1px 0 rgba(255,255,255,.05) inset',animation:'chartIn .4s ease'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-            <span style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7}}>
-              <ShieldCheck size={14} style={{color:'#22c55e'}}/>Taxa de entrega
-              <span style={{fontSize:10,color:'var(--label-4)',fontWeight:400}}>(dos que foram enviados)</span>
-            </span>
-            <span style={{fontSize:24,fontWeight:800,color:taxa===null?'var(--label-4)':taxa>=90?'#22c55e':taxa>=70?'#f59e0b':'#ef4444'}}>
-              {taxa===null?'—':`${taxa}%`}
-            </span>
-          </div>
-          <div style={{height:12,borderRadius:99,overflow:'hidden',background:'var(--fill)',marginBottom:10}}>
-            <div style={{height:'100%',borderRadius:99,transition:'width 1s',
-              width:`${taxa===null?0:taxa}%`,background:taxa>=90?'#22c55e':taxa>=70?'#f59e0b':'#ef4444'}}/>
-          </div>
-          {taxa===null && (
-            <div style={{fontSize:11,color:'var(--label-4)',marginBottom:10,display:'flex',alignItems:'center',gap:6}}>
-              <Info size={12}/>Ainda não há envios efetivos — a maioria está como "ignorado" (gatilhos desativados). Quando ativar os templates, a taxa passa a contar.
-            </div>
-          )}
-          <div style={{display:'flex',gap:20,flexWrap:'wrap'}}>
-            {[
-              {l:'Enviados',  v:enviados,  c:'#22c55e'},
-              {l:'Erros',     v:erros,     c:'#ef4444'},
-              {l:'Ignorados', v:ignorados, c:'#6b7280'},
-              {l:'Aguardando',v:aguardando,c:'#f59e0b'},
-            ].map(s=>(
-              <div key={s.l} style={{display:'flex',alignItems:'center',gap:6}}>
-                <div style={{width:8,height:8,borderRadius:'50%',background:s.c}}/>
-                <span style={{fontSize:11,color:'var(--label-3)'}}>
-                  {s.l}: <strong style={{color:'var(--label)'}}>{s.v}</strong>
-                </span>
+        {/* ═══════════════════════════════════════════════════
+            ANALYTICS NIVELMAX — Gráficos + Decisão de Gatilhos
+        ═══════════════════════════════════════════════════ */}
+
+        {/* ── LINHA PRINCIPAL: Area chart com shadow ── */}
+        <div style={{
+          background:`linear-gradient(135deg,${T.bg2} 0%,${T.bg3} 100%)`,
+          border:`1px solid ${T.sep2}`,borderRadius:18,
+          padding:'20px 20px 14px',
+          boxShadow:'0 12px 48px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.05) inset',
+        }}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18}}>
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <div style={{width:34,height:34,borderRadius:10,
+                background:'linear-gradient(135deg,rgba(0,230,118,.2),rgba(0,230,118,.08))',
+                border:'1px solid rgba(0,230,118,.3)',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                boxShadow:'0 4px 16px rgba(0,230,118,.15)'}}>
+                <TrendingUp size={16} style={{color:T.green}}/>
               </div>
-            ))}
+              <div>
+                <div style={{fontSize:14,fontWeight:700,color:T.ink1,letterSpacing:'-.02em'}}>
+                  Evolução de Disparos
+                </div>
+                <div style={{fontSize:10.5,color:T.ink4,marginTop:1}}>
+                  Enviados · Ignorados · Erros — por dia
+                </div>
+              </div>
+            </div>
+            {/* Legenda */}
+            <div style={{display:'flex',gap:14,alignItems:'center'}}>
+              {[
+                {cor:T.green, lbl:'Enviados'},
+                {cor:T.amber, lbl:'Ignorados'},
+                {cor:T.red,   lbl:'Erros'},
+              ].map(s=>(
+                <div key={s.lbl} style={{display:'flex',alignItems:'center',gap:5}}>
+                  <div style={{width:20,height:2,borderRadius:99,background:s.cor,
+                    boxShadow:`0 0 6px ${s.cor}`}}/>
+                  <span style={{fontSize:10,color:T.ink3,fontWeight:600}}>{s.lbl}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {porDiaChart.length===0
+            ? <div style={{height:200,display:'flex',alignItems:'center',justifyContent:'center',color:T.ink4,fontSize:12}}>
+                Sem dados no período
+              </div>
+            : <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={porDiaChart} margin={{top:8,right:4,left:-20,bottom:0}}>
+                  <defs>
+                    {/* Gradientes com glow shadow */}
+                    <linearGradient id="grad-env" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%"   stopColor={T.green} stopOpacity={0.35}/>
+                      <stop offset="100%" stopColor={T.green} stopOpacity={0.02}/>
+                    </linearGradient>
+                    <linearGradient id="grad-ign" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%"   stopColor={T.amber} stopOpacity={0.25}/>
+                      <stop offset="100%" stopColor={T.amber} stopOpacity={0.01}/>
+                    </linearGradient>
+                    <linearGradient id="grad-err" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%"   stopColor={T.red} stopOpacity={0.25}/>
+                      <stop offset="100%" stopColor={T.red} stopOpacity={0.01}/>
+                    </linearGradient>
+                    {/* Filtro de glow nas linhas */}
+                    <filter id="glow-env"><feGaussianBlur stdDeviation="2.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                    <filter id="glow-ign"><feGaussianBlur stdDeviation="2"   result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                  </defs>
+                  <CartesianGrid strokeDasharray="2 6" stroke="rgba(255,255,255,.04)" vertical={false}/>
+                  <XAxis dataKey="d" tick={{fontSize:9.5,fill:T.ink4}} axisLine={false} tickLine={false}
+                    interval={Math.max(0,Math.floor(porDiaChart.length/7)-1)}/>
+                  <YAxis tick={{fontSize:9.5,fill:T.ink4}} axisLine={false} tickLine={false} allowDecimals={false}/>
+                  <Tooltip
+                    contentStyle={{background:T.bg3,border:`1px solid ${T.sep2}`,borderRadius:10,
+                      fontSize:11,boxShadow:'0 8px 32px rgba(0,0,0,.5)'}}
+                    labelStyle={{color:T.ink2,fontWeight:700,marginBottom:4}}
+                    itemStyle={{color:T.ink2}}
+                    formatter={(v,n)=>[v,n==='enviados'?'Enviados':n==='ignorados'?'Ignorados':'Erros']}/>
+                  {/* Área ignorados (fundo, menor destaque) */}
+                  <Area dataKey="ignorados" stackId="no" type="monotone"
+                    stroke={T.amber} strokeWidth={2} strokeOpacity={0.8}
+                    fill="url(#grad-ign)" fillOpacity={1} dot={false}
+                    filter="url(#glow-ign)"/>
+                  {/* Área erros */}
+                  <Area dataKey="erros" stackId="no2" type="monotone"
+                    stroke={T.red} strokeWidth={1.5} strokeOpacity={0.7}
+                    fill="url(#grad-err)" fillOpacity={1} dot={false}/>
+                  {/* Área enviados (frente, com mais glow) */}
+                  <Area dataKey="enviados" stackId="no3" type="monotone"
+                    stroke={T.green} strokeWidth={2.5}
+                    fill="url(#grad-env)" fillOpacity={1}
+                    dot={{r:0}} activeDot={{r:5,fill:T.green,stroke:'#08090f',strokeWidth:2}}
+                    filter="url(#glow-env)"/>
+                </AreaChart>
+              </ResponsiveContainer>
+          }
+        </div>
+
+        {/* ── LINHA 2: Matriz de Gatilhos + Pico de horas ── */}
+        <div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:14}}>
+
+          {/* MATRIZ DE DECISÃO DE GATILHOS */}
+          <div style={{
+            background:`linear-gradient(135deg,${T.bg2} 0%,${T.bg3} 100%)`,
+            border:`1px solid ${T.sep2}`,borderRadius:18,padding:'18px 18px',
+            boxShadow:'0 12px 48px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.05) inset',
+          }}>
+            <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:16}}>
+              <div style={{width:32,height:32,borderRadius:10,
+                background:'linear-gradient(135deg,rgba(167,139,250,.2),rgba(167,139,250,.08))',
+                border:'1px solid rgba(167,139,250,.3)',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                boxShadow:'0 4px 16px rgba(167,139,250,.15)'}}>
+                <Zap size={15} style={{color:T.purple}}/>
+              </div>
+              <div>
+                <div style={{fontSize:14,fontWeight:700,color:T.ink1,letterSpacing:'-.02em'}}>
+                  Painel de Decisão — Gatilhos
+                </div>
+                <div style={{fontSize:10,color:T.ink4,marginTop:1}}>
+                  Volume · taxa de entrega · ação necessária
+                </div>
+              </div>
+            </div>
+
+            {porGatChart.length===0
+              ? <p style={{fontSize:12,color:T.ink4,textAlign:'center',padding:'24px 0',margin:0}}>
+                  Nenhum disparo no período
+                </p>
+              : <div style={{display:'flex',flexDirection:'column',gap:2}}>
+                  {porGatChart.map((g,i)=>{
+                    const maxG     = Math.max(...porGatChart.map(x=>x.total),1)
+                    const pct      = g.total / maxG * 100
+                    const tentados = g.enviados + g.erros
+                    const taxaG    = tentados>0 ? Math.round(g.enviados/tentados*100) : null
+                    const isInativo= taxaG===null && g.total>0
+                    const isAlerta = taxaG!==null && taxaG<70
+                    const isCritico= isInativo && g.total>=3
+                    const statusCor= isCritico?T.red:isAlerta?T.amber:T.green
+                    const statusDim= isCritico?T.redDim:isAlerta?T.amberDim:T.greenDim
+                    const statusBor= isCritico?T.redBor:isAlerta?T.amberBor:T.greenBor
+                    const statusLbl= isCritico?'Inativo':isAlerta?`${taxaG}%`:taxaG===null?'—':`${taxaG}%`
+                    const gatKey   = Object.keys(GATILHO_META).find(k=>GATILHO_META[k].label===g.name)||g.name
+                    const GIc      = GATILHO_META[gatKey]?.icon||Zap
+
+                    return (
+                      <div key={i}
+                        onClick={()=>{ setFiltroGat(gatKey); setLogPg(1) }}
+                        title="Filtrar o log por este gatilho"
+                        style={{display:'flex',alignItems:'center',gap:10,
+                          padding:'9px 10px',borderRadius:11,cursor:'pointer',
+                          transition:'all .15s',
+                          background:isCritico?'rgba(255,71,87,.04)':'transparent',
+                          border:`1px solid ${isCritico?'rgba(255,71,87,.12)':'transparent'}`}}
+                        onMouseEnter={e=>{e.currentTarget.style.background=isCritico?'rgba(255,71,87,.08)':`${T.bg4}`;e.currentTarget.style.borderColor=isCritico?'rgba(255,71,87,.2)':T.sep2}}
+                        onMouseLeave={e=>{e.currentTarget.style.background=isCritico?'rgba(255,71,87,.04)':'transparent';e.currentTarget.style.borderColor=isCritico?'rgba(255,71,87,.12)':'transparent'}}>
+
+                        {/* Ícone do gatilho */}
+                        <div style={{width:28,height:28,borderRadius:8,flexShrink:0,
+                          background:`${g.cor}18`,border:`1px solid ${g.cor}30`,
+                          display:'flex',alignItems:'center',justifyContent:'center',
+                          boxShadow:isCritico?`0 0 12px ${T.red}20`:undefined}}>
+                          <GIc size={13} style={{color:g.cor}}/>
+                        </div>
+
+                        {/* Nome + barra */}
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:5}}>
+                            <span style={{fontSize:11.5,fontWeight:600,color:T.ink1,
+                              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>
+                              {g.name}
+                            </span>
+                            <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
+                              <span style={{fontSize:12,fontWeight:700,color:T.ink2}}>{g.total}</span>
+                              <span style={{fontSize:9,padding:'2px 8px',borderRadius:99,fontWeight:700,
+                                background:statusDim,border:`1px solid ${statusBor}`,color:statusCor,
+                                letterSpacing:'.04em'}}>
+                                {statusLbl}
+                              </span>
+                              {isCritico&&(
+                                <span style={{fontSize:8,padding:'1px 6px',borderRadius:99,
+                                  background:T.redDim,border:`1px solid ${T.redBor}`,color:T.red,
+                                  fontWeight:700,letterSpacing:'.06em'}}>ATIVAR</span>
+                              )}
+                            </div>
+                          </div>
+                          {/* Barra dupla: enviados + ignorados */}
+                          <div style={{height:5,borderRadius:99,background:T.bg4,overflow:'hidden',position:'relative'}}>
+                            <div style={{position:'absolute',left:0,top:0,height:'100%',
+                              width:`${pct}%`,
+                              background:`linear-gradient(90deg,${g.cor},${g.cor}88)`,
+                              borderRadius:99,
+                              boxShadow:`0 0 8px ${g.cor}50`,
+                              transition:'width .7s cubic-bezier(.4,0,.2,1)'}}/>
+                            {tentados>0&&g.erros>0&&(
+                              <div style={{position:'absolute',right:0,top:0,height:'100%',
+                                width:`${Math.round(g.erros/g.total*pct)}%`,
+                                background:T.red,borderRadius:'0 99px 99px 0'}}/>
+                            )}
+                          </div>
+                          {/* Sub-linha de contexto */}
+                          {isCritico&&(
+                            <div style={{fontSize:9,color:T.red,marginTop:3,opacity:.8}}>
+                              {g.total} disparos perdidos — template inativo
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+            }
+          </div>
+
+          {/* COLUNA DIREITA: Pico de horas + Taxa */}
+          <div style={{display:'flex',flexDirection:'column',gap:14}}>
+
+            {/* Taxa de entrega — gauge ring */}
+            <div style={{
+              background:`linear-gradient(135deg,${T.bg2} 0%,${T.bg3} 100%)`,
+              border:`1px solid ${T.sep2}`,borderRadius:18,padding:'18px',
+              boxShadow:'0 12px 48px rgba(0,0,0,.35)',
+            }}>
+              <div style={{fontSize:13,fontWeight:700,color:T.ink1,
+                display:'flex',alignItems:'center',gap:8,marginBottom:16}}>
+                <ShieldCheck size={14} style={{color:taxa>=70?T.green:T.amber}}/>
+                Taxa de entrega
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:16}}>
+                {/* Ring SVG */}
+                <div style={{position:'relative',width:80,height:80,flexShrink:0}}>
+                  <svg width="80" height="80" viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="32" fill="none" stroke={T.bg4} strokeWidth="8"/>
+                    <circle cx="40" cy="40" r="32" fill="none"
+                      stroke={taxa===null?T.ink4:taxa>=90?T.green:taxa>=70?T.amber:T.red}
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray="201"
+                      strokeDashoffset={taxa===null?201:Math.round(201*(1-(taxa/100)))}
+                      transform="rotate(-90 40 40)"
+                      style={{transition:'stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1)',
+                        filter:`drop-shadow(0 0 6px ${taxa===null?'transparent':taxa>=90?T.green:taxa>=70?T.amber:T.red})`}}/>
+                  </svg>
+                  <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
+                    alignItems:'center',justifyContent:'center'}}>
+                    <span style={{fontSize:18,fontWeight:800,letterSpacing:'-.03em',
+                      color:taxa===null?T.ink4:taxa>=90?T.green:taxa>=70?T.amber:T.red}}>
+                      {taxa===null?'—':`${taxa}%`}
+                    </span>
+                  </div>
+                </div>
+                {/* Legenda */}
+                <div style={{flex:1,display:'flex',flexDirection:'column',gap:6}}>
+                  {[
+                    {l:'Enviados',  v:enviados,  c:T.green},
+                    {l:'Ignorados', v:ignorados, c:T.amber},
+                    {l:'Erros',     v:erros,     c:T.red},
+                    {l:'Aguardando',v:aguardando,c:T.ink4},
+                  ].map(s=>(
+                    <div key={s.l} style={{display:'flex',alignItems:'center',gap:6}}>
+                      <div style={{width:8,height:8,borderRadius:'50%',background:s.c,flexShrink:0,
+                        boxShadow:`0 0 4px ${s.c}`}}/>
+                      <span style={{fontSize:10.5,color:T.ink3,flex:1}}>{s.l}</span>
+                      <span style={{fontSize:11,fontWeight:700,color:T.ink2}}>{s.v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Horário de pico — heatmap vertical */}
+            <div style={{
+              background:`linear-gradient(135deg,${T.bg2} 0%,${T.bg3} 100%)`,
+              border:`1px solid ${T.sep2}`,borderRadius:18,padding:'18px',
+              flex:1,
+              boxShadow:'0 12px 48px rgba(0,0,0,.35)',
+            }}>
+              <div style={{fontSize:13,fontWeight:700,color:T.ink1,
+                display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
+                <Clock size={14} style={{color:T.cyan}}/>
+                Pico de horário
+                {stats?.picoHora!=null&&(
+                  <span style={{fontSize:10,fontWeight:600,padding:'2px 8px',borderRadius:99,
+                    marginLeft:'auto',background:T.cyanDim,color:T.cyan,border:`1px solid ${T.cyanBor}`}}>
+                    pico às {stats.picoHora}h
+                  </span>
+                )}
+              </div>
+              <ResponsiveContainer width="100%" height={120}>
+                <BarChart data={stats?.porHora||[]} margin={{top:4,right:4,left:-28,bottom:0}}>
+                  <defs>
+                    <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%"   stopColor={T.cyan} stopOpacity={0.9}/>
+                      <stop offset="100%" stopColor={T.cyan} stopOpacity={0.3}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="2 6" stroke="rgba(255,255,255,.04)" vertical={false}/>
+                  <XAxis dataKey="hora" tick={{fontSize:8.5,fill:T.ink4}} interval={3}
+                    tickFormatter={h=>`${h}h`} axisLine={false} tickLine={false}/>
+                  <YAxis tick={{fontSize:8.5,fill:T.ink4}} axisLine={false} tickLine={false} allowDecimals={false}/>
+                  <Tooltip
+                    contentStyle={{background:T.bg3,border:`1px solid ${T.sep2}`,borderRadius:10,
+                      fontSize:11,boxShadow:'0 8px 32px rgba(0,0,0,.5)'}}
+                    labelStyle={{color:T.ink2,fontWeight:700}}
+                    labelFormatter={h=>`${h}:00h`}
+                    formatter={v=>[v,'disparos']}/>
+                  <Bar dataKey="total" radius={[4,4,0,0]} maxBarSize={14}>
+                    {(stats?.porHora||[]).map((h,i)=>(
+                      <Cell key={i}
+                        fill={h.hora===stats?.picoHora?T.cyan:`${T.cyan}45`}
+                        style={{filter:h.hora===stats?.picoHora?`drop-shadow(0 0 6px ${T.cyan})`:'none'}}/>
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
           </div>
         </div>
 
-        {/* ── Funil da jornada + Insights ── */}
-        <div style={{display:'grid',gridTemplateColumns:'1.4fr 1fr',gap:14}}>
+        {/* ── LINHA 3: Funil da jornada + Insights ── */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+
           {/* Funil */}
-          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px',boxShadow:'0 6px 32px rgba(0,0,0,.2), 0 1px 0 rgba(255,255,255,.05) inset',animation:'chartIn .4s ease'}}>
-            <div style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7,marginBottom:14}}>
-              <Filter size={14} style={{color:'#7c6af7'}}/>Funil da jornada
-              <span style={{fontSize:10,color:'var(--label-4)',fontWeight:400,marginLeft:'auto'}}>onde estão seus clientes</span>
+          <div style={{
+            background:`linear-gradient(135deg,${T.bg2} 0%,${T.bg3} 100%)`,
+            border:`1px solid ${T.sep2}`,borderRadius:18,padding:'18px',
+            boxShadow:'0 12px 48px rgba(0,0,0,.35)',
+          }}>
+            <div style={{fontSize:13,fontWeight:700,color:T.ink1,
+              display:'flex',alignItems:'center',gap:8,marginBottom:16}}>
+              <Filter size={14} style={{color:T.blue}}/>
+              Funil da jornada
+              <span style={{fontSize:10,color:T.ink4,fontWeight:400,marginLeft:'auto'}}>
+                onde estão seus clientes
+              </span>
             </div>
             {funil.length===0
-              ? <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:20,margin:0}}>Sem dados de jornada no período</p>
-              : <div style={{display:'flex',flexDirection:'column',gap:0}}>
+              ? <p style={{fontSize:12,color:T.ink4,textAlign:'center',padding:20,margin:0}}>
+                  Sem dados de jornada no período
+                </p>
+              : <div style={{display:'flex',flexDirection:'column',gap:4}}>
                   {funil.map((e,i)=>{
                     const pct = Math.round(e.total/funilMax*100)
                     const EIc = GATILHO_META[e.gat]?.icon || Zap
                     return (
-                      <div key={e.gat} onClick={()=>{ setFiltroGat(e.gat); setLogPg(1) }}
-                        title="Filtrar log por esta etapa" style={{display:'flex',alignItems:'center',gap:8,
-                        padding:'6px 4px',borderRadius:7,cursor:'pointer',
-                        borderBottom:i<funil.length-1?'1px solid var(--sep)':'none'}}
-                        onMouseEnter={ev=>ev.currentTarget.style.background='var(--fill)'}
+                      <div key={e.gat}
+                        onClick={()=>{ setFiltroGat(e.gat); setLogPg(1) }}
+                        style={{display:'flex',alignItems:'center',gap:9,
+                          padding:'8px 10px',borderRadius:10,cursor:'pointer',transition:'background .12s'}}
+                        onMouseEnter={ev=>ev.currentTarget.style.background=T.bg4}
                         onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}>
-                        <div style={{width:20,height:20,borderRadius:5,background:`${e.cor}18`,
-                          display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                          <EIc size={10} style={{color:e.cor}}/>
+                        <div style={{width:26,height:26,borderRadius:7,flexShrink:0,
+                          background:`${e.cor}18`,border:`1px solid ${e.cor}30`,
+                          display:'flex',alignItems:'center',justifyContent:'center'}}>
+                          <EIc size={11} style={{color:e.cor}}/>
                         </div>
                         <div style={{flex:1,minWidth:0}}>
-                          <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
-                            <span style={{fontSize:11,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>{e.label}</span>
-                            <div style={{display:'flex',gap:6,flexShrink:0,alignItems:'center'}}>
-                              <span style={{fontSize:11,fontWeight:700,color:'var(--label)'}}>{e.total}</span>
-                            </div>
+                          <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                            <span style={{fontSize:11.5,color:T.ink1,fontWeight:600,
+                              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>
+                              {e.label}
+                            </span>
+                            <span style={{fontSize:12,fontWeight:700,color:T.ink1,flexShrink:0}}>{e.total}</span>
                           </div>
-                          <div style={{height:5,borderRadius:99,background:'var(--fill)',overflow:'hidden'}}>
-                            <div style={{height:'100%',borderRadius:99,background:e.cor,width:`${pct}%`,transition:'width .7s'}}/>
+                          <div style={{height:5,borderRadius:99,background:T.bg4,overflow:'hidden'}}>
+                            <div style={{height:'100%',borderRadius:99,
+                              background:`linear-gradient(90deg,${e.cor},${e.cor}80)`,
+                              width:`${pct}%`,transition:'width .8s cubic-bezier(.4,0,.2,1)',
+                              boxShadow:`0 0 8px ${e.cor}40`}}/>
                           </div>
                         </div>
                       </div>
@@ -2244,148 +2579,54 @@ export default function PageDisparos({api: apiProp}) {
                 </div>
             }
           </div>
-          {/* ── Insights inteligentes multi-nível ── */}
-          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,
-            padding:'16px 20px',boxShadow:'0 6px 32px rgba(0,0,0,.2), 0 1px 0 rgba(255,255,255,.05) inset',
-            animation:'chartIn .4s ease',display:'flex',flexDirection:'column',gap:10}}>
-            <div style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7}}>
-              <Activity size={14} style={{color:T.amber}}/>Insights
-              {loadIns&&<RefreshCw size={11} style={{color:'var(--label-4)',animation:'spin 1s linear infinite'}}/>}
+
+          {/* Insights */}
+          <div style={{
+            background:`linear-gradient(135deg,${T.bg2} 0%,${T.bg3} 100%)`,
+            border:`1px solid ${T.sep2}`,borderRadius:18,padding:'18px',
+            boxShadow:'0 12px 48px rgba(0,0,0,.35)',
+            display:'flex',flexDirection:'column',gap:10
+          }}>
+            <div style={{fontSize:13,fontWeight:700,color:T.ink1,
+              display:'flex',alignItems:'center',gap:8}}>
+              <Activity size={14} style={{color:T.amber}}/>
+              Insights da IA
+              {loadIns&&<RefreshCw size={11} style={{color:T.ink4,animation:'spin 1s linear infinite'}}/>}
               {!loadIns&&insightsBE.filter(i=>!insDispBE.includes(i.id)).length>0&&(
-                <span style={{fontSize:10,padding:'1px 7px',borderRadius:99,
+                <span style={{fontSize:9,padding:'2px 8px',borderRadius:99,marginLeft:'auto',
                   background:T.redDim,color:T.red,border:`1px solid ${T.redBor}`,fontWeight:700}}>
-                  {insightsBE.filter(i=>!insDispBE.includes(i.id)).length}
+                  {insightsBE.filter(i=>!insDispBE.includes(i.id)).length} alertas
                 </span>
               )}
             </div>
-            {loadIns&&<div style={{display:'flex',flexDirection:'column',gap:8}}>
-              <Skeleton h={76} r={10}/><Skeleton h={76} r={10}/>
-            </div>}
+            {loadIns&&<><Skeleton h={72} r={10}/><Skeleton h={72} r={10}/></>}
             {!loadIns&&insightsBE.filter(i=>!insDispBE.includes(i.id)).length===0&&(
-              <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:'16px 0',margin:0}}>
-                {insightsBE.length>0?'✓ Todos os alertas foram revisados':'✓ Tudo tranquilo por aqui.'}
-              </p>
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',
+                justifyContent:'center',flex:1,gap:8,padding:'16px 0'}}>
+                <div style={{width:40,height:40,borderRadius:12,
+                  background:T.greenDim,border:`1px solid ${T.greenBor}`,
+                  display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  <ShieldCheck size={18} style={{color:T.green}}/>
+                </div>
+                <span style={{fontSize:12,color:T.ink4,textAlign:'center'}}>
+                  {insightsBE.length>0?'✓ Todos revisados':'✓ Tudo tranquilo'}
+                </span>
+              </div>
             )}
             {!loadIns&&insightsBE
               .filter(i=>!insDispBE.includes(i.id))
               .map(ins=>(
                 <InsightCard key={ins.id} ins={ins}
                   onDismiss={()=>setInsDispBE(d=>{
-                  const next=[...d,ins.id]
-                  try{localStorage.setItem('bia_ins_dismiss',JSON.stringify(next))}catch{}
-                  return next
-                })}/> 
+                    const next=[...d,ins.id]
+                    try{localStorage.setItem('bia_ins_dismiss',JSON.stringify(next))}catch{}
+                    return next
+                  })}/>
               ))
             }
           </div>
         </div>
 
-        {/* ── Horários de pico ── */}
-        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px',boxShadow:'0 6px 32px rgba(0,0,0,.2), 0 1px 0 rgba(255,255,255,.05) inset',animation:'chartIn .4s ease'}}>
-          <div style={{fontSize:13,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:7,marginBottom:4}}>
-            <Clock size={14} style={{color:'#06b6d4'}}/>Horários de pico
-            {stats?.picoHora!=null&&<span style={{fontSize:10,color:'var(--label-4)',fontWeight:400,marginLeft:'auto'}}>
-              pico às {stats.picoHora}h
-            </span>}
-          </div>
-          <div style={{height:120,marginTop:8}}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats?.porHora||[]} margin={{top:4,right:4,left:-28,bottom:0}}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--sep)" vertical={false}/>
-                <XAxis dataKey="hora" tick={{fontSize:9,fill:'var(--label-4)'}} interval={2}
-                  tickFormatter={h=>`${h}h`} axisLine={false} tickLine={false}/>
-                <YAxis tick={{fontSize:9,fill:'var(--label-4)'}} axisLine={false} tickLine={false} allowDecimals={false}/>
-                <Tooltip {...TT} labelFormatter={h=>`${h}:00 - ${h}:59`} formatter={v=>[v,'disparos']}/>
-                <Bar dataKey="total" radius={[3,3,0,0]}>
-                  {(stats?.porHora||[]).map((h,i)=>(
-                    <Cell key={i} fill={h.hora===stats?.picoHora?'#06b6d4':'#06b6d455'}/>
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* ── Charts ── */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-
-          {/* Evolução diária */}
-          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px',boxShadow:'0 6px 32px rgba(0,0,0,.2), 0 1px 0 rgba(255,255,255,.05) inset',animation:'chartIn .4s ease'}}>
-            <div style={{fontSize:13,fontWeight:600,color:'var(--label)',marginBottom:14,
-              display:'flex',alignItems:'center',gap:7}}>
-              <BarChart3 size={13} style={{color:'#7c6af7'}}/>Evolução diária
-            </div>
-            {porDiaChart.length===0
-              ? <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:24,margin:0}}>Sem dados no período</p>
-              : <ResponsiveContainer width="100%" height={160}>
-                  <BarChart data={porDiaChart} barGap={2}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--sep)" vertical={false}/>
-                    <XAxis dataKey="d" tick={{fontSize:9,fill:'var(--label-4)'}} tickLine={false} axisLine={false}/>
-                    <YAxis tick={{fontSize:9,fill:'var(--label-4)'}} tickLine={false} axisLine={false}/>
-                    <Tooltip {...TT} formatter={(v,n)=>[v,n==='enviados'?'Enviados':'Erros']}/>
-                    <Bar dataKey="enviados" fill="#22c55e" radius={[3,3,0,0]} maxBarSize={20}/>
-                    <Bar dataKey="erros"    fill="#ef4444" radius={[3,3,0,0]} maxBarSize={20}/>
-                  </BarChart>
-                </ResponsiveContainer>
-            }
-          </div>
-
-          {/* Por gatilho */}
-          <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px',boxShadow:'0 6px 32px rgba(0,0,0,.2), 0 1px 0 rgba(255,255,255,.05) inset',animation:'chartIn .4s ease'}}>
-            <div style={{fontSize:13,fontWeight:600,color:'var(--label)',marginBottom:10,
-              display:'flex',alignItems:'center',gap:7}}>
-              <Zap size={13} style={{color:'#f59e0b'}}/>Por gatilho
-            </div>
-            {porGatChart.length===0
-              ? <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:24,margin:0}}>Nenhum disparo no período</p>
-              : <div style={{display:'flex',flexDirection:'column',gap:0}}>
-                  {porGatChart.slice(0,8).map((g,i)=>{
-                    const maxG = Math.max(...porGatChart.map(x=>x.total),1)
-                    const pct  = Math.round(g.total/maxG*100)
-                    const tentadosG = g.enviados + g.erros
-                    const taxaG = tentadosG>0 ? Math.round(g.enviados/tentadosG*100) : null
-                    const gatKey = Object.keys(GATILHO_META).find(k=>GATILHO_META[k].label===g.name) || g.name
-                    return (
-                      <div key={i} onClick={()=>{ setFiltroGat(gatKey); setLogPg(1) }}
-                        title="Filtrar o log por este gatilho" style={{display:'flex',alignItems:'center',gap:8,
-                        padding:'6px 4px',borderRadius:7,cursor:'pointer',
-                        borderBottom:i<porGatChart.length-1?'1px solid var(--sep)':'none'}}
-                        onMouseEnter={e=>e.currentTarget.style.background='var(--fill)'}
-                        onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                        <div style={{width:20,height:20,borderRadius:5,background:`${g.cor}18`,
-                          display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                          {GATILHO_META[Object.keys(GATILHO_META).find(k=>GATILHO_META[k].label===g.name)]?.icon
-                            ? (() => { const IC=GATILHO_META[Object.keys(GATILHO_META).find(k=>GATILHO_META[k].label===g.name)]?.icon||Zap; return <IC size={10} style={{color:g.cor}}/>; })()
-                            : <Zap size={10} style={{color:g.cor}}/>
-                          }
-                        </div>
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
-                            <span style={{fontSize:11,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>{g.name}</span>
-                            <div style={{display:'flex',gap:6,flexShrink:0,alignItems:'center'}}>
-                              <span style={{fontSize:11,fontWeight:700,color:'var(--label)'}}>{g.total}</span>
-                              {taxaG===null
-                                ? <span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
-                                    color:'var(--label-4)',background:'var(--fill)'}} title="Registrado, mas ainda não enviado (template off)">só log</span>
-                                : <span style={{fontSize:9,padding:'1px 5px',borderRadius:99,
-                                    color:taxaG>=90?'#22c55e':taxaG>=70?'#f59e0b':'#ef4444',
-                                    background:taxaG>=90?'rgba(34,197,94,.1)':taxaG>=70?'rgba(245,158,11,.1)':'rgba(239,68,68,.1)'}}>
-                                    {taxaG}%
-                                  </span>
-                              }
-                            </div>
-                          </div>
-                          <div style={{height:5,borderRadius:99,background:'var(--fill)',overflow:'hidden'}}>
-                            <div style={{height:'100%',borderRadius:99,background:g.cor,width:`${pct}%`,transition:'width .5s'}}/>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-            }
-          </div>
-        </div>
 
         {/* ── Log de disparos ── */}
         <div style={{background:T.bg1,border:`1px solid ${T.sep2}`,borderRadius:14,
