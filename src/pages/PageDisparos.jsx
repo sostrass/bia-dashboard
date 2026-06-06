@@ -404,6 +404,7 @@ function CmdPalette({open, onClose, log=[], onOpenDisparo, onOpenCliente,
           <span style={{fontSize:10,color:T.ink4}}>abrir</span>
           <span style={{marginLeft:'auto',fontSize:10,color:T.ink4}}>⌘K para fechar</span>
         </div>
+      </div>
     </>
   )
 }
