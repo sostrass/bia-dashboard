@@ -1622,14 +1622,19 @@ function LinhaLog({row, onVerDisparo, onVerCliente, selecionado, onToggleSel}) {
           {origem&&<span style={{fontSize:9,padding:'1px 6px',borderRadius:99,flexShrink:0,background:T.bg4,color:T.ink3,border:`0.5px solid ${T.sep2}`}}>{origem}</span>}
           {row.delay_min>0&&<span style={{fontSize:9,padding:'1px 6px',borderRadius:99,flexShrink:0,background:T.amberDim,color:T.amber}}>+{row.delay_min}min</span>}
           {(()=>{
-            const cm = CANAL_META[row.canal]
+            // canal vindo do registro OU derivado da origem
+            const canalEfetivo = row.canal ||
+              (row.origem==='rastreio_job'||row.origem==='job' ? 'rastreio' :
+               row.origem==='bling'||row.origem==='manual_painel' ? 'loja' : null)
+            const cm = canalEfetivo ? CANAL_META[canalEfetivo] : null
             if (!cm) return null
+            const row_canal_display = canalEfetivo
             return (
               <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:9,
                 padding:'1px 6px',borderRadius:99,flexShrink:0,
                 background:cm.bg||`${cm.cor}18`,color:cm.cor,
                 border:`0.5px solid ${cm.cor}35`,fontWeight:600}}>
-                <PlataformaSVG canal={row.canal} size={10}/>
+                <PlataformaSVG canal={canalEfetivo} size={10}/>
                 {cm.label}
               </span>
             )
@@ -1682,7 +1687,9 @@ export default function PageDisparos({api: apiProp}) {
   // Insights inteligentes
   const [insightsBE,   setInsightsBE]   = useState([])
   const [loadIns,      setLoadIns]      = useState(false)
-  const [insDispBE,    setInsDispBE]    = useState([])
+  const [insDispBE,    setInsDispBE]    = useState(() => {
+    try { return JSON.parse(localStorage.getItem('bia_ins_dismiss')||'[]') } catch { return [] }
+  })
 
   // Command palette
   const [cmdOpen, setCmdOpen] = useState(false)
@@ -2086,7 +2093,11 @@ export default function PageDisparos({api: apiProp}) {
               .filter(i=>!insDispBE.includes(i.id))
               .map(ins=>(
                 <InsightCard key={ins.id} ins={ins}
-                  onDismiss={()=>setInsDispBE(d=>[...d,ins.id])}/>
+                  onDismiss={()=>setInsDispBE(d=>{
+                  const next=[...d,ins.id]
+                  try{localStorage.setItem('bia_ins_dismiss',JSON.stringify(next))}catch{}
+                  return next
+                })}/> 
               ))
             }
           </div>
