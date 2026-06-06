@@ -821,7 +821,8 @@ export default function PageConversas({ api='', onNavigate }) {
   const [filtro,   setFiltro]  =useState('todos')
   const [showPanel,setShowPanel]=useState(true)
   const [statusMenu,setStatusMenu]=useState(false)
-  const prevCount=useRef(0)
+  const [toast, setToast] = useState(null) // { tel, nome }
+  const prevStatusRef = useRef({})         // { [tel]: status }
 
   // Carrega lista
   const fetchConversas=useCallback(async()=>{
@@ -830,6 +831,18 @@ export default function PageConversas({ api='', onNavigate }) {
       if(!r.ok) return
       const d=await r.json()
       const lista=d.conversas||[]
+
+      // Detecta conversas que voltaram de resolvido/encerrado para pendente
+      lista.forEach(c=>{
+        const prev = prevStatusRef.current[c.telefone]
+        const curr = c.status_atendimento
+        if (prev && ['resolvido','encerrado'].includes(prev) && curr === 'pendente') {
+          setToast({ tel:c.telefone, nome:c.nome||c.telefone })
+          setTimeout(() => setToast(null), 5000)
+        }
+        prevStatusRef.current[c.telefone] = curr
+      })
+
       prevCount.current=lista.length
       setConversas(lista)
     } catch {} finally { setLoadConv(false) }
@@ -932,7 +945,46 @@ export default function PageConversas({ api='', onNavigate }) {
         @keyframes cv-spin   { to{transform:rotate(360deg)} }
         @keyframes cv-ping   { 0%{transform:scale(1);opacity:.5} 75%,100%{transform:scale(2.2);opacity:0} }
         @keyframes cv-fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes cv-slideIn{ from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
       `}</style>
+
+      {/* Toast de reativação */}
+      {toast && (
+        <div style={{
+          position:'fixed', bottom:24, right:24, zIndex:9999,
+          display:'flex', alignItems:'center', gap:12,
+          padding:'13px 18px', borderRadius:14,
+          background:`linear-gradient(135deg,${T.amber}22,${T.bg3})`,
+          border:`1px solid ${T.amberBor}`,
+          boxShadow:`0 12px 36px rgba(0,0,0,.5), 0 0 0 1px ${T.amber}15 inset`,
+          animation:'cv-slideIn .3s cubic-bezier(.2,.8,.2,1)',
+        }}>
+          <div style={{ width:34,height:34,borderRadius:10,flexShrink:0,
+            background:T.amberDim,border:`1px solid ${T.amberBor}`,
+            display:'flex',alignItems:'center',justifyContent:'center' }}>
+            <MessageSquare size={15} style={{ color:T.amber }}/>
+          </div>
+          <div>
+            <div style={{ fontSize:12.5,fontWeight:700,color:T.ink1,marginBottom:2 }}>
+              Conversa reaberta
+            </div>
+            <div style={{ fontSize:11,color:T.amber }}>
+              <strong>{toast.nome}</strong> enviou nova mensagem
+            </div>
+          </div>
+          <button onClick={()=>{ setSel(toast.tel); setToast(null) }}
+            style={{ padding:'5px 12px',borderRadius:8,border:`1px solid ${T.amberBor}`,
+              background:T.amberDim,color:T.amber,cursor:'pointer',
+              fontSize:11,fontWeight:700,flexShrink:0 }}>
+            Ver →
+          </button>
+          <button onClick={()=>setToast(null)}
+            style={{ background:'none',border:'none',cursor:'pointer',color:T.ink4,
+              padding:2,display:'flex',flexShrink:0 }}>
+            <X size={13}/>
+          </button>
+        </div>
+      )}
 
       {/* ── LISTA ─────────────────────────────────────────────────────── */}
       <aside style={{ width:286,flexShrink:0,display:'flex',flexDirection:'column',
