@@ -764,13 +764,17 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
             ]
             // Mapeia qualquer gatilho para um step (0-4) do ciclo
             const GATILHO_STEP = {
-              'pedido_criado':0,'pagamento_aprovado':0,
-              'em_separacao':1,
+              'pedido_criado':0,'pagamento_aprovado':0,'pagamento_pendente':0,'pix_pendente':0,
+              'em_separacao':1,'nfe_emitida':1,
               'pedido_enviado':2,'pedido_coletado':2,
-              'rastreio_em_transito':3,'saiu_entrega':3,'nao_entrou_unidade':3,'tentativa_entrega':3,
+              'rastreio_em_transito':3,'saiu_entrega':3,'nao_entrou_unidade':3,
+              'tentativa_entrega':3,'endereco_incorreto':3,
               'pedido_entregue':4,'nao_entregue':4,'pacote_devolvido':4,'pedido_devolvido':4,
+              'avaliar_pedido':4,
+              // gatilhos pós-venda / especiais: assume início
+              'reengajamento':0,'estorno_realizado':4,
             }
-            const curStep = GATILHO_STEP[dados.gatilho] ?? -1
+            const curStep = GATILHO_STEP[dados.gatilho] ?? 0  // fallback = step 0
 
             // Busca status / hora nos ordemDisp para todos os IDs de uma etapa
             const stSt   = sid => (ordemDisp||[]).find(x=>x.gatilho===sid)?.status || 'pendente'
@@ -800,8 +804,9 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
 
             const doR = async () => { setEnvR(true); try{ await onReenviar?.(dados.id); setJaR(true) }catch{}; setEnvR(false) }
 
-            // Linha SVG: preenche até o step atual
-            const lineProgress = curStep > 0 ? Math.round((curStep / (JOURNEY.length-1)) * 200) : 0
+            // Linha SVG: preenche proporcionalmente ao step atual
+            // Para step=0 mostra pequeno trecho para indicar início do ciclo
+            const lineProgress = Math.round((curStep / (JOURNEY.length-1)) * 200)
 
             return (
               <>
@@ -965,92 +970,79 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                         </span>
                       )}
                     </div>
-                    {/* Nós + linha SVG */}
-                    <div style={{display:'flex',alignItems:'flex-start',position:'relative'}}>
-                      {/* SVG de linha animada */}
-                      <svg style={{
-                        position:'absolute',top:11,left:13,
-                        width:'calc(100% - 26px)',height:2,overflow:'visible',pointerEvents:'none'
-                      }} viewBox="0 0 200 2" preserveAspectRatio="none" aria-hidden="true">
-                        <line x1="0" y1="1" x2="200" y2="1" stroke="rgba(255,255,255,.06)" strokeWidth="2"/>
-                        <line x1="0" y1="1" x2={lineProgress} y2="1"
-                          stroke={`url(#jl-${dados.id||'0'})`}
-                          strokeWidth="2"
-                          strokeDasharray="200"
-                          strokeDashoffset="200"
-                          style={{animation:'drawLine 1.2s ease .3s forwards'}}/>
-                        <defs>
-                          <linearGradient id={`jl-${dados.id||'0'}`} x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stopColor="#00e676"/>
-                            <stop offset="75%" stopColor={isIgn||isErr?'#ffb300':'#00e676'}/>
-                          </linearGradient>
-                        </defs>
-                      </svg>
-                      {/* Nós */}
+                    {/* Nós com conectores inline */}
+                    <div style={{display:'flex',alignItems:'flex-start'}}>
+
+                      {/* Nós com conector entre eles */}
                       {JOURNEY.map((st,si)=>{
-                        const step   = st.step
-                        const isDone = step < curStep          // etapa anterior → sempre verde
-                        const isCur  = step === curStep        // etapa do disparo atual
-                        const s      = stepStatus(st)          // status real do ordemDisp
-                        const time   = stepTime(st)
+                        const step       = st.step
+                        const isDone     = step < curStep
+                        const isCur      = step === curStep
+                        const s          = stepStatus(st)
+                        const time       = stepTime(st)
 
-                        // Cor: verde se concluído (anterior ou enviado OK), âmbar se atual+problema
-                        const nodeColor = isDone               ? '#00e676'
-                          : isCur && isOk                      ? '#00e676'
-                          : isCur && (isIgn||isErr)            ? '#ffb300'
-                          : 'rgba(255,255,255,.22)'
+                        const nodeColor  = isDone             ? '#00e676'
+                          : isCur && isOk                     ? '#00e676'
+                          : isCur && (isIgn||isErr)           ? '#ffb300'
+                          : 'rgba(255,255,255,.28)'
 
-                        const nodeBg = isDone                  ? 'rgba(0,230,118,.14)'
-                          : isCur && isOk                      ? 'rgba(0,230,118,.14)'
-                          : isCur && (isIgn||isErr)            ? 'rgba(255,179,0,.14)'
-                          : 'rgba(255,255,255,.04)'
+                        const nodeBg     = isDone             ? 'rgba(0,230,118,.16)'
+                          : isCur && isOk                     ? 'rgba(0,230,118,.16)'
+                          : isCur && (isIgn||isErr)           ? 'rgba(255,179,0,.16)'
+                          : 'rgba(255,255,255,.05)'
 
-                        const nodeBorder = isDone              ? 'rgba(0,230,118,.55)'
-                          : isCur && isOk                      ? 'rgba(0,230,118,.55)'
-                          : isCur && (isIgn||isErr)            ? '#ffb300'
-                          : 'rgba(255,255,255,.1)'
+                        const nodeBorder = isDone             ? 'rgba(0,230,118,.6)'
+                          : isCur && isOk                     ? 'rgba(0,230,118,.6)'
+                          : isCur && (isIgn||isErr)           ? '#ffb300'
+                          : 'rgba(255,255,255,.15)'
 
-                        // Ícone: etapas anteriores → Check; etapa atual e futuras → ícone da etapa
                         const NdIc = isDone ? Check : st.icon
 
                         return (
-                          <div key={st.id} style={{display:'flex',flexDirection:'column',
-                            alignItems:'center',gap:4,flex:1,minWidth:0}}>
-                            {/* Círculo nó */}
-                            <div style={{
-                              width:26,height:26,borderRadius:'50%',
-                              background:nodeBg,
-                              border:`2px solid ${nodeBorder}`,
-                              display:'flex',alignItems:'center',justifyContent:'center',
-                              boxShadow:isCur&&!isOk?undefined:isDone||isOk?`0 0 12px ${nodeColor}35`:undefined,
-                              animation:isCur&&(isIgn||isErr)?'glowNode 2s ease-in-out infinite':undefined,
-                              position:'relative',zIndex:1,flexShrink:0,
-                              transition:'all .3s ease'
-                            }}>
-                              <NdIc size={isDone?10:11} style={{color:nodeColor}}/>
+                          <React.Fragment key={st.id}>
+                            <div style={{display:'flex',flexDirection:'column',
+                              alignItems:'center',gap:3,flexShrink:0,
+                              width: si===0||si===JOURNEY.length-1 ? 42 : 44}}>
+                              {/* Círculo nó */}
+                              <div style={{
+                                width:28,height:28,borderRadius:'50%',
+                                background:nodeBg,
+                                border:`2px solid ${nodeBorder}`,
+                                display:'flex',alignItems:'center',justifyContent:'center',
+                                boxShadow:isDone||isOk?`0 0 14px ${nodeColor}40`:undefined,
+                                animation:isCur&&(isIgn||isErr)?'glowNode 2s ease-in-out infinite':undefined,
+                                position:'relative',zIndex:1,
+                                transition:'all .4s ease',flexShrink:0
+                              }}>
+                                <NdIc size={isDone?11:12} style={{color:nodeColor}}/>
+                              </div>
+                              {/* Label */}
+                              <span style={{fontSize:8,textAlign:'center',lineHeight:1.3,
+                                color:isDone||isCur?nodeColor:'rgba(255,255,255,.3)',
+                                fontWeight:isCur?700:isDone?600:400,
+                                maxWidth:44,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                                {st.lbl}
+                              </span>
+                              {isCur&&isIgn&&(
+                                <span style={{fontSize:7,color:'rgba(255,179,0,.65)',fontWeight:600,
+                                  textAlign:'center',lineHeight:1.1}}>sem notif.</span>
+                              )}
+                              {time&&(
+                                <span style={{fontSize:7.5,color:'#3a3f5c',fontFamily:'monospace'}}>
+                                  {time}
+                                </span>
+                              )}
                             </div>
-                            {/* Label */}
-                            <span style={{fontSize:8,textAlign:'center',lineHeight:1.3,
-                              color:isDone||isCur?nodeColor:'rgba(255,255,255,.22)',
-                              fontWeight:isCur?700:isDone?600:400,maxWidth:52,
-                              overflow:'hidden',textOverflow:'ellipsis'}}>
-                              {st.lbl}
-                            </span>
-                            {/* Sub-label para ignorado */}
-                            {isCur&&isIgn&&(
-                              <span style={{fontSize:7,color:'rgba(255,179,0,.6)',fontWeight:600,
-                                textAlign:'center',lineHeight:1.2,marginTop:-2}}>
-                                sem notif.
-                              </span>
+                            {/* Conector horizontal entre nós */}
+                            {si < JOURNEY.length-1 && (
+                              <div style={{flex:1,height:2,alignSelf:'flex-start',
+                                marginTop:13,flexShrink:0,borderRadius:99,
+                                background: step < curStep
+                                  ? 'linear-gradient(90deg,rgba(0,230,118,.7),rgba(0,230,118,.4))'
+                                  : 'rgba(255,255,255,.07)'
+                              }}/>
                             )}
-                            {/* Hora real do disparo */}
-                            {time&&(
-                              <span style={{fontSize:7.5,color:'#3a3f5c',fontFamily:'monospace',
-                                letterSpacing:'-.02em',marginTop:-2}}>
-                                {time}
-                              </span>
-                            )}
-                          </div>
+                          </React.Fragment>
                         )
                       })}
 
@@ -1681,119 +1673,180 @@ function LiveFeed({items=[], novos=0, onVerNovos, onItemClick}) {
   )
 }
 
-// ─── LINHA DO LOG com suporte a seleção (batch actions) ───────────────────────
+// ─── LINHA DO LOG — layout badge compacto ────────────────────────────────────
+// Cada campo como ícone + badge para facilitar leitura rápida
 function LinhaLog({row, onVerDisparo, onVerCliente, selecionado, onToggleSel}) {
-  const meta  = GATILHO_META[row.gatilho] || {label:row.gatilho, icon:Zap, cor:'#6b7294'}
-  const Ic    = meta.icon || Zap
-  const rel   = tempoRel(row.criado_em)
-  const statusCor = row.status==='enviado'?T.green:row.status==='erro'?T.red:row.status==='aguardando'?T.amber:'#6b7294'
-  const statusDim = row.status==='enviado'?T.greenDim:row.status==='erro'?T.redDim:row.status==='aguardando'?T.amberDim:T.gray
-  const statusBor = row.status==='enviado'?T.greenBor:row.status==='erro'?T.redBor:row.status==='aguardando'?T.amberBor:T.grayBor
-  const statusLbl = row.status==='enviado'?'Enviado':row.status==='erro'?'Erro':row.status==='aguardando'?'Aguardando':'Ignorado'
-  const SIc       = row.status==='enviado'?CheckCircle:row.status==='erro'?XCircle:row.status==='aguardando'?Clock:Minus
-  const origem    = row.origem==='rastreio_job'||row.origem==='job'?'auto':row.origem==='manual_painel'?'manual':row.origem==='manual_reenvio'?'reenvio':null
-  const ini       = (row.nome_cliente||'?').split(' ').slice(0,2).map(p=>p[0]||'').join('').toUpperCase()||'?'
+  const meta = GATILHO_META[row.gatilho] || {label:row.gatilho, icon:Zap, cor:'#6b7294'}
+  const Ic   = meta.icon || Zap
+  const rel  = tempoRel(row.criado_em)
+
+  // Status
+  const isEnv  = row.status === 'enviado'
+  const isIgn  = row.status === 'ignorado'
+  const isErr  = row.status === 'erro'
+  const isAgu  = row.status === 'aguardando'
+
+  // Gatilho ativo ou inativo (inativo = ignorado por "Gatilho inativo")
+  const isGatInativo = isIgn && (row.erro_msg||'').toLowerCase().includes('inativ')
+  const isGatAtivo   = isEnv || (!isGatInativo && isIgn===false && isErr===false)
+
+  const sCor = isEnv?T.green:isErr?T.red:isAgu?T.amber:'#6b7294'
+  const sDim = isEnv?T.greenDim:isErr?T.redDim:isAgu?T.amberDim:T.gray
+  const sBor = isEnv?T.greenBor:isErr?T.redBor:isAgu?T.amberBor:T.grayBor
+
+  // Origem
+  const isAuto   = row.origem==='rastreio_job' || row.origem==='job'
+  const isManual = row.origem==='manual_painel' || row.origem==='manual'
+  const isReenv  = row.origem==='manual_reenvio' || row.origem==='reenvio'
+
+  // Canal
+  const canalEfetivo = row.canal || (isAuto ? 'rastreio' : null)
+  const cm = canalEfetivo ? CANAL_META[canalEfetivo] : null
+
+  // Chip helper — ícone + label em pill
+  const Chip = ({Icon, label, cor='#6b7294', dim='rgba(255,255,255,.04)', bor='rgba(255,255,255,.07)', mono=false, title}) => (
+    <span title={title} style={{display:'inline-flex',alignItems:'center',gap:3,
+      padding:'2px 7px',borderRadius:99,fontSize:9.5,fontWeight:600,
+      background:dim,border:`0.5px solid ${bor}`,color:cor,flexShrink:0,
+      fontFamily:mono?'monospace':'inherit',letterSpacing:mono?'-.02em':'.02em',
+      maxWidth:130,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+      <Icon size={8} style={{color:cor,flexShrink:0}}/>
+      {label}
+    </span>
+  )
 
   return (
-    <div className="log-row" onClick={()=>selecionado!==undefined?onToggleSel?.(row.id):onVerDisparo?.(row)}
-      style={{display:'flex',alignItems:'stretch',cursor:'pointer',
+    <div className="log-row"
+      onClick={()=>selecionado!==undefined?onToggleSel?.(row.id):onVerDisparo?.(row)}
+      style={{display:'flex',alignItems:'center',cursor:'pointer',
         borderBottom:`1px solid ${T.sep}`,transition:'background .1s',position:'relative',
-        background:selecionado?`${T.purpleDim}`:'transparent'}}>
+        background:selecionado?`${T.purpleDim}`:'transparent',
+        padding:'9px 12px 9px 0'}}>
 
-      {/* Barra de status lateral */}
-      <div style={{width:3,flexShrink:0,alignSelf:'stretch',
-        background:row.status==='enviado'?T.green:row.status==='erro'?T.red:'transparent',
-        borderRadius:'0 2px 2px 0'}}/>
+      {/* Barra lateral de status */}
+      <div style={{width:3,alignSelf:'stretch',flexShrink:0,
+        background:isEnv?T.green:isErr?T.red:isAgu?T.amber:'transparent',
+        borderRadius:'0 2px 2px 0',marginRight:8}}/>
 
-      {/* Checkbox (aparece no hover via CSS, sempre presente no DOM) */}
-      <div className="row-checkbox" onClick={e=>{e.stopPropagation();onToggleSel?.(row.id)}}
-        style={{width:32,flexShrink:0,display:'flex',alignItems:'center',
-          justifyContent:'center',cursor:'pointer',opacity:selecionado?1:0,
-          transition:'opacity .1s'}}>
-        <div style={{width:15,height:15,borderRadius:4,transition:'all .12s',
+      {/* Checkbox */}
+      <div onClick={e=>{e.stopPropagation();onToggleSel?.(row.id)}}
+        style={{width:28,flexShrink:0,display:'flex',alignItems:'center',
+          justifyContent:'center',cursor:'pointer',
+          opacity:selecionado?1:0,transition:'opacity .1s'}}
+        className="log-cb">
+        <div style={{width:14,height:14,borderRadius:4,
           background:selecionado?T.purple:'transparent',
           border:`1.5px solid ${selecionado?T.purple:T.sep2}`,
           display:'flex',alignItems:'center',justifyContent:'center'}}>
-          {selecionado&&<Check size={9} style={{color:'#fff'}}/>}
-        </div>
-      </div>
-
-      {/* Avatar do cliente */}
-      <div onClick={e=>{e.stopPropagation();onVerCliente?.(row)}} title="Ver perfil do cliente"
-        style={{width:40,flexShrink:0,display:'flex',alignItems:'center',
-          justifyContent:'center',padding:'0 4px',cursor:'pointer'}}>
-        <div style={{width:30,height:30,borderRadius:'50%',background:`${meta.cor}22`,
-          border:`1px solid ${meta.cor}35`,display:'flex',alignItems:'center',
-          justifyContent:'center',fontSize:11,fontWeight:700,color:meta.cor}}>
-          {ini}
+          {selecionado&&<Check size={8} style={{color:'#fff'}}/>}
         </div>
       </div>
 
       {/* Ícone do gatilho */}
-      <div style={{width:36,flexShrink:0,display:'flex',alignItems:'center',
-        justifyContent:'center',padding:'12px 0'}}>
-        <div style={{width:28,height:28,borderRadius:8,background:`${meta.cor}18`,
-          border:`0.5px solid ${meta.cor}30`,display:'flex',alignItems:'center',justifyContent:'center'}}>
-          <Ic size={13} style={{color:meta.cor}}/>
+      <div style={{width:32,height:32,borderRadius:9,flexShrink:0,
+        background:`${meta.cor}18`,border:`0.5px solid ${meta.cor}28`,
+        display:'flex',alignItems:'center',justifyContent:'center',marginRight:10}}>
+        <Ic size={14} style={{color:meta.cor}}/>
+      </div>
+
+      {/* Conteúdo central */}
+      <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:5}}>
+
+        {/* Linha 1: nome do gatilho + pedido + canal */}
+        <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
+          <span style={{fontSize:12.5,fontWeight:700,color:T.ink1,
+            overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>
+            {meta.label}
+          </span>
+
+          {row.numero_pedido&&(
+            <Chip Icon={Hash} label={`#${row.numero_pedido}`}
+              cor={T.purple} dim={T.purpleDim} bor={T.purpleBor}/>
+          )}
+
+          {cm&&(
+            <span style={{display:'inline-flex',alignItems:'center',gap:3,
+              padding:'2px 7px',borderRadius:99,fontSize:9.5,fontWeight:600,flexShrink:0,
+              background:cm.bg||`${cm.cor}18`,color:cm.cor,border:`0.5px solid ${cm.cor}35`}}>
+              <PlataformaSVG canal={canalEfetivo} size={9}/>
+              {cm.label}
+            </span>
+          )}
+
+          {row.nome_cliente&&(
+            <span style={{fontSize:10.5,color:T.ink3,
+              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:120}}>
+              {row.nome_cliente.split(' ').slice(0,2).join(' ')}
+            </span>
+          )}
+        </div>
+
+        {/* Linha 2: badges de contexto */}
+        <div style={{display:'flex',alignItems:'center',gap:4,flexWrap:'wrap'}}>
+
+          {/* Telefone */}
+          {row.telefone&&(
+            <Chip Icon={Phone} label={fmtTel(row.telefone)} mono
+              cor={T.ink3} title={row.telefone}/>
+          )}
+
+          {/* Transportadora (canal de rastreio) */}
+          {(row.template_nome && row.template_nome !== row.gatilho) && (
+            <Chip Icon={FileText} label={row.template_nome}
+              cor={T.ink4} dim='rgba(255,255,255,.03)' bor='rgba(255,255,255,.06)'/>
+          )}
+
+          {/* Gatilho ativo/inativo */}
+          {isGatInativo
+            ? <Chip Icon={Minus}      label="Inativo"  cor='#6b7294' dim={T.gray} bor={T.grayBor}/>
+            : <Chip Icon={CheckCircle} label="Ativo"   cor={T.green} dim={T.greenDim} bor={T.greenBor}/>
+          }
+
+          {/* Origem do disparo */}
+          {isAuto   &&<Chip Icon={Zap}       label="Auto"    cor={T.cyan}   dim={T.cyanDim}   bor={T.cyanBor}/>}
+          {isManual &&<Chip Icon={Settings}  label="Manual"  cor={T.purple} dim={T.purpleDim} bor={T.purpleBor}/>}
+          {isReenv  &&<Chip Icon={RotateCcw} label="Reenvio" cor={T.amber}  dim={T.amberDim}  bor={T.amberBor}/>}
+
+          {/* Status do disparo */}
+          <span style={{display:'inline-flex',alignItems:'center',gap:3,
+            padding:'2px 7px',borderRadius:99,fontSize:9.5,fontWeight:700,flexShrink:0,
+            background:sDim,border:`0.5px solid ${sBor}`,color:sCor,
+            textTransform:'uppercase',letterSpacing:'.04em'}}>
+            {isEnv?<CheckCircle size={8}/>:isErr?<XCircle size={8}/>:isAgu?<Clock size={8}/>:<AlertTriangle size={8}/>}
+            {isEnv?'Enviado':isErr?'Erro':isAgu?'Aguard.':'Ignorado'}
+          </span>
+
+          {/* Tempo */}
+          <Chip Icon={Clock} label={rel||fmtDH(row.criado_em)} cor={T.ink4}/>
+
+          {/* Erro msg compacto */}
+          {isErr&&row.erro_msg&&(
+            <span style={{fontSize:9.5,color:T.red,overflow:'hidden',
+              textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160,fontStyle:'italic'}}>
+              {row.erro_msg}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Info central */}
-      <div style={{flex:1,minWidth:0,padding:'11px 10px 11px 6px'}}>
-        <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
-          <span style={{fontSize:12.5,fontWeight:600,color:T.ink1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{meta.label}</span>
-          {row.numero_pedido&&<span style={{fontSize:9.5,padding:'1px 7px',borderRadius:99,flexShrink:0,background:T.purpleDim,color:T.purple,border:`0.5px solid ${T.purpleBor}`,fontWeight:600}}>#{row.numero_pedido}</span>}
-          {origem&&<span style={{fontSize:9,padding:'1px 6px',borderRadius:99,flexShrink:0,background:T.bg4,color:T.ink3,border:`0.5px solid ${T.sep2}`}}>{origem}</span>}
-          {row.delay_min>0&&<span style={{fontSize:9,padding:'1px 6px',borderRadius:99,flexShrink:0,background:T.amberDim,color:T.amber}}>+{row.delay_min}min</span>}
-          {(()=>{
-            // canal vindo do registro OU derivado da origem
-            const canalEfetivo = row.canal ||
-              (row.origem==='rastreio_job'||row.origem==='job' ? 'rastreio' :
-               row.origem==='bling'||row.origem==='manual_painel' ? 'loja' : null)
-            const cm = canalEfetivo ? CANAL_META[canalEfetivo] : null
-            if (!cm) return null
-            const row_canal_display = canalEfetivo
-            return (
-              <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:9,
-                padding:'1px 6px',borderRadius:99,flexShrink:0,
-                background:cm.bg||`${cm.cor}18`,color:cm.cor,
-                border:`0.5px solid ${cm.cor}35`,fontWeight:600}}>
-                <PlataformaSVG canal={canalEfetivo} size={10}/>
-                {cm.label}
-              </span>
-            )
-          })()}
-        </div>
-        <div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:T.ink3}}>
-          <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:180}}>{row.nome_cliente||'—'}</span>
-          {row.telefone&&<><span style={{color:T.ink4}}>·</span><span style={{fontFamily:'monospace',flexShrink:0,color:T.ink4}}>{fmtTel(row.telefone)}</span></>}
-          {row.erro_msg&&<><span style={{color:T.ink4}}>·</span><span style={{color:T.red,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:200}}>{row.erro_msg}</span></>}
-        </div>
-      </div>
-
-      {/* Status + tempo */}
-      <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',
-        justifyContent:'center',gap:5,padding:'0 14px',flexShrink:0}}>
-        <div style={{display:'inline-flex',alignItems:'center',gap:4,padding:'3px 9px',
-          borderRadius:99,background:statusDim,border:`0.5px solid ${statusBor}`}}>
-          <SIc size={9} style={{color:statusCor}}/>
-          <span style={{fontSize:9.5,fontWeight:700,color:statusCor,
-            textTransform:'uppercase',letterSpacing:'.04em'}}>{statusLbl}</span>
-        </div>
-        <span style={{fontSize:10.5,color:T.ink4}}>{rel||fmtDH(row.criado_em)}</span>
-      </div>
-
-      {/* Ações hover */}
-      <div className="log-actions" style={{display:'flex',alignItems:'center',
-        padding:'0 10px 0 0',gap:4,opacity:0,transition:'opacity .1s',flexShrink:0}}>
-        <button onClick={e=>{e.stopPropagation();onVerCliente?.(row)}} title="Perfil"
-          style={{width:26,height:26,borderRadius:7,border:`1px solid ${T.sep2}`,
+      {/* Botões — sempre visíveis */}
+      <div style={{display:'flex',alignItems:'center',gap:4,marginLeft:8,flexShrink:0}}>
+        <button onClick={e=>{e.stopPropagation();onVerCliente?.(row)}} title="Perfil do cliente"
+          style={{width:28,height:28,borderRadius:8,border:`1px solid ${T.sep2}`,
             background:T.bg3,cursor:'pointer',display:'flex',alignItems:'center',
-            justifyContent:'center',color:T.ink3}}><Users size={11}/></button>
-        <button onClick={e=>{e.stopPropagation();onVerDisparo?.(row)}} title="Detalhes"
-          style={{width:26,height:26,borderRadius:7,border:`1px solid ${T.sep2}`,
+            justifyContent:'center',color:T.ink3,transition:'all .15s'}}
+          onMouseEnter={e=>{e.currentTarget.style.background=T.bg4;e.currentTarget.style.color=T.purple}}
+          onMouseLeave={e=>{e.currentTarget.style.background=T.bg3;e.currentTarget.style.color=T.ink3}}>
+          <Users size={12}/>
+        </button>
+        <button onClick={e=>{e.stopPropagation();onVerDisparo?.(row)}} title="Detalhe do disparo"
+          style={{width:28,height:28,borderRadius:8,border:`1px solid ${T.sep2}`,
             background:T.bg3,cursor:'pointer',display:'flex',alignItems:'center',
-            justifyContent:'center',color:T.ink3}}><Eye size={11}/></button>
+            justifyContent:'center',color:T.ink3,transition:'all .15s'}}
+          onMouseEnter={e=>{e.currentTarget.style.background=T.bg4;e.currentTarget.style.color=T.ink1}}
+          onMouseLeave={e=>{e.currentTarget.style.background=T.bg3;e.currentTarget.style.color=T.ink3}}>
+          <Eye size={12}/>
+        </button>
       </div>
     </div>
   )
