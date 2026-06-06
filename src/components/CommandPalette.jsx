@@ -2,67 +2,73 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Search, LayoutDashboard, ShoppingCart, Users, CreditCard,
   MessageSquare, Bot, Settings, Zap, Send, Package, AlertCircle,
-  Activity, CornerDownLeft, ArrowUp, ArrowDown, Hash, User,
-  Clock, ChevronRight, Star, TrendingUp, RefreshCw, X,
-  Layers, Package2, Truck, CheckCircle, XCircle
+  Activity, CornerDownLeft, ArrowUp, ArrowDown, Hash, Clock,
+  ChevronRight, RefreshCw, X, Layers, Package2, Truck,
+  BarChart2, Radio, Star,
 } from 'lucide-react'
 
-// ── Mapeamento de situações (mesmo do PagePedidos) ─────────────────────────────
+// ── T system ──────────────────────────────────────────────────────────────────
+const T = {
+  bg0:'#08090f', bg1:'#0d1017', bg2:'#111520', bg3:'#161b2c', bg4:'#1c2238',
+  ink1:'#eef0f6', ink2:'#b8bdd4', ink3:'#7b81a0', ink4:'#3a3f5c',
+  green:'#00e676', greenDim:'rgba(0,230,118,.08)', greenBor:'rgba(0,230,118,.25)',
+  amber:'#ffb300', amberDim:'rgba(255,179,0,.08)', amberBor:'rgba(255,179,0,.25)',
+  red:'#ff4757',  redDim:'rgba(255,71,87,.07)',   redBor:'rgba(255,71,87,.25)',
+  purple:'#a78bfa',purpleDim:'rgba(167,139,250,.09)',purpleBor:'rgba(167,139,250,.25)',
+  cyan:'#06b6d4', cyanDim:'rgba(6,182,212,.08)',   cyanBor:'rgba(6,182,212,.22)',
+  blue:'#4f8ef7', blueDim:'rgba(79,142,247,.08)',  blueBor:'rgba(79,142,247,.25)',
+  sep:'rgba(255,255,255,.05)', sep2:'rgba(255,255,255,.08)',
+  gray:'rgba(255,255,255,.04)',
+}
+
+// ── Mapeamento de situações ────────────────────────────────────────────────────
 const SIT = {
-  6:  { label:'Em Aberto',  cor:'#f59e0b' },
-  9:  { label:'Atendido',   cor:'#4a9fff' },
-  12: { label:'Cancelado',  cor:'#ef4444' },
-  15: { label:'Verificado', cor:'#22c55e' },
+  6:  { label:'Em Aberto',  cor:T.amber },
+  9:  { label:'Atendido',   cor:T.blue  },
+  12: { label:'Cancelado',  cor:T.red   },
+  15: { label:'Verificado', cor:T.green },
 }
 function getSitId(p) {
   return typeof p.situacao==='object' ? p.situacao?.id||p.situacao?.valor : (p.situacaoId||p.situacao)
 }
 const R = n => `R$ ${Number(n||0).toFixed(2).replace('.',',')}`
 
-// ── Ícones de página ──────────────────────────────────────────────────────────
-const PAGE_ICONS = {
-  dashboard: LayoutDashboard, pedidos: ShoppingCart, clientes: Users,
-  caixa: CreditCard, atendimento: MessageSquare, conversas: MessageSquare,
-  gatilhos: Zap, disparos: Activity, ocorrencias: AlertCircle,
-  iaconfig: Bot, llmconfig: Layers, reengajamento: Users,
-  enviomassa: Send, avise: Package, config: Settings,
+// ── Ícones e cores por página ──────────────────────────────────────────────────
+const PAGE_META = {
+  dashboard:    { icon:LayoutDashboard, cor:T.purple, desc:'Visão geral e métricas' },
+  pedidos:      { icon:ShoppingCart,    cor:T.green,  desc:'Pedidos, kanban e rastreio' },
+  clientes:     { icon:Users,           cor:T.blue,   desc:'CRM e histórico de clientes' },
+  caixa:        { icon:CreditCard,      cor:T.amber,  desc:'Financeiro e fluxo de caixa' },
+  atendimento:  { icon:MessageSquare,   cor:T.cyan,   desc:'Fila de atendimento humano' },
+  conversas:    { icon:MessageSquare,   cor:T.cyan,   desc:'Todas as conversas WhatsApp' },
+  gatilhos:     { icon:Zap,            cor:T.amber,  desc:'Automações e disparos' },
+  disparos:     { icon:Activity,        cor:T.green,  desc:'Histórico de disparos' },
+  ocorrencias:  { icon:AlertCircle,     cor:T.red,    desc:'Ocorrências e tickets' },
+  iaconfig:     { icon:Bot,            cor:T.purple, desc:'Personalidade e integrações da IA' },
+  llmconfig:    { icon:Layers,          cor:T.blue,   desc:'Modelo, métricas e bypasses' },
+  campanhas:    { icon:Send,            cor:T.cyan,   desc:'Campanhas em massa' },
+  'rastreio-config': { icon:Truck,     cor:T.green,  desc:'Configurar canais de rastreio' },
 }
 
-const PAGE_DESCS = {
-  dashboard:    'Visão geral e métricas',
-  pedidos:      'Pedidos, kanban e rastreio',
-  clientes:     'CRM e histórico de clientes',
-  caixa:        'Financeiro e fluxo de caixa',
-  atendimento:  'Fila de atendimento humano',
-  conversas:    'Todas as conversas WhatsApp',
-  gatilhos:     'Automações e disparos',
-  disparos:     'Histórico de disparos',
-  ocorrencias:  'Ocorrências e tickets',
-  iaconfig:     'Personalidade e integrações da IA',
-  llmconfig:    'Modelo, métricas e bypasses',
-  reengajamento:'Reativação de clientes',
-}
-
-// ── Fuzzy match score ─────────────────────────────────────────────────────────
+// ── Fuzzy match ───────────────────────────────────────────────────────────────
 function fuzzy(str, query) {
   if (!query) return 1
-  const s = str.toLowerCase()
-  const q = query.toLowerCase()
+  const s = str.toLowerCase(), q = query.toLowerCase()
   if (s.includes(q)) return 2 + (s.startsWith(q) ? 1 : 0)
-  let score = 0; let qi = 0
+  let score = 0, qi = 0
   for (let i = 0; i < s.length && qi < q.length; i++) {
     if (s[i] === q[qi]) { score++; qi++ }
   }
   return qi === q.length ? score / q.length : 0
 }
 
-function highlight(text, query) {
-  if (!query || !text) return text
+function Highlight({ text='', query='' }) {
+  if (!query || !text) return <>{text}</>
   const idx = text.toLowerCase().indexOf(query.toLowerCase())
-  if (idx === -1) return text
+  if (idx === -1) return <>{text}</>
   return <>
     {text.slice(0, idx)}
-    <mark style={{ background:'var(--accent-dim)', color:'var(--accent)', borderRadius:2, padding:'0 1px' }}>
+    <mark style={{ background:T.amberDim, color:T.amber, borderRadius:2, padding:'0 1px' }}>
       {text.slice(idx, idx + query.length)}
     </mark>
     {text.slice(idx + query.length)}
@@ -71,421 +77,418 @@ function highlight(text, query) {
 
 // ── Ações rápidas ─────────────────────────────────────────────────────────────
 const ACOES = [
-  { id:'acao-wa',     label:'Abrir WhatsApp Business', icon:MessageSquare, grupo:'Ações', action:'link', href:'https://web.whatsapp.com' },
-  { id:'acao-bling',  label:'Abrir painel Bling',       icon:Package,       grupo:'Ações', action:'link', href:'https://www.bling.com.br' },
-  { id:'acao-ia-cfg', label:'Configurar a IA',           icon:Bot,           grupo:'Ações', action:'nav',  page:'iaconfig' },
-  { id:'acao-llm',    label:'Ver saúde da IA',           icon:Activity,      grupo:'Ações', action:'nav',  page:'llmconfig' },
-  { id:'acao-atend',  label:'Ir para atendimento',       icon:Users,         grupo:'Ações', action:'nav',  page:'atendimento' },
-  { id:'acao-reload', label:'Recarregar página',         icon:RefreshCw,     grupo:'Ações', action:'fn',   fn: () => window.location.reload() },
+  { id:'acao-wa',    label:'Abrir WhatsApp Business', icon:MessageSquare, cor:T.green,  action:'link', href:'https://web.whatsapp.com' },
+  { id:'acao-bling', label:'Abrir painel Bling',      icon:Package,       cor:T.amber,  action:'link', href:'https://www.bling.com.br' },
+  { id:'acao-ia',    label:'Configurar a IA',          icon:Bot,           cor:T.purple, action:'nav',  page:'iaconfig' },
+  { id:'acao-saude', label:'Ver saúde da IA',          icon:Activity,      cor:T.cyan,   action:'nav',  page:'llmconfig' },
+  { id:'acao-atend', label:'Ir para atendimento',      icon:Users,         cor:T.blue,   action:'nav',  page:'atendimento' },
+  { id:'acao-monit', label:'Monitoramento de disparos',icon:BarChart2,     cor:T.green,  action:'nav',  page:'disparos' },
+  { id:'acao-reload',label:'Recarregar página',        icon:RefreshCw,     cor:T.ink3,   action:'fn',   fn:()=>window.location.reload() },
 ]
 
-// ── Componente principal ──────────────────────────────────────────────────────
+const PAGES_NAV = Object.entries(PAGE_META).map(([id, m]) => ({
+  id, label: {
+    dashboard:'Dashboard', pedidos:'Pedidos', clientes:'Clientes',
+    caixa:'Fluxo de Caixa', atendimento:'Atendimento', conversas:'Conversas',
+    gatilhos:'Gatilhos', disparos:'Monitor Disparos', ocorrencias:'Ocorrências',
+    iaconfig:'Config IA', llmconfig:'LLM & Bypasses', campanhas:'Campanhas',
+    'rastreio-config':'Rastreio (canais)',
+  }[id] || id,
+  desc: m.desc, cor: m.cor, grupo:'Páginas',
+}))
+
+// ── Componente principal ───────────────────────────────────────────────────────
 export default function CommandPalette({ api, onNavigate, onClose }) {
-  const [query,     setQuery]    = useState('')
-  const [results,   setResults]  = useState({ pages:[], pedidos:[], clientes:[], produtos:[], acoes:[] })
-  const [loading,   setLoading]  = useState(false)
-  const [idx,       setIdx]      = useState(0)  // item selecionado
-  const [recentes,  setRecentes] = useState([])
+  const [query,    setQuery]    = useState('')
+  const [results,  setResults]  = useState({ pages:[], pedidos:[], clientes:[], produtos:[], acoes:[] })
+  const [loading,  setLoading]  = useState(false)
+  const [selIdx,   setSelIdx]   = useState(0)
+  const [recentes, setRecentes] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('cmd_recentes') || '[]') } catch { return [] }
+  })
   const inputRef = useRef()
   const listRef  = useRef()
   const searchTO = useRef()
 
-  // NAV pages como array com ícone
-  const PAGES_NAV = [
-    {id:'dashboard',label:'Dashboard',desc:PAGE_DESCS.dashboard,grupo:'Páginas'},
-    {id:'pedidos',  label:'Pedidos',  desc:PAGE_DESCS.pedidos,  grupo:'Páginas'},
-    {id:'clientes', label:'Clientes', desc:PAGE_DESCS.clientes, grupo:'Páginas'},
-    {id:'caixa',    label:'Fluxo de Caixa',desc:PAGE_DESCS.caixa,grupo:'Páginas'},
-    {id:'conversas',label:'Conversas',desc:PAGE_DESCS.conversas,grupo:'Páginas'},
-    {id:'atendimento',label:'Atendimento',desc:PAGE_DESCS.atendimento,grupo:'Páginas'},
-    {id:'gatilhos', label:'Gatilhos', desc:PAGE_DESCS.gatilhos, grupo:'Páginas'},
-    {id:'ocorrencias',label:'Ocorrências',desc:PAGE_DESCS.ocorrencias,grupo:'Páginas'},
-    {id:'iaconfig', label:'Config IA',desc:PAGE_DESCS.iaconfig, grupo:'Páginas'},
-    {id:'llmconfig',label:'LLM & Bypasses',desc:PAGE_DESCS.llmconfig,grupo:'Páginas'},
-    {id:'reengajamento',label:'Reengajamento',desc:PAGE_DESCS.reengajamento,grupo:'Páginas'},
-  ]
+  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 50) }, [])
 
-  // Foca o input ao montar
-  useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 50)
-    // Carrega recentes do sessionStorage
-    try {
-      const r = JSON.parse(sessionStorage.getItem('cmd_recentes') || '[]')
-      setRecentes(r)
-    } catch {}
-  }, [])
-
-  // Busca debounced
+  // ── Busca debounced ────────────────────────────────────────────────────────
   useEffect(() => {
     clearTimeout(searchTO.current)
-    if (!query.trim()) {
-      setResults({ pages:[], pedidos:[], clientes:[], produtos:[], acoes:[] })
-      setIdx(0); return
-    }
-    searchTO.current = setTimeout(() => buscar(query.trim()), 180)
+    if (!query.trim()) { setResults({ pages:[],pedidos:[],clientes:[],produtos:[],acoes:[] }); setSelIdx(0); return }
+    searchTO.current = setTimeout(() => buscar(query.trim()), 160)
     return () => clearTimeout(searchTO.current)
   }, [query])
 
   const buscar = useCallback(async (q) => {
-    // Páginas — fuzzy local
     const pages = PAGES_NAV
-      .map(p => ({ ...p, score: Math.max(fuzzy(p.label, q), fuzzy(p.desc||'', q)) }))
-      .filter(p => p.score > 0.3)
-      .sort((a,b) => b.score - a.score)
-      .slice(0, 4)
+      .map(p => ({ ...p, score:Math.max(fuzzy(p.label,q), fuzzy(p.desc||'',q)) }))
+      .filter(p => p.score > 0.3).sort((a,b) => b.score-a.score).slice(0,4)
+    const acoes = ACOES.filter(a => fuzzy(a.label,q) > 0.3).slice(0,3)
 
-    // Ações
-    const acoes = ACOES
-      .filter(a => fuzzy(a.label, q) > 0.3)
-      .slice(0, 3)
+    let pedidos = [], clientes = [], produtos = []
 
-    // Se parece número → busca pedido
-    let pedidos = []
     if (/^\d+$/.test(q) && q.length >= 3) {
       setLoading(true)
       try {
         const r = await fetch(`${api}/api/dashboard/pedidos?limite=50`)
         if (r.ok) {
           const d = await r.json()
-          pedidos = (d.pedidos || [])
-            .filter(p => String(p.numero).includes(q) || (p.contato||'').toLowerCase().includes(q.toLowerCase()))
-            .slice(0, 5)
+          pedidos = (d.pedidos||[]).filter(p => String(p.numero).includes(q)).slice(0,5)
         }
-      } catch {}
-      setLoading(false)
+      } catch {} finally { setLoading(false) }
     }
 
-    // Busca clientes + pedidos por nome
-    let clientes = []; let pedidosPorNome = []
     if (q.length >= 2 && !/^\d+$/.test(q)) {
       setLoading(true)
       try {
         const [rc, rp] = await Promise.all([
-          fetch(`${api}/api/dashboard/contatos`).then(r => r.ok ? r.json() : { contatos:[] }).catch(() => ({ contatos:[] })),
-          fetch(`${api}/api/dashboard/pedidos?limite=100`).then(r => r.ok ? r.json() : { pedidos:[] }).catch(() => ({ pedidos:[] })),
+          fetch(`${api}/api/dashboard/contatos`).then(r=>r.ok?r.json():{contatos:[]}).catch(()=>({contatos:[]})),
+          fetch(`${api}/api/dashboard/pedidos?limite=100`).then(r=>r.ok?r.json():{pedidos:[]}).catch(()=>({pedidos:[]})),
         ])
         const ql = q.toLowerCase()
-        clientes = (rc.contatos || [])
-          .filter(c => (c.nome||'').toLowerCase().includes(ql) || (c.telefone||'').includes(ql))
-          .slice(0, 4)
-        pedidosPorNome = (rp.pedidos || [])
-          .filter(p => (p.contato||'').toLowerCase().includes(ql))
-          .sort((a,b) => b.numero - a.numero)
-          .slice(0, 5)
-        if (pedidos.length === 0) pedidos = pedidosPorNome
-      } catch {}
-      setLoading(false)
+        clientes = (rc.contatos||[]).filter(c=>(c.nome||'').toLowerCase().includes(ql)||(c.telefone||'').includes(ql)).slice(0,4)
+        if (!pedidos.length) pedidos = (rp.pedidos||[]).filter(p=>(p.contato||'').toLowerCase().includes(ql)).sort((a,b)=>b.numero-a.numero).slice(0,5)
+      } catch {} finally { setLoading(false) }
     }
 
-    // Busca produtos
-    let produtos = []
     if (q.length >= 2) {
       try {
         const r = await fetch(`${api}/api/dashboard/catalogo?q=${encodeURIComponent(q)}&limit=4`)
-        if (r.ok) { const d = await r.json(); produtos = d.produtos || [] }
+        if (r.ok) { const d = await r.json(); produtos = d.produtos||[] }
       } catch {}
     }
 
     setResults({ pages, pedidos, clientes, produtos, acoes })
-    setIdx(0)
+    setSelIdx(0)
   }, [api])
 
-  // Flatten para navegação com ↑↓
+  // Flatten
   const allItems = [
-    ...results.pages.map(p => ({ type:'page', ...p })),
-    ...results.pedidos.map(p => ({ type:'pedido', ...p })),
-    ...results.clientes.map(c => ({ type:'cliente', ...c })),
-    ...results.produtos.map(p => ({ type:'produto', ...p })),
-    ...results.acoes.map(a => ({ type:'acao', ...a })),
+    ...results.pages.map(p=>({type:'page',...p})),
+    ...results.pedidos.map(p=>({type:'pedido',...p})),
+    ...results.clientes.map(c=>({type:'cliente',...c})),
+    ...results.produtos.map(p=>({type:'produto',...p})),
+    ...results.acoes.map(a=>({type:'acao',...a})),
   ]
 
-  // Keyboard navigation
+  // Teclado
   useEffect(() => {
     const fn = e => {
-      if (e.key === 'Escape') { onClose(); return }
-      if (e.key === 'ArrowDown') { e.preventDefault(); setIdx(i => Math.min(i+1, allItems.length-1)) }
-      if (e.key === 'ArrowUp')   { e.preventDefault(); setIdx(i => Math.max(i-1, 0)) }
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        const item = allItems[idx]
-        if (item) executar(item)
-      }
+      if (e.key==='Escape') { onClose(); return }
+      if (e.key==='ArrowDown') { e.preventDefault(); setSelIdx(i=>Math.min(i+1,allItems.length-1)) }
+      if (e.key==='ArrowUp')   { e.preventDefault(); setSelIdx(i=>Math.max(i-1,0)) }
+      if (e.key==='Enter')     { e.preventDefault(); const item=allItems[selIdx]; if(item) executar(item) }
     }
     window.addEventListener('keydown', fn)
     return () => window.removeEventListener('keydown', fn)
-  }, [allItems, idx])
+  }, [allItems, selIdx])
 
-  // Scroll do item selecionado para a view
   useEffect(() => {
-    const el = listRef.current?.querySelector(`[data-idx="${idx}"]`)
-    el?.scrollIntoView({ block:'nearest' })
-  }, [idx])
+    listRef.current?.querySelector(`[data-idx="${selIdx}"]`)?.scrollIntoView({ block:'nearest' })
+  }, [selIdx])
 
   const salvarRecente = (item) => {
-    const novo = { id: item.id||item.numero, label: item.label||item.contato||item.nome, type: item.type, page: item.id||'pedidos', ts: Date.now() }
-    const atuais = JSON.parse(sessionStorage.getItem('cmd_recentes') || '[]')
-    const filtrado = atuais.filter(r => r.id !== novo.id).slice(0, 4)
-    sessionStorage.setItem('cmd_recentes', JSON.stringify([novo, ...filtrado]))
+    const novo = { id:item.id||item.numero||item.telefone, label:item.label||item.contato||item.nome, type:item.type, page:item.id||'pedidos', ts:Date.now() }
+    const prev = JSON.parse(sessionStorage.getItem('cmd_recentes')||'[]')
+    const next = [novo, ...prev.filter(r=>r.id!==novo.id)].slice(0,5)
+    sessionStorage.setItem('cmd_recentes', JSON.stringify(next))
+    setRecentes(next)
   }
 
   const executar = (item) => {
     salvarRecente(item)
-    if (item.type === 'page') { onNavigate(item.id); onClose() }
-    else if (item.type === 'pedido') { onNavigate('pedidos', { abrirPedido: item.numero }); onClose() }
-    else if (item.type === 'cliente') { onNavigate('conversas', { telefone: item.telefone }); onClose() }
-    else if (item.type === 'produto') { onNavigate('pedidos'); onClose() }
-    else if (item.type === 'acao') {
-      if (item.action === 'nav') { onNavigate(item.page); onClose() }
-      else if (item.action === 'link') { window.open(item.href, '_blank'); onClose() }
-      else if (item.action === 'fn') { item.fn?.(); onClose() }
+    if (item.type==='page')    { onNavigate(item.id); onClose() }
+    else if (item.type==='pedido')  { onNavigate('pedidos',{abrirPedido:item.numero}); onClose() }
+    else if (item.type==='cliente') { onNavigate('conversas',{telefone:item.telefone}); onClose() }
+    else if (item.type==='produto') { onNavigate('pedidos'); onClose() }
+    else if (item.type==='acao') {
+      if (item.action==='nav')  { onNavigate(item.page); onClose() }
+      else if (item.action==='link') { window.open(item.href,'_blank'); onClose() }
+      else if (item.action==='fn')   { item.fn?.(); onClose() }
     }
   }
 
-  // ── Renderiza item ──────────────────────────────────────────────────────────
-  const ItemPage = ({ item, flatIdx }) => {
-    const Icon = PAGE_ICONS[item.id] || LayoutDashboard
-    const sel = flatIdx === idx
-    return (
-      <button data-idx={flatIdx} onClick={() => executar(item)}
-        onMouseEnter={() => setIdx(flatIdx)}
-        style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:8, border:'none', cursor:'pointer', textAlign:'left', transition:'background .08s', background: sel ? 'var(--accent-dim)' : 'transparent' }}>
-        <div style={{ width:30, height:30, borderRadius:8, background: sel ? 'var(--accent-dim)' : 'var(--fill)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, border:`1px solid ${sel?'var(--accent)':'var(--sep)'}` }}>
-          <Icon size={14} style={{ color: sel ? 'var(--accent)' : 'var(--label-3)' }}/>
-        </div>
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontSize:13, fontWeight:sel?600:400, color: sel ? 'var(--accent)' : 'var(--label)' }}>{highlight(item.label, query)}</div>
-          {item.desc && <div style={{ fontSize:11, color:'var(--label-4)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.desc}</div>}
-        </div>
-        {sel && <ChevronRight size={12} style={{ color:'var(--accent)', flexShrink:0 }}/>}
-      </button>
-    )
-  }
-
-  const ItemPedido = ({ item, flatIdx }) => {
-    const sel = flatIdx === idx
-    const sitId = getSitId(item)
-    const sit = SIT[sitId] || SIT[9]
-    return (
-      <button data-idx={flatIdx} onClick={() => executar(item)}
-        onMouseEnter={() => setIdx(flatIdx)}
-        style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:8, border:'none', cursor:'pointer', textAlign:'left', background: sel ? 'var(--accent-dim)' : 'transparent' }}>
-        <div style={{ width:30, height:30, borderRadius:8, background: sel ? 'var(--accent-dim)' : 'var(--fill)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, border:`1px solid ${sel?'var(--accent)':'var(--sep)'}` }}>
-          <Hash size={13} style={{ color: sel ? 'var(--accent)' : 'var(--label-3)' }}/>
-        </div>
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:1 }}>
-            <span style={{ fontSize:13, fontWeight:700, color: sel ? 'var(--accent)' : 'var(--accent)' }}>#{item.numero}</span>
-            <span style={{ fontSize:10, fontWeight:700, padding:'1px 6px', borderRadius:99, background:`${sit.cor}15`, color:sit.cor }}>
-              {sit.label}
-            </span>
-          </div>
-          <div style={{ fontSize:11, color:'var(--label-4)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-            {highlight(item.contato || '—', query)} · {item.data ? new Date(item.data+'T12:00:00').toLocaleDateString('pt-BR') : '—'}
-          </div>
-        </div>
-        <div style={{ fontSize:12, fontWeight:700, color:'var(--label)', flexShrink:0 }}>{R(item.total)}</div>
-        {sel && <ChevronRight size={12} style={{ color:'var(--accent)', flexShrink:0 }}/>}
-      </button>
-    )
-  }
-
-  const ItemCliente = ({ item, flatIdx }) => {
-    const sel = flatIdx === idx
-    const init = (item.nome||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()
-    const pal = ['#7c6af7','#00d4aa','#f59e0b','#22c55e','#4a9fff','#e879f9']
-    const cor = pal[(item.nome||'?').charCodeAt(0) % pal.length]
-    return (
-      <button data-idx={flatIdx} onClick={() => executar(item)}
-        onMouseEnter={() => setIdx(flatIdx)}
-        style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:8, border:'none', cursor:'pointer', textAlign:'left', background: sel ? 'var(--accent-dim)' : 'transparent' }}>
-        <div style={{ width:30, height:30, borderRadius:'50%', background:`${cor}20`, border:`1.5px solid ${cor}50`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800, color:cor, flexShrink:0 }}>{init}</div>
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontSize:13, fontWeight:sel?600:400, color: sel ? 'var(--accent)' : 'var(--label)' }}>{highlight(item.nome || '—', query)}</div>
-          <div style={{ fontSize:11, color:'var(--label-4)', fontFamily:'monospace' }}>{item.telefone || '—'}</div>
-        </div>
-        {sel && <ChevronRight size={12} style={{ color:'var(--accent)', flexShrink:0 }}/>}
-      </button>
-    )
-  }
-
-  const ItemProduto = ({ item, flatIdx }) => {
-    const sel = flatIdx === idx
-    const disp = item.disponivel || item.estoque > 0
-    return (
-      <button data-idx={flatIdx} onClick={() => executar(item)}
-        onMouseEnter={() => setIdx(flatIdx)}
-        style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:8, border:'none', cursor:'pointer', textAlign:'left', background: sel ? 'var(--accent-dim)' : 'transparent' }}>
-        <div style={{ width:30, height:30, borderRadius:8, background: sel ? 'var(--accent-dim)' : 'var(--fill)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, border:`1px solid ${sel?'var(--accent)':'var(--sep)'}` }}>
-          <Package2 size={13} style={{ color: sel ? 'var(--accent)' : 'var(--label-3)' }}/>
-        </div>
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontSize:13, fontWeight:sel?600:400, color: sel ? 'var(--accent)' : 'var(--label)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{highlight(item.nome || '—', query)}</div>
-          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-            <span style={{ fontSize:11, color:'var(--label-4)', fontFamily:'monospace' }}>{item.codigo}</span>
-            <span style={{ fontSize:10, fontWeight:700, padding:'1px 5px', borderRadius:99, background:disp?'rgba(34,197,94,.1)':'rgba(239,68,68,.1)', color:disp?'#22c55e':'#ef4444' }}>
-              {disp ? `${item.estoque} un.` : 'Fora de estoque'}
-            </span>
-          </div>
-        </div>
-        <div style={{ fontSize:12, fontWeight:700, color:'var(--label)', flexShrink:0 }}>{R(item.preco)}</div>
-        {sel && <ChevronRight size={12} style={{ color:'var(--accent)', flexShrink:0 }}/>}
-      </button>
-    )
-  }
-
-  const ItemAcao = ({ item, flatIdx }) => {
-    const sel = flatIdx === idx
-    const Icon = item.icon || Zap
-    return (
-      <button data-idx={flatIdx} onClick={() => executar(item)}
-        onMouseEnter={() => setIdx(flatIdx)}
-        style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:8, border:'none', cursor:'pointer', textAlign:'left', background: sel ? 'var(--accent-dim)' : 'transparent' }}>
-        <div style={{ width:30, height:30, borderRadius:8, background: sel ? 'var(--accent-dim)' : 'var(--fill)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, border:`1px solid ${sel?'var(--accent)':'var(--sep)'}` }}>
-          <Icon size={13} style={{ color: sel ? 'var(--accent)' : 'var(--label-3)' }}/>
-        </div>
-        <div style={{ fontSize:13, fontWeight:sel?600:400, color: sel ? 'var(--accent)' : 'var(--label)', flex:1 }}>{item.label}</div>
-        {sel && <ChevronRight size={12} style={{ color:'var(--accent)', flexShrink:0 }}/>}
-      </button>
-    )
-  }
-
-  // Renderiza grupo
+  // ── Renders ───────────────────────────────────────────────────────────────
   const Grupo = ({ titulo, children }) => (
-    <div style={{ marginBottom:4 }}>
-      <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'.08em', color:'var(--label-4)', padding:'6px 12px 3px' }}>{titulo}</div>
+    <div style={{ marginBottom:6 }}>
+      <div style={{ fontSize:9.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'.1em',
+        color:T.ink4,padding:'8px 14px 4px' }}>{titulo}</div>
       {children}
     </div>
   )
 
-  const temResultados = allItems.length > 0
-  const semQuery = !query.trim()
+  const ItemBase = ({ flatIdx, children }) => {
+    const sel = flatIdx === selIdx
+    return (
+      <div data-idx={flatIdx}
+        onClick={()=>executar(allItems[flatIdx])}
+        onMouseEnter={()=>setSelIdx(flatIdx)}
+        style={{ display:'flex',alignItems:'center',gap:10,padding:'9px 12px',
+          borderRadius:10,cursor:'pointer',transition:'background .08s',
+          background:sel?T.purpleDim:'transparent',
+          border:`1px solid ${sel?T.purpleBor:'transparent'}`,
+          margin:'1px 4px' }}>
+        {children}
+      </div>
+    )
+  }
 
-  // Offset para índices corretos em cada grupo
+  const IcoBox = ({ cor, children }) => (
+    <div style={{ width:32,height:32,borderRadius:9,flexShrink:0,
+      background:`${cor}18`,border:`1px solid ${cor}30`,
+      display:'flex',alignItems:'center',justifyContent:'center',
+      boxShadow:`0 2px 8px ${cor}15` }}>
+      {children}
+    </div>
+  )
+
   let offset = 0
-  const pageOffset = 0;            offset += results.pages.length
-  const pedidoOffset = offset;     offset += results.pedidos.length
-  const clienteOffset = offset;    offset += results.clientes.length
-  const produtoOffset = offset;    offset += results.produtos.length
-  const acaoOffset = offset
+  const pageOff    = 0;             offset += results.pages.length
+  const pedidoOff  = offset;        offset += results.pedidos.length
+  const clienteOff = offset;        offset += results.clientes.length
+  const produtoOff = offset;        offset += results.produtos.length
+  const acaoOff    = offset
+
+  const semQuery = !query.trim()
+  const temRes   = allItems.length > 0
 
   return (
     <>
+      <style>{`
+        @keyframes cmd-in { from{opacity:0;transform:translateX(-50%) scale(.96)} to{opacity:1;transform:translateX(-50%) scale(1)} }
+        @keyframes cmd-bg { from{opacity:0} to{opacity:1} }
+        @keyframes spin    { to{transform:rotate(360deg)} }
+      `}</style>
+
       {/* Backdrop */}
-      <div onClick={onClose} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.55)', zIndex:999, backdropFilter:'blur(4px)' }}/>
+      <div onClick={onClose} style={{ position:'fixed',inset:0,zIndex:9990,
+        background:'rgba(0,0,0,.7)',backdropFilter:'blur(6px)',
+        animation:'cmd-bg .2s ease' }}/>
 
       {/* Modal */}
-      <div style={{ position:'fixed', top:'18%', left:'50%', transform:'translateX(-50%)', width:'min(620px, 92vw)', zIndex:1000, background:'var(--bg-2)', border:'1px solid var(--sep)', borderRadius:16, boxShadow:'0 24px 80px rgba(0,0,0,.4)', overflow:'hidden' }}>
+      <div style={{
+        position:'fixed',top:'16%',left:'50%',transform:'translateX(-50%)',
+        width:'min(620px, 92vw)',zIndex:9991,
+        background:`linear-gradient(160deg,${T.bg2} 0%,${T.bg3} 100%)`,
+        border:`1px solid ${T.sep2}`,borderRadius:20,overflow:'hidden',
+        boxShadow:`0 32px 80px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.07) inset`,
+        animation:'cmd-in .22s cubic-bezier(.2,.8,.2,1)',
+      }}>
 
-        {/* Busca */}
-        <div style={{ display:'flex', alignItems:'center', gap:10, padding:'14px 16px', borderBottom:'1px solid var(--sep)' }}>
+        {/* Campo de busca */}
+        <div style={{ display:'flex',alignItems:'center',gap:10,
+          padding:'14px 16px',borderBottom:`1px solid ${T.sep}`,
+          background:`linear-gradient(90deg,${T.bg3},${T.bg2})` }}>
           {loading
-            ? <RefreshCw size={16} style={{ color:'var(--accent)', flexShrink:0, animation:'spin 0.8s linear infinite' }}/>
-            : <Search size={16} style={{ color:'var(--label-4)', flexShrink:0 }}/>
-          }
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Buscar pedido, cliente, produto, página…"
-            style={{ flex:1, border:'none', background:'transparent', outline:'none', fontSize:15, color:'var(--label)', fontFamily:'inherit' }}
-          />
+            ? <RefreshCw size={16} style={{ color:T.green,flexShrink:0,animation:'spin .7s linear infinite' }}/>
+            : <Search size={16} style={{ color:T.ink4,flexShrink:0 }}/>}
+          <input ref={inputRef} value={query} onChange={e=>setQuery(e.target.value)}
+            placeholder="Buscar pedido, cliente, produto, página..."
+            style={{ flex:1,border:'none',background:'transparent',outline:'none',
+              fontSize:15,color:T.ink1,fontFamily:'inherit' }}/>
           {query && (
-            <button onClick={() => setQuery('')} style={{ padding:4, borderRadius:6, border:'none', background:'var(--fill)', color:'var(--label-4)', cursor:'pointer', display:'flex', flexShrink:0 }}>
+            <button onClick={()=>setQuery('')}
+              style={{ padding:4,borderRadius:6,border:'none',background:T.gray,
+                color:T.ink4,cursor:'pointer',display:'flex',flexShrink:0 }}>
               <X size={12}/>
             </button>
           )}
-          <kbd style={{ fontSize:11, padding:'2px 7px', borderRadius:6, background:'var(--fill)', border:'1px solid var(--sep)', color:'var(--label-4)', flexShrink:0, fontFamily:'inherit' }}>Esc</kbd>
+          <kbd style={{ fontSize:10.5,padding:'2px 8px',borderRadius:7,
+            background:T.bg4,border:`1px solid ${T.sep2}`,
+            color:T.ink4,flexShrink:0,fontFamily:'inherit' }}>Esc</kbd>
         </div>
 
-        {/* Resultados / Estado vazio */}
-        <div ref={listRef} style={{ maxHeight:440, overflowY:'auto', padding:'8px' }}>
+        {/* Resultados */}
+        <div ref={listRef} style={{ maxHeight:440,overflowY:'auto',padding:'8px 0' }}>
 
-          {/* Estado vazio — mostra recentes e páginas principais */}
+          {/* Estado vazio */}
           {semQuery && (
             <>
               {recentes.length > 0 && (
                 <Grupo titulo="Recentes">
-                  {recentes.map((r, i) => {
-                    const Icon = PAGE_ICONS[r.page] || Clock
+                  {recentes.map((r,i) => {
+                    const pm = PAGE_META[r.page] || {}
+                    const Icon = pm.icon || Clock
+                    const cor  = pm.cor  || T.ink3
                     return (
-                      <button key={i} onClick={() => { onNavigate(r.page); onClose() }}
-                        style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:8, border:'none', cursor:'pointer', textAlign:'left', background:'transparent' }}
-                        onMouseEnter={e => e.currentTarget.style.background='var(--fill)'}
-                        onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                        <div style={{ width:30, height:30, borderRadius:8, background:'var(--fill)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, border:'1px solid var(--sep)' }}>
-                          <Icon size={13} style={{ color:'var(--label-3)' }}/>
-                        </div>
-                        <div style={{ fontSize:13, color:'var(--label)', flex:1 }}>{r.label}</div>
-                        <Clock size={11} style={{ color:'var(--label-4)' }}/>
-                      </button>
+                      <div key={i} onClick={()=>{ onNavigate(r.page); onClose() }}
+                        style={{ display:'flex',alignItems:'center',gap:10,padding:'9px 12px',
+                          margin:'1px 4px',borderRadius:10,cursor:'pointer',transition:'background .08s' }}
+                        onMouseEnter={e=>e.currentTarget.style.background=T.gray}
+                        onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                        <IcoBox cor={cor}><Icon size={13} style={{ color:cor }}/></IcoBox>
+                        <div style={{ flex:1,fontSize:13,color:T.ink2 }}>{r.label}</div>
+                        <Clock size={10} style={{ color:T.ink4 }}/>
+                      </div>
                     )
                   })}
                 </Grupo>
               )}
               <Grupo titulo="Navegar para">
-                {['dashboard','pedidos','conversas','clientes','caixa'].map(id => {
-                  const Icon = PAGE_ICONS[id] || LayoutDashboard
-                  const desc = PAGE_DESCS[id] || ''
-                  const label = {dashboard:'Dashboard',pedidos:'Pedidos',conversas:'Conversas',clientes:'Clientes',caixa:'Fluxo de Caixa'}[id] || id
+                {['dashboard','pedidos','conversas','clientes','gatilhos','disparos'].map(id => {
+                  const pm = PAGE_META[id]||{}
+                  const Icon = pm.icon||LayoutDashboard
+                  const cor  = pm.cor||T.ink3
+                  const label = PAGES_NAV.find(p=>p.id===id)?.label||id
                   return (
-                    <button key={id} onClick={() => { onNavigate(id); onClose() }}
-                      style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:8, border:'none', cursor:'pointer', textAlign:'left', background:'transparent' }}
-                      onMouseEnter={e => e.currentTarget.style.background='var(--fill)'}
-                      onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                      <div style={{ width:30, height:30, borderRadius:8, background:'var(--fill)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, border:'1px solid var(--sep)' }}>
-                        <Icon size={13} style={{ color:'var(--label-3)' }}/>
+                    <div key={id} onClick={()=>{ onNavigate(id); onClose() }}
+                      style={{ display:'flex',alignItems:'center',gap:10,padding:'9px 12px',
+                        margin:'1px 4px',borderRadius:10,cursor:'pointer',transition:'background .08s' }}
+                      onMouseEnter={e=>e.currentTarget.style.background=T.gray}
+                      onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                      <IcoBox cor={cor}><Icon size={13} style={{ color:cor }}/></IcoBox>
+                      <div style={{ flex:1,minWidth:0 }}>
+                        <div style={{ fontSize:13,color:T.ink1,fontWeight:500 }}>{label}</div>
+                        <div style={{ fontSize:10.5,color:T.ink4 }}>{pm.desc||''}</div>
                       </div>
-                      <div style={{ flex:1 }}>
-                        <div style={{ fontSize:13, color:'var(--label)' }}>{label}</div>
-                        <div style={{ fontSize:11, color:'var(--label-4)' }}>{desc}</div>
-                      </div>
-                      <ChevronRight size={12} style={{ color:'var(--label-4)' }}/>
-                    </button>
+                      <ChevronRight size={12} style={{ color:T.ink4 }}/>
+                    </div>
                   )
                 })}
               </Grupo>
               <Grupo titulo="Dica">
-                <div style={{ padding:'8px 12px', fontSize:12, color:'var(--label-4)', lineHeight:1.6 }}>
-                  Digite um <strong style={{ color:'var(--label-3)' }}>número</strong> para buscar pedido · um <strong style={{ color:'var(--label-3)' }}>nome</strong> para cliente · ou <strong style={{ color:'var(--label-3)' }}>nome do produto</strong> para ver estoque.
+                <div style={{ padding:'6px 14px',fontSize:11.5,color:T.ink4,lineHeight:1.7 }}>
+                  Digite um <strong style={{ color:T.amber }}>número</strong> para buscar pedido ·
+                  um <strong style={{ color:T.cyan }}>nome</strong> para cliente ·
+                  ou <strong style={{ color:T.green }}>nome de produto</strong> para ver estoque.
                 </div>
               </Grupo>
             </>
           )}
 
-          {/* Com query mas sem resultados */}
-          {!semQuery && !temResultados && !loading && (
-            <div style={{ padding:'32px 16px', textAlign:'center', color:'var(--label-4)', fontSize:13 }}>
-              <Search size={24} style={{ display:'block', margin:'0 auto 10px', opacity:.3 }}/>
-              Nenhum resultado para "<strong style={{ color:'var(--label-3)' }}>{query}</strong>"
+          {/* Sem resultados */}
+          {!semQuery && !temRes && !loading && (
+            <div style={{ padding:'36px 16px',textAlign:'center' }}>
+              <Search size={24} style={{ display:'block',margin:'0 auto 10px',color:T.ink4,opacity:.3 }}/>
+              <p style={{ fontSize:13,color:T.ink4 }}>
+                Nenhum resultado para <strong style={{ color:T.ink3 }}>"{query}"</strong>
+              </p>
             </div>
           )}
 
-          {/* Resultados */}
-          {!semQuery && temResultados && (
+          {/* Com resultados */}
+          {!semQuery && temRes && (
             <>
               {results.pages.length > 0 && (
                 <Grupo titulo="Páginas">
-                  {results.pages.map((item, i) => <ItemPage key={item.id} item={item} flatIdx={pageOffset + i}/>)}
+                  {results.pages.map((item,i) => {
+                    const pm = PAGE_META[item.id]||{}
+                    const Icon = pm.icon||LayoutDashboard
+                    const cor  = item.cor||pm.cor||T.purple
+                    return (
+                      <ItemBase key={item.id} flatIdx={pageOff+i}>
+                        <IcoBox cor={cor}><Icon size={14} style={{ color:cor }}/></IcoBox>
+                        <div style={{ flex:1,minWidth:0 }}>
+                          <div style={{ fontSize:13,fontWeight:600,color:T.ink1 }}>
+                            <Highlight text={item.label} query={query}/>
+                          </div>
+                          {item.desc&&<div style={{ fontSize:10.5,color:T.ink4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{item.desc}</div>}
+                        </div>
+                        <ChevronRight size={11} style={{ color:T.ink4,flexShrink:0 }}/>
+                      </ItemBase>
+                    )
+                  })}
                 </Grupo>
               )}
+
               {results.pedidos.length > 0 && (
                 <Grupo titulo="Pedidos">
-                  {results.pedidos.map((item, i) => <ItemPedido key={item.numero} item={item} flatIdx={pedidoOffset + i}/>)}
+                  {results.pedidos.map((item,i) => {
+                    const sitId = getSitId(item)
+                    const sit   = SIT[sitId]||SIT[9]
+                    return (
+                      <ItemBase key={item.numero} flatIdx={pedidoOff+i}>
+                        <IcoBox cor={sit.cor}><Hash size={13} style={{ color:sit.cor }}/></IcoBox>
+                        <div style={{ flex:1,minWidth:0 }}>
+                          <div style={{ display:'flex',alignItems:'center',gap:7,marginBottom:2 }}>
+                            <span style={{ fontSize:13,fontWeight:700,color:T.green }}>#{item.numero}</span>
+                            <span style={{ fontSize:9,fontWeight:700,padding:'1px 7px',borderRadius:99,
+                              background:`${sit.cor}18`,color:sit.cor,border:`0.5px solid ${sit.cor}35` }}>
+                              {sit.label}
+                            </span>
+                          </div>
+                          <div style={{ fontSize:10.5,color:T.ink4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
+                            <Highlight text={item.contato||'—'} query={query}/> · {item.data?new Date(item.data+'T12:00:00').toLocaleDateString('pt-BR'):'—'}
+                          </div>
+                        </div>
+                        <div style={{ fontSize:12,fontWeight:700,color:T.ink1,flexShrink:0 }}>{R(item.total)}</div>
+                      </ItemBase>
+                    )
+                  })}
                 </Grupo>
               )}
+
               {results.clientes.length > 0 && (
                 <Grupo titulo="Clientes">
-                  {results.clientes.map((item, i) => <ItemCliente key={item.telefone || i} item={item} flatIdx={clienteOffset + i}/>)}
+                  {results.clientes.map((item,i) => {
+                    const init = (item.nome||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()
+                    const pal  = [T.purple,T.green,T.amber,T.cyan,T.blue,T.red]
+                    const cor  = pal[(item.nome||'?').charCodeAt(0)%pal.length]
+                    return (
+                      <ItemBase key={item.telefone||i} flatIdx={clienteOff+i}>
+                        <div style={{ width:32,height:32,borderRadius:'50%',flexShrink:0,
+                          background:`${cor}20`,border:`1.5px solid ${cor}50`,
+                          display:'flex',alignItems:'center',justifyContent:'center',
+                          fontSize:11,fontWeight:800,color:cor }}>
+                          {init}
+                        </div>
+                        <div style={{ flex:1,minWidth:0 }}>
+                          <div style={{ fontSize:13,fontWeight:600,color:T.ink1 }}>
+                            <Highlight text={item.nome||'—'} query={query}/>
+                          </div>
+                          <div style={{ fontSize:10.5,color:T.ink4,fontFamily:'monospace' }}>
+                            <Highlight text={item.telefone||'—'} query={query}/>
+                          </div>
+                        </div>
+                        <ChevronRight size={11} style={{ color:T.ink4,flexShrink:0 }}/>
+                      </ItemBase>
+                    )
+                  })}
                 </Grupo>
               )}
+
               {results.produtos.length > 0 && (
                 <Grupo titulo="Produtos">
-                  {results.produtos.map((item, i) => <ItemProduto key={item.bling_id || i} item={item} flatIdx={produtoOffset + i}/>)}
+                  {results.produtos.map((item,i) => {
+                    const disp = item.disponivel||item.estoque>0
+                    return (
+                      <ItemBase key={item.bling_id||i} flatIdx={produtoOff+i}>
+                        <IcoBox cor={T.amber}><Package2 size={13} style={{ color:T.amber }}/></IcoBox>
+                        <div style={{ flex:1,minWidth:0 }}>
+                          <div style={{ fontSize:13,fontWeight:600,color:T.ink1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
+                            <Highlight text={item.nome||'—'} query={query}/>
+                          </div>
+                          <div style={{ display:'flex',alignItems:'center',gap:6 }}>
+                            <span style={{ fontSize:10,color:T.ink4,fontFamily:'monospace' }}>{item.codigo}</span>
+                            <span style={{ fontSize:9.5,fontWeight:700,padding:'1px 6px',borderRadius:99,
+                              background:disp?T.greenDim:T.redDim,
+                              color:disp?T.green:T.red,
+                              border:`0.5px solid ${disp?T.greenBor:T.redBor}` }}>
+                              {disp?`${item.estoque} un.`:'Sem estoque'}
+                            </span>
+                          </div>
+                        </div>
+                        <div style={{ fontSize:12,fontWeight:700,color:T.ink1,flexShrink:0 }}>{R(item.preco)}</div>
+                      </ItemBase>
+                    )
+                  })}
                 </Grupo>
               )}
+
               {results.acoes.length > 0 && (
                 <Grupo titulo="Ações">
-                  {results.acoes.map((item, i) => <ItemAcao key={item.id} item={item} flatIdx={acaoOffset + i}/>)}
+                  {results.acoes.map((item,i) => {
+                    const Icon = item.icon||Zap
+                    const cor  = item.cor||T.purple
+                    return (
+                      <ItemBase key={item.id} flatIdx={acaoOff+i}>
+                        <IcoBox cor={cor}><Icon size={13} style={{ color:cor }}/></IcoBox>
+                        <div style={{ fontSize:13,fontWeight:500,color:T.ink1,flex:1 }}>{item.label}</div>
+                        <ChevronRight size={11} style={{ color:T.ink4,flexShrink:0 }}/>
+                      </ItemBase>
+                    )
+                  })}
                 </Grupo>
               )}
             </>
@@ -493,25 +496,28 @@ export default function CommandPalette({ api, onNavigate, onClose }) {
         </div>
 
         {/* Footer */}
-        <div style={{ display:'flex', alignItems:'center', gap:14, padding:'8px 16px', borderTop:'1px solid var(--sep)', background:'var(--fill)' }}>
+        <div style={{ display:'flex',alignItems:'center',gap:14,padding:'9px 16px',
+          borderTop:`1px solid ${T.sep}`,
+          background:`linear-gradient(90deg,${T.bg3},${T.bg2})` }}>
           {[
             [<><ArrowUp size={10}/><ArrowDown size={10}/></>, 'navegar'],
             [<CornerDownLeft size={10}/>, 'abrir'],
             ['Esc', 'fechar'],
-          ].map(([key, label], i) => (
-            <div key={i} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'var(--label-4)' }}>
-              <kbd style={{ display:'inline-flex', alignItems:'center', gap:2, padding:'2px 6px', borderRadius:5, background:'var(--bg-2)', border:'1px solid var(--sep)', color:'var(--label-3)', fontSize:10, fontFamily:'inherit' }}>{key}</kbd>
-              <span>{label}</span>
+          ].map(([key,lbl],i) => (
+            <div key={i} style={{ display:'flex',alignItems:'center',gap:5,fontSize:11,color:T.ink4 }}>
+              <kbd style={{ display:'inline-flex',alignItems:'center',gap:2,padding:'2px 7px',
+                borderRadius:6,background:T.bg4,border:`1px solid ${T.sep2}`,
+                color:T.ink3,fontSize:10,fontFamily:'inherit' }}>{key}</kbd>
+              <span>{lbl}</span>
             </div>
           ))}
-          <div style={{ marginLeft:'auto', fontSize:11, color:'var(--label-4)', display:'flex', alignItems:'center', gap:5 }}>
-            <kbd style={{ padding:'2px 6px', borderRadius:5, background:'var(--bg-2)', border:'1px solid var(--sep)', color:'var(--label-3)', fontSize:10, fontFamily:'inherit' }}>⌘K</kbd>
-            <span>para abrir</span>
+          <div style={{ marginLeft:'auto',fontSize:10.5,color:T.ink4,display:'flex',alignItems:'center',gap:5 }}>
+            <kbd style={{ padding:'2px 7px',borderRadius:6,background:T.bg4,
+              border:`1px solid ${T.sep2}`,color:T.ink3,fontSize:10,fontFamily:'inherit' }}>⌘K</kbd>
+            para abrir
           </div>
         </div>
       </div>
-
-      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </>
   )
 }
