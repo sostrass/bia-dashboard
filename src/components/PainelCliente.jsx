@@ -1,18 +1,36 @@
-import { useState, useEffect } from 'lucide-react'
-import { Search, RefreshCw, Package, ShoppingBag, Truck, CreditCard, Send, ChevronDown, ChevronUp, MapPin, Hash } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import {
+  Search, RefreshCw, Package, ShoppingBag, Truck,
+  Send, ChevronDown, ChevronUp, Hash, X,
+} from 'lucide-react'
 
-const STATUS_CFG = {
-  open:       { label:'Em aberto',    color:'var(--orange)', bg:'rgba(245,158,11,0.1)'  },
-  closed:     { label:'Entregue',     color:'var(--accent)', bg:'rgba(0,212,170,0.1)'   },
-  cancelled:  { label:'Cancelado',    color:'var(--red)',    bg:'rgba(226,75,74,0.1)'   },
-  refunded:   { label:'Devolvido',    color:'var(--purple)', bg:'rgba(167,139,250,0.1)' },
-  invoiced:   { label:'NFe emitida',  color:'var(--blue)',   bg:'rgba(74,159,255,0.1)'  },
-  shipped:    { label:'Enviado',      color:'var(--blue)',   bg:'rgba(74,159,255,0.1)'  },
-  progress:   { label:'Em andamento', color:'var(--blue)',   bg:'rgba(74,159,255,0.1)'  },
-  verified:   { label:'Verificado',   color:'var(--accent)', bg:'rgba(0,212,170,0.1)'   },
-  failed:     { label:'Não entregue', color:'var(--red)',    bg:'rgba(226,75,74,0.1)'   },
+// ── T system ──────────────────────────────────────────────────────────────────
+const T = {
+  bg0:'#08090f', bg1:'#0d1017', bg2:'#111520', bg3:'#161b2c', bg4:'#1c2238',
+  ink1:'#eef0f6', ink2:'#b8bdd4', ink3:'#7b81a0', ink4:'#3a3f5c',
+  green:'#00e676', greenDim:'rgba(0,230,118,.08)', greenBor:'rgba(0,230,118,.25)',
+  amber:'#ffb300', amberDim:'rgba(255,179,0,.08)', amberBor:'rgba(255,179,0,.25)',
+  red:'#ff4757',  redDim:'rgba(255,71,87,.07)',   redBor:'rgba(255,71,87,.25)',
+  purple:'#a78bfa',purpleDim:'rgba(167,139,250,.09)',purpleBor:'rgba(167,139,250,.25)',
+  blue:'#4f8ef7', blueDim:'rgba(79,142,247,.08)',  blueBor:'rgba(79,142,247,.25)',
+  cyan:'#06b6d4', cyanDim:'rgba(6,182,212,.08)',   cyanBor:'rgba(6,182,212,.22)',
+  sep:'rgba(255,255,255,.05)', sep2:'rgba(255,255,255,.08)',
+  gray:'rgba(255,255,255,.04)',
 }
 
+const STATUS_CFG = {
+  open:      { label:'Em aberto',    cor:T.amber  },
+  closed:    { label:'Entregue',     cor:T.green  },
+  cancelled: { label:'Cancelado',    cor:T.red    },
+  refunded:  { label:'Devolvido',    cor:T.purple },
+  invoiced:  { label:'NFe emitida',  cor:T.blue   },
+  shipped:   { label:'Enviado',      cor:T.blue   },
+  progress:  { label:'Em andamento', cor:T.blue   },
+  verified:  { label:'Verificado',   cor:T.green  },
+  failed:    { label:'Não entregue', cor:T.red    },
+}
+
+// ── PedidoCard ────────────────────────────────────────────────────────────────
 function PedidoCard({ pedido, telefone, api, onEnviar }) {
   const [expandido, setExpandido] = useState(false)
   const [enviando,  setEnviando]  = useState(null)
@@ -22,242 +40,269 @@ function PedidoCard({ pedido, telefone, api, onEnviar }) {
     setEnviando(acao)
     try {
       const r = await fetch(`${api}/api/contatos/${telefone}/pedidos/${pedido.id}/enviar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ acao })
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ acao }),
       })
       const d = await r.json()
       if (d.ok) onEnviar?.(d.mensagem)
-    } catch (e) { console.error(e) }
+    } catch {}
     setEnviando(null)
   }
 
-  return (
-    <div className="mx-2 my-2 rounded-[10px] overflow-hidden"
-      style={{ background:'var(--bg-3)', border:'1px solid var(--sep)' }}>
+  const BtnAcao = ({ acao, cor, icon:Ic, label }) => (
+    <button onClick={()=>enviar(acao)} disabled={!!enviando}
+      style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',
+        gap:5,padding:'7px 4px',borderRadius:8,cursor:'pointer',
+        background:`${cor}12`,color:cor,border:`1px solid ${cor}30`,
+        fontSize:10,fontWeight:700,transition:'all .12s',
+        opacity:enviando&&enviando!==acao?.5:1 }}
+      onMouseEnter={e=>{ e.currentTarget.style.background=`${cor}22` }}
+      onMouseLeave={e=>{ e.currentTarget.style.background=`${cor}12` }}>
+      {enviando===acao
+        ? <RefreshCw size={9} style={{ animation:'pc-spin 1s linear infinite' }}/>
+        : <Ic size={9}/>}
+      {label}
+    </button>
+  )
 
-      {/* Header do pedido */}
-      <div className="px-3 py-2.5">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5">
-            <Hash size={10} style={{ color:'var(--label-4)' }} />
-            <span className="text-[12px] font-bold" style={{ color:'var(--label)' }}>{pedido.numero}</span>
+  return (
+    <div style={{ margin:'6px 8px',borderRadius:11,overflow:'hidden',
+      background:T.bg3,border:`1px solid ${T.sep}`,
+      boxShadow:'0 2px 8px rgba(0,0,0,.2)' }}>
+
+      {/* Faixa de status */}
+      <div style={{ height:2.5,background:`linear-gradient(90deg,${sc.cor},${sc.cor}60)`,
+        boxShadow:`0 0 8px ${sc.cor}50` }}/>
+
+      {/* Conteúdo */}
+      <div style={{ padding:'10px 11px' }}>
+        {/* Cabeçalho */}
+        <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8 }}>
+          <div style={{ display:'flex',alignItems:'center',gap:5 }}>
+            <Hash size={10} style={{ color:T.ink4 }}/>
+            <span style={{ fontSize:13,fontWeight:700,color:T.ink1 }}>{pedido.numero}</span>
             {pedido.numero_loja !== '—' && (
-              <span className="text-[9px]" style={{ color:'var(--label-4)' }}>· Loja #{pedido.numero_loja}</span>
+              <span style={{ fontSize:9.5,color:T.ink4 }}>· Loja #{pedido.numero_loja}</span>
             )}
           </div>
-          <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-[4px]"
-            style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
+          <span style={{ fontSize:9,fontWeight:700,padding:'2px 8px',borderRadius:99,
+            background:`${sc.cor}15`,color:sc.cor,border:`0.5px solid ${sc.cor}30` }}>
+            {sc.label}
+          </span>
         </div>
 
-        {/* Campos resumidos */}
-        <div className="space-y-1">
+        {/* Campos */}
+        <div style={{ display:'flex',flexDirection:'column',gap:4 }}>
           {[
-            { l:'Total',    v:`R$ ${pedido.total}`,         show: true },
-            { l:'Data',     v: pedido.data,                  show: true },
-            { l:'Pagamento',v: pedido.forma_pagamento,       show: pedido.forma_pagamento !== '—' },
-            { l:'Frete',    v: pedido.frete,                 show: pedido.frete !== '—' },
+            { l:'Total',     v:`R$ ${pedido.total}`,        show:true },
+            { l:'Data',      v:pedido.data,                 show:true },
+            { l:'Pagamento', v:pedido.forma_pagamento,      show:pedido.forma_pagamento!=='—' },
+            { l:'Frete',     v:pedido.frete,                show:pedido.frete!=='—' },
           ].filter(r=>r.show).map((r,i) => (
-            <div key={i} className="flex justify-between">
-              <span className="text-[9px]" style={{ color:'var(--label-4)' }}>{r.l}</span>
-              <span className="text-[9px] font-medium" style={{ color:'var(--label-2)' }}>{r.v}</span>
+            <div key={i} style={{ display:'flex',justifyContent:'space-between' }}>
+              <span style={{ fontSize:10,color:T.ink4 }}>{r.l}</span>
+              <span style={{ fontSize:10,fontWeight:600,color:T.ink2 }}>{r.v}</span>
             </div>
           ))}
 
-          {/* Rastreio destacado */}
           {pedido.rastreio !== '—' && (
-            <div className="flex justify-between items-center mt-1 pt-1" style={{ borderTop:'1px solid var(--sep)' }}>
-              <span className="text-[9px]" style={{ color:'var(--label-4)' }}>Rastreio</span>
-              <span className="text-[9px] font-bold font-mono" style={{ color:'var(--blue)' }}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',
+              marginTop:3,paddingTop:5,borderTop:`1px solid ${T.sep}` }}>
+              <span style={{ fontSize:10,color:T.ink4 }}>Rastreio</span>
+              <span style={{ fontSize:10,fontWeight:700,fontFamily:'monospace',color:T.blue }}>
                 {pedido.rastreio}
               </span>
             </div>
           )}
 
-          {/* Transportadora */}
           {pedido.transportadora !== '—' && (
-            <div className="flex justify-between">
-              <span className="text-[9px]" style={{ color:'var(--label-4)' }}>Transportadora</span>
-              <span className="text-[9px]" style={{ color:'var(--label-2)' }}>{pedido.transportadora}</span>
+            <div style={{ display:'flex',justifyContent:'space-between' }}>
+              <span style={{ fontSize:10,color:T.ink4 }}>Transportadora</span>
+              <span style={{ fontSize:10,color:T.ink2 }}>{pedido.transportadora}</span>
             </div>
           )}
         </div>
 
         {/* Expandir produtos */}
-        {pedido.produtos.length > 0 && (
-          <button onClick={() => setExpandido(v=>!v)}
-            className="w-full flex items-center justify-between mt-2 pt-2 text-[9px]"
-            style={{ borderTop:'1px solid var(--sep)', color:'var(--label-3)' }}>
+        {pedido.produtos?.length > 0 && (
+          <button onClick={()=>setExpandido(v=>!v)}
+            style={{ width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',
+              marginTop:8,paddingTop:6,borderTop:`1px solid ${T.sep}`,
+              background:'none',border:'none',cursor:'pointer',color:T.ink4,fontSize:10 }}>
             <span>{pedido.itens}</span>
             {expandido ? <ChevronUp size={10}/> : <ChevronDown size={10}/>}
           </button>
         )}
 
-        {/* Lista de produtos */}
-        {expandido && pedido.produtos.map((prod, i) => (
-          <div key={i} className="mt-1.5 flex items-start gap-1.5 p-2 rounded-[7px]"
-            style={{ background:'var(--bg-2)' }}>
-            <Package size={10} className="flex-shrink-0 mt-0.5" style={{ color:'var(--label-4)' }} />
-            <div className="flex-1 min-w-0">
-              <div className="text-[9px] leading-tight" style={{ color:'var(--label)' }}>{prod.nome}</div>
-              <div className="text-[8px] mt-0.5" style={{ color:'var(--label-4)' }}>
-                {prod.qtd}x · R$ {prod.preco} · {prod.sku}
+        {/* Lista produtos */}
+        {expandido && pedido.produtos?.map((prod,i) => (
+          <div key={i} style={{ marginTop:6,display:'flex',alignItems:'flex-start',
+            gap:7,padding:'7px 8px',borderRadius:8,background:T.bg4 }}>
+            <Package size={10} style={{ color:T.ink4,flexShrink:0,marginTop:1 }}/>
+            <div style={{ flex:1,minWidth:0 }}>
+              <div style={{ fontSize:10,lineHeight:1.4,color:T.ink2 }}>{prod.nome}</div>
+              <div style={{ fontSize:9.5,marginTop:2,color:T.ink4 }}>
+                {prod.qtd}× · R$ {prod.preco} · {prod.sku}
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Ações — enviar na conversa */}
-      <div className="px-2 pb-2 flex gap-1.5">
-        <button onClick={() => enviar('resumo')} disabled={!!enviando}
-          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-[7px] text-[9px] font-semibold transition-all"
-          style={{ background: enviando==='resumo'?'rgba(0,212,170,0.2)':'rgba(0,212,170,0.1)', color:'var(--accent)', border:'1px solid rgba(0,212,170,0.2)' }}>
-          {enviando==='resumo' ? <RefreshCw size={9} className="animate-spin"/> : <Send size={9}/>}
-          Resumo
-        </button>
+      {/* Ações */}
+      <div style={{ padding:'0 8px 8px',display:'flex',gap:5 }}>
+        <BtnAcao acao="resumo"   cor={T.green}  icon={Send}        label="Resumo"/>
         {pedido.rastreio !== '—' && (
-          <button onClick={() => enviar('rastreio')} disabled={!!enviando}
-            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-[7px] text-[9px] font-semibold transition-all"
-            style={{ background: enviando==='rastreio'?'rgba(74,159,255,0.2)':'rgba(74,159,255,0.1)', color:'var(--blue)', border:'1px solid rgba(74,159,255,0.2)' }}>
-            {enviando==='rastreio' ? <RefreshCw size={9} className="animate-spin"/> : <Truck size={9}/>}
-            Rastreio
-          </button>
+          <BtnAcao acao="rastreio" cor={T.blue}   icon={Truck}       label="Rastreio"/>
         )}
-        {pedido.produtos.length > 0 && (
-          <button onClick={() => enviar('produtos')} disabled={!!enviando}
-            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-[7px] text-[9px] font-semibold transition-all"
-            style={{ background: enviando==='produtos'?'rgba(167,139,250,0.2)':'rgba(167,139,250,0.1)', color:'var(--purple)', border:'1px solid rgba(167,139,250,0.2)' }}>
-            {enviando==='produtos' ? <RefreshCw size={9} className="animate-spin"/> : <ShoppingBag size={9}/>}
-            Produtos
-          </button>
+        {pedido.produtos?.length > 0 && (
+          <BtnAcao acao="produtos" cor={T.purple} icon={ShoppingBag} label="Produtos"/>
         )}
       </div>
     </div>
   )
 }
 
+// ── PainelCliente ─────────────────────────────────────────────────────────────
 export default function PainelCliente({ sel, api }) {
-  const [aba,       setAba]      = useState('pedidos')
-  const [pedidos,   setPedidos]  = useState([])
-  const [produtos,  setProdutos] = useState([])
-  const [buscaProd, setBuscaProd]= useState('')
-  const [loading,   setLoading]  = useState(false)
-  const [aviso,     setAviso]    = useState('')
-  const [enviado,   setEnviado]  = useState('')
+  const [aba,      setAba]      = useState('pedidos')
+  const [pedidos,  setPedidos]  = useState([])
+  const [produtos, setProdutos] = useState([])
+  const [busca,    setBusca]    = useState('')
+  const [loading,  setLoading]  = useState(false)
+  const [aviso,    setAviso]    = useState('')
+  const [feedback, setFeedback] = useState('')
 
   useEffect(() => {
     if (!sel?.telefone) return
     setLoading(true); setPedidos([]); setAviso('')
     fetch(`${api}/api/contatos/${sel.telefone}/pedidos`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        setPedidos(d?.pedidos || [])
-        setAviso(d?.aviso || '')
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
+      .then(d => { setPedidos(d?.pedidos||[]); setAviso(d?.aviso||''); setLoading(false) })
+      .catch(()=>setLoading(false))
   }, [sel?.telefone, api])
 
   useEffect(() => {
-    if (aba !== 'catalogo' || !buscaProd.trim()) return
-    const t = setTimeout(() => {
-      fetch(`${api}/api/fase5/portfolio?q=${encodeURIComponent(buscaProd)}`)
-        .then(r => r.ok ? r.json() : null)
-        .then(d => setProdutos(d?.produtos || []))
-        .catch(() => {})
-    }, 400)
-    return () => clearTimeout(t)
-  }, [buscaProd, aba, api])
+    if (aba!=='catalogo'||!busca.trim()) return
+    const t = setTimeout(()=>{
+      fetch(`${api}/api/fase5/portfolio?q=${encodeURIComponent(busca)}`)
+        .then(r=>r.ok?r.json():null).then(d=>setProdutos(d?.produtos||[])).catch(()=>{})
+    }, 380)
+    return ()=>clearTimeout(t)
+  }, [busca, aba, api])
 
-  const onEnviar = (msg) => {
-    setEnviado('✓ Enviado no chat!')
-    setTimeout(() => setEnviado(''), 3000)
+  const onEnviar = () => {
+    setFeedback('✓ Enviado no chat!')
+    setTimeout(()=>setFeedback(''), 3000)
   }
 
+  const AbaBtn = ({ id, label }) => (
+    <button onClick={()=>setAba(id)}
+      style={{ flex:1,padding:'9px 0',fontSize:11,fontWeight:600,
+        background:'none',border:'none',cursor:'pointer',transition:'all .12s',
+        color: aba===id ? T.green : T.ink4,
+        borderBottom:`2px solid ${aba===id?T.green:'transparent'}` }}>
+      {label}
+    </button>
+  )
+
   return (
-    <div className="flex flex-col overflow-hidden" style={{ background:'var(--bg-2)', borderLeft:'1px solid var(--sep)', width:210, flexShrink:0 }}>
+    <div style={{ display:'flex',flexDirection:'column',overflow:'hidden',
+      background:T.bg2,borderLeft:`1px solid ${T.sep}`,width:214,flexShrink:0 }}>
+      <style>{`@keyframes pc-spin{to{transform:rotate(360deg)}}`}</style>
+
       {/* Abas */}
-      <div className="flex border-b flex-shrink-0" style={{ borderColor:'var(--sep)' }}>
-        {[['pedidos','Pedidos'],['catalogo','Catálogo'],['perfil','Perfil']].map(([v,l]) => (
-          <button key={v} onClick={() => setAba(v)}
-            className="flex-1 py-2 text-[10px] font-semibold transition-all"
-            style={{ color:aba===v?'var(--accent)':'var(--label-4)', borderBottom:`2px solid ${aba===v?'var(--accent)':'transparent'}`, background:'transparent' }}>
-            {l}
-          </button>
-        ))}
+      <div style={{ display:'flex',borderBottom:`1px solid ${T.sep}`,flexShrink:0 }}>
+        <AbaBtn id="pedidos"  label="Pedidos"/>
+        <AbaBtn id="catalogo" label="Catálogo"/>
+        <AbaBtn id="perfil"   label="Perfil"/>
       </div>
 
-      {/* Feedback de envio */}
-      {enviado && (
-        <div className="px-3 py-1.5 text-[10px] font-semibold text-center"
-          style={{ background:'rgba(0,212,170,0.1)', color:'var(--accent)' }}>
-          {enviado}
+      {/* Feedback */}
+      {feedback && (
+        <div style={{ padding:'7px 12px',fontSize:11,fontWeight:600,textAlign:'center',
+          background:T.greenDim,color:T.green,borderBottom:`1px solid ${T.greenBor}` }}>
+          {feedback}
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto scroll-hidden">
+      <div style={{ flex:1,overflowY:'auto' }}>
 
-        {/* PEDIDOS */}
-        {aba === 'pedidos' && (
+        {/* ── PEDIDOS ── */}
+        {aba==='pedidos' && (
           <div>
             {aviso && (
-              <div className="mx-2 mt-2 px-3 py-2 rounded-[8px] text-[9px]"
-                style={{ background:'rgba(245,158,11,0.1)', color:'var(--orange)', border:'1px solid rgba(245,158,11,0.2)' }}>
+              <div style={{ margin:'6px 8px',padding:'8px 10px',borderRadius:9,
+                background:T.amberDim,color:T.amber,border:`1px solid ${T.amberBor}`,
+                fontSize:10 }}>
                 {aviso}
               </div>
             )}
             {loading && (
-              <div className="flex justify-center py-6" style={{ color:'var(--label-3)' }}>
-                <RefreshCw size={13} className="animate-spin" />
+              <div style={{ display:'flex',justifyContent:'center',padding:'24px 0',color:T.ink4 }}>
+                <RefreshCw size={14} style={{ animation:'pc-spin 1s linear infinite' }}/>
               </div>
             )}
-            {!loading && pedidos.length === 0 && (
-              <div className="flex flex-col items-center py-8 px-4 text-center">
-                <ShoppingBag size={22} className="mb-2 opacity-30" style={{ color:'var(--label-3)' }} />
-                <p className="text-[11px]" style={{ color:'var(--label-3)' }}>Nenhum pedido encontrado</p>
-                <p className="text-[10px] mt-1" style={{ color:'var(--label-4)' }}>Vincule o CPF ao contato para filtrar</p>
+            {!loading && pedidos.length===0 && (
+              <div style={{ display:'flex',flexDirection:'column',alignItems:'center',
+                padding:'32px 16px',textAlign:'center' }}>
+                <ShoppingBag size={22} style={{ color:T.ink4,opacity:.3,marginBottom:8 }}/>
+                <p style={{ fontSize:12,color:T.ink4,margin:0 }}>Nenhum pedido encontrado</p>
+                <p style={{ fontSize:10.5,color:T.ink4,marginTop:4 }}>Vincule o CPF para filtrar</p>
               </div>
             )}
-            {pedidos.map((p, i) => (
-              <PedidoCard key={p.id||i} pedido={p} telefone={sel.telefone} api={api} onEnviar={onEnviar} />
+            {pedidos.map((p,i) => (
+              <PedidoCard key={p.id||i} pedido={p}
+                telefone={sel.telefone} api={api} onEnviar={onEnviar}/>
             ))}
           </div>
         )}
 
-        {/* CATÁLOGO */}
-        {aba === 'catalogo' && (
+        {/* ── CATÁLOGO ── */}
+        {aba==='catalogo' && (
           <div>
-            <div className="p-2 border-b" style={{ borderColor:'var(--sep)' }}>
-              <div className="relative">
-                <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color:'var(--label-3)' }} />
-                <input value={buscaProd} onChange={e => setBuscaProd(e.target.value)}
+            <div style={{ padding:'8px',borderBottom:`1px solid ${T.sep}` }}>
+              <div style={{ position:'relative' }}>
+                <Search size={11} style={{ position:'absolute',left:9,top:'50%',
+                  transform:'translateY(-50%)',color:T.ink4 }}/>
+                <input value={busca} onChange={e=>setBusca(e.target.value)}
                   placeholder="Buscar produto..."
-                  className="w-full pl-7 pr-2 py-1.5 rounded-[8px] text-[10px] outline-none"
-                  style={{ background:'var(--bg-3)', border:'1px solid var(--sep)', color:'var(--label)' }} />
+                  style={{ width:'100%',paddingLeft:28,paddingRight:8,paddingTop:7,paddingBottom:7,
+                    borderRadius:9,background:T.bg3,border:`1px solid ${T.sep}`,
+                    color:T.ink1,fontSize:11,outline:'none',fontFamily:'inherit' }}/>
               </div>
             </div>
-            {produtos.length === 0 && (
-              <div className="flex flex-col items-center py-8 px-4 text-center">
-                <Package size={22} className="mb-2 opacity-30" style={{ color:'var(--label-3)' }} />
-                <p className="text-[11px]" style={{ color:'var(--label-3)' }}>
-                  {buscaProd ? 'Nenhum produto encontrado' : 'Digite para buscar'}
+            {produtos.length===0 && (
+              <div style={{ display:'flex',flexDirection:'column',alignItems:'center',
+                padding:'32px 16px',textAlign:'center' }}>
+                <Package size={22} style={{ color:T.ink4,opacity:.3,marginBottom:8 }}/>
+                <p style={{ fontSize:12,color:T.ink4,margin:0 }}>
+                  {busca?'Nenhum produto encontrado':'Digite para buscar'}
                 </p>
               </div>
             )}
-            {produtos.map((p, i) => (
-              <div key={p.id||i} className="flex items-center gap-2 px-3 py-2.5 border-b"
-                style={{ borderColor:'var(--sep)' }}>
-                <div className="w-8 h-8 rounded-[6px] flex items-center justify-center flex-shrink-0"
-                  style={{ background:'var(--bg-3)', border:'1px solid var(--sep)' }}>
-                  {p.imagem ? <img src={p.imagem} alt="" className="w-full h-full object-cover rounded-[6px]" />
-                            : <Package size={12} style={{ color:'var(--label-3)' }} />}
+            {produtos.map((p,i) => (
+              <div key={p.id||i} style={{ display:'flex',alignItems:'center',gap:9,
+                padding:'9px 10px',borderBottom:`1px solid ${T.sep}` }}>
+                <div style={{ width:32,height:32,borderRadius:8,flexShrink:0,
+                  background:T.bg3,border:`1px solid ${T.sep}`,
+                  display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden' }}>
+                  {p.imagem
+                    ? <img src={p.imagem} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }}/>
+                    : <Package size={12} style={{ color:T.ink4 }}/>}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[10px] font-medium truncate" style={{ color:'var(--label)' }}>{p.nome}</div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] font-bold" style={{ color:'var(--accent)' }}>R$ {parseFloat(p.preco||0).toFixed(2)}</span>
-                    <span className="text-[9px]" style={{ color:p.disponivel?'var(--accent)':'var(--red)' }}>
+                <div style={{ flex:1,minWidth:0 }}>
+                  <div style={{ fontSize:11,fontWeight:500,color:T.ink1,
+                    overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
+                    {p.nome}
+                  </div>
+                  <div style={{ display:'flex',alignItems:'center',gap:6,marginTop:2 }}>
+                    <span style={{ fontSize:11,fontWeight:700,color:T.green }}>
+                      R$ {parseFloat(p.preco||0).toFixed(2)}
+                    </span>
+                    <span style={{ fontSize:9.5,fontWeight:600,padding:'1px 6px',borderRadius:99,
+                      background:p.disponivel?T.greenDim:T.redDim,
+                      color:p.disponivel?T.green:T.red }}>
                       {p.disponivel ? `${p.estoque} un.` : 'Sem estoque'}
                     </span>
                   </div>
@@ -267,33 +312,46 @@ export default function PainelCliente({ sel, api }) {
           </div>
         )}
 
-        {/* PERFIL */}
-        {aba === 'perfil' && sel && (
-          <div className="p-3 space-y-3">
-            <div className="rounded-[10px] p-3 text-center" style={{ background:'var(--bg-3)', border:'1px solid var(--sep)' }}>
-              <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-[13px] mx-auto mb-2"
-                style={{ background:'rgba(0,212,170,0.15)', color:'var(--accent)' }}>
+        {/* ── PERFIL ── */}
+        {aba==='perfil' && sel && (
+          <div style={{ padding:'12px' }}>
+            {/* Avatar card */}
+            <div style={{ padding:'16px',borderRadius:12,textAlign:'center',
+              background:T.bg3,border:`1px solid ${T.sep}`,marginBottom:12 }}>
+              <div style={{ width:44,height:44,borderRadius:'50%',margin:'0 auto 10px',
+                background:T.greenDim,border:`2px solid ${T.greenBor}`,
+                display:'flex',alignItems:'center',justifyContent:'center',
+                fontSize:14,fontWeight:800,color:T.green }}>
                 {(sel.nome||sel.telefone).slice(0,2).toUpperCase()}
               </div>
-              <div className="text-[12px] font-semibold" style={{ color:'var(--label)' }}>{sel.nome||'Sem nome'}</div>
-              <div className="text-[10px] font-mono mt-0.5" style={{ color:'var(--label-3)' }}>{sel.telefone}</div>
+              <div style={{ fontSize:13,fontWeight:700,color:T.ink1 }}>{sel.nome||'Sem nome'}</div>
+              <div style={{ fontSize:10.5,fontFamily:'monospace',marginTop:3,color:T.ink4 }}>{sel.telefone}</div>
             </div>
+
+            {/* Stats */}
             {[
-              { l:'Total msgs',      v: sel.total_msgs||0 },
-              { l:'Última interação',v: sel.ultima_msg ? new Date(sel.ultima_msg).toLocaleDateString('pt-BR') : '—' },
+              { l:'Total msgs',       v:sel.total_msgs||0 },
+              { l:'Última interação', v:sel.ultima_msg ? new Date(sel.ultima_msg).toLocaleDateString('pt-BR') : '—' },
             ].map((r,i) => (
-              <div key={i} className="flex justify-between px-1">
-                <span className="text-[10px]" style={{ color:'var(--label-4)' }}>{r.l}</span>
-                <span className="text-[10px] font-medium" style={{ color:'var(--label-2)' }}>{r.v}</span>
+              <div key={i} style={{ display:'flex',justifyContent:'space-between',
+                padding:'5px 2px',borderBottom:`1px solid ${T.sep}` }}>
+                <span style={{ fontSize:11,color:T.ink4 }}>{r.l}</span>
+                <span style={{ fontSize:11,fontWeight:600,color:T.ink2 }}>{r.v}</span>
               </div>
             ))}
+
+            {/* Tags */}
             {(sel.tags||[]).length > 0 && (
-              <div>
-                <div className="text-[9px] font-semibold mb-1.5 uppercase tracking-wider" style={{ color:'var(--label-4)' }}>Tags</div>
-                <div className="flex flex-wrap gap-1">
+              <div style={{ marginTop:12 }}>
+                <div style={{ fontSize:10,fontWeight:700,textTransform:'uppercase',
+                  letterSpacing:'.07em',color:T.ink4,marginBottom:7 }}>Tags</div>
+                <div style={{ display:'flex',flexWrap:'wrap',gap:5 }}>
                   {sel.tags.map((t,i) => (
-                    <span key={i} className="text-[9px] px-1.5 py-0.5 rounded-[4px]"
-                      style={{ background:'var(--fill)', color:'var(--label-3)', border:'1px solid var(--sep)' }}>{t}</span>
+                    <span key={i} style={{ fontSize:10.5,fontWeight:500,
+                      padding:'3px 9px',borderRadius:99,
+                      background:T.gray,color:T.ink3,border:`1px solid ${T.sep}` }}>
+                      {t}
+                    </span>
                   ))}
                 </div>
               </div>
