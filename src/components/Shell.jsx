@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import CommandPalette from './CommandPalette'
 import LiveActivityBar from './LiveActivityBar'
+import Sidebar from './Sidebar'
 
 // ── T system ──────────────────────────────────────────────────────────────────
 const T = {
@@ -245,137 +246,7 @@ export default function Shell() {
         <div style={{ display:'flex',flex:1,overflow:'hidden' }}>
 
           {/* ── SIDEBAR ────────────────────────────────────────────────── */}
-          <aside style={{
-            width:214, flexShrink:0,
-            display:'flex', flexDirection:'column',
-            background:`linear-gradient(180deg,${T.bg2} 0%,${T.bg1} 100%)`,
-            borderRight:`1px solid ${T.sep}`,
-            position:'relative', zIndex:10,
-          }}>
-
-            {/* Logo + AI status */}
-            <div style={{ padding:'16px 14px 12px',borderBottom:`1px solid ${T.sep}` }}>
-              {/* Logo */}
-              <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:11 }}>
-                <div style={{
-                  width:36, height:36, borderRadius:11, flexShrink:0,
-                  background:'linear-gradient(135deg,#7c5cfc,#a78bfa)',
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  fontSize:15, fontWeight:800, color:'#fff',
-                  boxShadow:`0 4px 16px rgba(124,92,252,.35)`,
-                }}>B</div>
-                <div>
-                  <div style={{ fontSize:14.5,fontWeight:700,color:T.ink1,lineHeight:1.2,letterSpacing:'-.02em' }}>
-                    Bia
-                  </div>
-                  <div style={{ fontSize:10.5,color:T.ink4 }}>Só Strass · Central IA</div>
-                </div>
-              </div>
-
-              {/* AI status pill */}
-              <div style={{ display:'flex',alignItems:'center',gap:7,
-                padding:'6px 10px',borderRadius:9,
-                background:T.greenDim,border:`1px solid ${T.greenBor}`,
-                marginBottom:9 }}>
-                <span style={{ position:'relative',display:'inline-flex',width:7,height:7,flexShrink:0 }}>
-                  <span style={{ position:'absolute',inset:0,borderRadius:'50%',
-                    background:T.green,opacity:.4,animation:'shell-ping 2s ease-out infinite' }}/>
-                  <span style={{ width:7,height:7,borderRadius:'50%',background:T.green,display:'block' }}/>
-                </span>
-                <span style={{ fontSize:11,fontWeight:600,color:T.green,
-                  overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
-                  {AI_STATES[aiIdx]}
-                </span>
-              </div>
-
-              {/* Botão ⌘K */}
-              <button onClick={()=>setCmdOpen(true)}
-                style={{ display:'flex',alignItems:'center',gap:7,padding:'7px 10px',
-                  borderRadius:9,border:`1px solid ${T.sep2}`,background:T.gray,
-                  color:T.ink4,cursor:'pointer',width:'100%',fontSize:12,
-                  transition:'all .12s' }}
-                onMouseEnter={e=>{ e.currentTarget.style.borderColor=T.purpleBor; e.currentTarget.style.color=T.purple }}
-                onMouseLeave={e=>{ e.currentTarget.style.borderColor=T.sep2; e.currentTarget.style.color=T.ink4 }}>
-                <Search size={12} style={{ flexShrink:0 }}/>
-                <span style={{ flex:1,textAlign:'left' }}>Buscar...</span>
-                <kbd style={{ fontSize:10,padding:'1px 6px',borderRadius:5,
-                  background:T.bg4,border:`1px solid ${T.sep2}`,
-                  color:T.ink4,fontFamily:'inherit' }}>⌘K</kbd>
-              </button>
-            </div>
-
-            {/* Navegação */}
-            <nav style={{ flex:1,overflowY:'auto',padding:'6px 0' }}>
-              {GRUPOS.map(g => {
-                const items = NAV.filter(n=>n.group===g.key)
-                if (!items.length) return null
-                return (
-                  <div key={g.key}>
-                    <div style={{ fontSize:9.5,fontWeight:700,textTransform:'uppercase',
-                      letterSpacing:'.09em',color:T.ink4,padding:'10px 14px 4px' }}>
-                      {g.label}
-                    </div>
-                    {items.map(item => (
-                      <NavItem key={item.id} item={item}
-                        active={page===item.id}
-                        onClick={()=>setPage(item.id)}/>
-                    ))}
-                  </div>
-                )
-              })}
-            </nav>
-
-            {/* Footer */}
-            <div style={{ padding:'10px 12px 12px',borderTop:`1px solid ${T.sep}` }}>
-              {/* Status integrações */}
-              <div style={{ marginBottom:10 }}>
-                {STATUS.map(s => (
-                  <div key={s.n} style={{ display:'flex',justifyContent:'space-between',
-                    alignItems:'center',marginBottom:5 }}>
-                    <span style={{ fontSize:11,color:T.ink4 }}>{s.n}</span>
-                    <div style={{ display:'flex',alignItems:'center',gap:4 }}>
-                      <div style={{ width:5,height:5,borderRadius:'50%',
-                        background:s.ok?T.green:T.amber,
-                        boxShadow:s.ok?`0 0 5px ${T.green}`:undefined }}/>
-                      <span style={{ fontSize:10,fontWeight:700,
-                        color:s.ok?T.green:T.amber }}>
-                        {s.ok?'OK':'Off'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Controles */}
-              <div style={{ display:'flex',gap:6 }}>
-                <button onClick={toggle}
-                  style={{ flex:1,display:'flex',alignItems:'center',gap:6,
-                    padding:'7px 10px',borderRadius:8,border:`1px solid ${T.sep2}`,
-                    background:T.gray,color:T.ink3,cursor:'pointer',fontSize:11,
-                    transition:'all .12s' }}
-                  onMouseEnter={e=>{ e.currentTarget.style.color=T.ink1; e.currentTarget.style.borderColor=T.sep2 }}
-                  onMouseLeave={e=>{ e.currentTarget.style.color=T.ink3 }}>
-                  {theme==='dark' ? <Sun size={12}/> : <Moon size={12}/>}
-                  {theme==='dark' ? 'Claro' : 'Escuro'}
-                </button>
-                <button onClick={logout}
-                  style={{ padding:'7px 10px',borderRadius:8,border:`1px solid ${T.sep2}`,
-                    background:T.gray,color:T.ink4,cursor:'pointer',fontSize:11,
-                    transition:'all .12s' }}
-                  onMouseEnter={e=>{ e.currentTarget.style.color=T.red; e.currentTarget.style.borderColor=T.redBor }}
-                  onMouseLeave={e=>{ e.currentTarget.style.color=T.ink4; e.currentTarget.style.borderColor=T.sep2 }}>
-                  Sair
-                </button>
-              </div>
-
-              {/* Versão + hora */}
-              <div style={{ display:'flex',justifyContent:'space-between',
-                marginTop:8,padding:'0 2px' }}>
-                <span style={{ fontSize:10,color:T.ink4 }}>v2.0</span>
-                <span style={{ fontFamily:'monospace',fontSize:10,color:T.ink4 }}>{hora}</span>
-              </div>
-            </div>
-          </aside>
+          <Sidebar page={page} onNavigate={setPage} api={API}/>
 
           {/* ── Main ───────────────────────────────────────────────────── */}
           <main style={{ flex:1,overflow:'hidden',position:'relative',background:T.bg0 }}>
