@@ -12,7 +12,7 @@ import {
   RotateCcw, ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
   Eye, X, Navigation, Hash, Timer, AlertTriangle, ShieldCheck, MapPin,
   ToggleLeft, ToggleRight, Download, Info, MessageSquare,
-  ExternalLink, Radio, Settings,
+  ExternalLink, Radio, Settings, MoreVertical,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -514,6 +514,73 @@ function EventoCard({d, onReenviar, reenviados, setReenviados}) {
   )
 }
 
+
+// ─── MODAL WORLD-CLASS — Detalhe do Disparo & Perfil do Cliente ──────────────
+// Keyframes injetados via <style> no render do modal
+
+const MODAL_CSS = `
+@keyframes drawLine  { from{stroke-dashoffset:200} to{stroke-dashoffset:0} }
+@keyframes ringLoad  { from{stroke-dashoffset:220} to{stroke-dashoffset:var(--ring-end,55)} }
+@keyframes scanline  { 0%{opacity:.08}50%{opacity:.03}100%{opacity:.08} }
+@keyframes glowNode  { 0%,100%{box-shadow:0 0 6px rgba(255,179,0,.3)} 50%{box-shadow:0 0 14px rgba(255,179,0,.7)} }
+@keyframes fadeUp    { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn    { from{opacity:0} to{opacity:1} }
+@keyframes spin      { to{transform:rotate(360deg)} }
+@keyframes slideIn   { from{transform:translateX(40px);opacity:0} to{transform:translateX(0);opacity:1} }
+@keyframes pulse     { 0%,100%{opacity:1}50%{opacity:.35} }
+.modal-wc {
+  background: #0d1017;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 40px 100px rgba(0,0,0,.85), 0 0 0 1px rgba(255,255,255,.04) inset;
+}
+.modal-wc-sec { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.05); }
+.modal-wc-badge {
+  display:inline-flex;align-items:center;gap:3px;padding:2px 9px;
+  border-radius:99px;font-size:9.5px;font-weight:700;letter-spacing:.03em;
+}
+.modal-wc-btn-p {
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  border-radius:11px;font-size:12px;font-weight:600;cursor:pointer;
+  border:none;font-family:inherit;letter-spacing:-.01em;
+  background:linear-gradient(135deg,#5b21b6,#9333ea);color:#fff;
+  box-shadow:0 4px 16px rgba(147,51,234,.35);transition:all .18s;
+}
+.modal-wc-btn-p:hover { transform:translateY(-1px);box-shadow:0 8px 24px rgba(147,51,234,.5); }
+.modal-wc-btn-p:active { transform:translateY(0); }
+.modal-wc-btn-s {
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  border-radius:11px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;
+  background:rgba(255,255,255,.06);color:#b8bdd4;border:1px solid rgba(255,255,255,.08);
+  transition:all .15s;
+}
+.modal-wc-btn-s:hover { background:rgba(255,255,255,.1);color:#eef0f6; }
+.modal-wc-tl-row {
+  display:flex;align-items:center;gap:9px;padding:7px 16px;
+  border-bottom:1px solid rgba(255,255,255,.03);transition:background .1s;cursor:pointer;
+}
+.modal-wc-tl-row:hover { background:rgba(255,255,255,.025); }
+.modal-wc-tl-row:last-child { border-bottom:none; }
+.modal-wc-order-card {
+  background:#111520;border:1px solid rgba(255,255,255,.05);border-radius:12px;
+  padding:10px 12px;cursor:pointer;transition:all .15s;
+}
+.modal-wc-order-card:hover { border-color:rgba(255,255,255,.09);transform:translateY(-1px); }
+.modal-wc-order-card.active { border-color:rgba(167,139,250,.35);background:rgba(167,139,250,.05); }
+.modal-wc-env-btn {
+  padding:3px 9px;border-radius:6px;background:rgba(167,139,250,.1);
+  border:1px solid rgba(167,139,250,.25);color:#a78bfa;font-size:9.5px;font-weight:600;
+  cursor:pointer;transition:all .12s;flex-shrink:0;
+}
+.modal-wc-env-btn:hover { background:rgba(167,139,250,.2); }
+.modal-wc-diag-row {
+  display:flex;align-items:center;gap:8px;padding:5px 10px;
+  border-bottom:1px solid rgba(255,255,255,.03);
+}
+.modal-wc-diag-row:last-child { border:none; }
+`
+
 function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilho, onReenviar, stats, insights }) {
   const [cli, setCli]             = useState(null)
   const [loadCli, setLoad]        = useState(false)
@@ -525,7 +592,6 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
   const [pedManual, setPedManual] = useState(dados?.numero_pedido||'')
   const [enviandoMan, setEnvMan]  = useState(false)
   const [envManOk, setEnvManOk]   = useState(false)
-  // Journey map: disparos do pedido para mostrar sequência no Modal 1
   const [ordemDisp, setOrdemDisp] = useState([])
 
   useEffect(() => {
@@ -556,62 +622,38 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
     setEnvMan(false)
   }
 
-  const meta = tipo==='disparo' ? (GATILHO_META[dados?.gatilho]||{label:dados?.gatilho,icon:Zap,cor:'#7c6af7'}) : null
+  const meta  = tipo==='disparo' ? (GATILHO_META[dados?.gatilho]||{label:dados?.gatilho,icon:Zap,cor:'#7c6af7'}) : null
   const smeta = tipo==='disparo' ? (STATUS_META[dados?.status]||STATUS_META.ignorado) : null
 
   return (
     <>
-      <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:60,
-        backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',animation:'fadeIn .2s ease'}}/>
-      <div style={{position:'fixed',top:0,right:0,bottom:0,width:'min(480px,94vw)',zIndex:61,
-        display:'flex',flexDirection:'column',animation:'slideIn .3s cubic-bezier(.2,.8,.2,1)',
-        background:'var(--bg-2)',borderLeft:'0.5px solid var(--sep)',
-        boxShadow:'-4px 0 60px rgba(0,0,0,.6), -24px 0 80px rgba(0,0,0,.4)'}}>
+      <style>{MODAL_CSS}</style>
 
-        {/* ── HEADER COM GRADIENTE ── */}
-        <div style={{flexShrink:0,padding:'18px 20px 16px',
-          background:tipo==='cliente'
-            ?'linear-gradient(135deg,#12073a 0%,#1e0d5c 50%,#2a0e6b 100%)'
-            :`linear-gradient(135deg,${meta?.cor}22 0%,var(--bg-3) 100%)`,
-          borderBottom:'0.5px solid var(--sep)',position:'relative',overflow:'hidden'}}>
-          {/* blob decorativo */}
-          <div style={{position:'absolute',top:-30,right:-30,width:120,height:120,borderRadius:'50%',
-            background:tipo==='cliente'?'rgba(124,106,247,.25)':`${meta?.cor}20`,
-            filter:'blur(30px)',pointerEvents:'none'}}/>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',position:'relative'}}>
-            <div style={{display:'flex',alignItems:'center',gap:10}}>
-              {tipo==='cliente'
-                ? <div style={{width:32,height:32,borderRadius:9,background:'rgba(124,106,247,.2)',
-                    display:'flex',alignItems:'center',justifyContent:'center'}}>
-                    <Users size={16} style={{color:'#a78bfa'}}/>
-                  </div>
-                : <div style={{width:32,height:32,borderRadius:9,background:`${meta?.cor}20`,
-                    display:'flex',alignItems:'center',justifyContent:'center'}}>
-                    {React.createElement(meta?.icon||Zap,{size:16,style:{color:meta?.cor}})}
-                  </div>
-              }
-              <div>
-                <div style={{fontSize:13,fontWeight:600,color:'var(--label)'}}>
-                  {tipo==='cliente'?'Perfil do cliente':'Detalhe do disparo'}
-                </div>
-                <div style={{fontSize:10.5,color:'var(--label-4)',marginTop:1}}>
-                  {tipo==='cliente'?fmtTel(dados?.telefone):(meta?.label||dados?.gatilho)}
-                </div>
-              </div>
-            </div>
-            <button onClick={onClose} style={{width:28,height:28,borderRadius:8,
-              display:'flex',alignItems:'center',justifyContent:'center',
-              background:'rgba(255,255,255,.08)',border:'0.5px solid rgba(255,255,255,.1)',
-              cursor:'pointer',color:'var(--label-3)'}}>
-              <X size={14}/>
-            </button>
-          </div>
-        </div>
+      {/* Overlay */}
+      <div onClick={onClose} style={{
+        position:'fixed',inset:0,zIndex:60,
+        background:'rgba(0,0,0,.72)',
+        backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)',
+        animation:'fadeIn .25s ease'
+      }}/>
 
-        {/* ── CONTEÚDO SCROLL ── */}
-        <div style={{flex:1,minHeight:0,overflowY:'auto',padding:'16px 20px'}}>
+      {/* Modal centrado */}
+      <div style={{
+        position:'fixed',inset:0,zIndex:61,
+        display:'flex',alignItems:'center',justifyContent:'center',
+        padding:'20px 16px',pointerEvents:'none'
+      }}>
+        <div className="modal-wc" style={{
+          width:'min(480px,96vw)',
+          maxHeight:'90vh',
+          display:'flex',flexDirection:'column',
+          animation:'fadeUp .35s cubic-bezier(.2,.8,.2,1)',
+          pointerEvents:'all'
+        }}>
 
-          {/* ── DETALHE DO DISPARO ── */}
+          {/* ══════════════════════════════════════
+              MODAL 1 — DETALHE DO DISPARO
+          ══════════════════════════════════════ */}
           {tipo==='disparo' && dados && (() => {
             const Ic    = meta?.icon || Zap
             const SIc   = smeta?.icon || Minus
@@ -619,12 +661,8 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
             const isErr = dados.status === 'erro'
             const isOk  = dados.status === 'enviado'
             const isAg  = dados.status === 'aguardando'
-
-            // Insight do backend para este gatilho (para pegar clientes afetados)
             const gatInsight = (insights||[]).find(i=>i.gatilho===dados.gatilho)
             const tempoStr   = tempoRel(dados.criado_em) || fmtDH(dados.criado_em)
-
-            // Taxa de entrega deste gatilho vs média do sistema
             const gatStats  = (stats?.porGatilho||[]).find(g=>g.gatilho===dados.gatilho)
             const envG      = parseInt(gatStats?.enviados||0)
             const errG      = parseInt(gatStats?.erros||0)
@@ -633,52 +671,48 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
             const ativasMedia= (stats?.porGatilho||[]).filter(g=>{
               const e=parseInt(g.enviados||0),er=parseInt(g.erros||0); return (e+er)>0
             })
-            const mediaSys  = ativasMedia.length > 0
+            const mediaSys = ativasMedia.length > 0
               ? Math.round(ativasMedia.reduce((acc,g)=>{
                   const e=parseInt(g.enviados||0),er=parseInt(g.erros||0),t=e+er
                   return t>0 ? acc+e/t*100 : acc
                 },0)/ativasMedia.length)
               : null
 
-            // Intelligence contextual com impacto quantificado
+            // Intelligence
             const intel = isIgn ? {
               sev:'critico',
               titulo:'Template inativo — cliente nunca notificado',
               msg: `${meta?.label} ${tempoStr} sem notificação.${
                 gatInsight?.clientes ? ` Além deste, **${gatInsight.clientes}** pedidos nas últimas 2 semanas no mesmo estado.` : ''
               }`,
-              acao:'Ativar template',
             } : isErr ? {
               sev:'erro',
               titulo:'Erro de envio',
               msg: dados.erro_msg || 'Falha na API WhatsApp.',
-              acao:'Ver logs técnicos',
             } : isAg ? {
               sev:'aviso',
               titulo:'Aguardando envio',
               msg:`Agendado para +${dados.delay_min}min após o evento. Será enviado automaticamente.`,
-              acao:null,
             } : isOk ? {
               sev:'ok',
               titulo:'Entregue com sucesso',
               msg:'Mensagem enviada e entregue ao cliente.',
-              acao:null,
             } : null
 
             const intelCor = {
-              critico:{cor:T.red,  dim:T.redDim,  bor:T.redBor,  Icon:AlertTriangle},
-              erro:   {cor:T.red,  dim:T.redDim,  bor:T.redBor,  Icon:XCircle},
-              aviso:  {cor:T.amber,dim:T.amberDim,bor:T.amberBor,Icon:Clock},
-              ok:     {cor:T.green,dim:T.greenDim,bor:T.greenBor,Icon:CheckCircle},
-            }[intel?.sev] || {cor:T.ink3,dim:T.gray,bor:T.grayBor,Icon:Info}
+              critico:{ cor:'#ff4757', dim:'rgba(255,71,87,.06)',  bor:'rgba(255,71,87,.22)',  Icon:AlertTriangle },
+              erro:   { cor:'#ff4757', dim:'rgba(255,71,87,.06)',  bor:'rgba(255,71,87,.22)',  Icon:XCircle },
+              aviso:  { cor:'#ffb300', dim:'rgba(255,179,0,.06)',  bor:'rgba(255,179,0,.22)',  Icon:Clock },
+              ok:     { cor:'#00e676', dim:'rgba(0,230,118,.06)',  bor:'rgba(0,230,118,.22)',  Icon:CheckCircle },
+            }[intel?.sev] || { cor:T.ink3, dim:T.gray, bor:T.grayBor, Icon:Info }
 
-            // Journey stages com timestamps dos disparos reais
+            // Journey
             const JOURNEY = [
-              {id:'pagamento_aprovado', lbl:'Pago',     short:'Pago'},
-              {id:'em_separacao',       lbl:'Separado', short:'Sep.'},
-              {id:'pedido_enviado',     lbl:'Enviado',  short:'Env.'},
-              {id:'pedido_entregue',    lbl:'Entregue', short:'Entregue'},
-              {id:'avaliar_pedido',     lbl:'Avaliação',short:'Aval.'},
+              {id:'pagamento_aprovado', lbl:'Pago',     icon:CheckCircle},
+              {id:'em_separacao',       lbl:'Separado', icon:CheckCircle},
+              {id:'pedido_enviado',     lbl:'Enviado',  icon:Truck},
+              {id:'pedido_entregue',    lbl:'Entregue', icon:MapPin},
+              {id:'avaliar_pedido',     lbl:'Avaliação',icon:Star},
             ]
             const stSt   = sid => (ordemDisp||[]).find(x=>x.gatilho===sid)?.status || 'pendente'
             const stTime = sid => {
@@ -686,239 +720,286 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
               if (!d?.criado_em) return null
               return new Date(d.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
             }
-            const stCor  = s => s==='enviado'?T.green:s==='ignorado'?T.amber:s==='erro'?T.red:null
-            const stBor  = s => s==='enviado'?T.greenBor:s==='ignorado'?T.amberBor:s==='erro'?T.redBor:'rgba(255,255,255,.1)'
-            const stDim  = s => s==='enviado'?T.greenDim:s==='ignorado'?T.amberDim:s==='erro'?T.redDim:'rgba(255,255,255,.04)'
             const curIdx = JOURNEY.findIndex(s=>s.id===dados.gatilho)
 
-            // Linha de status da jornada (ex: "04/06 · ENTREGUE SEM NOTIF.")
+            // Status de cada nó
+            const ndClass = (s, isCur) =>
+              s==='enviado' ? 'done'
+              : isCur && (isIgn||isErr) ? 'here'
+              : isCur && isOk ? 'done'
+              : 'next'
+            const ndCor  = (s, isCur) =>
+              s==='enviado'?'#00e676':
+              isCur&&(isIgn||isErr)?'#ffb300':
+              isCur&&isOk?'#00e676':
+              null
+            const ndDim  = (s, isCur) =>
+              s==='enviado'?'rgba(0,230,118,.12)':
+              isCur&&(isIgn||isErr)?'rgba(255,179,0,.12)':
+              isCur&&isOk?'rgba(0,230,118,.12)':
+              'rgba(255,255,255,.04)'
+            const ndBor  = (s, isCur) =>
+              s==='enviado'?'rgba(0,230,118,.5)':
+              isCur&&(isIgn||isErr)?'#ffb300':
+              isCur&&isOk?'rgba(0,230,118,.5)':
+              'rgba(255,255,255,.1)'
+
             const journeyStatus = isIgn
-              ? `${new Date(dados.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} · ${meta?.label?.toUpperCase()} SEM NOTIF.`
+              ? `${new Date(dados.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} · Sem notif.`
               : isErr
-              ? `${new Date(dados.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} · ERRO NO ENVIO`
+              ? `${new Date(dados.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} · Erro no envio`
               : isOk
-              ? `${new Date(dados.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} · ENTREGUE`
+              ? `${new Date(dados.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} · Entregue`
               : null
 
             const doR = async () => { setEnvR(true); try{ await onReenviar?.(dados.id); setJaR(true) }catch{}; setEnvR(false) }
 
-            return (
-              <div style={{display:'flex',flexDirection:'column',animation:'fadeIn .25s ease',height:'100%'}}>
+            // % de linha preenchida até o nó atual
+            const lineProgress = curIdx >= 0 ? Math.round((curIdx / (JOURNEY.length-1)) * 200) : 0
 
-                {/* ── Header gradiente ── */}
-                <div style={{padding:'16px',flexShrink:0,
-                  background:`linear-gradient(135deg,${meta?.cor}18 0%,${T.bg3} 65%)`,
-                  borderBottom:`1px solid ${meta?.cor}20`}}>
-                  {/* Linha 1: ícone + título + tempo */}
-                  <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:10}}>
-                    <div style={{width:44,height:44,borderRadius:12,flexShrink:0,
-                      background:`${meta?.cor}18`,border:`1.5px solid ${meta?.cor}35`,
+            return (
+              <>
+                {/* ─── HEADER GLASS com scanline ─── */}
+                <div style={{
+                  padding:'16px',flexShrink:0,
+                  background:`linear-gradient(135deg,${meta?.cor}18 0%,#0c1520 55%)`,
+                  borderBottom:`1px solid ${meta?.cor}20`,
+                  position:'relative',overflow:'hidden'
+                }}>
+                  {/* scanline overlay */}
+                  <div style={{
+                    position:'absolute',inset:0,pointerEvents:'none',
+                    backgroundImage:`repeating-linear-gradient(0deg,transparent,transparent 24px,${meta?.cor}05 24px,${meta?.cor}05 25px)`,
+                    animation:'scanline 4s ease infinite'
+                  }}/>
+                  <div style={{position:'relative',display:'flex',alignItems:'flex-start',gap:13}}>
+                    {/* Ícone do gatilho */}
+                    <div style={{
+                      width:44,height:44,borderRadius:13,flexShrink:0,
+                      background:`${meta?.cor}18`,border:`1.5px solid ${meta?.cor}38`,
                       display:'flex',alignItems:'center',justifyContent:'center',
-                      boxShadow:`0 4px 20px ${meta?.cor}20`}}>
+                      boxShadow:`0 4px 20px ${meta?.cor}25`
+                    }}>
                       <Ic size={22} style={{color:meta?.cor}}/>
                     </div>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:17,fontWeight:700,color:T.ink1,letterSpacing:'-.025em'}}>
+                    {/* Título + badges */}
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:16,fontWeight:700,color:'#eef0f6',
+                        letterSpacing:'-.025em',marginBottom:7}}>
                         {meta?.label}
                       </div>
+                      <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
+                        <span className="modal-wc-badge" style={{
+                          background:`${smeta?.bg}`,color:smeta?.cor,border:`1px solid ${smeta?.cor}30`}}>
+                          {React.createElement(SIc,{size:8})} {smeta?.label}
+                        </span>
+                        {(dados.origem==='rastreio_job'||dados.origem==='job')&&(
+                          <span className="modal-wc-badge" style={{
+                            background:'rgba(6,182,212,.1)',color:'#06b6d4',border:'1px solid rgba(6,182,212,.25)'}}>
+                            job auto
+                          </span>
+                        )}
+                        {dados.numero_pedido&&(
+                          <span className="modal-wc-badge" style={{
+                            background:'rgba(167,139,250,.12)',color:'#a78bfa',border:'1px solid rgba(167,139,250,.25)'}}>
+                            #{dados.numero_pedido}
+                          </span>
+                        )}
+                        {dados.nome_cliente&&(
+                          <span className="modal-wc-badge" style={{
+                            background:'rgba(251,146,60,.12)',color:'#fb923c',border:'1px solid rgba(251,146,60,.25)',
+                            maxWidth:100,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                            {dados.nome_cliente.split(' ').slice(0,2).join(' ')}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <span style={{fontSize:10.5,color:T.ink4,flexShrink:0}}>
-                      ● {tempoStr}
-                    </span>
-                  </div>
-                  {/* Linha 2: badges */}
-                  <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
-                    <span style={{fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:600,
-                      background:smeta?.bg,color:smeta?.cor,border:`0.5px solid ${smeta?.cor}30`,
-                      display:'flex',alignItems:'center',gap:4}}>
-                      {React.createElement(SIc,{size:8})}
-                      {smeta?.label}
-                    </span>
-                    {(dados.origem==='rastreio_job'||dados.origem==='job')&&(
-                      <span style={{fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:600,
-                        background:'rgba(6,182,212,.12)',color:'#06b6d4',border:'0.5px solid rgba(6,182,212,.3)'}}>
-                        job auto
-                      </span>
-                    )}
-                    {dados.numero_pedido&&(
-                      <span style={{fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:700,
-                        background:T.purpleDim,color:T.purple,border:`0.5px solid ${T.purpleBor}`}}>
-                        #{dados.numero_pedido}
-                      </span>
-                    )}
-                    {dados.nome_cliente&&(
-                      <span style={{fontSize:10,padding:'2px 9px',borderRadius:99,fontWeight:600,
-                        background:'rgba(251,146,60,.12)',color:'#fb923c',border:'0.5px solid rgba(251,146,60,.3)',
-                        maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                        {dados.nome_cliente.split(' ').slice(0,2).join(' ')}
-                      </span>
-                    )}
+                    {/* Tempo + fechar */}
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:7,flexShrink:0}}>
+                      <div style={{display:'flex',alignItems:'center',gap:4,fontSize:9.5,color:'#3a3f5c'}}>
+                        <span style={{width:5,height:5,borderRadius:'50%',background:'#3a3f5c',
+                          animation:'pulse 2.5s ease-in-out infinite',display:'block'}}/>
+                        {tempoStr}
+                      </div>
+                      <button onClick={onClose} style={{
+                        padding:'4px 8px',borderRadius:7,
+                        background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.08)',
+                        color:'#6b7294',cursor:'pointer',fontSize:10.5,
+                        display:'flex',alignItems:'center',gap:4
+                      }}>
+                        <X size={12}/> Esc
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                <div style={{flex:1,overflowY:'auto'}}>
-                  <div style={{padding:'12px 14px',display:'flex',flexDirection:'column',gap:10}}>
+                {/* ─── SCROLL ─── */}
+                <div style={{flex:1,overflowY:'auto',minHeight:0}}>
 
-                    {/* ── Intelligence card ── */}
-                    {intel && (() => {
-                      const {cor,dim,bor,Icon} = intelCor
-                      // Parse bold em msg: **texto** → <strong>
-                      const renderMsg = (txt) => {
-                        const parts = txt.split(/(\*\*[^*]+\*\*)/)
-                        return parts.map((p,i)=>
-                          p.startsWith('**')
-                            ? <strong key={i} style={{color:cor}}>{p.slice(2,-2)}</strong>
-                            : p
-                        )
-                      }
-                      return (
-                        <div style={{borderRadius:11,padding:'13px 14px',background:dim,
-                          border:`1px solid ${bor}`,display:'flex',gap:10,alignItems:'flex-start'}}>
-                          <Icon size={18} style={{color:cor,flexShrink:0,marginTop:2}}/>
+                  {/* Intelligence multi-nível */}
+                  {intel && (() => {
+                    const {cor,dim,bor,Icon} = intelCor
+                    const renderMsg = (txt) => {
+                      const parts = txt.split(/(\*\*[^*]+\*\*)/)
+                      return parts.map((p,i)=>
+                        p.startsWith('**')
+                          ? <strong key={i} style={{color:cor}}>{p.slice(2,-2)}</strong>
+                          : p
+                      )
+                    }
+                    return (
+                      <div className="modal-wc-sec" style={{display:'flex',flexDirection:'column',gap:8}}>
+                        {/* Bloco crítico / aviso / ok */}
+                        <div style={{borderRadius:10,padding:'11px 13px',background:dim,border:`1px solid ${bor}`,
+                          display:'flex',gap:10,alignItems:'flex-start'}}>
+                          <Icon size={17} style={{color:cor,flexShrink:0,marginTop:1}}/>
                           <div style={{flex:1}}>
-                            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:5}}>
-                              <div style={{fontSize:13,fontWeight:700,color:cor,lineHeight:1.35}}>
-                                {intel.titulo}
-                              </div>
-                              <span style={{fontSize:9,padding:'1px 7px',borderRadius:99,marginLeft:8,flexShrink:0,
-                                background:`${cor}20`,color:cor,fontWeight:700,letterSpacing:'.05em'}}>
+                            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+                              <span style={{fontSize:12,fontWeight:700,color:cor}}>{intel.titulo}</span>
+                              <span style={{fontSize:8.5,color:cor,fontWeight:700,opacity:.7,
+                                padding:'1px 6px',borderRadius:99,background:`${cor}15`,flexShrink:0,marginLeft:8}}>
                                 {intel.sev==='critico'?'CRÍTICO':intel.sev==='erro'?'ERRO':intel.sev==='aviso'?'AVISO':'OK'}
                               </span>
                             </div>
-                            <div style={{fontSize:12,color:T.ink2,lineHeight:1.6,marginBottom:intel.acao?10:0}}>
+                            <div style={{fontSize:11,color:'#b8bdd4',lineHeight:1.6,
+                              marginBottom:(isIgn||isErr)?9:0}}>
                               {renderMsg(intel.msg)}
                             </div>
-                            {intel.acao&&(
-                              <div style={{display:'flex',gap:8}}>
-                                <button style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',
-                                  gap:6,padding:'8px',borderRadius:8,
-                                  border:`1px solid ${T.sep2}`,background:T.bg3,
-                                  color:T.ink1,cursor:'pointer',fontSize:12,fontWeight:600}}>
-                                  <Settings size={13}/>{intel.acao} ↗
+                            {(isIgn||isErr) && (
+                              <div style={{display:'flex',gap:7}}>
+                                <button className="modal-wc-btn-p" style={{padding:'6px 12px',fontSize:11}}>
+                                  <Settings size={11}/>Ativar template ↗
                                 </button>
                                 <button disabled={jaReenv||enviandoR} onClick={doR}
-                                  style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',
-                                  gap:6,padding:'8px',borderRadius:8,
-                                  border:`1px solid ${T.sep2}`,background:T.bg3,
-                                  color:jaReenv?T.green:T.ink1,cursor:'pointer',fontSize:12,fontWeight:600}}>
-                                  {enviandoR?<RefreshCw size={12} style={{animation:'spin .7s linear infinite'}}/>
-                                   :jaReenv?<><CheckCircle size={12}/>Enviado!</>
-                                   :<><Send size={13}/>Enviar agora</>}
+                                  className="modal-wc-btn-s" style={{padding:'6px 12px',fontSize:11}}>
+                                  {enviandoR
+                                    ? <RefreshCw size={11} style={{animation:'spin .7s linear infinite'}}/>
+                                    : jaReenv
+                                    ? <><CheckCircle size={11} style={{color:'#00e676'}}/>Enviado!</>
+                                    : <><Send size={11}/>Enviar agora</>}
                                 </button>
                               </div>
                             )}
                           </div>
                         </div>
-                      )
-                    })()}
-
-                    {/* ── Taxa de entrega vs média ── */}
-                    {(taxaGat !== null || mediaSys !== null) && (
-                      <div style={{borderRadius:10,padding:'10px 13px',
-                        background:'rgba(79,142,247,.06)',border:'1px solid rgba(79,142,247,.18)',
-                        display:'flex',alignItems:'center',gap:10}}>
-                        <Activity size={14} style={{color:'#4f8ef7',flexShrink:0}}/>
-                        <span style={{fontSize:12,color:T.ink2}}>
-                          Taxa de entrega notificada este mês:&nbsp;
-                          <strong style={{color:taxaGat===null?T.red:taxaGat>=70?T.green:T.amber}}>
-                            {taxaGat===null?'0%':`${taxaGat}%`}
-                          </strong>
-                          {mediaSys!==null&&<>
-                            &nbsp;·&nbsp;Média do sistema:&nbsp;
-                            <strong style={{color:T.green}}>{mediaSys}%</strong>
-                          </>}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* ── Journey mini-map com timestamps ── */}
-                    <div style={{padding:'12px 13px',borderRadius:10,background:T.bg3,border:`1px solid ${T.sep}`}}>
-                      {/* Header da jornada */}
-                      <div style={{display:'flex',alignItems:'center',
-                        justifyContent:'space-between',marginBottom:12}}>
-                        <div style={{display:'flex',alignItems:'center',gap:5,
-                          fontSize:9,color:T.ink3,textTransform:'uppercase',letterSpacing:'.07em'}}>
-                          <Navigation size={10}/>
-                          JORNADA DO PEDIDO {dados.numero_pedido?`#${dados.numero_pedido}`:''}
-                        </div>
-                        {journeyStatus&&(
-                          <span style={{fontSize:9,color:isIgn||isErr?T.amber:T.green,
-                            fontWeight:600,letterSpacing:'.04em',textTransform:'uppercase'}}>
-                            {journeyStatus}
-                          </span>
+                        {/* Taxa vs média */}
+                        {(taxaGat !== null || mediaSys !== null) && (
+                          <div style={{borderRadius:9,padding:'8px 12px',
+                            background:'rgba(79,142,247,.06)',border:'1px solid rgba(79,142,247,.18)',
+                            display:'flex',alignItems:'center',gap:9}}>
+                            <BarChart3 size={14} style={{color:'#4f8ef7',flexShrink:0}}/>
+                            <span style={{fontSize:11,color:'#b8bdd4'}}>
+                              Taxa de entrega este mês:{' '}
+                              <strong style={{color:taxaGat===null?'#ff4757':taxaGat>=70?'#00e676':'#ffb300'}}>
+                                {taxaGat===null?'0%':`${taxaGat}%`}
+                              </strong>
+                              {mediaSys!==null&&<>
+                                {' '}·{' '}Média do sistema:{' '}
+                                <strong style={{color:'#00e676'}}>{mediaSys}%</strong>
+                              </>}
+                            </span>
+                          </div>
                         )}
                       </div>
-                      {/* Nós com timestamps */}
-                      <div style={{display:'flex',alignItems:'flex-start'}}>
-                        {JOURNEY.map((st,si)=>{
-                          const s    = stSt(st.id)
-                          const isCur= st.id === dados.gatilho
-                          const cor2 = stCor(s) || (isCur ? T.amber : null)
-                          const time = stTime(st.id)
-                          const DotIc= s==='enviado'?CheckCircle:s==='erro'?XCircle:isCur?Navigation:null
-                          // Label especial para o nó atual ignorado
-                          const lblBottom = isCur && isIgn ? 'sem notif.' : null
-                          const lineColor = si < curIdx
-                            ? T.green
-                            : 'rgba(255,255,255,.08)'
-                          return (
-                            <React.Fragment key={st.id}>
-                              <div style={{display:'flex',flexDirection:'column',
-                                alignItems:'center',gap:2,flex:1,minWidth:0}}>
-                                {/* Nó */}
-                                <div style={{width:24,height:24,borderRadius:'50%',
-                                  background:stDim(s)||(isCur?T.amberDim:'rgba(255,255,255,.04)'),
-                                  border:`2px solid ${stBor(s)||(isCur?T.amberBor:'rgba(255,255,255,.1)')}`,
-                                  display:'flex',alignItems:'center',justifyContent:'center',
-                                  animation:isCur&&!isOk?'pulse 2s ease-in-out infinite':undefined,
-                                  boxShadow:cor2?`0 0 8px ${cor2}40`:undefined}}>
-                                  {DotIc?<DotIc size={10} style={{color:cor2||T.ink4}}/>:null}
-                                </div>
-                                {/* Label */}
-                                <span style={{fontSize:8.5,textAlign:'center',lineHeight:1.25,
-                                  color:isCur?cor2||T.amber:cor2?cor2:T.ink4,
-                                  fontWeight:isCur?700:400,maxWidth:48,
-                                  overflow:'hidden',textOverflow:'ellipsis'}}>
-                                  {st.lbl}
-                                </span>
-                                {/* Sub-label para ignorado */}
-                                {lblBottom&&(
-                                  <span style={{fontSize:7.5,color:T.amber,fontWeight:600,
-                                    textAlign:'center',lineHeight:1.2}}>
-                                    {lblBottom}
-                                  </span>
-                                )}
-                                {/* Timestamp real */}
-                                {time&&(
-                                  <span style={{fontSize:8.5,color:T.ink4,fontFamily:'monospace',
-                                    letterSpacing:'-.02em'}}>
-                                    {time}
-                                  </span>
-                                )}
-                              </div>
-                              {si < JOURNEY.length-1 && (
-                                <div style={{height:2,flex:1,alignSelf:'flex-start',marginTop:11,flexShrink:0,
-                                  background:si < curIdx
-                                    ? `linear-gradient(90deg,${T.green}80,${T.green}40)`
-                                    : 'rgba(255,255,255,.07)',
-                                  borderRadius:99}}/>
-                              )}
-                            </React.Fragment>
-                          )
-                        })}
-                      </div>
-                    </div>
+                    )
+                  })()}
 
-                    {/* ── Diagnóstico técnico colapsável ── */}
-                    <details style={{borderRadius:9,overflow:'hidden',border:`1px solid ${T.sep}`}}>
-                      <summary style={{padding:'9px 12px',background:T.bg3,cursor:'pointer',
-                        fontSize:10,color:T.ink3,textTransform:'uppercase',letterSpacing:'.07em',
-                        display:'flex',alignItems:'center',gap:6,userSelect:'none',listStyle:'none'}}>
-                        <ChevronRight size={10} style={{transition:'transform .2s'}}/>
-                        DIAGNÓSTICO TÉCNICO
-                        <ChevronDown size={10} style={{marginLeft:'auto'}}/>
+                  {/* Journey map com SVG animado */}
+                  <div className="modal-wc-sec">
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+                      marginBottom:12,fontSize:9,color:'#6b7294',textTransform:'uppercase',letterSpacing:'.07em'}}>
+                      <span style={{display:'flex',alignItems:'center',gap:5}}>
+                        <Navigation size={11}/>
+                        Jornada {dados.numero_pedido?`#${dados.numero_pedido}`:'do pedido'}
+                      </span>
+                      {journeyStatus&&(
+                        <span style={{fontSize:9,fontWeight:600,letterSpacing:'.04em',
+                          color:isIgn||isErr?'#ffb300':'#00e676'}}>
+                          {journeyStatus}
+                        </span>
+                      )}
+                    </div>
+                    {/* Nós + linha SVG */}
+                    <div style={{display:'flex',alignItems:'flex-start',position:'relative'}}>
+                      {/* SVG de linha animada */}
+                      <svg style={{
+                        position:'absolute',top:11,left:13,
+                        width:'calc(100% - 26px)',height:2,overflow:'visible',pointerEvents:'none'
+                      }} viewBox="0 0 200 2" preserveAspectRatio="none" aria-hidden="true">
+                        <line x1="0" y1="1" x2="200" y2="1" stroke="rgba(255,255,255,.06)" strokeWidth="2"/>
+                        <line x1="0" y1="1" x2={lineProgress} y2="1"
+                          stroke={`url(#jl-${dados.id||'0'})`}
+                          strokeWidth="2"
+                          strokeDasharray="200"
+                          strokeDashoffset="200"
+                          style={{animation:'drawLine 1.2s ease .3s forwards'}}/>
+                        <defs>
+                          <linearGradient id={`jl-${dados.id||'0'}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#00e676"/>
+                            <stop offset="75%" stopColor={isIgn||isErr?'#ffb300':'#00e676'}/>
+                          </linearGradient>
+                        </defs>
+                      </svg>
+                      {/* Nós */}
+                      {JOURNEY.map((st,si)=>{
+                        const s     = stSt(st.id)
+                        const isCur = st.id === dados.gatilho
+                        const cor2  = ndCor(s,isCur)
+                        const time  = stTime(st.id)
+                        const NdIc  = s==='enviado'?Check:isCur&&isIgn?MapPin:isCur&&isOk?Check:null
+                        return (
+                          <div key={st.id} style={{display:'flex',flexDirection:'column',
+                            alignItems:'center',gap:4,flex:1,minWidth:0}}>
+                            {/* Círculo nó */}
+                            <div style={{
+                              width:24,height:24,borderRadius:'50%',
+                              background:ndDim(s,isCur),
+                              border:`2px solid ${ndBor(s,isCur)}`,
+                              display:'flex',alignItems:'center',justifyContent:'center',
+                              boxShadow:isCur&&!isOk?undefined:cor2?`0 0 10px ${cor2}30`:undefined,
+                              animation:isCur&&!isOk?'glowNode 2s ease-in-out infinite':undefined,
+                              position:'relative',zIndex:1
+                            }}>
+                              {NdIc&&<NdIc size={10} style={{color:cor2||'#6b7294'}}/>}
+                            </div>
+                            {/* Label + sub-label */}
+                            <span style={{fontSize:8,textAlign:'center',lineHeight:1.3,
+                              color:isCur?cor2||'#ffb300':cor2||'#6b7294',
+                              fontWeight:isCur?700:400,maxWidth:48,
+                              overflow:'hidden',textOverflow:'ellipsis'}}>
+                              {st.lbl}
+                            </span>
+                            {isCur&&isIgn&&(
+                              <span style={{fontSize:7,color:'rgba(255,179,0,.55)',fontWeight:600,textAlign:'center'}}>
+                                sem notif.
+                              </span>
+                            )}
+                            {time&&(
+                              <span style={{fontSize:8,color:'#3a3f5c',fontFamily:'monospace',letterSpacing:'-.02em'}}>
+                                {time}
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Diagnóstico técnico colapsável */}
+                  <div className="modal-wc-sec" style={{padding:'10px 16px'}}>
+                    <details>
+                      <summary style={{
+                        cursor:'pointer',listStyle:'none',userSelect:'none',
+                        display:'flex',alignItems:'center',justifyContent:'space-between',
+                        fontSize:9.5,color:'#6b7294',textTransform:'uppercase',letterSpacing:'.07em'
+                      }}>
+                        <span style={{display:'flex',alignItems:'center',gap:6}}>
+                          <Hash size={11}/>Diagnóstico técnico
+                        </span>
+                        <ChevronDown size={11}/>
                       </summary>
-                      <div style={{background:T.bg2}}>
+                      <div style={{marginTop:9,borderRadius:9,overflow:'hidden',
+                        border:'1px solid rgba(255,255,255,.05)'}}>
                         {[
                           {l:'Template',  v:dados.template_nome||dados.gatilho, ok:true},
                           {l:'Gatilho',   v:dados.gatilho,                      ok:true},
@@ -927,100 +1008,94 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                           {l:'Erro',      v:dados.erro_msg||'—',               ok:!dados.erro_msg},
                           {l:'Delay',     v:dados.delay_min>0?`+${dados.delay_min}min`:'imediato', ok:true},
                         ].map((f,i)=>(
-                          <div key={i} style={{display:'flex',alignItems:'center',gap:10,
-                            padding:'7px 12px',borderTop:`1px solid ${T.sep}`}}>
-                            <div style={{width:6,height:6,borderRadius:'50%',flexShrink:0,
-                              background:f.ok?T.green:T.red}}/>
-                            <span style={{fontSize:10.5,color:T.ink3,width:72,flexShrink:0}}>{f.l}</span>
-                            <span style={{fontSize:10.5,color:T.ink2,fontFamily:'monospace',
-                              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.v}</span>
+                          <div key={i} className="modal-wc-diag-row"
+                            style={{background:i%2===0?'#111520':'#0d1017'}}>
+                            <div style={{width:5,height:5,borderRadius:'50%',flexShrink:0,
+                              background:f.ok?'#00e676':'#ff4757'}}/>
+                            <span style={{fontSize:10.5,color:'#b8bdd4',flex:1}}>{f.l}</span>
+                            <span style={{fontSize:10.5,color:f.ok?'#6b7294':'#ff4757',
+                              fontFamily:'monospace',overflow:'hidden',textOverflow:'ellipsis',
+                              whiteSpace:'nowrap',maxWidth:180}}>{f.v}</span>
                           </div>
                         ))}
                       </div>
                     </details>
+                  </div>
 
-                    {/* ── Grid 2×2 ── */}
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:1,
-                      borderRadius:10,overflow:'hidden',border:`1px solid ${T.sep}`}}>
-                      {[
-                        {l:'CLIENTE',       v:dados.nome_cliente||'—',                  bg:T.bg2},
-                        {l:'TELEFONE',      v:fmtTel(dados.telefone||''),                bg:T.bg2, mono:true},
-                        {l:'DATA / DELAY',  v:`${fmtDH(dados.criado_em)} · ${dados.delay_min>0?`+${dados.delay_min}min`:'imediato'}`, bg:T.bg0},
-                        {l:'ID DO REGISTRO',v:`#${dados.id||'—'}`,                      bg:T.bg0, col:T.purple},
-                      ].map((f,i)=>(
-                        <div key={i} style={{padding:'9px 12px',background:f.bg,
-                          display:'flex',flexDirection:'column',gap:2}}>
-                          <span style={{fontSize:8.5,color:T.ink3,textTransform:'uppercase',
-                            letterSpacing:'.06em'}}>{f.l}</span>
-                          <span style={{fontSize:12,color:f.col||T.ink1,
-                            fontFamily:f.mono?'monospace':'inherit',
-                            overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                            {f.v}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
+                  {/* Grid 2×2 */}
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:1,
+                    background:'rgba(255,255,255,.05)',margin:'0 14px 12px',
+                    borderRadius:11,overflow:'hidden',border:'1px solid rgba(255,255,255,.05)'}}>
+                    {[
+                      {l:'CLIENTE',       v:dados.nome_cliente||'—',   bg:'#111520'},
+                      {l:'TELEFONE',      v:fmtTel(dados.telefone||''), bg:'#111520', mono:true},
+                      {l:'DATA / DELAY',  v:`${fmtDH(dados.criado_em)} · ${dados.delay_min>0?`+${dados.delay_min}min`:'imediato'}`, bg:'#08090f'},
+                      {l:'ID DO REGISTRO',v:`#${dados.id||'—'}`,        bg:'#08090f', col:'#a78bfa'},
+                    ].map((f,i)=>(
+                      <div key={i} style={{padding:'9px 12px',background:f.bg,
+                        display:'flex',flexDirection:'column',gap:2}}>
+                        <span style={{fontSize:9,color:'#6b7294',textTransform:'uppercase',
+                          letterSpacing:'.06em'}}>{f.l}</span>
+                        <span style={{fontSize:12,color:f.col||'#eef0f6',
+                          fontFamily:f.mono?'monospace':'inherit',
+                          overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                          {f.v}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                {/* ── Actions footer ── */}
-                <div style={{flexShrink:0,padding:'12px 14px',borderTop:`1px solid ${T.sep}`,
-                  background:T.bg2,display:'flex',flexDirection:'column',gap:8}}>
-                  {/* Primário */}
+                {/* ─── ACTIONS FOOTER ─── */}
+                <div style={{flexShrink:0,padding:'12px 14px',
+                  borderTop:'1px solid rgba(255,255,255,.05)',
+                  background:'#0d1017',display:'flex',flexDirection:'column',gap:8}}>
                   <button disabled={jaReenv||enviandoR} onClick={doR}
-                    style={{padding:'12px',borderRadius:10,
-                    border:`1px solid ${jaReenv?T.greenBor:T.sep2}`,
-                    background:jaReenv?T.greenDim:T.bg3,
-                    color:jaReenv?T.green:T.ink1,fontSize:13,fontWeight:600,cursor:jaReenv?'default':'pointer',
-                    display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
-                    {enviandoR?<><RefreshCw size={13} style={{animation:'spin .7s linear infinite'}}/>Enviando...</>
-                     :jaReenv?<><CheckCircle size={13}/>Mensagem enviada!</>
-                     :<><Send size={13}/>Enviar mensagem agora</>}
+                    className="modal-wc-btn-p" style={{width:'100%',padding:12}}>
+                    {enviandoR
+                      ? <><RefreshCw size={13} style={{animation:'spin .7s linear infinite'}}/>Enviando...</>
+                      : jaReenv
+                      ? <><CheckCircle size={13}/>Mensagem enviada!</>
+                      : <><Send size={13}/>Enviar mensagem agora</>}
                   </button>
-                  {/* Secundários */}
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                     <button onClick={()=>onVerPedido?.(dados.numero_pedido)}
-                      style={{padding:'10px',borderRadius:9,
-                      border:`1px solid ${T.sep2}`,background:T.bg3,
-                      color:T.ink2,cursor:'pointer',fontSize:12,fontWeight:500,
-                      display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                      className="modal-wc-btn-s" style={{padding:10}}>
                       <ExternalLink size={12}/>Ver pedido
                     </button>
                     <button onClick={()=>onFiltrarGatilho?.('__cliente__',dados.telefone)}
-                      style={{padding:'10px',borderRadius:9,
-                      border:`1px solid ${T.purpleBor}`,
-                      background:'linear-gradient(135deg,rgba(91,33,182,.3),rgba(147,51,234,.2))',
-                      color:T.purple,cursor:'pointer',fontSize:12,fontWeight:600,
-                      display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                      style={{padding:10,borderRadius:11,fontSize:12,fontWeight:600,cursor:'pointer',
+                        background:'rgba(167,139,250,.1)',color:'#a78bfa',
+                        border:'1px solid rgba(167,139,250,.22)',fontFamily:'inherit',
+                        display:'flex',alignItems:'center',justifyContent:'center',gap:7,
+                        transition:'all .15s'}}>
                       <Users size={12}/>Ver perfil completo
                     </button>
                   </div>
                 </div>
-              </div>
+              </>
             )
           })()}
 
 
-          {/* ── PERFIL DO CLIENTE — Ultra Premium ── */}
+          {/* ══════════════════════════════════════
+              MODAL 2 — PERFIL DO CLIENTE
+          ══════════════════════════════════════ */}
           {tipo==='cliente' && (() => {
-            // ── Métricas base ─────────────────────────────────────────────
-            const total    = cli?.resumo?.total    || 0
-            const enviados = cli?.resumo?.enviados || 0
-            const erros    = cli?.resumo?.erros    || 0
-            const ignorados= total - enviados - erros
-            const pedidos  = cli?.resumo?.pedidos  || []
+            const total     = cli?.resumo?.total    || 0
+            const enviados  = cli?.resumo?.enviados || 0
+            const erros     = cli?.resumo?.erros    || 0
+            const ignorados = total - enviados - erros
+            const pedidos   = cli?.resumo?.pedidos  || []
 
-            // Saúde: % de disparos enviados com sucesso
-            const score    = total > 0 ? Math.round(enviados / total * 100) : 0
-            const CIRC     = 138  // 2π × r(22)
-            const dashOff  = Math.round(CIRC * (1 - score / 100))
-            const rCor     = score > 70 ? T.green : score > 30 ? T.amber : T.red
-            const rDim     = score > 70 ? T.greenDim : score > 30 ? T.amberDim : T.redDim
-            const rBor     = score > 70 ? T.greenBor : score > 30 ? T.amberBor : T.redBor
-            const scLbl    = score === 0 ? 'Crítico' : score < 30 ? 'Em risco' : score < 70 ? 'Atenção' : 'Saudável'
+            const score   = total > 0 ? Math.round(enviados / total * 100) : 0
+            const CIRC    = 138
+            const dashOff = Math.round(CIRC * (1 - score / 100))
+            const rCor    = score > 70 ? '#00e676' : score > 30 ? '#ffb300' : '#ff4757'
+            const rDim    = score > 70 ? T.greenDim : score > 30 ? T.amberDim : T.redDim
+            const rBor    = score > 70 ? T.greenBor : score > 30 ? T.amberBor : T.redBor
+            const scLbl   = score === 0 ? 'Crítico' : score < 30 ? 'Em risco' : score < 70 ? 'Atenção' : 'Saudável'
 
-            // ── Journey helpers ───────────────────────────────────────────
             const STAGES = [
               {id:'pedido_criado',      lbl:'Criado'},
               {id:'pagamento_aprovado', lbl:'Pago'},
@@ -1032,16 +1107,15 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
               const d = (cli?.disparos||[]).find(x=>String(x.numero_pedido)===String(pid)&&x.gatilho===sid)
               return d ? d.status : 'pendente'
             }
-            const ndCor = s => s==='enviado'?T.green : s==='ignorado'?T.amber : s==='erro'?T.red : null
-            const ndBor = s => s==='enviado'?T.greenBor : s==='ignorado'?T.amberBor : s==='erro'?T.redBor : 'rgba(255,255,255,.1)'
-            const ndDim = s => s==='enviado'?T.greenDim : s==='ignorado'?T.amberDim : s==='erro'?T.redDim : 'rgba(255,255,255,.04)'
-            const ndIco = s => s==='enviado'?CheckCircle : s==='ignorado'?AlertTriangle : s==='erro'?XCircle : null
+            const ndCor2 = s => s==='enviado'?'#00e676':s==='ignorado'?'#ffb300':s==='erro'?'#ff4757':null
+            const ndBor2 = s => s==='enviado'?'rgba(0,230,118,.45)':s==='ignorado'?'rgba(255,179,0,.5)':s==='erro'?'rgba(255,71,87,.4)':'rgba(255,255,255,.1)'
+            const ndDim2 = s => s==='enviado'?'rgba(0,230,118,.12)':s==='ignorado'?'rgba(255,179,0,.1)':s==='erro'?'rgba(255,71,87,.1)':'rgba(255,255,255,.04)'
+            const ndIco2 = s => s==='enviado'?Check:s==='ignorado'?AlertTriangle:s==='erro'?XCircle:null
 
-            // ── Insight cliente-específico ─────────────────────────────
-            const todasIgn   = total > 0 && ignorados === total
-            const nomeFirst  = (cli?.resumo?.nome||'Este cliente').split(' ')[0]
-            // Gatilho mais ignorado para este cliente
-            const maisIgnMap = (cli?.disparos||[]).reduce((acc,d)=>{
+            // Insight
+            const todasIgn  = total > 0 && ignorados === total
+            const nomeFirst = (cli?.resumo?.nome||'Este cliente').split(' ')[0]
+            const maisIgnMap= (cli?.disparos||[]).reduce((acc,d)=>{
               if (d.status==='ignorado') acc[d.gatilho]=(acc[d.gatilho]||0)+1
               return acc
             },{})
@@ -1053,266 +1127,250 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
               : score < 50
               ? `Taxa de entrega baixa (${score}%) para ${nomeFirst}. Revise os templates ativos.`
               : null
-            // Para o render com code inline
-            const insightRich = todasIgn && gatMaisIgn ? {
-              nomeFirst,
-              pedidos: pedidos.length,
-              gatilho: gatMaisIgn,
-            } : null
+            const insightRich = todasIgn && gatMaisIgn ? {nomeFirst, pedidos:pedidos.length, gatilho:gatMaisIgn} : null
 
-            // ── Timeline filtrada e agrupada ──────────────────────────────
+            // Timeline
             const dispFilt = selPed==='todos'
               ? (cli?.disparos||[])
               : (cli?.disparos||[]).filter(d=>String(d.numero_pedido)===String(selPed))
-
             const grpMap = {}
             dispFilt.forEach(d => {
-              const dt = new Date(d.criado_em)
-              const hoje  = new Date()
-              const ontem = new Date(hoje); ontem.setDate(hoje.getDate()-1)
-              const k = dt.toDateString()===hoje.toDateString() ? 'Hoje'
-                : dt.toDateString()===ontem.toDateString() ? 'Ontem'
+              const dt  = new Date(d.criado_em)
+              const hoje= new Date()
+              const ont = new Date(hoje); ont.setDate(hoje.getDate()-1)
+              const k   = dt.toDateString()===hoje.toDateString() ? 'Hoje'
+                : dt.toDateString()===ont.toDateString() ? 'Ontem'
                 : dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})
               ;(grpMap[k] = grpMap[k]||[]).push(d)
             })
             const grps = Object.entries(grpMap)
 
             return (
-              <div style={{display:'flex',flexDirection:'column',gap:0,animation:'fadeIn .25s ease'}}>
-                {loadCli && (
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:10,
-                    padding:'48px 0',color:T.ink3}}>
-                    <RefreshCw size={18} style={{animation:'spin 1s linear infinite',color:T.purple}}/>
-                    <span style={{fontSize:12}}>Carregando histórico...</span>
-                  </div>
-                )}
-                {cli && (
-                  <>
-                    {/* ── HERO: anel de saúde + nome + badges ── */}
-                    <div style={{padding:'14px 16px',display:'flex',alignItems:'center',gap:14,
-                      background:'linear-gradient(135deg,#0e0830,#160d4a,#111520)',
-                      borderBottom:`1px solid rgba(167,139,250,.1)`}}>
-                      {/* Anel SVG */}
-                      <div style={{position:'relative',width:52,height:52,flexShrink:0}}>
-                        <svg width="52" height="52" viewBox="0 0 52 52" aria-label={`Saúde do cliente: ${score}%`}>
-                          <circle cx="26" cy="26" r="22" fill="none" stroke={T.bg4} strokeWidth="4.5"/>
-                          <circle cx="26" cy="26" r="22" fill="none" stroke={rCor}
-                            strokeWidth="4.5" strokeDasharray={`${CIRC}`} strokeDashoffset={`${dashOff}`}
-                            strokeLinecap="round" transform="rotate(-90 26 26)"
-                            style={{transition:'stroke-dashoffset .8s ease'}}/>
-                        </svg>
-                        <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
-                          alignItems:'center',justifyContent:'center'}}>
-                          <span style={{fontSize:13,fontWeight:700,color:rCor,lineHeight:1}}>{score}%</span>
-                          <span style={{fontSize:7,color:T.ink4,marginTop:1}}>{scLbl}</span>
-                        </div>
+              <>
+                {/* ─── HERO com anel de saúde ─── */}
+                <div style={{
+                  padding:'14px 16px',flexShrink:0,
+                  background:'linear-gradient(135deg,#0e0830,#160d4a,#111520)',
+                  borderBottom:'1px solid rgba(167,139,250,.1)'
+                }}>
+                  <div style={{display:'flex',alignItems:'center',gap:13}}>
+                    {/* Ring SVG animado */}
+                    <div style={{position:'relative',width:54,height:54,flexShrink:0}}>
+                      <svg width="54" height="54" viewBox="0 0 54 54"
+                        aria-label={`Saúde do cliente: ${score}%`}>
+                        <circle cx="27" cy="27" r="22" fill="none"
+                          stroke="rgba(255,255,255,.06)" strokeWidth="4.5"/>
+                        <circle cx="27" cy="27" r="22" fill="none"
+                          stroke={rCor} strokeWidth="4.5"
+                          strokeDasharray={`${CIRC}`}
+                          strokeDashoffset={`${CIRC}`}
+                          strokeLinecap="round"
+                          transform="rotate(-90 27 27)"
+                          style={{
+                            animation:'none',
+                            transition:'stroke-dashoffset 1.2s ease .4s',
+                            strokeDashoffset: !loadCli ? dashOff : CIRC
+                          }}/>
+                      </svg>
+                      <div style={{position:'absolute',inset:0,display:'flex',
+                        flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
+                        <span style={{fontSize:13,fontWeight:700,color:rCor,lineHeight:1}}>{score}%</span>
+                        <span style={{fontSize:7,color:'#3a3f5c',marginTop:1}}>{scLbl}</span>
                       </div>
-                      {/* Nome + info */}
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:15,fontWeight:700,color:T.ink1,
-                          letterSpacing:'-.025em',marginBottom:4}}>
-                          {cli.resumo?.nome || 'Cliente'}
-                        </div>
-                        <div style={{fontSize:10.5,color:T.ink3,fontFamily:'monospace',marginBottom:6}}>
-                          {fmtTel(dados.telefone)}
-                        </div>
-                        <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
-                          {score===0&&<span style={{fontSize:9.5,padding:'2px 8px',borderRadius:99,
-                            background:T.redDim,color:T.red,border:`1px solid ${T.redBor}`,fontWeight:600}}>
+                    </div>
+                    {/* Nome + info */}
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:15,fontWeight:700,color:'#eef0f6',
+                        letterSpacing:'-.025em',marginBottom:3}}>
+                        {loadCli ? '...' : cli?.resumo?.nome || 'Cliente'}
+                      </div>
+                      <div style={{fontSize:10.5,color:'#6b7294',fontFamily:'monospace',marginBottom:6}}>
+                        {fmtTel(dados.telefone)}
+                      </div>
+                      <div style={{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}}>
+                        {score===0&&!loadCli&&(
+                          <span style={{fontSize:9.5,padding:'2px 9px',borderRadius:99,
+                            background:'rgba(255,71,87,.12)',color:'#ff4757',
+                            border:'1px solid rgba(255,71,87,.22)',fontWeight:600}}>
                             Cliente em risco
-                          </span>}
-                          {cli.resumo?.ultimo_contato&&<span style={{fontSize:9.5,color:T.ink4,
+                          </span>
+                        )}
+                        {cli?.resumo?.ultimo_contato&&(
+                          <span style={{fontSize:9.5,color:'#3a3f5c',
                             display:'flex',alignItems:'center',gap:4}}>
                             <Clock size={10}/>
                             {tempoRel(cli.resumo.ultimo_contato)||fmtDH(cli.resumo.ultimo_contato)}
-                          </span>}
-                        </div>
+                          </span>
+                        )}
                       </div>
                     </div>
+                    <button onClick={onClose} style={{
+                      width:28,height:28,borderRadius:8,flexShrink:0,alignSelf:'flex-start',
+                      background:'rgba(255,255,255,.08)',border:'1px solid rgba(255,255,255,.1)',
+                      color:'#6b7294',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'
+                    }}>
+                      <X size={13}/>
+                    </button>
+                  </div>
+                </div>
 
-                    {/* ── STATS 4 colunas ── */}
-                    <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',
-                      borderBottom:`1px solid ${T.sep}`}}>
-                      {[
-                        {lbl:'Disparos', val:total,    cor:T.ink1},
-                        {lbl:'Enviados', val:enviados,  cor:enviados>0?T.green:T.red},
-                        {lbl:'Ignorados',val:ignorados, cor:ignorados>0?T.amber:T.ink3},
-                        {lbl:'Pedidos',  val:pedidos.length, cor:T.purple},
-                      ].map((s,i)=>(
-                        <div key={i} style={{padding:'10px 0',textAlign:'center',
-                          borderRight:i<3?`1px solid rgba(255,255,255,.04)`:'none'}}>
-                          <div style={{fontSize:20,fontWeight:700,color:s.cor,
-                            letterSpacing:'-.03em',lineHeight:1}}>{s.val}</div>
-                          <div style={{fontSize:8,color:T.ink3,textTransform:'uppercase',
-                            letterSpacing:'.05em',marginTop:3}}>{s.lbl}</div>
-                        </div>
-                      ))}
+                {/* ─── STATS 4 colunas ─── */}
+                {!loadCli && cli && (
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',
+                    flexShrink:0,borderBottom:'1px solid rgba(255,255,255,.05)'}}>
+                    {[
+                      {lbl:'Disparos', val:total,    cor:'#eef0f6'},
+                      {lbl:'Enviados', val:enviados,  cor:enviados>0?'#00e676':'#ff4757'},
+                      {lbl:'Ignorados',val:ignorados, cor:ignorados>0?'#ffb300':'#6b7294'},
+                      {lbl:'Pedidos',  val:pedidos.length, cor:'#a78bfa'},
+                    ].map((s,i)=>(
+                      <div key={i} style={{padding:'10px 0',textAlign:'center',
+                        borderRight:i<3?'1px solid rgba(255,255,255,.04)':'none'}}>
+                        <div style={{fontSize:22,fontWeight:700,color:s.cor,
+                          letterSpacing:'-.03em',lineHeight:1}}>{s.val}</div>
+                        <div style={{fontSize:8,color:'#6b7294',textTransform:'uppercase',
+                          letterSpacing:'.05em',marginTop:3}}>{s.lbl}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* ─── SCROLL ─── */}
+                <div style={{flex:1,overflowY:'auto',minHeight:0}}>
+                  {loadCli && (
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'center',
+                      gap:10,padding:'48px 0',color:'#6b7294'}}>
+                      <RefreshCw size={18} style={{animation:'spin 1s linear infinite',color:'#a78bfa'}}/>
+                      <span style={{fontSize:12}}>Carregando histórico...</span>
                     </div>
+                  )}
 
-                    {/* ── INSIGHT INTELIGENTE ── */}
+                  {cli && (<>
+                    {/* Insight */}
                     {insightTxt && (
-                      <div style={{padding:'10px 14px',borderBottom:`1px solid ${T.sep}`}}>
-                        <div style={{borderRadius:10,padding:'12px 14px',
-                          background:T.amberDim,border:`1px solid ${T.amberBor}`,
+                      <div className="modal-wc-sec">
+                        <div style={{borderRadius:10,padding:'11px 13px',
+                          background:'rgba(255,179,0,.05)',border:'1px solid rgba(255,179,0,.18)',
                           display:'flex',gap:11,alignItems:'flex-start'}}>
-                          {/* Brain icon */}
-                          <div style={{width:30,height:30,borderRadius:9,flexShrink:0,
-                            background:'rgba(251,146,60,.15)',border:'1px solid rgba(251,146,60,.3)',
-                            display:'flex',alignItems:'center',justifyContent:'center',fontSize:15}}>
-                            🧠
-                          </div>
+                          <div style={{fontSize:16,flexShrink:0,marginTop:1}}>🧠</div>
                           <div style={{flex:1}}>
-                            <div style={{fontSize:13,fontWeight:700,color:T.amber,marginBottom:6,lineHeight:1.3}}>
+                            <div style={{fontSize:12,fontWeight:700,color:'#ffb300',marginBottom:5}}>
                               {insightRich
                                 ? `${insightRich.nomeFirst} nunca recebeu uma mensagem`
-                                : 'Inteligência do disparo'}
+                                : 'Inteligência do cliente'}
                             </div>
-                            <div style={{fontSize:12,color:T.ink2,lineHeight:1.65,marginBottom:10}}>
+                            <div style={{fontSize:11,color:'#b8bdd4',lineHeight:1.65,marginBottom:9}}>
                               {insightRich ? (
                                 <span>
                                   {insightRich.pedidos} pedido{insightRich.pedidos>1?'s':''} entregues, 0 notificações. O template{' '}
-                                  <code style={{fontSize:11,padding:'1px 6px',borderRadius:4,
-                                    background:'rgba(255,255,255,.1)',color:T.ink1,fontFamily:'monospace'}}>
+                                  <code style={{fontSize:10.5,padding:'1px 5px',borderRadius:4,
+                                    background:'rgba(255,255,255,.08)',color:'#eef0f6',fontFamily:'monospace'}}>
                                     {insightRich.gatilho}
-                                  </code>
-                                  {' '}está inativo.
+                                  </code>{' '}está inativo.
                                 </span>
                               ) : insightTxt}
                             </div>
-                            <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
-                              <button onClick={async()=>{
-                                const alvo=(cli?.disparos||[]).filter(d=>d.status==='ignorado'||d.status==='erro')
-                                for(const d of alvo) await onReenviar?.(d.id)
-                              }} style={{display:'inline-flex',alignItems:'center',gap:6,padding:'7px 13px',
-                                borderRadius:8,border:'none',cursor:'pointer',fontSize:12,fontWeight:600,
-                                background:'linear-gradient(135deg,#5b21b6,#9333ea)',color:'#fff'}}>
-                                <Send size={11}/>Corrigir e reenviar tudo ↗
-                              </button>
-                            </div>
+                            <button onClick={async()=>{
+                              const alvo=(cli?.disparos||[]).filter(d=>d.status==='ignorado'||d.status==='erro')
+                              for(const d of alvo) await onReenviar?.(d.id)
+                            }} className="modal-wc-btn-p" style={{padding:'6px 13px',fontSize:11}}>
+                              <Zap size={11}/>Corrigir e reenviar tudo ↗
+                            </button>
                           </div>
                         </div>
                       </div>
                     )}
 
-                    {/* ── ORDER CARDS COM MINI JORNADA ── */}
+                    {/* Order cards */}
                     {pedidos.length > 0 && (
-                      <div style={{padding:'10px 14px',borderBottom:`1px solid ${T.sep}`}}>
-                        <div style={{fontSize:9,color:T.ink3,textTransform:'uppercase',
-                          letterSpacing:'.07em',marginBottom:8}}>
+                      <div className="modal-wc-sec" style={{padding:'10px 14px'}}>
+                        <div style={{fontSize:9,color:'#6b7294',textTransform:'uppercase',
+                          letterSpacing:'.07em',marginBottom:9}}>
                           Pedidos · toque para filtrar
                         </div>
 
-                        {/* Card grande: pedido mais recente */}
+                        {/* Card grande: mais recente */}
                         {(() => {
                           const p0 = pedidos[0]
                           const isActive = selPed===String(p0)
-                          const qtd = (cli.disparos||[]).filter(d=>String(d.numero_pedido)===String(p0)).length
+                          const disp0 = (cli.disparos||[]).filter(d=>String(d.numero_pedido)===String(p0))
+                          const env0  = disp0.filter(d=>d.status==='enviado').length
                           return (
-                            <div onClick={()=>setSelPed(isActive?'todos':String(p0))}
-                              style={{background:isActive?`${T.purpleDim}`:`${T.bg2}`,
-                                border:`1px solid ${isActive?T.purpleBor:T.sep}`,
-                                borderRadius:12,padding:'10px 12px',cursor:'pointer',
-                                transition:'all .15s',marginBottom:6}}>
+                            <div className={`modal-wc-order-card${isActive?' active':''}`}
+                              onClick={()=>setSelPed(isActive?'todos':String(p0))}
+                              style={{marginBottom:7}}>
                               <div style={{display:'flex',alignItems:'center',
                                 justifyContent:'space-between',marginBottom:8}}>
                                 <span style={{fontSize:12,fontWeight:700,
-                                  color:isActive?T.purple:T.ink2}}>#{p0}</span>
+                                  color:isActive?'#a78bfa':'#b8bdd4'}}>#{p0}</span>
                                 <div style={{display:'flex',alignItems:'center',gap:6}}>
-                                  <span style={{fontSize:9,padding:'1px 7px',borderRadius:99,
-                                    background:enviados>0?T.greenDim:T.redDim,
-                                    color:enviados>0?T.green:T.red,
-                                    border:`1px solid ${enviados>0?T.greenBor:T.redBor}`}}>
-                                    {(cli.disparos||[]).filter(d=>String(d.numero_pedido)===String(p0)&&d.status==='enviado').length}/{qtd} enviados
+                                  <span className="modal-wc-badge" style={{
+                                    background:env0>0?'rgba(0,230,118,.1)':'rgba(255,71,87,.1)',
+                                    color:env0>0?'#00e676':'#ff4757',
+                                    border:`1px solid ${env0>0?'rgba(0,230,118,.2)':'rgba(255,71,87,.2)'}`}}>
+                                    {env0}/{disp0.length} enviados
                                   </span>
                                 </div>
                               </div>
-                              {/* Mini jornada */}
+                              {/* Mini journey visual */}
                               <div style={{display:'flex',alignItems:'center',gap:0}}>
                                 {STAGES.map((st,si)=>{
-                                  const s = stFor(p0, st.id)
-                                  const Ico = ndIco(s)
+                                  const s  = stFor(p0,st.id)
+                                  const Ic = ndIco2(s)
                                   return (
                                     <React.Fragment key={st.id}>
                                       <div style={{display:'flex',flexDirection:'column',
-                                        alignItems:'center',gap:3,flex:1}}>
+                                        alignItems:'center',gap:2,flex:1}}>
                                         <div style={{width:18,height:18,borderRadius:'50%',
-                                          background:ndDim(s),
-                                          border:`1.5px solid ${ndBor(s)}`,
+                                          background:ndDim2(s),border:`1.5px solid ${ndBor2(s)}`,
                                           display:'flex',alignItems:'center',justifyContent:'center'}}>
-                                          {Ico && <Ico size={8} style={{color:ndCor(s)}}/>}
+                                          {Ic&&<Ic size={8} style={{color:ndCor2(s)}}/>}
                                         </div>
-                                        <span style={{fontSize:7,color:ndCor(s)||T.ink4,
-                                          textAlign:'center',lineHeight:1.2}}>{st.lbl}</span>
+                                        <span style={{fontSize:7,color:ndCor2(s)||'#3a3f5c',textAlign:'center'}}>
+                                          {st.lbl}
+                                        </span>
                                       </div>
-                                      {si < STAGES.length-1 && (
-                                        <div style={{width:8,height:1,
-                                          background:ndCor(stFor(p0,st.id))
-                                            ? `${ndCor(stFor(p0,st.id))}50`
-                                            :'rgba(255,255,255,.06)',
-                                          flexShrink:0,marginBottom:14}}/>
+                                      {si<STAGES.length-1&&(
+                                        <div style={{height:1,width:8,flexShrink:0,marginBottom:14,
+                                          background:ndCor2(stFor(p0,st.id))?`${ndCor2(stFor(p0,st.id))}40`:'rgba(255,255,255,.06)'}}/>
                                       )}
                                     </React.Fragment>
                                   )
                                 })}
                               </div>
-                              {/* Status text do pedido */}
-                              {(() => {
-                                const dispP0 = (cli?.disparos||[]).filter(d=>String(d.numero_pedido)===String(p0))
-                                const lastEnv = dispP0.find(d=>d.status==='enviado')
-                                const hasIgn  = dispP0.some(d=>d.status==='ignorado')
-                                const lastGat = dispP0[0]?.gatilho
-                                const lastMeta= GATILHO_META[lastGat]
-                                if (!lastMeta) return null
-                                const statusTxt = lastEnv
-                                  ? `${lastMeta.label} · entregue`
-                                  : hasIgn
-                                  ? `${lastMeta.label} · aguardando notif.`
-                                  : null
-                                return statusTxt ? (
-                                  <div style={{fontSize:9.5,color:hasIgn&&!lastEnv?T.amber:T.green,
-                                    marginTop:6,fontWeight:500,textAlign:'center',lineHeight:1.3}}>
-                                    {statusTxt}
-                                  </div>
-                                ) : null
-                              })()}
                             </div>
                           )
                         })()}
 
-                        {/* Cards menores: outros pedidos em grid 2 colunas */}
+                        {/* Cards menores: outros pedidos */}
                         {pedidos.length > 1 && (
                           <div style={{display:'grid',
-                            gridTemplateColumns:`repeat(${Math.min(pedidos.slice(1).length,2)},1fr)`,
-                            gap:6}}>
+                            gridTemplateColumns:`repeat(${Math.min(pedidos.slice(1).length,2)},1fr)`,gap:7}}>
                             {pedidos.slice(1,3).map(p=>{
                               const isA = selPed===String(p)
-                              const qtd = (cli.disparos||[]).filter(d=>String(d.numero_pedido)===String(p)).length
-                              const envP= (cli.disparos||[]).filter(d=>String(d.numero_pedido)===String(p)&&d.status==='enviado').length
+                              const disp = (cli.disparos||[]).filter(d=>String(d.numero_pedido)===String(p))
+                              const envP = disp.filter(d=>d.status==='enviado').length
                               return (
-                                <div key={p} onClick={()=>setSelPed(isA?'todos':String(p))}
-                                  style={{background:isA?T.purpleDim:T.bg2,
-                                    border:`1px solid ${isA?T.purpleBor:T.sep}`,
-                                    borderRadius:10,padding:'8px 10px',cursor:'pointer',
-                                    transition:'all .15s'}}>
+                                <div key={p} className={`modal-wc-order-card${isA?' active':''}`}
+                                  onClick={()=>setSelPed(isA?'todos':String(p))}
+                                  style={{padding:'8px 10px'}}>
                                   <div style={{display:'flex',alignItems:'center',
                                     justifyContent:'space-between',marginBottom:5}}>
                                     <span style={{fontSize:11,fontWeight:700,
-                                      color:isA?T.purple:T.ink3}}>#{p}</span>
-                                    <span style={{fontSize:8.5,color:envP>0?T.green:T.red}}>
-                                      {envP}/{qtd}
+                                      color:isA?'#a78bfa':'#6b7294'}}>#{p}</span>
+                                    <span style={{fontSize:9,color:envP>0?'#00e676':'#ff4757'}}>
+                                      {envP}/{disp.length}
                                     </span>
                                   </div>
-                                  {/* Mini jornada compacta */}
                                   <div style={{display:'flex',alignItems:'center',gap:2}}>
                                     {STAGES.map((st,si)=>{
                                       const s=stFor(p,st.id)
                                       return (
                                         <React.Fragment key={st.id}>
-                                          <div style={{width:10,height:10,borderRadius:'50%',
-                                            background:ndDim(s),
-                                            border:`1px solid ${ndBor(s)}`,flexShrink:0}}/>
+                                          <div style={{width:9,height:9,borderRadius:'50%',
+                                            background:ndDim2(s),border:`1px solid ${ndBor2(s)}`,flexShrink:0}}/>
                                           {si<STAGES.length-1&&<div style={{flex:1,height:1,
-                                            background:ndCor(s)?`${ndCor(s)}40`:'rgba(255,255,255,.05)'}}/>}
+                                            background:ndCor2(s)?`${ndCor2(s)}35`:'rgba(255,255,255,.05)'}}/>}
                                         </React.Fragment>
                                       )
                                     })}
@@ -1323,108 +1381,93 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                           </div>
                         )}
 
-                        {/* Chip "Todos" quando múltiplos pedidos */}
                         {pedidos.length > 1 && (
                           <button onClick={()=>setSelPed('todos')}
-                            style={{marginTop:6,width:'100%',padding:'5px',borderRadius:8,
-                              border:`1px solid ${selPed==='todos'?T.purpleBor:T.sep}`,
-                              background:selPed==='todos'?T.purpleDim:'transparent',
-                              color:selPed==='todos'?T.purple:T.ink4,
-                              fontSize:10.5,cursor:'pointer',fontWeight:selPed==='todos'?600:400}}>
+                            style={{marginTop:7,width:'100%',padding:'5px',borderRadius:8,fontSize:10.5,
+                              cursor:'pointer',fontFamily:'inherit',transition:'all .15s',
+                              border:`1px solid ${selPed==='todos'?'rgba(167,139,250,.3)':'rgba(255,255,255,.05)'}`,
+                              background:selPed==='todos'?'rgba(167,139,250,.08)':'transparent',
+                              color:selPed==='todos'?'#a78bfa':'#6b7294',fontWeight:selPed==='todos'?600:400}}>
                             Todos os pedidos ({pedidos.length})
                           </button>
                         )}
                       </div>
                     )}
 
-                    {/* ── TIMELINE ULTRA-COMPACTA AGRUPADA ── */}
-                    <div style={{flex:1,overflowY:'auto'}}>
+                    {/* Timeline ultra-compacta agrupada */}
+                    <div>
                       {grps.length===0 && (
-                        <div style={{padding:'32px 0',textAlign:'center',color:T.ink4}}>
-                          <MessageSquare size={24} style={{opacity:.2,marginBottom:8}}/>
-                          <div style={{fontSize:12,color:T.ink3}}>Nenhum disparo para este pedido</div>
+                        <div style={{padding:'32px 0',textAlign:'center',color:'#6b7294'}}>
+                          <MessageSquare size={22} style={{opacity:.2,marginBottom:8}}/>
+                          <div style={{fontSize:12}}>Nenhum disparo para este pedido</div>
                         </div>
                       )}
-                      {grps.map(([dt, evts])=>(
+                      {grps.map(([dt,evts])=>(
                         <div key={dt}>
                           {/* Cabeçalho de data */}
-                          <div style={{padding:'6px 16px 3px',display:'flex',
+                          <div style={{padding:'6px 16px 4px',display:'flex',
                             alignItems:'center',justifyContent:'space-between',
-                            position:'sticky',top:0,background:T.bg2,zIndex:1,
-                            borderBottom:`1px solid ${T.sep}`}}>
-                            <span style={{fontSize:8.5,color:T.ink4,textTransform:'uppercase',
+                            position:'sticky',top:0,zIndex:2,
+                            background:'#0d1017',borderBottom:'1px solid rgba(255,255,255,.04)'}}>
+                            <span style={{fontSize:8.5,color:'#3a3f5c',textTransform:'uppercase',
                               letterSpacing:'.07em',display:'flex',alignItems:'center',gap:5}}>
-                              <Clock size={9}/>{dt} · {evts.length} evento{evts.length>1?'s':''}
+                              <Clock size={9}/>
+                              {dt}{selPed!=='todos'?` · #${selPed}`:''} · {evts.length} evento{evts.length>1?'s':''}
                             </span>
                             {evts.some(d=>d.status==='ignorado'||d.status==='erro')&&(
                               <button onClick={async()=>{
                                 const al=evts.filter(d=>d.status==='ignorado'||d.status==='erro')
                                 for(const d of al) await onReenviar?.(d.id)
-                              }} style={{fontSize:9,color:T.purple,background:T.purpleDim,
-                                border:`1px solid ${T.purpleBor}`,borderRadius:5,
-                                padding:'2px 8px',cursor:'pointer',fontWeight:600}}>
-                                ↗ Reenviar
+                              }} style={{fontSize:9,color:'#a78bfa',
+                                background:'rgba(167,139,250,.1)',border:'1px solid rgba(167,139,250,.22)',
+                                borderRadius:5,padding:'2px 9px',cursor:'pointer',fontWeight:600}}>
+                                ↗ Reenviar todos
                               </button>
                             )}
                           </div>
-
-                          {/* Linhas de eventos */}
+                          {/* Linhas */}
                           {evts.map((d,i)=>{
                             const m   = GATILHO_META[d.gatilho]||{label:d.gatilho,icon:Zap,cor:'#6b7294'}
                             const Ic  = m.icon
-                            const sc  = d.status==='enviado'?T.green:d.status==='erro'?T.red:d.status==='aguardando'?T.amber:T.ink4
+                            const sc  = d.status==='enviado'?'#00e676':d.status==='erro'?'#ff4757':d.status==='aguardando'?'#ffb300':'#6b7294'
                             const sdim= d.status==='enviado'?T.greenDim:d.status==='erro'?T.redDim:d.status==='aguardando'?T.amberDim:T.gray
                             const sbr = d.status==='enviado'?T.greenBor:d.status==='erro'?T.redBor:d.status==='aguardando'?T.amberBor:T.grayBor
                             const sl  = d.status==='enviado'?'Enviado':d.status==='erro'?'Erro':d.status==='aguardando'?'Aguardando':'Ignorado'
                             const podeEnv = d.status==='ignorado'||d.status==='erro'
                             const jaEnv   = reenviados.includes(d.id)
                             return (
-                              <div key={d.id||i}
-                                style={{display:'flex',alignItems:'center',gap:8,
-                                  padding:'7px 16px',borderBottom:`1px solid ${T.sep}`,
-                                  background:'transparent',transition:'background .1s',cursor:'default'}}
-                                onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.02)'}
-                                onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                                {/* Hora */}
-                                <span style={{fontSize:9.5,color:T.ink4,width:42,flexShrink:0,
-                                  fontFamily:'monospace'}}>
+                              <div key={d.id||i} className="modal-wc-tl-row"
+                                onClick={()=>{}} style={{cursor:'default'}}>
+                                <span style={{fontSize:9.5,color:'#3a3f5c',width:44,
+                                  flexShrink:0,fontFamily:'monospace'}}>
                                   {new Date(d.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
                                 </span>
-                                {/* Ícone */}
                                 <div style={{width:22,height:22,borderRadius:7,flexShrink:0,
                                   background:`${m.cor}18`,border:`0.5px solid ${m.cor}28`,
                                   display:'flex',alignItems:'center',justifyContent:'center'}}>
                                   <Ic size={10} style={{color:m.cor}}/>
                                 </div>
-                                {/* Nome + pedido */}
-                                <div style={{flex:1,minWidth:0}}>
-                                  <span style={{fontSize:11.5,color:T.ink2,
-                                    overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
-                                    display:'block'}}>{m.label}</span>
+                                <span style={{flex:1,fontSize:11.5,color:'#b8bdd4',
+                                  overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                                  {m.label}
                                   {selPed==='todos'&&d.numero_pedido&&(
-                                    <span style={{fontSize:9,color:T.ink4}}>#{d.numero_pedido}</span>
+                                    <span style={{fontSize:9,color:'#3a3f5c',marginLeft:5}}>#{d.numero_pedido}</span>
                                   )}
-                                </div>
-                                {/* Status pill */}
+                                </span>
                                 <div style={{display:'inline-flex',alignItems:'center',gap:3,
                                   padding:'2px 7px',borderRadius:99,flexShrink:0,
                                   background:sdim,border:`0.5px solid ${sbr}`}}>
                                   <span style={{fontSize:9,fontWeight:700,color:sc,
                                     textTransform:'uppercase',letterSpacing:'.03em'}}>{sl}</span>
                                 </div>
-                                {/* Botão enviar */}
-                                {podeEnv && (
+                                {podeEnv&&(
                                   jaEnv
-                                  ? <span style={{fontSize:9.5,color:T.green,flexShrink:0,display:'flex',
-                                      alignItems:'center',gap:3}}>
+                                  ? <span style={{fontSize:9.5,color:'#00e676',flexShrink:0,
+                                      display:'flex',alignItems:'center',gap:3}}>
                                       <CheckCircle size={10}/>ok
                                     </span>
-                                  : <button onClick={()=>onReenviar?.(d.id)}
-                                      style={{padding:'4px 0 4px 12px',flexShrink:0,
-                                        background:'transparent',border:'none',
-                                        color:T.ink1,fontSize:14,fontWeight:700,
-                                        cursor:'pointer',letterSpacing:'-.01em',
-                                        borderLeft:`2px solid ${T.sep2}`}}>
+                                  : <button className="modal-wc-env-btn"
+                                      onClick={e=>{e.stopPropagation();onReenviar?.(d.id);setReenviados(p=>[...p,d.id])}}>
                                       Enviar
                                     </button>
                                 )}
@@ -1434,52 +1477,56 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                         </div>
                       ))}
                     </div>
+                  </>)}
+                </div>
 
-                    {/* ── FOOTER: envio manual compacto ── */}
-                    <div style={{flexShrink:0,borderTop:`1px solid ${T.sep}`,
-                      padding:'10px 14px',background:T.bg2,display:'flex',
-                      flexDirection:'column',gap:8}}>
-                      <div style={{display:'flex',gap:7}}>
-                        <select value={gatManual} onChange={e=>setGatManual(e.target.value)}
-                          style={{flex:1,padding:'8px 10px',borderRadius:9,fontSize:12,
-                            border:`1px solid ${T.sep2}`,background:T.bg3,color:T.ink2,
-                            outline:'none',appearance:'auto'}}>
-                          <option value="">Selecione o gatilho...</option>
-                          {Object.entries(GATILHO_META).map(([k,v])=>(
-                            <option key={k} value={k}>{v.label}</option>
-                          ))}
-                        </select>
-                        <input value={pedManual} onChange={e=>setPedManual(e.target.value)}
-                          placeholder="Pedido" style={{width:80,padding:'8px 10px',
-                            borderRadius:9,fontSize:12,border:`1px solid ${T.sep2}`,
-                            background:T.bg3,color:T.ink2,outline:'none'}}/>
-                      </div>
-                      <button disabled={!gatManual||enviandoMan} onClick={enviarManual}
-                        style={{width:'100%',padding:'10px',borderRadius:10,border:'none',
-                          fontSize:12.5,fontWeight:600,cursor:gatManual?'pointer':'not-allowed',
-                          background:envManOk?T.greenDim:gatManual?'linear-gradient(135deg,#5b21b6,#9333ea)':T.bg4,
-                          color:envManOk?T.green:gatManual?'#fff':T.ink4,
-                          display:'flex',alignItems:'center',justifyContent:'center',gap:7,
-                          opacity:!gatManual?.6:1,transition:'all .15s'}}>
-                        {enviandoMan
-                          ? <><RefreshCw size={12} style={{animation:'spin .7s linear infinite'}}/>Enviando...</>
-                          : envManOk
-                          ? <><CheckCircle size={12}/>Enviado com sucesso!</>
-                          : <><Send size={12}/>Enviar para este cliente</>}
-                      </button>
+                {/* ─── FOOTER ─── */}
+                <div style={{flexShrink:0,padding:'10px 14px',
+                  borderTop:'1px solid rgba(255,255,255,.05)',
+                  background:'#0d1017',display:'flex',flexDirection:'column',gap:9}}>
+                  {/* Disparo manual: select + pedido */}
+                  {cli && (
+                    <div style={{display:'flex',gap:7}}>
+                      <select value={gatManual} onChange={e=>setGatManual(e.target.value)}
+                        style={{flex:1,padding:'8px 10px',borderRadius:9,fontSize:12,
+                          border:'1px solid rgba(255,255,255,.08)',background:'#161b2c',
+                          color:'#b8bdd4',outline:'none',appearance:'auto'}}>
+                        <option value="">Selecione o gatilho...</option>
+                        {Object.entries(GATILHO_META).map(([k,v])=>(
+                          <option key={k} value={k}>{v.label}</option>
+                        ))}
+                      </select>
+                      <input value={pedManual} onChange={e=>setPedManual(e.target.value)}
+                        placeholder="Pedido" style={{width:78,padding:'8px 10px',
+                          borderRadius:9,fontSize:12,border:'1px solid rgba(255,255,255,.08)',
+                          background:'#161b2c',color:'#b8bdd4',outline:'none'}}/>
                     </div>
-                  </>
-                )}
-              </div>
+                  )}
+                  {/* Botões */}
+                  <div style={{display:'flex',gap:7}}>
+                    <button disabled={!gatManual||enviandoMan} onClick={enviarManual}
+                      className="modal-wc-btn-p" style={{flex:1,padding:11}}>
+                      {enviandoMan
+                        ? <><RefreshCw size={12} style={{animation:'spin .7s linear infinite'}}/>Enviando...</>
+                        : envManOk
+                        ? <><CheckCircle size={12}/>Enviado!</>
+                        : <><Send size={12}/>Enviar para este cliente ↗</>}
+                    </button>
+                    <button className="modal-wc-btn-s"
+                      style={{padding:'11px 14px',border:'1px solid rgba(255,255,255,.08)'}}>
+                      <MoreVertical size={15}/>
+                    </button>
+                  </div>
+                </div>
+              </>
             )
           })()}
+
         </div>
       </div>
     </>
   )
 }
-
-
 function tempoRel(iso) {
   if (!iso) return null
   const diff = Date.now() - new Date(iso).getTime()
