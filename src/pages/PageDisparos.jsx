@@ -12,7 +12,7 @@ import {
   RotateCcw, ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
   Eye, X, Navigation, Hash, Timer, AlertTriangle, ShieldCheck, MapPin,
   ToggleLeft, ToggleRight, Download, Info, MessageSquare,
-  ExternalLink, Radio, Settings, MoreVertical, Brain,
+  ExternalLink, Radio, Settings, MoreVertical, Brain, Phone,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
