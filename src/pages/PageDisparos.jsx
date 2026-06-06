@@ -12,7 +12,7 @@ import {
   RotateCcw, ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
   Eye, X, Navigation, Hash, Timer, AlertTriangle, ShieldCheck, MapPin,
   ToggleLeft, ToggleRight, Download, Info, MessageSquare,
-  ExternalLink, Radio, Settings, MoreVertical,
+  ExternalLink, Radio, Settings, MoreVertical, Brain,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -593,6 +593,17 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
   const [enviandoMan, setEnvMan]  = useState(false)
   const [envManOk, setEnvManOk]   = useState(false)
   const [ordemDisp, setOrdemDisp] = useState([])
+  const [ringReady,  setRingReady] = useState(false)
+
+  // Anima o ring do perfil após carregar (precisa de 1 frame para CSS transition funcionar)
+  useEffect(() => {
+    if (cli && !loadCli) {
+      const t = setTimeout(() => setRingReady(true), 80)
+      return () => clearTimeout(t)
+    } else {
+      setRingReady(false)
+    }
+  }, [cli, loadCli])
 
   useEffect(() => {
     if (tipo==='cliente' && dados?.telefone) {
@@ -737,43 +748,42 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
               ok:     { cor:'#00e676', dim:'rgba(0,230,118,.06)',  bor:'rgba(0,230,118,.22)',  Icon:CheckCircle },
             }[intel?.sev] || { cor:T.ink3, dim:T.gray, bor:T.grayBor, Icon:Info }
 
-            // Journey
+            // ── Journey de Rastreio ─────────────────────────────────────────────────────
+            // 5 etapas do ciclo de vida físico do pedido
             const JOURNEY = [
-              {id:'pagamento_aprovado', lbl:'Pago',     icon:CheckCircle},
-              {id:'em_separacao',       lbl:'Separado', icon:CheckCircle},
-              {id:'pedido_enviado',     lbl:'Enviado',  icon:Truck},
-              {id:'pedido_entregue',    lbl:'Entregue', icon:MapPin},
-              {id:'avaliar_pedido',     lbl:'Avaliação',icon:Star},
+              {id:'pagamento_aprovado', alt:['pedido_criado'],                     lbl:'Pago',       icon:Check,   step:0},
+              {id:'em_separacao',       alt:[],                                    lbl:'Separado',   icon:Package, step:1},
+              {id:'pedido_enviado',     alt:['pedido_coletado'],                   lbl:'Enviado',    icon:Truck,   step:2},
+              {id:'rastreio_em_transito',alt:['saiu_entrega','nao_entrou_unidade'],lbl:'Em Trânsito',icon:Radio,   step:3},
+              {id:'pedido_entregue',    alt:['nao_entregue','pacote_devolvido'],   lbl:'Entregue',   icon:MapPin,  step:4},
             ]
+            // Mapeia qualquer gatilho para um step (0-4) do ciclo
+            const GATILHO_STEP = {
+              'pedido_criado':0,'pagamento_aprovado':0,
+              'em_separacao':1,
+              'pedido_enviado':2,'pedido_coletado':2,
+              'rastreio_em_transito':3,'saiu_entrega':3,'nao_entrou_unidade':3,'tentativa_entrega':3,
+              'pedido_entregue':4,'nao_entregue':4,'pacote_devolvido':4,'pedido_devolvido':4,
+            }
+            const curStep = GATILHO_STEP[dados.gatilho] ?? -1
+
+            // Busca status / hora nos ordemDisp para todos os IDs de uma etapa
             const stSt   = sid => (ordemDisp||[]).find(x=>x.gatilho===sid)?.status || 'pendente'
             const stTime = sid => {
               const d = (ordemDisp||[]).find(x=>x.gatilho===sid)
               if (!d?.criado_em) return null
               return new Date(d.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
             }
-            const curIdx = JOURNEY.findIndex(s=>s.id===dados.gatilho)
-
-            // Status de cada nó
-            const ndClass = (s, isCur) =>
-              s==='enviado' ? 'done'
-              : isCur && (isIgn||isErr) ? 'here'
-              : isCur && isOk ? 'done'
-              : 'next'
-            const ndCor  = (s, isCur) =>
-              s==='enviado'?'#00e676':
-              isCur&&(isIgn||isErr)?'#ffb300':
-              isCur&&isOk?'#00e676':
-              null
-            const ndDim  = (s, isCur) =>
-              s==='enviado'?'rgba(0,230,118,.12)':
-              isCur&&(isIgn||isErr)?'rgba(255,179,0,.12)':
-              isCur&&isOk?'rgba(0,230,118,.12)':
-              'rgba(255,255,255,.04)'
-            const ndBor  = (s, isCur) =>
-              s==='enviado'?'rgba(0,230,118,.5)':
-              isCur&&(isIgn||isErr)?'#ffb300':
-              isCur&&isOk?'rgba(0,230,118,.5)':
-              'rgba(255,255,255,.1)'
+            const stepStatus = st => {
+              for (const id of [st.id,...(st.alt||[])]) {
+                const s = stSt(id); if (s !== 'pendente') return s
+              }; return 'pendente'
+            }
+            const stepTime = st => {
+              for (const id of [st.id,...(st.alt||[])]) {
+                const t = stTime(id); if (t) return t
+              }; return null
+            }
 
             const journeyStatus = isIgn
               ? `${new Date(dados.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} · Sem notif.`
@@ -785,8 +795,8 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
 
             const doR = async () => { setEnvR(true); try{ await onReenviar?.(dados.id); setJaR(true) }catch{}; setEnvR(false) }
 
-            // % de linha preenchida até o nó atual
-            const lineProgress = curIdx >= 0 ? Math.round((curIdx / (JOURNEY.length-1)) * 200) : 0
+            // Linha SVG: preenche até o step atual
+            const lineProgress = curStep > 0 ? Math.round((curStep / (JOURNEY.length-1)) * 200) : 0
 
             return (
               <>
@@ -973,53 +983,72 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                       </svg>
                       {/* Nós */}
                       {JOURNEY.map((st,si)=>{
-                        const s     = stSt(st.id)
-                        const isCur = st.id === dados.gatilho
-                        const cor2  = ndCor(s,isCur)
-                        const time  = stTime(st.id)
-                        const NdIc  = s==='enviado' ? Check
-                          : isCur&&(isIgn||isErr) ? st.icon
-                          : isCur&&isOk ? Check
-                          : st.icon  // sempre mostra o ícone da etapa (cinza se pendente)
-                        const nodeIconColor = s==='enviado' ? '#00e676'
-                          : isCur&&(isIgn||isErr) ? '#ffb300'
-                          : isCur&&isOk ? '#00e676'
-                          : '#2d3250'  // cinza profundo para pendente
+                        const step   = st.step
+                        const isDone = step < curStep          // etapa anterior → sempre verde
+                        const isCur  = step === curStep        // etapa do disparo atual
+                        const s      = stepStatus(st)          // status real do ordemDisp
+                        const time   = stepTime(st)
+
+                        // Cor: verde se concluído (anterior ou enviado OK), âmbar se atual+problema
+                        const nodeColor = isDone               ? '#00e676'
+                          : isCur && isOk                      ? '#00e676'
+                          : isCur && (isIgn||isErr)            ? '#ffb300'
+                          : 'rgba(255,255,255,.22)'
+
+                        const nodeBg = isDone                  ? 'rgba(0,230,118,.14)'
+                          : isCur && isOk                      ? 'rgba(0,230,118,.14)'
+                          : isCur && (isIgn||isErr)            ? 'rgba(255,179,0,.14)'
+                          : 'rgba(255,255,255,.04)'
+
+                        const nodeBorder = isDone              ? 'rgba(0,230,118,.55)'
+                          : isCur && isOk                      ? 'rgba(0,230,118,.55)'
+                          : isCur && (isIgn||isErr)            ? '#ffb300'
+                          : 'rgba(255,255,255,.1)'
+
+                        // Ícone: etapas anteriores → Check; etapa atual e futuras → ícone da etapa
+                        const NdIc = isDone ? Check : st.icon
+
                         return (
                           <div key={st.id} style={{display:'flex',flexDirection:'column',
                             alignItems:'center',gap:4,flex:1,minWidth:0}}>
                             {/* Círculo nó */}
                             <div style={{
-                              width:24,height:24,borderRadius:'50%',
-                              background:ndDim(s,isCur),
-                              border:`2px solid ${ndBor(s,isCur)}`,
+                              width:26,height:26,borderRadius:'50%',
+                              background:nodeBg,
+                              border:`2px solid ${nodeBorder}`,
                               display:'flex',alignItems:'center',justifyContent:'center',
-                              boxShadow:isCur&&!isOk?undefined:cor2?`0 0 10px ${cor2}30`:undefined,
-                              animation:isCur&&!isOk?'glowNode 2s ease-in-out infinite':undefined,
-                              position:'relative',zIndex:1
+                              boxShadow:isCur&&!isOk?undefined:isDone||isOk?`0 0 12px ${nodeColor}35`:undefined,
+                              animation:isCur&&(isIgn||isErr)?'glowNode 2s ease-in-out infinite':undefined,
+                              position:'relative',zIndex:1,flexShrink:0,
+                              transition:'all .3s ease'
                             }}>
-                              {NdIc&&<NdIc size={10} style={{color:nodeIconColor}}/>}
+                              <NdIc size={isDone?10:11} style={{color:nodeColor}}/>
                             </div>
-                            {/* Label + sub-label */}
+                            {/* Label */}
                             <span style={{fontSize:8,textAlign:'center',lineHeight:1.3,
-                              color:isCur?cor2||'#ffb300':cor2||'#6b7294',
-                              fontWeight:isCur?700:400,maxWidth:48,
+                              color:isDone||isCur?nodeColor:'rgba(255,255,255,.22)',
+                              fontWeight:isCur?700:isDone?600:400,maxWidth:52,
                               overflow:'hidden',textOverflow:'ellipsis'}}>
                               {st.lbl}
                             </span>
+                            {/* Sub-label para ignorado */}
                             {isCur&&isIgn&&(
-                              <span style={{fontSize:7,color:'rgba(255,179,0,.55)',fontWeight:600,textAlign:'center'}}>
+                              <span style={{fontSize:7,color:'rgba(255,179,0,.6)',fontWeight:600,
+                                textAlign:'center',lineHeight:1.2,marginTop:-2}}>
                                 sem notif.
                               </span>
                             )}
+                            {/* Hora real do disparo */}
                             {time&&(
-                              <span style={{fontSize:8,color:'#3a3f5c',fontFamily:'monospace',letterSpacing:'-.02em'}}>
+                              <span style={{fontSize:7.5,color:'#3a3f5c',fontFamily:'monospace',
+                                letterSpacing:'-.02em',marginTop:-2}}>
                                 {time}
                               </span>
                             )}
                           </div>
                         )
                       })}
+
                     </div>
                   </div>
 
@@ -1203,13 +1232,11 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                         <circle cx="27" cy="27" r="22" fill="none"
                           stroke={rCor} strokeWidth="4.5"
                           strokeDasharray={`${CIRC}`}
-                          strokeDashoffset={`${CIRC}`}
                           strokeLinecap="round"
                           transform="rotate(-90 27 27)"
                           style={{
-                            animation:'none',
-                            transition:'stroke-dashoffset 1.2s ease .4s',
-                            strokeDashoffset: !loadCli ? dashOff : CIRC
+                            transition:'stroke-dashoffset 1.4s cubic-bezier(.4,0,.2,1) .1s',
+                            strokeDashoffset: ringReady ? dashOff : CIRC
                           }}/>
                       </svg>
                       <div style={{position:'absolute',inset:0,display:'flex',
@@ -1294,7 +1321,11 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                         <div style={{borderRadius:10,padding:'11px 13px',
                           background:'rgba(255,179,0,.05)',border:'1px solid rgba(255,179,0,.18)',
                           display:'flex',gap:11,alignItems:'flex-start'}}>
-                          <div style={{fontSize:16,flexShrink:0,marginTop:1}}>🧠</div>
+                          <div style={{width:32,height:32,borderRadius:9,flexShrink:0,
+                            background:'rgba(255,179,0,.15)',border:'1px solid rgba(255,179,0,.25)',
+                            display:'flex',alignItems:'center',justifyContent:'center'}}>
+                            <Brain size={17} style={{color:'#ffb300'}}/>
+                          </div>
                           <div style={{flex:1}}>
                             <div style={{fontSize:12,fontWeight:700,color:'#ffb300',marginBottom:5}}>
                               {insightRich
