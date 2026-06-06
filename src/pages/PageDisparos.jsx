@@ -607,15 +607,18 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
 
   useEffect(() => {
     if (tipo==='cliente' && dados?.telefone) {
-      setLoad(true); setCli(null)
-      fetch(`${api}/api/dashboard/disparos-cliente/${encodeURIComponent(dados.telefone)}`)
-        .then(r=>r.json())
-        .then(d=>{
-          // Normaliza: aceita tanto { resumo, disparos } quanto resposta flat ou erro
+      const ctrl = new AbortController()
+      setLoad(true); setCli(null); setRingReady(false)
+
+      fetch(`${api}/api/dashboard/disparos-cliente/${encodeURIComponent(dados.telefone)}`,
+        { signal: ctrl.signal }
+      )
+        .then(r => r.json())
+        .then(d => {
+          if (ctrl.signal.aborted) return
           if (d && d.resumo) {
             setCli(d)
           } else if (d && Array.isArray(d.disparos)) {
-            // Resposta sem resumo: constrói resumo a partir dos disparos
             const dis = d.disparos
             const enviados  = dis.filter(x=>x.status==='enviado').length
             const erros     = dis.filter(x=>x.status==='erro').length
@@ -633,15 +636,17 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
               }
             })
           } else {
-            // erro ou resposta inválida — mostra modal vazio mas funcional
             setCli({ disparos:[], resumo:{ nome:'', total:0, enviados:0, erros:0, ignorados:0, pedidos:[], telefone:dados.telefone, ultimo_contato:null } })
           }
           setLoad(false)
         })
-        .catch(()=>{
+        .catch(e => {
+          if (e?.name === 'AbortError') return
           setCli({ disparos:[], resumo:{ nome:'', total:0, enviados:0, erros:0, ignorados:0, pedidos:[], telefone:dados.telefone, ultimo_contato:null } })
           setLoad(false)
         })
+
+      return () => ctrl.abort()
     }
     if (tipo==='disparo' && dados?.numero_pedido) {
       setOrdemDisp([])
