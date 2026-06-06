@@ -860,6 +860,168 @@ function MolisePanel({ sugestoes, sugestoesFechadas, onDismiss, onGoto, onClose 
 }
 
 // ─── SIDEBAR DE NAVEGAÇÃO ─────────────────────────────────────────────────────
+// ─── ⌘K COMMAND PALETTE ───────────────────────────────────────────────────────
+function CmdGatilhos({ open, onClose, gatilhos, configs, onSelect, onToggle, labelDe }) {
+  const [q, setQ] = useState('')
+  const inputRef  = useRef(null)
+
+  useEffect(() => {
+    if (open) { setQ(''); setTimeout(()=>inputRef.current?.focus(), 60) }
+  }, [open])
+
+  useEffect(() => {
+    const fn = e => { if (e.key==='Escape') onClose() }
+    document.addEventListener('keydown', fn)
+    return () => document.removeEventListener('keydown', fn)
+  }, [onClose])
+
+  const filtrados = useMemo(() => {
+    const busca = q.toLowerCase().trim()
+    return gatilhos.filter(g =>
+      !busca ||
+      g.label.toLowerCase().includes(busca) ||
+      g.id.toLowerCase().includes(busca) ||
+      (g.desc||'').toLowerCase().includes(busca)
+    )
+  }, [gatilhos, q])
+
+  if (!open) return null
+  return (
+    <>
+      {/* Overlay */}
+      <div onClick={onClose} style={{
+        position:'fixed',inset:0,zIndex:9000,
+        background:'rgba(0,0,0,.65)',backdropFilter:'blur(4px)',
+        animation:'gat-fadeUp .15s ease'
+      }}/>
+
+      {/* Painel ⌘K */}
+      <div style={{
+        position:'fixed',top:'18%',left:'50%',transform:'translateX(-50%)',
+        zIndex:9001,width:'min(540px,92vw)',
+        background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+        border:`1px solid ${T.sep2}`,borderRadius:18,overflow:'hidden',
+        boxShadow:'0 32px 80px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.06) inset',
+        animation:'gat-fadeUp .25s cubic-bezier(.2,.8,.2,1)'
+      }}>
+        {/* Campo de busca */}
+        <div style={{display:'flex',alignItems:'center',gap:10,
+          padding:'13px 16px',borderBottom:`1px solid ${T.sep}`,
+          background:`linear-gradient(90deg,${T.bg3},${T.bg2})`}}>
+          <Search size={15} style={{color:T.ink4,flexShrink:0}}/>
+          <input
+            ref={inputRef}
+            value={q}
+            onChange={e=>setQ(e.target.value)}
+            placeholder="Buscar gatilho..."
+            style={{flex:1,background:'transparent',border:'none',outline:'none',
+              fontSize:14,color:T.ink1,fontFamily:'inherit'}}/>
+          {q&&(
+            <button onClick={()=>setQ('')}
+              style={{background:'none',border:'none',cursor:'pointer',
+                color:T.ink4,display:'flex',padding:2}}>
+              <X size={13}/>
+            </button>
+          )}
+          <kbd style={{fontSize:9.5,padding:'2px 7px',borderRadius:6,
+            background:T.bg4,color:T.ink4,border:`1px solid ${T.sep2}`,
+            fontFamily:'inherit',flexShrink:0}}>Esc</kbd>
+        </div>
+
+        {/* Lista */}
+        <div style={{maxHeight:380,overflowY:'auto'}}>
+          {filtrados.length===0?(
+            <div style={{padding:'32px',textAlign:'center',color:T.ink4}}>
+              <Search size={20} style={{opacity:.2,display:'block',margin:'0 auto 8px'}}/>
+              <p style={{fontSize:12,margin:0}}>Nenhum gatilho encontrado para "{q}"</p>
+            </div>
+          ):filtrados.map(g=>{
+            const cfg    = configs[g.id]
+            const ativo  = cfg?.ativo ?? false
+            const GIc    = g.icon || Zap
+            const nomeCustom = labelDe?.(g.id)
+            return (
+              <div key={g.id}
+                style={{display:'flex',alignItems:'center',gap:11,
+                  padding:'10px 16px',cursor:'pointer',
+                  borderBottom:`1px solid ${T.sep}`,transition:'background .1s'}}
+                onMouseEnter={e=>e.currentTarget.style.background=T.bg3}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+                onClick={()=>{ onSelect(g.id); onClose() }}>
+
+                {/* Ícone */}
+                <div style={{width:34,height:34,borderRadius:10,flexShrink:0,
+                  background:`${g.cor}18`,border:`1px solid ${g.cor}30`,
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  boxShadow:`0 2px 8px ${g.cor}15`}}>
+                  <GIc size={15} style={{color:g.cor}}/>
+                </div>
+
+                {/* Texto */}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
+                    <span style={{fontSize:13,fontWeight:600,color:T.ink1}}>
+                      {nomeCustom||g.label}
+                    </span>
+                    {nomeCustom&&nomeCustom!==g.label&&(
+                      <span style={{fontSize:9.5,color:T.ink4}}>({g.label})</span>
+                    )}
+                  </div>
+                  <span style={{fontSize:10.5,color:T.ink4,
+                    overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
+                    display:'block',maxWidth:320}}>
+                    {g.desc||g.id}
+                  </span>
+                </div>
+
+                {/* Status toggle */}
+                <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+                  <span style={{fontSize:9.5,color:ativo?T.green:T.ink4,fontWeight:600}}>
+                    {ativo?'Ativo':'Inativo'}
+                  </span>
+                  <button
+                    onClick={e=>{e.stopPropagation();onToggle?.(g.id)}}
+                    style={{position:'relative',width:36,height:20,borderRadius:99,
+                      border:'none',cursor:'pointer',flexShrink:0,
+                      background:ativo?`linear-gradient(90deg,${T.green},${T.green}cc)`:'rgba(255,255,255,.1)',
+                      boxShadow:ativo?`0 0 10px ${T.green}40`:undefined,
+                      transition:'all .2s'}}>
+                    <span style={{position:'absolute',width:14,height:14,
+                      background:'#fff',borderRadius:'50%',
+                      top:3,left:ativo?19:3,
+                      transition:'left .18s ease',
+                      boxShadow:'0 1px 4px rgba(0,0,0,.3)'}}/>
+                  </button>
+                  <ChevronRight size={13} style={{color:T.ink4}}/>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Footer */}
+        <div style={{padding:'8px 16px',borderTop:`1px solid ${T.sep}`,
+          display:'flex',alignItems:'center',gap:12,
+          background:`linear-gradient(90deg,${T.bg2},${T.bg3})`}}>
+          <div style={{display:'flex',alignItems:'center',gap:5,fontSize:10,color:T.ink4}}>
+            <kbd style={{fontSize:9,padding:'1px 6px',borderRadius:5,
+              background:T.bg4,border:`1px solid ${T.sep2}`}}>↵</kbd>
+            abrir
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:5,fontSize:10,color:T.ink4}}>
+            <kbd style={{fontSize:9,padding:'1px 6px',borderRadius:5,
+              background:T.bg4,border:`1px solid ${T.sep2}`}}>↑↓</kbd>
+            navegar
+          </div>
+          <span style={{marginLeft:'auto',fontSize:10,color:T.ink4}}>
+            {filtrados.length} gatilho{filtrados.length!==1?'s':''}
+          </span>
+        </div>
+      </div>
+    </>
+  )
+}
+
 function GatilhoSidebar({ gatilhos, configs, indicadores, selId, onSelect, labelDe,
                           insightsGat, insDismiss, toggleAtivo, custos }) {
   const [busca,   setBusca]   = useState('')
