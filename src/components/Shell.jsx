@@ -37,6 +37,7 @@ const PageCaixa          = lazy(()=>import('../pages/PageCaixa'))
 const PageAtendimento    = lazy(()=>import('../pages/PageAtendimento'))
 const PageIAConfig       = lazy(()=>import('../pages/PageIAConfig'))
 const PageLLMConfig      = lazy(()=>import('../pages/PageLLMConfig'))
+const PageCentralConfig  = lazy(()=>import('../pages/PageCentralConfig'))
 const PageGatilhos       = lazy(()=>import('../pages/PageGatilhos'))
 const PageConversas      = lazy(()=>import('../pages/PageConversas'))
 const PageDisparos       = lazy(()=>import('../pages/PageDisparos'))
@@ -204,6 +205,7 @@ export default function Shell() {
       case 'caixa':           return <Page nome="Caixa"         comp={PageCaixa}/>
       case 'iaconfig':        return <Page nome="Config IA"     comp={PageIAConfig}/>
       case 'llmconfig':       return <Page nome="LLM"           comp={PageLLMConfig}/>
+      case 'config':          return <Page nome="Configurações"  comp={PageCentralConfig}/>
       case 'gatilhos':        return <Page nome="Gatilhos"      comp={PageGatilhos}/>
       case 'rastreio-config': return <Page nome="Rastreio"      comp={PageRastreioConfig}/>
       case 'campanhas':       return <Page nome="Campanhas"     comp={PageCampanhas}/>
