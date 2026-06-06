@@ -1,34 +1,38 @@
 /**
- * PageCentralConfig v2 — NIVELMAX
- * Design cirúrgico · T system · Glow premium · Live preview · Calendar
+ * PageCentralConfig v3 — ABSOLUTE NIVELMAX
+ * Cockpit de monitoramento · Integrações · SLA cirúrgico ·
+ * Gestão de contatos · Auditoria com diff · Rastreio unificado
  */
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Settings2, Zap, Truck, Clock, ShieldOff, Download, History,
   LayoutDashboard, Lock, Save, RefreshCw, Check, X, Plus,
   ChevronRight, ChevronDown, Activity, AlertTriangle, CheckCircle,
-  TrendingUp, TrendingDown, Minus, Info, Calendar, Moon, Sun,
-  FileDown, Bell, Shield, Package, ShoppingBag, CreditCard,
-  Brain, Star, Radio, AlertCircle, XCircle, FileText,
-  Users, MessageSquare, ToggleLeft, Search,
+  TrendingUp, TrendingDown, Minus, Info, Moon, Sun, FileDown,
+  Bell, Shield, Package, ShoppingBag, CreditCard, Brain, Star,
+  Radio, AlertCircle, XCircle, FileText, Users, MessageSquare,
+  Search, Wifi, WifiOff, Database, Globe, Cpu, BarChart2,
+  ArrowRight, Eye, Send, Hash, Calendar, Filter, MoreHorizontal,
+  PhoneOff, Phone, Bot, UserCheck, UserX, Tag, Layers,
+  GitCommit, GitBranch, RotateCcw, ExternalLink, Zap as ZapIcon,
 } from 'lucide-react'
 import {
-  AreaChart, Area, ResponsiveContainer,
-  Tooltip, XAxis, YAxis, CartesianGrid,
+  AreaChart, Area, ResponsiveContainer, Tooltip,
+  XAxis, YAxis, CartesianGrid, BarChart, Bar, Cell,
 } from 'recharts'
 
 const API = import.meta.env.VITE_API_URL || ''
 
-// ── T system ──────────────────────────────────────────────────────────────────
 const T = {
   bg0:'#08090f', bg1:'#0d1017', bg2:'#111520', bg3:'#161b2c', bg4:'#1c2238',
   ink1:'#eef0f6', ink2:'#b8bdd4', ink3:'#7b81a0', ink4:'#3a3f5c',
-  green:'#00e676', greenDim:'rgba(0,230,118,.08)', greenBor:'rgba(0,230,118,.28)',
+  green:'#00e676', greenDim:'rgba(0,230,118,.09)', greenBor:'rgba(0,230,118,.3)',
   amber:'#ffb300', amberDim:'rgba(255,179,0,.09)', amberBor:'rgba(255,179,0,.3)',
   red:'#ff4757',  redDim:'rgba(255,71,87,.09)',   redBor:'rgba(255,71,87,.3)',
   purple:'#a78bfa',purpleDim:'rgba(167,139,250,.1)',purpleBor:'rgba(167,139,250,.3)',
   cyan:'#06b6d4', cyanDim:'rgba(6,182,212,.09)',   cyanBor:'rgba(6,182,212,.28)',
   blue:'#4f8ef7', blueDim:'rgba(79,142,247,.09)',  blueBor:'rgba(79,142,247,.28)',
+  orange:'#ff9f0a',orangeDim:'rgba(255,159,10,.09)',
   sep:'rgba(255,255,255,.05)', sep2:'rgba(255,255,255,.09)',
   gray:'rgba(255,255,255,.04)',
 }
@@ -37,308 +41,588 @@ const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
 const ALWAYS_ON = new Set(['pedido_criado','pagamento_aprovado','pagamento_pendente','cancelamento','boas_vindas'])
 
 const GATILHOS_DEF = [
-  { id:'pedido_criado',      label:'Pedido Criado',        grupo:'Compra & Pagamento', cor:'#00d4aa', icon:ShoppingBag  },
-  { id:'pagamento_aprovado', label:'Pagamento Aprovado',   grupo:'Compra & Pagamento', cor:'#4a9fff', icon:CreditCard   },
-  { id:'pagamento_pendente', label:'Pagamento Pendente',   grupo:'Compra & Pagamento', cor:'#f59e0b', icon:Clock        },
-  { id:'pix_pendente',       label:'PIX Pendente',         grupo:'Compra & Pagamento', cor:'#06b6d4', icon:CreditCard   },
-  { id:'em_separacao',       label:'Em Separação',         grupo:'Preparação & Nota',  cor:'#8b5cf6', icon:Package      },
-  { id:'nfe_emitida',        label:'NF-e Emitida',         grupo:'Preparação & Nota',  cor:'#06b6d4', icon:FileText     },
-  { id:'pedido_enviado',     label:'Pedido Enviado',       grupo:'Envio & Rastreio',   cor:'#a78bfa', icon:Truck        },
-  { id:'pedido_coletado',    label:'Pedido Coletado',      grupo:'Envio & Rastreio',   cor:'#06b6d4', icon:Package      },
-  { id:'rastreio_em_transito',label:'Em Trânsito',         grupo:'Envio & Rastreio',   cor:'#4a9fff', icon:Radio        },
-  { id:'saiu_entrega',       label:'Saiu para Entrega',    grupo:'Envio & Rastreio',   cor:'#f59e0b', icon:Truck        },
-  { id:'tentativa_entrega',  label:'Tentativa de Entrega', grupo:'Envio & Rastreio',   cor:'#f59e0b', icon:AlertTriangle},
-  { id:'pedido_entregue',    label:'Pedido Entregue',      grupo:'Envio & Rastreio',   cor:'#22c55e', icon:Package      },
-  { id:'nao_entregue',       label:'Não Entregue',         grupo:'Envio & Rastreio',   cor:'#ef4444', icon:AlertCircle  },
-  { id:'cancelamento',       label:'Pedido Cancelado',     grupo:'Pós-venda',          cor:'#6b7280', icon:XCircle      },
-  { id:'avaliar_pedido',     label:'Avaliação Pós-venda',  grupo:'Pós-venda',          cor:'#f87171', icon:Star         },
-  { id:'estorno_realizado',  label:'Estorno Realizado',    grupo:'Pós-venda',          cor:'#f97316', icon:RefreshCw    },
-  { id:'reengajamento',      label:'Reengajamento',        grupo:'Inteligência',       cor:'#7c6af7', icon:Brain        },
+  { id:'pedido_criado',      label:'Pedido Criado',        grupo:'Compra & Pagamento', cor:'#00d4aa', icon:ShoppingBag   },
+  { id:'pagamento_aprovado', label:'Pagamento Aprovado',   grupo:'Compra & Pagamento', cor:'#4a9fff', icon:CreditCard    },
+  { id:'pagamento_pendente', label:'Pagamento Pendente',   grupo:'Compra & Pagamento', cor:'#f59e0b', icon:Clock         },
+  { id:'pix_pendente',       label:'PIX Pendente',         grupo:'Compra & Pagamento', cor:'#06b6d4', icon:CreditCard    },
+  { id:'em_separacao',       label:'Em Separação',         grupo:'Preparação & Nota',  cor:'#8b5cf6', icon:Package       },
+  { id:'nfe_emitida',        label:'NF-e Emitida',         grupo:'Preparação & Nota',  cor:'#06b6d4', icon:FileText      },
+  { id:'pedido_enviado',     label:'Pedido Enviado',       grupo:'Envio & Rastreio',   cor:'#a78bfa', icon:Truck         },
+  { id:'pedido_coletado',    label:'Pedido Coletado',      grupo:'Envio & Rastreio',   cor:'#06b6d4', icon:Package       },
+  { id:'rastreio_em_transito',label:'Em Trânsito',         grupo:'Envio & Rastreio',   cor:'#4a9fff', icon:Radio         },
+  { id:'saiu_entrega',       label:'Saiu para Entrega',    grupo:'Envio & Rastreio',   cor:'#f59e0b', icon:Truck         },
+  { id:'tentativa_entrega',  label:'Tentativa de Entrega', grupo:'Envio & Rastreio',   cor:'#f59e0b', icon:AlertTriangle },
+  { id:'pedido_entregue',    label:'Pedido Entregue',      grupo:'Envio & Rastreio',   cor:'#22c55e', icon:Package       },
+  { id:'nao_entregue',       label:'Não Entregue',         grupo:'Envio & Rastreio',   cor:'#ef4444', icon:AlertCircle   },
+  { id:'cancelamento',       label:'Pedido Cancelado',     grupo:'Pós-venda',          cor:'#6b7280', icon:XCircle       },
+  { id:'avaliar_pedido',     label:'Avaliação Pós-venda',  grupo:'Pós-venda',          cor:'#f87171', icon:Star          },
+  { id:'estorno_realizado',  label:'Estorno Realizado',    grupo:'Pós-venda',          cor:'#f97316', icon:RefreshCw     },
+  { id:'reengajamento',      label:'Reengajamento IA',     grupo:'Inteligência',       cor:'#7c6af7', icon:Brain         },
 ]
 
 const CANAL_META = {
-  loja:         { cor:'#1D9E75', lbl:'Loja Própria',  mktp:false },
-  nuvemshop:    { cor:'#4f46e5', lbl:'Nuvemshop',     mktp:false },
-  mercadolivre: { cor:'#f5a623', lbl:'Mercado Livre', mktp:true  },
-  shopee:       { cor:'#ee4d2d', lbl:'Shopee',        mktp:true  },
-  shein:        { cor:'#a0a0a0', lbl:'Shein',         mktp:true  },
-  tiktokshop:   { cor:'#ff0050', lbl:'TikTok Shop',   mktp:true  },
+  loja:         { cor:'#1D9E75', lbl:'Loja Própria',  desc:'Monitorado ativamente',          mktp:false },
+  nuvemshop:    { cor:'#4f46e5', lbl:'Nuvemshop',     desc:'Integração nativa',              mktp:false },
+  mercadolivre: { cor:'#f5a623', lbl:'Mercado Livre', desc:'Rastreio próprio do marketplace', mktp:true  },
+  shopee:       { cor:'#ee4d2d', lbl:'Shopee',        desc:'Rastreio próprio do marketplace', mktp:true  },
+  shein:        { cor:'#a0a0a0', lbl:'Shein',         desc:'Rastreio via API externa',        mktp:true  },
+  tiktokshop:   { cor:'#ff0050', lbl:'TikTok Shop',   desc:'Rastreio próprio do marketplace', mktp:true  },
 }
 
-// ── Utilitários ────────────────────────────────────────────────────────────────
 const tempoRel = (iso) => {
   if (!iso) return null
   const m = Math.floor((Date.now()-new Date(iso))/60000)
-  if (m < 1) return 'agora'
-  if (m < 60) return `${m}min`
-  if (m < 1440) return `${Math.floor(m/60)}h`
-  return `${Math.floor(m/1440)}d`
+  if (m<1) return 'agora'; if(m<60) return `${m}min`
+  if (m<1440) return `${Math.floor(m/60)}h`; return `${Math.floor(m/1440)}d`
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// COMPONENTES PREMIUM
-// ─────────────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════
+// ATOMS
+// ═══════════════════════════════════════════════════
 
-// Toggle premium com glow colorido
-function PremiumToggle({ value, onChange, cor=T.green, size='md', label, disabled }) {
-  const w = size==='sm' ? 36 : 46
-  const h = size==='sm' ? 20 : 26
-  const th= size==='sm' ? 14 : 20
-  const [hov, setHov] = useState(false)
+function PulsingDot({ cor=T.green, size=8 }) {
   return (
-    <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-      <button onClick={()=>!disabled&&onChange(!value)}
-        onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
-        disabled={disabled}
-        style={{
-          position:'relative', width:w, height:h, borderRadius:99,
-          border:'none', cursor:disabled?'not-allowed':'pointer',
-          flexShrink:0,
-          background: value
-            ? `linear-gradient(90deg,${cor},${cor}cc)`
-            : 'rgba(255,255,255,.1)',
-          boxShadow: value
-            ? `0 0 ${hov?20:14}px ${cor}${hov?'90':'50'}, inset 0 1px 0 rgba(255,255,255,.2)`
-            : hov ? '0 0 8px rgba(255,255,255,.1)' : undefined,
-          transition:'all .25s cubic-bezier(.4,0,.2,1)',
-          opacity: disabled?.5:1,
-        }}>
-        <span style={{
-          position:'absolute', top:(h-th)/2, height:th, width:th,
-          borderRadius:'50%', background:'#fff',
-          left: value ? w-th-(h-th)/2 : (h-th)/2,
-          transition:'left .22s cubic-bezier(.4,0,.2,1)',
-          boxShadow:'0 2px 8px rgba(0,0,0,.35), 0 1px 2px rgba(0,0,0,.2)',
-        }}/>
-      </button>
-      {label && (
-        <span style={{ fontSize:12,fontWeight:600,color:value?cor:T.ink4,transition:'color .2s' }}>
-          {label}
-        </span>
-      )}
-    </div>
+    <span style={{ position:'relative',display:'inline-flex',width:size,height:size,flexShrink:0 }}>
+      <span style={{ position:'absolute',inset:0,borderRadius:'50%',
+        background:cor,opacity:.4,animation:'cfg-ping 2s ease-out infinite' }}/>
+      <span style={{ width:size,height:size,borderRadius:'50%',background:cor,
+        display:'block',boxShadow:`0 0 ${size}px ${cor}` }}/>
+    </span>
   )
 }
 
-// Card premium com glow colorido
-function GlowCard({ children, cor, style={}, onClick, accentLine=true }) {
-  const [hov, setHov] = useState(false)
+function PremiumToggle({ value, onChange, cor=T.green, size='md', disabled }) {
+  const w=size==='sm'?38:48, h=size==='sm'?22:28, th=size==='sm'?16:22
   return (
-    <div onClick={onClick}
-      onMouseEnter={()=>onClick&&setHov(true)}
-      onMouseLeave={()=>onClick&&setHov(false)}
-      style={{
-        background:`linear-gradient(135deg,${T.bg2} 0%,${T.bg3} 100%)`,
-        border:`1px solid ${hov&&cor?cor+'35':cor?cor+'20':T.sep2}`,
-        borderRadius:16,
-        overflow:'hidden',
-        boxShadow: hov&&cor
-          ? `0 16px 48px rgba(0,0,0,.4),0 0 0 1px ${cor}12 inset,0 -2px 0 ${cor}30 inset`
-          : `0 8px 28px rgba(0,0,0,.25),0 1px 0 rgba(255,255,255,.04) inset`,
-        cursor:onClick?'pointer':'default',
-        transition:'all .2s cubic-bezier(.4,0,.2,1)',
-        transform:hov&&onClick?'translateY(-1px)':'translateY(0)',
-        position:'relative',
-        ...style,
-      }}>
-      {/* Top accent */}
-      {accentLine && cor && (
-        <div style={{ height:2.5,background:`linear-gradient(90deg,${cor},${cor}60,transparent)`,
-          boxShadow:`0 0 12px ${cor}60` }}/>
-      )}
+    <button onClick={()=>!disabled&&onChange(!value)} disabled={disabled}
+      style={{ position:'relative',width:w,height:h,borderRadius:99,border:'none',
+        cursor:disabled?'not-allowed':'pointer',flexShrink:0,
+        background:value?`linear-gradient(90deg,${cor},${cor}cc)`:'rgba(255,255,255,.1)',
+        boxShadow:value?`0 0 18px ${cor}55,inset 0 1px 0 rgba(255,255,255,.2)`:undefined,
+        transition:'all .25s cubic-bezier(.4,0,.2,1)',opacity:disabled?.5:1 }}>
+      <span style={{ position:'absolute',top:(h-th)/2,height:th,width:th,borderRadius:'50%',
+        background:'#fff',left:value?w-th-(h-th)/2:(h-th)/2,
+        transition:'left .22s cubic-bezier(.4,0,.2,1)',
+        boxShadow:'0 2px 8px rgba(0,0,0,.35)' }}/>
+    </button>
+  )
+}
+
+function GlowCard({ children, cor, style={}, onClick, top=true }) {
+  const [hov,setHov]=useState(false)
+  return (
+    <div onClick={onClick} onMouseEnter={()=>onClick&&setHov(true)} onMouseLeave={()=>setHov(false)}
+      style={{ background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+        border:`1px solid ${hov&&cor?cor+'40':cor?cor+'20':T.sep2}`,
+        borderRadius:16,overflow:'hidden',cursor:onClick?'pointer':'default',
+        boxShadow:hov&&cor?`0 20px 60px rgba(0,0,0,.45),0 0 0 1px ${cor}12 inset`
+          :`0 8px 28px rgba(0,0,0,.25),0 1px 0 rgba(255,255,255,.04) inset`,
+        transform:hov&&onClick?'translateY(-2px)':'translateY(0)',
+        transition:'all .22s cubic-bezier(.4,0,.2,1)', ...style }}>
+      {top&&cor&&<div style={{ height:2.5,background:`linear-gradient(90deg,${cor},${cor}50,transparent)`,
+        boxShadow:`0 0 14px ${cor}60` }}/>}
       {children}
     </div>
   )
 }
 
-// Chip de status/badge
-function StatusChip({ label, cor, icon:Ic, pulse, size='sm' }) {
-  const fs = size==='sm' ? 9.5 : 11
+function Chip({ label, cor, icon:Ic, pulse, xs }) {
   return (
     <span style={{ display:'inline-flex',alignItems:'center',gap:4,
-      padding:size==='sm'?'2px 8px':'4px 10px',borderRadius:99,
-      background:`${cor}15`,color:cor,border:`1px solid ${cor}35`,
-      fontSize:fs,fontWeight:700,flexShrink:0,letterSpacing:'.03em' }}>
-      {pulse && (
-        <span style={{ width:5,height:5,borderRadius:'50%',background:cor,flexShrink:0,
-          boxShadow:`0 0 6px ${cor}`,animation:'cfg-pulse 2s ease infinite' }}/>
-      )}
-      {Ic && <Ic size={9} style={{ flexShrink:0 }}/>}
+      padding:xs?'1px 6px':'3px 9px',borderRadius:99,
+      background:`${cor}15`,color:cor,border:`1px solid ${cor}30`,
+      fontSize:xs?8.5:10,fontWeight:700,flexShrink:0,letterSpacing:'.03em' }}>
+      {pulse&&<PulsingDot cor={cor} size={5}/>}
+      {Ic&&<Ic size={8} style={{ flexShrink:0 }}/>}
       {label}
     </span>
   )
 }
 
-// Input premium
-function PInput({ value, onChange, placeholder, type='text', min, max, rows, mono }) {
-  const [focused, setFocused] = useState(false)
-  const base = {
-    width:'100%', background:T.bg1,
-    border:`1px solid ${focused?T.purple+'60':T.sep2}`,
-    borderRadius:10, color:T.ink1,
-    fontSize:13, outline:'none', fontFamily:mono?'monospace':'inherit',
-    transition:'all .18s',
-    boxShadow:focused?`0 0 0 3px ${T.purple}12,0 0 20px ${T.purple}10`:undefined,
-  }
-  const props = {
-    value, onChange,
-    placeholder,
-    onFocus:()=>setFocused(true),
-    onBlur:()=>setFocused(false),
-  }
-  if (rows) return <textarea rows={rows} {...props}
-    style={{ ...base, padding:'10px 13px', resize:'vertical', minHeight:80, lineHeight:1.65 }}/>
-  return <input type={type} {...props} min={min} max={max}
-    style={{ ...base, padding:'9px 13px' }}/>
+function PInput({ value,onChange,placeholder,type='text',min,max,rows,mono,small }) {
+  const [foc,setFoc]=useState(false)
+  const s={width:'100%',background:T.bg1,border:`1px solid ${foc?T.purple+'60':T.sep2}`,
+    borderRadius:10,color:T.ink1,fontSize:small?11.5:13,outline:'none',
+    fontFamily:mono?'monospace':'inherit',transition:'all .18s',
+    boxShadow:foc?`0 0 0 3px ${T.purple}12`:undefined}
+  const p={value,onChange,placeholder,onFocus:()=>setFoc(true),onBlur:()=>setFoc(false)}
+  if(rows) return <textarea rows={rows} {...p} style={{...s,padding:'10px 13px',resize:'vertical',minHeight:70,lineHeight:1.65}}/>
+  return <input type={type} {...p} min={min} max={max} style={{...s,padding:small?'7px 10px':'9px 13px'}}/>
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CALENDÁRIO DE SCHEDULE — 7×24 heatmap visual
-// ─────────────────────────────────────────────────────────────────────────────
-function ScheduleCalendar({ schedule }) {
-  const { enabled=false, start_h=8, end_h=21, days=[1,2,3,4,5] } = schedule || {}
-  if (!enabled) return (
-    <div style={{ padding:'14px',borderRadius:10,background:T.bg4,
-      border:`1px solid ${T.sep}`,textAlign:'center',
-      fontSize:11.5,color:T.ink4 }}>
-      Sem janela configurada — disparo a qualquer hora
-    </div>
+// ═══════════════════════════════════════════════════
+// HEALTH RING SVG
+// ═══════════════════════════════════════════════════
+function HealthRing({ score=0, size=130 }) {
+  const r=48,cx=size/2,cy=size/2,circ=2*Math.PI*r
+  const cor=score>=85?T.green:score>=60?T.amber:T.red
+  const off=circ-(circ*(score/100))
+  return (
+    <svg width={size} height={size} style={{ flexShrink:0 }}>
+      <defs>
+        <filter id="ring-glow"><feGaussianBlur stdDeviation="3" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,.06)" strokeWidth={10}/>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={cor} strokeWidth={10}
+        strokeDasharray={circ} strokeDashoffset={off} strokeLinecap="round"
+        transform={`rotate(-90 ${cx} ${cy})`}
+        style={{ filter:`drop-shadow(0 0 8px ${cor}80)`,transition:'stroke-dashoffset 1s ease' }}/>
+      <text x={cx} y={cy-6} textAnchor="middle" fill={cor} fontSize={26} fontWeight={900}
+        fontFamily="system-ui">{score}</text>
+      <text x={cx} y={cy+14} textAnchor="middle" fill={T.ink4} fontSize={10}
+        fontFamily="system-ui">/ 100</text>
+    </svg>
   )
+}
 
-  const HOURS = Array.from({length:24},(_,i)=>i)
-  const cellW = 24, cellH = 11
+// ═══════════════════════════════════════════════════
+// 1. MONITORAMENTO CENTRAL — cockpit
+// ═══════════════════════════════════════════════════
+function SecaoMonitoramento({ api }) {
+  const [mon,  setMon]   = useState(null)
+  const [live, setLive]  = useState(null)
+  const [ind,  setInd]   = useState({})
+  const [spark,setSpark]  = useState(Array(20).fill(0))
+  const [feed, setFeed]   = useState([])
+  const [tick, setTick]   = useState(0)
+
+  const buscar = useCallback(async () => {
+    try {
+      const [rm,rl,ri] = await Promise.all([
+        fetch(`${api}/api/dashboard/monitoramento`).then(r=>r.ok?r.json():null).catch(()=>null),
+        fetch(`${api}/api/dashboard/live-activity`).then(r=>r.ok?r.json():null).catch(()=>null),
+        fetch(`${api}/api/dashboard/gatilhos-indicadores`).then(r=>r.ok?r.json():null).catch(()=>null),
+      ])
+      if(rm&&!rm.erro) setMon(rm)
+      if(rl) {
+        setLive(rl)
+        setSpark(p=>[...p.slice(1),rl.msgs_hora||0])
+        if(rl.msgs_hora>0) setFeed(f=>[{
+          ts:new Date(),label:`${rl.msgs_hora} msgs/h · ${rl.sessoes_ativas||0} sessões`,
+          cor:T.green,tipo:'live'
+        },...f].slice(0,12))
+      }
+      if(ri) setInd(ri.indicadores||{})
+      setTick(t=>t+1)
+    } catch {}
+  },[api])
+
+  useEffect(()=>{ buscar(); const iv=setInterval(buscar,15000); return()=>clearInterval(iv) },[buscar])
+
+  const hs=mon?.health?.score
+  const hCor=hs==null?T.ink3:hs>=85?T.green:hs>=60?T.amber:T.red
+  const isAtivo=(live?.msgs_hora||0)>0||(live?.sessoes_ativas||0)>0
+
+  const sparkData=spark.map((v,i)=>({i:`${i}`,v}))
+
+  const SUBSYSTEMS=[
+    { id:'wa',     lbl:'WhatsApp',    cor:T.green,  icon:MessageSquare, val:live?.ia_ok!==false?'OK':'Erro',   ok:live?.ia_ok!==false },
+    { id:'meta',   lbl:'Meta API',    cor:T.blue,   icon:Globe,         val:`${mon?.funilMeta?.taxa||0}%`,     ok:(mon?.funilMeta?.taxa||100)>60 },
+    { id:'bling',  lbl:'Bling ERP',   cor:T.amber,  icon:Database,      val:'Sincronizado',                    ok:true },
+    { id:'gemini', lbl:'Gemini AI',   cor:T.purple, icon:Brain,         val:`${live?.taxa_ia??100}%`,          ok:(live?.taxa_ia??100)>70 },
+    { id:'rastreio',lbl:'Rastreio',   cor:T.cyan,   icon:Truck,         val:'Ativo',                           ok:true },
+    { id:'conv',   lbl:'Conversas',   cor:T.green,  icon:Users,         val:`${live?.sessoes_ativas||0}`,      ok:true },
+  ]
+
+  const METRICAS=[
+    { lbl:'Msgs/hora',    val:live?.msgs_hora||0,             sub:'agora',         cor:T.blue   },
+    { lbl:'Sessões',      val:live?.sessoes_ativas||0,        sub:'ativas',        cor:T.purple },
+    { lbl:'Disparos 7d',  val:mon?.health?.env7||0,           sub:'enviados',      cor:T.green  },
+    { lbl:'Taxa entrega', val:`${mon?.health?.taxa7||0}%`,    sub:'última semana', cor:T.amber  },
+    { lbl:'Anomalias',    val:mon?.anomalias?.length||0,      sub:'detectadas',    cor:mon?.anomalias?.length?T.red:T.green },
+    { lbl:'Fila humano',  val:live?.sessoes_humano||0,        sub:'aguardando',    cor:live?.sessoes_humano?T.red:T.ink3 },
+  ]
 
   return (
     <div>
-      <div style={{ fontSize:10,color:T.ink4,marginBottom:8,
-        display:'flex',alignItems:'center',gap:10 }}>
-        <span style={{ display:'flex',alignItems:'center',gap:4 }}>
-          <span style={{ width:10,height:10,borderRadius:3,background:T.green,
-            boxShadow:`0 0 6px ${T.green}60`,display:'inline-block'}}/>
-          Ativo
-        </span>
-        <span style={{ display:'flex',alignItems:'center',gap:4 }}>
-          <span style={{ width:10,height:10,borderRadius:3,background:T.bg4,
-            border:`1px solid ${T.sep}`,display:'inline-block'}}/>
-          Bloqueado
-        </span>
+      {/* COCKPIT HERO */}
+      <div style={{ display:'grid',gridTemplateColumns:'auto 1fr',gap:20,marginBottom:20 }}>
+        {/* Health Ring + status */}
+        <GlowCard cor={hCor} style={{ padding:'24px 28px',display:'flex',flexDirection:'column',
+          alignItems:'center',justifyContent:'center',gap:10,minWidth:220 }}>
+          <HealthRing score={hs??0}/>
+          <div style={{ textAlign:'center' }}>
+            <div style={{ fontSize:13,fontWeight:700,color:hCor }}>
+              {hs==null?'Sem dados':hs>=85?'Sistema saudável':hs>=60?'Atenção necessária':'Estado crítico'}
+            </div>
+            <div style={{ fontSize:10.5,color:T.ink4,marginTop:3,display:'flex',alignItems:'center',
+              justifyContent:'center',gap:6 }}>
+              <PulsingDot cor={isAtivo?T.green:T.ink4} size={6}/>
+              {isAtivo?'Ativo agora':'Sistema em espera'}
+            </div>
+          </div>
+        </GlowCard>
+
+        {/* Métricas grid */}
+        <div style={{ display:'flex',flexDirection:'column',gap:10 }}>
+          <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8 }}>
+            {METRICAS.map(m=>(
+              <GlowCard key={m.lbl} cor={m.cor}>
+                <div style={{ padding:'12px 14px' }}>
+                  <div style={{ fontSize:22,fontWeight:800,color:m.cor,
+                    letterSpacing:'-.04em',lineHeight:1,
+                    textShadow:`0 0 20px ${m.cor}40` }}>{m.val}</div>
+                  <div style={{ fontSize:11,fontWeight:600,color:T.ink2,marginTop:3 }}>{m.lbl}</div>
+                  <div style={{ fontSize:9.5,color:T.ink4 }}>{m.sub}</div>
+                </div>
+              </GlowCard>
+            ))}
+          </div>
+          {/* Sparkline live */}
+          <GlowCard cor={T.blue} top={false} style={{ padding:'10px 14px' }}>
+            <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:6 }}>
+              <Activity size={11} style={{ color:T.blue }}/>
+              <span style={{ fontSize:10,fontWeight:700,color:T.ink4,
+                textTransform:'uppercase',letterSpacing:'.07em' }}>
+                Mensagens — últimas {spark.length} leituras
+              </span>
+              <div style={{ marginLeft:'auto',display:'flex',alignItems:'center',gap:5 }}>
+                <PulsingDot cor={T.blue} size={6}/>
+                <span style={{ fontSize:9.5,color:T.blue,fontWeight:600 }}>15s</span>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={52}>
+              <AreaChart data={sparkData} margin={{top:2,right:0,left:-36,bottom:0}}>
+                <defs>
+                  <linearGradient id="sg-blue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={T.blue} stopOpacity={.3}/>
+                    <stop offset="100%" stopColor={T.blue} stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <Area dataKey="v" type="monotone" stroke={T.blue} strokeWidth={2}
+                  fill="url(#sg-blue)" dot={false}
+                  style={{ filter:`drop-shadow(0 0 4px ${T.blue}60)` }}/>
+                <YAxis tick={{fontSize:8,fill:T.ink4}} axisLine={false} tickLine={false}/>
+                <Tooltip contentStyle={{ background:T.bg3,border:`1px solid ${T.sep2}`,
+                  borderRadius:8,fontSize:10 }} labelStyle={{ display:'none' }}
+                  formatter={v=>[`${v} msgs/h`]}/>
+              </AreaChart>
+            </ResponsiveContainer>
+          </GlowCard>
+        </div>
       </div>
-      <div style={{ display:'grid',gridTemplateColumns:`28px repeat(7,${cellW}px)`,
-        gap:2,alignItems:'center' }}>
-        {/* Header dias */}
+
+      {/* SUBSISTEMAS */}
+      <div style={{ fontSize:11,fontWeight:700,color:T.ink4,textTransform:'uppercase',
+        letterSpacing:'.09em',marginBottom:10 }}>Estado dos subsistemas</div>
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:20 }}>
+        {SUBSYSTEMS.map(s=>(
+          <GlowCard key={s.id} cor={s.ok?s.cor:T.red}>
+            <div style={{ padding:'12px 14px',display:'flex',alignItems:'center',gap:10 }}>
+              <div style={{ width:34,height:34,borderRadius:10,flexShrink:0,
+                background:`${s.ok?s.cor:T.red}18`,border:`1px solid ${s.ok?s.cor:T.red}30`,
+                display:'flex',alignItems:'center',justifyContent:'center' }}>
+                <s.icon size={15} style={{ color:s.ok?s.cor:T.red }}/>
+              </div>
+              <div style={{ flex:1,minWidth:0 }}>
+                <div style={{ fontSize:12,fontWeight:700,color:T.ink1 }}>{s.lbl}</div>
+                <div style={{ display:'flex',alignItems:'center',gap:6,marginTop:2 }}>
+                  <PulsingDot cor={s.ok?s.cor:T.red} size={5}/>
+                  <span style={{ fontSize:10.5,color:s.ok?s.cor:T.red,fontWeight:600 }}>
+                    {s.val}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </GlowCard>
+        ))}
+      </div>
+
+      {/* LIVE FEED */}
+      <GlowCard cor={T.green} top={false}>
+        <div style={{ padding:'14px 16px' }}>
+          <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:12 }}>
+            <PulsingDot cor={T.green} size={7}/>
+            <span style={{ fontSize:11,fontWeight:700,color:T.ink3,
+              textTransform:'uppercase',letterSpacing:'.08em' }}>Feed de atividade</span>
+            <span style={{ marginLeft:'auto',fontSize:10,color:T.ink4 }}>
+              Atualiza a cada 15s · leitura #{tick}
+            </span>
+          </div>
+          {feed.length===0 ? (
+            <div style={{ fontSize:12,color:T.ink4,textAlign:'center',padding:'12px 0' }}>
+              Aguardando atividade...
+            </div>
+          ) : (
+            <div style={{ display:'flex',flexDirection:'column',gap:5 }}>
+              {feed.map((f,i)=>(
+                <div key={i} style={{ display:'flex',alignItems:'center',gap:10,
+                  padding:'7px 10px',borderRadius:9,
+                  background:i===0?`${f.cor}09`:T.gray,
+                  border:`1px solid ${i===0?f.cor+'25':T.sep}`,
+                  opacity:1-(i*0.07),transition:'opacity .3s' }}>
+                  <div style={{ width:5,height:5,borderRadius:'50%',flexShrink:0,
+                    background:f.cor,boxShadow:`0 0 6px ${f.cor}` }}/>
+                  <span style={{ flex:1,fontSize:11.5,color:T.ink2 }}>{f.label}</span>
+                  <span style={{ fontSize:10,color:T.ink4 }}>{tempoRel(f.ts)||'agora'}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </GlowCard>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════
+// 2. INTEGRAÇÕES
+// ═══════════════════════════════════════════════════
+function SecaoIntegracoes({ api }) {
+  const [data,setData]=useState({})
+  const [loading,setLoading]=useState(true)
+
+  useEffect(()=>{
+    Promise.all([
+      fetch(`${api}/api/dashboard/monitoramento`).then(r=>r.json()).catch(()=>null),
+      fetch(`${api}/api/ia/config`).then(r=>r.json()).catch(()=>null),
+    ]).then(([mon,cfg])=>{
+      setData({ mon, cfg:cfg?.config||{} })
+      setLoading(false)
+    })
+  },[api])
+
+  const cfg=data.cfg||{}
+  const mon=data.mon||{}
+
+  const blingExp=cfg.bling_expires_at?Math.floor((new Date(cfg.bling_expires_at)-new Date())/86400000):null
+  const refreshExp=cfg.bling_refresh_expires_at?Math.floor((new Date(cfg.bling_refresh_expires_at)-new Date())/86400000):null
+
+  const INTEGRACOES=[
+    {
+      id:'whatsapp', lbl:'WhatsApp Business API', cor:'#25d366',
+      icon:MessageSquare, status:true,
+      metricas:[
+        { lbl:'Health Score', val:`${mon?.health?.score||0}/100`, cor:mon?.health?.score>=85?T.green:T.amber },
+        { lbl:'Taxa entrega', val:`${mon?.funilMeta?.taxa||0}%`,  cor:T.green },
+        { lbl:'Templates',    val:`${mon?.funilMeta?.aprovados||0} aprovados`, cor:T.blue },
+        { lbl:'Rejeitados',   val:mon?.funilMeta?.rejeitados||0, cor:T.red },
+      ],
+      actions:[{ lbl:'Ver templates', href:null }],
+    },
+    {
+      id:'meta', lbl:'Meta API', cor:T.blue, icon:Globe,
+      status:true,
+      metricas:[
+        { lbl:'Limite diário',  val:`${mon?.funilMeta?.enviados||0}/1000`, cor:T.cyan },
+        { lbl:'Tx rejeição',    val:`${mon?.funilMeta?.rejeitados||0}%`,   cor:T.amber },
+        { lbl:'Custo estimado', val:`US$ ${((mon?.health?.env7||0)*0.0085).toFixed(2)}/sem`, cor:T.green },
+      ],
+      actions:[{ lbl:'Abrir Meta Business', href:'https://business.facebook.com' }],
+    },
+    {
+      id:'bling', lbl:'Bling ERP', cor:T.amber, icon:Database,
+      status:blingExp==null||blingExp>0,
+      metricas:[
+        { lbl:'Token acesso',  val:blingExp!=null?blingExp>0?`${blingExp}d`:'Expirado':'Verificar', cor:blingExp!=null&&blingExp>5?T.green:T.red },
+        { lbl:'Refresh token', val:refreshExp!=null?`${refreshExp}d restantes`:'—', cor:refreshExp!=null&&refreshExp>5?T.green:T.amber },
+        { lbl:'Último sync',   val:cfg.catalogo_ultimo_sync?tempoRel(cfg.catalogo_ultimo_sync)||'—':'—', cor:T.ink3 },
+      ],
+      actions:[
+        { lbl:'Sincronizar catálogo', handler:async()=>{ await fetch(`${api}/bling/sync-catalogo`,{method:'POST'}) } },
+        { lbl:'Reautorizar', href:`${api}/bling/auth` },
+      ],
+    },
+    {
+      id:'gemini', lbl:'Gemini AI', cor:T.purple, icon:Brain,
+      status:true,
+      metricas:[
+        { lbl:'Modelo',     val:cfg.modelo_ia||'gemini-pro',  cor:T.purple },
+        { lbl:'Temp.',      val:cfg.temperatura_ia||'0.7',    cor:T.cyan   },
+        { lbl:'Saúde IA',   val:`${cfg.health_score||100}%`,  cor:T.green  },
+      ],
+      actions:[{ lbl:'Configurar IA', href:null }],
+    },
+    {
+      id:'nuvemshop', lbl:'Nuvemshop', cor:'#4f46e5', icon:ShoppingBag,
+      status:true,
+      metricas:[
+        { lbl:'Webhooks',   val:'Ativos',    cor:T.green  },
+        { lbl:'Canal',      val:'Monitorado',cor:T.green  },
+      ],
+      actions:[{ lbl:'Painel Nuvemshop', href:'https://www.nuvemshop.com.br' }],
+    },
+    {
+      id:'marketplaces', lbl:'Marketplaces (ML/Shopee/Shein)', cor:T.orange, icon:Layers,
+      status:true,
+      metricas:[
+        { lbl:'Canais',      val:'3 ativos',      cor:T.orange },
+        { lbl:'Rastreio',    val:'Via API',        cor:T.ink3   },
+        { lbl:'Notificações',val:'WhatsApp ativo', cor:T.green  },
+      ],
+      actions:[],
+    },
+  ]
+
+  if(loading) return <div style={{ textAlign:'center',padding:40,color:T.ink4 }}>Carregando integrações...</div>
+
+  return (
+    <div style={{ display:'flex',flexDirection:'column',gap:12 }}>
+      {INTEGRACOES.map(intg=>(
+        <GlowCard key={intg.id} cor={intg.status?intg.cor:T.red}>
+          <div style={{ padding:'18px 20px' }}>
+            <div style={{ display:'flex',alignItems:'flex-start',gap:14,marginBottom:16 }}>
+              {/* Ícone + status */}
+              <div style={{ position:'relative',flexShrink:0 }}>
+                <div style={{ width:44,height:44,borderRadius:13,
+                  background:`linear-gradient(135deg,${intg.cor}30,${intg.cor}12)`,
+                  border:`1.5px solid ${intg.cor}40`,
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  boxShadow:`0 4px 20px ${intg.cor}25` }}>
+                  <intg.icon size={20} style={{ color:intg.cor }}/>
+                </div>
+                <div style={{ position:'absolute',bottom:-3,right:-3,
+                  width:14,height:14,borderRadius:'50%',
+                  background:intg.status?T.green:T.red,
+                  border:`2px solid ${T.bg2}`,
+                  boxShadow:`0 0 8px ${intg.status?T.green:T.red}` }}/>
+              </div>
+
+              <div style={{ flex:1 }}>
+                <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:4 }}>
+                  <span style={{ fontSize:15,fontWeight:800,color:T.ink1,letterSpacing:'-.02em' }}>
+                    {intg.lbl}
+                  </span>
+                  <Chip label={intg.status?'Conectado':'Desconectado'}
+                    cor={intg.status?T.green:T.red} pulse={intg.status}/>
+                </div>
+              </div>
+
+              {/* Ações */}
+              <div style={{ display:'flex',gap:6,flexShrink:0 }}>
+                {intg.actions.map((a,i)=>(
+                  <button key={i} onClick={()=>{ if(a.href) window.open(a.href,'_blank'); a.handler?.() }}
+                    style={{ display:'flex',alignItems:'center',gap:5,
+                      padding:'6px 12px',borderRadius:9,
+                      border:`1px solid ${intg.cor}35`,background:`${intg.cor}12`,
+                      color:intg.cor,cursor:'pointer',fontSize:11,fontWeight:600,
+                      transition:'all .15s' }}>
+                    {a.href&&<ExternalLink size={10}/>}
+                    {a.lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Métricas */}
+            <div style={{ display:'grid',
+              gridTemplateColumns:`repeat(${Math.min(intg.metricas.length,4)},1fr)`,gap:8 }}>
+              {intg.metricas.map((m,i)=>(
+                <div key={i} style={{ padding:'10px 12px',borderRadius:10,
+                  background:T.bg4,border:`1px solid ${T.sep}` }}>
+                  <div style={{ fontSize:14,fontWeight:800,color:m.cor,
+                    letterSpacing:'-.03em',textShadow:`0 0 14px ${m.cor}35` }}>
+                    {m.val}
+                  </div>
+                  <div style={{ fontSize:10,color:T.ink4,marginTop:3 }}>{m.lbl}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </GlowCard>
+      ))}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════
+// 3. GATILHOS & HORÁRIOS (schedule calendar)
+// ═══════════════════════════════════════════════════
+function ScheduleCalendar({ schedule }) {
+  const { enabled=false,start_h=8,end_h=21,days=[1,2,3,4,5] }=schedule||{}
+  if(!enabled) return (
+    <div style={{ padding:'10px 12px',borderRadius:9,background:T.bg4,border:`1px solid ${T.sep}`,
+      fontSize:11,color:T.ink4,textAlign:'center' }}>
+      Sem janela — dispara a qualquer hora
+    </div>
+  )
+  const HOURS=Array.from({length:24},(_,i)=>i)
+  return (
+    <div>
+      <div style={{ display:'grid',
+        gridTemplateColumns:`22px repeat(7,1fr)`,gap:1.5,alignItems:'center' }}>
         <div/>
         {DIAS.map((d,i)=>(
-          <div key={d} style={{ fontSize:8.5,fontWeight:700,textAlign:'center',
-            color:days.includes(i)?T.amber:T.ink4,
-            textTransform:'uppercase',letterSpacing:'.06em' }}>{d}</div>
+          <div key={d} style={{ fontSize:8,fontWeight:700,textAlign:'center',
+            color:days.includes(i)?T.amber:T.ink4,textTransform:'uppercase' }}>{d}</div>
         ))}
-        {/* Horas */}
         {HOURS.map(h=>(
-          <>
-            <div key={`h${h}`} style={{ fontSize:8,color:T.ink4,textAlign:'right',
-              paddingRight:4,lineHeight:1,
-              visibility:h%3===0?'visible':'hidden' }}>
-              {h}h
-            </div>
+          <>{h%3===0
+            ?<div key={`h${h}`} style={{ fontSize:7.5,color:T.ink4,textAlign:'right',paddingRight:3 }}>{h}h</div>
+            :<div key={`h${h}`}/>}
             {DIAS.map((_,di)=>{
-              const isDay = days.includes(di)
-              const isHour = h >= start_h && h < end_h
-              const ativo = isDay && isHour
+              const on=days.includes(di)&&h>=start_h&&h<end_h
               return (
-                <div key={`${h}-${di}`} style={{
-                  width:cellW, height:cellH, borderRadius:3,
-                  background: ativo
-                    ? `linear-gradient(135deg,${T.green},${T.green}80)`
-                    : T.bg4,
-                  border:`1px solid ${ativo?T.green+'40':T.sep}`,
-                  boxShadow: ativo ? `0 0 4px ${T.green}30` : undefined,
-                  transition:'all .15s',
-                }}/>
+                <div key={`${h}-${di}`} style={{ height:9,borderRadius:2,
+                  background:on?T.green:T.bg4,
+                  border:`1px solid ${on?T.green+'40':T.sep}`,
+                  boxShadow:on?`0 0 3px ${T.green}30`:undefined,
+                  transition:'all .12s' }}/>
               )
             })}
           </>
         ))}
       </div>
-      <div style={{ marginTop:10,padding:'8px 12px',borderRadius:8,
+      <div style={{ marginTop:8,padding:'6px 10px',borderRadius:7,
         background:T.amberDim,border:`1px solid ${T.amberBor}`,
-        fontSize:11,color:T.amber,fontWeight:600 }}>
-        ⏰ {days.filter(d=>d>0&&d<7).length} dias úteis · {start_h}h–{end_h}h
-        · ~{(end_h-start_h)*days.length} h/semana ativas
+        fontSize:10,color:T.amber,fontWeight:600 }}>
+        ⏰ {days.filter(d=>d>0&&d<7).length}d úteis · {start_h}h–{end_h}h
+        · {((end_h-start_h)*days.length)}h/sem ativas
       </div>
     </div>
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HOUR + DAY PICKER PREMIUM
-// ─────────────────────────────────────────────────────────────────────────────
-function HourDayPicker({ schedule, onChange }) {
-  const { enabled=false, start_h=8, end_h=21, days=[1,2,3,4,5] } = schedule || {}
-  const upd = (patch) => onChange({ enabled, start_h, end_h, days, ...patch })
-
-  const HourBtn = ({ h, field, val }) => (
-    <button onClick={()=>upd({[field]:h})}
-      style={{ minWidth:34,height:28,borderRadius:7,border:'none',cursor:'pointer',
-        fontSize:10.5,fontWeight:700,transition:'all .15s',
-        background:val===h?T.amber:T.bg4,
-        color:val===h?'#000':T.ink4,
-        boxShadow:val===h?`0 0 10px ${T.amber}50`:undefined }}>
-      {h}h
-    </button>
-  )
-
+function HourDayPicker({ schedule,onChange }) {
+  const { enabled=false,start_h=8,end_h=21,days=[1,2,3,4,5] }=schedule||{}
+  const upd=p=>onChange({ enabled,start_h,end_h,days,...p })
+  const RANGE_H=Array.from({length:25},(_,i)=>i) // 0–24
   return (
     <div style={{ display:'flex',flexDirection:'column',gap:12 }}>
-      {/* Toggle habilitado */}
       <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',
-        padding:'10px 14px',borderRadius:10,
-        background:enabled?T.amberDim:T.gray,
-        border:`1px solid ${enabled?T.amberBor:T.sep}`,
-        transition:'all .2s' }}>
+        padding:'10px 14px',borderRadius:10,background:enabled?T.amberDim:T.gray,
+        border:`1px solid ${enabled?T.amberBor:T.sep}`,transition:'all .2s' }}>
         <div>
           <div style={{ fontSize:12.5,fontWeight:700,color:T.ink1 }}>Janela de horário</div>
           <div style={{ fontSize:10.5,color:T.ink4,marginTop:2 }}>
-            {enabled?'Dispara apenas no período definido':'Dispara a qualquer hora do dia'}
+            {enabled?'Só dispara no período':'Dispara 24h por dia'}
           </div>
         </div>
         <PremiumToggle value={enabled} onChange={v=>upd({enabled:v})} cor={T.amber}/>
       </div>
-
-      {enabled && (<>
-        {/* Horas */}
+      {enabled&&(<>
         <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
-          {[
-            { label:'Início', field:'start_h', val:start_h, range:[5,6,7,8,9,10,11,12] },
-            { label:'Fim',    field:'end_h',   val:end_h,   range:[18,19,20,21,22,23,24] },
-          ].map(f=>(
-            <div key={f.field}>
+          {[{l:'Início',k:'start_h',v:start_h},{l:'Fim',k:'end_h',v:end_h}].map(f=>(
+            <div key={f.k}>
               <div style={{ fontSize:9.5,fontWeight:700,color:T.ink4,textTransform:'uppercase',
-                letterSpacing:'.09em',marginBottom:7 }}>{f.label}</div>
-              <div style={{ display:'flex',gap:4,flexWrap:'wrap' }}>
-                {f.range.map(h=><HourBtn key={h} h={h} field={f.field} val={f.val}/>)}
+                letterSpacing:'.08em',marginBottom:6 }}>{f.l}</div>
+              <div style={{ display:'flex',flexWrap:'wrap',gap:3 }}>
+                {RANGE_H.map(h=>(
+                  <button key={h} onClick={()=>upd({[f.k]:h})}
+                    style={{ width:30,height:24,borderRadius:6,border:'none',cursor:'pointer',
+                      fontSize:9.5,fontWeight:700,transition:'all .12s',
+                      background:f.v===h?T.amber:T.bg4,
+                      color:f.v===h?'#000':T.ink4,
+                      boxShadow:f.v===h?`0 0 8px ${T.amber}50`:undefined }}>
+                    {h}h
+                  </button>
+                ))}
               </div>
             </div>
           ))}
         </div>
-
-        {/* Dias */}
         <div>
           <div style={{ fontSize:9.5,fontWeight:700,color:T.ink4,textTransform:'uppercase',
-            letterSpacing:'.09em',marginBottom:7 }}>Dias da semana</div>
+            letterSpacing:'.08em',marginBottom:6 }}>Dias ativos</div>
           <div style={{ display:'flex',gap:5 }}>
             {DIAS.map((d,i)=>{
-              const ativo = days.includes(i)
-              return (
-                <button key={i} onClick={()=>upd({
-                  days:ativo?days.filter(x=>x!==i):[...days,i].sort()
-                })} style={{ width:38,height:34,borderRadius:9,border:'none',cursor:'pointer',
-                  fontSize:10.5,fontWeight:700,transition:'all .16s',
-                  background:ativo?T.amber:T.bg4,
-                  color:ativo?'#000':T.ink4,
-                  boxShadow:ativo?`0 0 12px ${T.amber}50`:undefined }}>
-                  {d}
-                </button>
-              )
+              const a=days.includes(i)
+              return <button key={i} onClick={()=>upd({days:a?days.filter(x=>x!==i):[...days,i].sort()})}
+                style={{ width:36,height:32,borderRadius:8,border:'none',cursor:'pointer',
+                  fontSize:10.5,fontWeight:700,transition:'all .15s',
+                  background:a?T.amber:T.bg4,color:a?'#000':T.ink4,
+                  boxShadow:a?`0 0 10px ${T.amber}50`:undefined }}>{d}</button>
             })}
           </div>
         </div>
@@ -347,457 +631,243 @@ function HourDayPicker({ schedule, onChange }) {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CARD DE GATILHO PREMIUM
-// ─────────────────────────────────────────────────────────────────────────────
-function GatilhoCard({ g, schedule, indicador, onSave, loading }) {
-  const [open,    setOpen]    = useState(false)
-  const [local,   setLocal]   = useState(schedule || {})
-  const [saving,  setSaving]  = useState(false)
-  const [saved,   setSaved]   = useState(false)
-  const isLocked = ALWAYS_ON.has(g.id)
-  const Ic = g.icon || Zap
-  const temJanela = local.enabled && !isLocked
-  const env7 = indicador?.enviados || 0
-  const tot7 = indicador?.total || 0
-  const taxa = tot7 > 0 ? Math.round(env7/tot7*100) : null
+function GatilhoCard({ g,schedule,indicador,onSave }) {
+  const [open,setOpen]=useState(false)
+  const [local,setLocal]=useState(schedule||{})
+  const [saving,setSaving]=useState(false)
+  const [saved,setSaved]=useState(false)
+  const isLocked=ALWAYS_ON.has(g.id)
+  const Ic=g.icon||Zap
+  const temJanela=local.enabled&&!isLocked
+  const env7=indicador?.enviados||0
+  const tot7=indicador?.total||0
+  const taxa=tot7>0?Math.round(env7/tot7*100):null
 
-  const handleSave = async () => {
-    setSaving(true)
-    await onSave(g.id, local)
-    setSaved(true); setTimeout(()=>setSaved(false),2000)
-    setSaving(false)
+  const handleSave=async()=>{
+    setSaving(true);await onSave(g.id,local)
+    setSaved(true);setTimeout(()=>setSaved(false),2000);setSaving(false)
   }
 
   return (
-    <div style={{
-      borderRadius:14,overflow:'hidden',
+    <div style={{ borderRadius:14,overflow:'hidden',
       background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
-      border:`1.5px solid ${open?g.cor+'45':isLocked?T.sep:temJanela?g.cor+'25':T.sep2}`,
-      boxShadow:open?`0 12px 40px rgba(0,0,0,.35),0 0 0 1px ${g.cor}10 inset`
-        :`0 4px 16px rgba(0,0,0,.2)`,
-      transition:'all .22s cubic-bezier(.4,0,.2,1)',
-    }}>
-      {/* Linha colorida topo */}
-      <div style={{ height:2,
-        background:isLocked?T.sep:temJanela
-          ?`linear-gradient(90deg,${g.cor},${g.cor}60,transparent)`
-          :'transparent',
-        boxShadow:temJanela?`0 0 10px ${g.cor}50`:undefined,
-        transition:'all .3s' }}/>
-
-      {/* Header clicável */}
+      border:`1.5px solid ${open?g.cor+'50':isLocked?T.sep:temJanela?g.cor+'28':T.sep2}`,
+      boxShadow:open?`0 16px 48px rgba(0,0,0,.4),0 0 0 1px ${g.cor}08 inset`:`0 4px 18px rgba(0,0,0,.2)`,
+      transition:'all .22s cubic-bezier(.4,0,.2,1)' }}>
+      <div style={{ height:2,background:isLocked?'transparent':temJanela
+        ?`linear-gradient(90deg,${g.cor},${g.cor}50,transparent)`:'transparent',
+        boxShadow:temJanela?`0 0 12px ${g.cor}50`:undefined,transition:'all .3s' }}/>
       <div onClick={()=>!isLocked&&setOpen(v=>!v)}
         style={{ display:'flex',alignItems:'center',gap:12,padding:'13px 16px',
           cursor:isLocked?'default':'pointer',userSelect:'none' }}>
-
-        {/* Ícone */}
         <div style={{ width:36,height:36,borderRadius:11,flexShrink:0,
-          background:`linear-gradient(135deg,${g.cor}30,${g.cor}12)`,
-          border:`1.5px solid ${g.cor}40`,
-          display:'flex',alignItems:'center',justifyContent:'center',
-          boxShadow:open?`0 4px 16px ${g.cor}30`:undefined,
-          transition:'all .2s' }}>
-          <Ic size={16} style={{ color:g.cor }}/>
+          background:`linear-gradient(135deg,${g.cor}28,${g.cor}10)`,
+          border:`1.5px solid ${g.cor}38`,display:'flex',alignItems:'center',justifyContent:'center',
+          boxShadow:open?`0 4px 18px ${g.cor}30`:undefined,transition:'all .2s' }}>
+          <Ic size={15} style={{ color:g.cor }}/>
         </div>
-
-        {/* Info */}
         <div style={{ flex:1,minWidth:0 }}>
-          <div style={{ display:'flex',alignItems:'center',gap:7,marginBottom:4 }}>
+          <div style={{ display:'flex',alignItems:'center',gap:7,marginBottom:3 }}>
             <span style={{ fontSize:13.5,fontWeight:700,color:T.ink1,letterSpacing:'-.02em' }}>
               {g.label}
             </span>
-            {isLocked && (
-              <StatusChip label="SEMPRE ATIVO" cor={T.ink3} icon={Lock}/>
-            )}
-            {temJanela && (
-              <StatusChip label={`${local.start_h}h–${local.end_h}h`} cor={g.cor}/>
-            )}
+            {isLocked&&<Chip label="SEMPRE ATIVO" cor={T.ink3} icon={Lock}/>}
+            {temJanela&&<Chip label={`${local.start_h}h–${local.end_h}h`} cor={g.cor}/>}
           </div>
-          <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-            {/* Sparks de uso */}
-            {taxa !== null && (
-              <span style={{ fontSize:10,color:taxa>=80?T.green:taxa>=50?T.amber:T.red,
-                fontWeight:700,display:'flex',alignItems:'center',gap:3 }}>
-                {taxa>=80?<TrendingUp size={9}/>:taxa<50?<TrendingDown size={9}/>:<Minus size={9}/>}
-                {taxa}% taxa 7d
-              </span>
-            )}
-            {env7 > 0 && (
-              <span style={{ fontSize:10,color:T.ink4 }}>
-                {env7} enviados
-              </span>
-            )}
-            {isLocked && (
-              <span style={{ fontSize:10.5,color:T.ink4 }}>
-                Disparo imediato obrigatório
-              </span>
-            )}
+          <div style={{ display:'flex',alignItems:'center',gap:10 }}>
+            {taxa!==null&&<span style={{ fontSize:10.5,fontWeight:700,
+              color:taxa>=80?T.green:taxa>=50?T.amber:T.red,
+              display:'flex',alignItems:'center',gap:3 }}>
+              {taxa>=80?<TrendingUp size={9}/>:taxa<50?<TrendingDown size={9}/>:<Minus size={9}/>}
+              {taxa}% (7d)
+            </span>}
+            {env7>0&&<span style={{ fontSize:10,color:T.ink4 }}>{env7} enviados</span>}
+            {isLocked&&<span style={{ fontSize:10.5,color:T.ink4 }}>Resposta imediata obrigatória</span>}
           </div>
         </div>
-
-        {/* Estado + chevron */}
-        {!isLocked && (
+        {!isLocked&&(
           <div style={{ display:'flex',alignItems:'center',gap:10,flexShrink:0 }}>
             <PremiumToggle value={local.enabled||false}
-              onChange={v=>setLocal(s=>({...s,enabled:v}))}
-              cor={g.cor} size="sm"/>
-            <div style={{ color:T.ink4,transition:'transform .2s',
-              transform:open?'rotate(90deg)':'rotate(0)' }}>
-              <ChevronRight size={14}/>
-            </div>
+              onChange={v=>setLocal(s=>({...s,enabled:v}))} cor={g.cor} size="sm"/>
+            <ChevronRight size={14} style={{ color:T.ink4,
+              transform:open?'rotate(90deg)':'rotate(0)',transition:'transform .2s' }}/>
           </div>
         )}
       </div>
-
-      {/* Conteúdo expandido */}
-      {open && !isLocked && (
-        <div style={{ borderTop:`1px solid ${g.cor}20`,
-          background:`linear-gradient(135deg,${g.cor}05,transparent)` }}>
+      {open&&!isLocked&&(
+        <div style={{ borderTop:`1px solid ${g.cor}18`,
+          background:`linear-gradient(135deg,${g.cor}04,transparent)` }}>
           <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:0 }}>
-
-            {/* Esquerda: picker */}
-            <div style={{ padding:'16px',borderRight:`1px solid ${g.cor}15` }}>
-              <div style={{ fontSize:11,fontWeight:700,color:T.ink3,
-                textTransform:'uppercase',letterSpacing:'.08em',marginBottom:12 }}>
-                Configurar janela
-              </div>
+            <div style={{ padding:'16px',borderRight:`1px solid ${g.cor}12` }}>
+              <div style={{ fontSize:10,fontWeight:700,color:T.ink4,textTransform:'uppercase',
+                letterSpacing:'.08em',marginBottom:10 }}>Configurar janela</div>
               <HourDayPicker schedule={local} onChange={setLocal}/>
             </div>
-
-            {/* Direita: preview do calendário */}
             <div style={{ padding:'16px' }}>
-              <div style={{ fontSize:11,fontWeight:700,color:T.ink3,
-                textTransform:'uppercase',letterSpacing:'.08em',marginBottom:12 }}>
-                Preview semanal
-              </div>
+              <div style={{ fontSize:10,fontWeight:700,color:T.ink4,textTransform:'uppercase',
+                letterSpacing:'.08em',marginBottom:10 }}>Preview semanal ao vivo</div>
               <ScheduleCalendar schedule={local}/>
-
-              {/* Impacto estimado */}
-              {local.enabled && indicador && (
-                <div style={{ marginTop:10,padding:'8px 12px',borderRadius:9,
+              {local.enabled&&indicador&&(
+                <div style={{ marginTop:8,padding:'7px 10px',borderRadius:8,
                   background:T.redDim,border:`1px solid ${T.redBor}`,
-                  fontSize:10.5,color:T.red,fontWeight:600,lineHeight:1.55 }}>
-                  ⚠ Com esta janela, {Math.round(tot7*(1-(local.days?.length||5)/7*
-                    (local.end_h-local.start_h)/24))} msgs/sem seriam bloqueadas
+                  fontSize:10,color:T.red,fontWeight:600 }}>
+                  ⚠ ~{Math.round(tot7*(1-(local.days?.length||5)/7*
+                    ((local.end_h||21)-(local.start_h||8))/24))} msgs/sem bloqueadas
                 </div>
               )}
             </div>
           </div>
-
-          {/* Botão salvar */}
-          <div style={{ padding:'12px 16px',borderTop:`1px solid ${g.cor}15`,
-            display:'flex',alignItems:'center',justifyContent:'flex-end',gap:10 }}>
+          <div style={{ padding:'12px 16px',borderTop:`1px solid ${g.cor}12`,
+            display:'flex',justifyContent:'flex-end',gap:8 }}>
             <button onClick={()=>setOpen(false)}
               style={{ padding:'7px 14px',borderRadius:9,border:`1px solid ${T.sep2}`,
                 background:'transparent',color:T.ink4,cursor:'pointer',fontSize:12 }}>
               Cancelar
             </button>
             <button onClick={handleSave} disabled={saving}
-              style={{ display:'flex',alignItems:'center',gap:7,
-                padding:'8px 18px',borderRadius:9,border:'none',cursor:'pointer',
-                fontSize:12.5,fontWeight:700,
-                background:`linear-gradient(135deg,${g.cor},${g.cor}cc)`,
-                color:'#000',
-                boxShadow:`0 4px 16px ${g.cor}35`,
-                opacity:saving?.6:1 }}>
-              {saved ? <><Check size={13}/>Salvo!</> :
-               saving ? <><RefreshCw size={13} style={{ animation:'cfg-spin 1s linear infinite' }}/>Salvando...</> :
-               <><Save size={13}/>Salvar horário</>}
+              style={{ display:'flex',alignItems:'center',gap:7,padding:'8px 18px',
+                borderRadius:9,border:'none',cursor:'pointer',fontSize:12.5,fontWeight:700,
+                background:`linear-gradient(135deg,${g.cor},${g.cor}cc)`,color:'#000',
+                boxShadow:`0 4px 16px ${g.cor}35`,opacity:saving?.6:1 }}>
+              {saved?<><Check size={13}/>Salvo!</>:saving?
+                <><RefreshCw size={13} style={{ animation:'cfg-spin 1s linear infinite' }}/>Salvando...</>
+                :<><Save size={13}/>Salvar</>}
             </button>
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SEÇÕES
-// ─────────────────────────────────────────────────────────────────────────────
-
-function SecaoVisaoGeral({ api, onGoTo }) {
-  const [monitor, setMonitor] = useState(null)
-  const [spark,   setSpark]   = useState({ sess:[], msgs:[] })
-
-  useEffect(()=>{
-    fetch(`${api}/api/dashboard/monitoramento`).then(r=>r.json())
-      .then(d=>{ if(d&&!d.erro) setMonitor(d) }).catch(()=>{})
-    fetch(`${api}/api/dashboard/live-activity`).then(r=>r.json())
-      .then(d=>{ if(d) setSpark({ sess:[], msgs:[] }) }).catch(()=>{})
-  },[api])
-
-  const STATUS = [
-    { id:'gatilhos',  label:'Gatilhos & Horários', icon:Zap,        cor:T.amber,  status:'Configurar schedules'  },
-    { id:'rastreio',  label:'Rastreio por Canal',   icon:Truck,      cor:T.green,  status:'Canais ativos'         },
-    { id:'sla',       label:'Atendimento & SLA',    icon:Clock,      cor:T.cyan,   status:'Horário + metas'       },
-    { id:'blacklist', label:'Blacklist & Opt-out',  icon:ShieldOff,  cor:T.red,    status:'Números bloqueados'    },
-    { id:'export',    label:'Exportação',             icon:Download,   cor:T.blue,   status:'CSV / JSON'            },
-    { id:'auditoria', label:'Auditoria',              icon:History,    cor:T.ink3,   status:'Log de mudanças'       },
-  ]
-
-  const health = monitor?.health
-  const hScore = health?.score
-  const hCor   = hScore==null?T.ink4:hScore>=85?T.green:hScore>=60?T.amber:T.red
-
-  return (
-    <div>
-      {/* Hero health */}
-      <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:24 }}>
-        {/* Health Score */}
-        <GlowCard cor={hCor} style={{ gridColumn:'1' }}>
-          <div style={{ padding:'20px' }}>
-            <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:14 }}>
-              <Activity size={14} style={{ color:hCor }}/>
-              <span style={{ fontSize:11,fontWeight:700,color:T.ink3,
-                textTransform:'uppercase',letterSpacing:'.08em' }}>Health Score</span>
-            </div>
-            <div style={{ display:'flex',alignItems:'flex-end',gap:8 }}>
-              <div style={{ fontSize:52,fontWeight:900,color:hCor,letterSpacing:'-.06em',
-                lineHeight:1,textShadow:`0 0 40px ${hCor}50` }}>
-                {hScore??'—'}
-              </div>
-              {hScore!=null&&<span style={{ fontSize:18,color:hCor,marginBottom:4 }}>/100</span>}
-            </div>
-            <div style={{ fontSize:12,color:hCor,fontWeight:600,marginTop:6 }}>
-              {hScore==null?'Sem dados':hScore>=85?'Excelente':hScore>=60?'Bom':hScore>=40?'Médio':'Baixo — risco!'}
-            </div>
-          </div>
-        </GlowCard>
-
-        {/* Disparos 7d */}
-        <GlowCard cor={T.green}>
-          <div style={{ padding:'20px' }}>
-            <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:14 }}>
-              <Zap size={14} style={{ color:T.green }}/>
-              <span style={{ fontSize:11,fontWeight:700,color:T.ink3,
-                textTransform:'uppercase',letterSpacing:'.08em' }}>Disparos 7d</span>
-            </div>
-            <div style={{ fontSize:52,fontWeight:900,color:T.green,letterSpacing:'-.06em',
-              lineHeight:1,textShadow:`0 0 40px ${T.green}40` }}>
-              {monitor?.health?.env7?.toLocaleString('pt-BR')??'—'}
-            </div>
-            <div style={{ fontSize:12,color:T.ink4,marginTop:6 }}>
-              Taxa: {monitor?.health?.taxa7??'—'}%
-            </div>
-          </div>
-        </GlowCard>
-
-        {/* Anomalias */}
-        <GlowCard cor={monitor?.anomalias?.length?T.red:T.green}>
-          <div style={{ padding:'20px' }}>
-            <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:14 }}>
-              <AlertTriangle size={14} style={{ color:monitor?.anomalias?.length?T.red:T.green }}/>
-              <span style={{ fontSize:11,fontWeight:700,color:T.ink3,
-                textTransform:'uppercase',letterSpacing:'.08em' }}>Anomalias</span>
-            </div>
-            <div style={{ fontSize:52,fontWeight:900,
-              color:monitor?.anomalias?.length?T.red:T.green,
-              letterSpacing:'-.06em',lineHeight:1,
-              textShadow:`0 0 40px ${monitor?.anomalias?.length?T.red:T.green}40` }}>
-              {monitor?.anomalias?.length??'0'}
-            </div>
-            <div style={{ fontSize:12,
-              color:monitor?.anomalias?.length?T.red:T.green,
-              fontWeight:600,marginTop:6 }}>
-              {monitor?.anomalias?.length?'Atenção necessária':'Sistema normal'}
-            </div>
-          </div>
-        </GlowCard>
-      </div>
-
-      {/* Seções rápidas */}
-      <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:10 }}>
-        {STATUS.map(s=>(
-          <GlowCard key={s.id} cor={s.cor} onClick={()=>onGoTo(s.id)}>
-            <div style={{ padding:'16px 18px',display:'flex',alignItems:'center',gap:13 }}>
-              <div style={{ width:40,height:40,borderRadius:12,flexShrink:0,
-                background:`${s.cor}18`,border:`1.5px solid ${s.cor}35`,
-                display:'flex',alignItems:'center',justifyContent:'center',
-                boxShadow:`0 4px 14px ${s.cor}20` }}>
-                <s.icon size={17} style={{ color:s.cor }}/>
-              </div>
-              <div style={{ flex:1,minWidth:0 }}>
-                <div style={{ fontSize:13.5,fontWeight:700,color:T.ink1,
-                  letterSpacing:'-.01em',marginBottom:3 }}>{s.label}</div>
-                <div style={{ fontSize:11,color:T.ink4 }}>{s.status}</div>
-              </div>
-              <ChevronRight size={15} style={{ color:T.ink4,flexShrink:0 }}/>
-            </div>
-          </GlowCard>
-        ))}
-      </div>
     </div>
   )
 }
 
 function SecaoGatilhosHorarios({ api }) {
-  const [schedules,  setSchedules]  = useState({})
-  const [indicadores,setIndicadores]= useState({})
-  const [loading,    setLoading]    = useState(true)
-  const [busca,      setBusca]      = useState('')
-  const [grupoAberto,setGrupoAberto]= useState('Compra & Pagamento')
+  const [schedules,setSchedules]=useState({})
+  const [indicadores,setIndicadores]=useState({})
+  const [loading,setLoading]=useState(true)
+  const [busca,setBusca]=useState('')
+  const [grupoAberto,setGrupoAberto]=useState('Compra & Pagamento')
 
   useEffect(()=>{
     Promise.all([
       fetch(`${api}/api/dashboard/config/schedules`).then(r=>r.json()).catch(()=>({})),
       fetch(`${api}/api/dashboard/gatilhos-indicadores`).then(r=>r.json()).catch(()=>({})),
-    ]).then(([s,ind])=>{
-      setSchedules(s.schedules||{})
-      setIndicadores(ind.indicadores||{})
-      setLoading(false)
-    })
+    ]).then(([s,ind])=>{ setSchedules(s.schedules||{}); setIndicadores(ind.indicadores||{}); setLoading(false) })
   },[api])
 
-  const salvar = async (id, schedule) => {
-    await fetch(`${api}/api/dashboard/config/schedules`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ gatilho:id, schedule }),
-    }).catch(()=>{})
+  const salvar=async(id,schedule)=>{
+    await fetch(`${api}/api/dashboard/config/schedules`,{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({gatilho:id,schedule})}).catch(()=>{})
     setSchedules(p=>({...p,[id]:schedule}))
   }
 
-  const grupos = {}
-  GATILHOS_DEF.forEach(g=>{
-    if(!grupos[g.grupo]) grupos[g.grupo]=[]
-    if(!grupos[g.grupo].find(x=>x.id===g.id)) grupos[g.grupo].push(g)
-  })
-
-  const filtrados = busca
-    ? GATILHOS_DEF.filter(g=>g.label.toLowerCase().includes(busca.toLowerCase()))
-    : null
-
-  const comJanela  = GATILHOS_DEF.filter(g=>schedules[g.id]?.enabled&&!ALWAYS_ON.has(g.id)).length
-  const sempreAtivos= ALWAYS_ON.size
+  const grupos={}
+  GATILHOS_DEF.forEach(g=>{ if(!grupos[g.grupo]) grupos[g.grupo]=[]; if(!grupos[g.grupo].find(x=>x.id===g.id)) grupos[g.grupo].push(g) })
+  const filtrados=busca?GATILHOS_DEF.filter(g=>g.label.toLowerCase().includes(busca.toLowerCase())):null
+  const comJanela=GATILHOS_DEF.filter(g=>schedules[g.id]?.enabled&&!ALWAYS_ON.has(g.id)).length
 
   return (
     <div>
-      {/* Header stats */}
-      <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:24 }}>
-        {[
-          { l:'Com janela de horário', v:comJanela,    cor:T.amber },
-          { l:'Sempre ativos (lock)',  v:sempreAtivos, cor:T.ink3  },
-          { l:'Total gatilhos',        v:GATILHOS_DEF.length, cor:T.purple },
-        ].map(s=>(
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:20 }}>
+        {[{l:'Com janela',v:comJanela,cor:T.amber},{l:'Sempre ativos',v:ALWAYS_ON.size,cor:T.ink3},{l:'Total',v:GATILHOS_DEF.length,cor:T.purple}].map(s=>(
           <GlowCard key={s.l} cor={s.cor}>
             <div style={{ padding:'14px 16px' }}>
-              <div style={{ fontSize:28,fontWeight:800,color:s.cor,
-                letterSpacing:'-.04em',textShadow:`0 0 24px ${s.cor}40` }}>{s.v}</div>
+              <div style={{ fontSize:26,fontWeight:800,color:s.cor,letterSpacing:'-.04em',
+                textShadow:`0 0 20px ${s.cor}40` }}>{s.v}</div>
               <div style={{ fontSize:10.5,color:T.ink4,marginTop:3 }}>{s.l}</div>
             </div>
           </GlowCard>
         ))}
       </div>
-
-      {/* Aviso */}
       <div style={{ display:'flex',gap:10,padding:'12px 16px',borderRadius:12,
-        background:T.amberDim,border:`1px solid ${T.amberBor}`,marginBottom:20 }}>
-        <Lock size={14} style={{ color:T.amber,flexShrink:0,marginTop:1 }}/>
-        <div style={{ fontSize:12,color:T.amber,lineHeight:1.65 }}>
-          <strong>Gatilhos com cadeado são sempre imediatos</strong> — Pedido Criado,
-          Pagamento Aprovado/Pendente, Cancelamento. Não podem ter janela de horário pois
-          afetam a experiência crítica do cliente.
+        background:T.amberDim,border:`1px solid ${T.amberBor}`,marginBottom:16 }}>
+        <Lock size={13} style={{ color:T.amber,flexShrink:0,marginTop:1 }}/>
+        <div style={{ fontSize:11.5,color:T.amber,lineHeight:1.6 }}>
+          <strong>Sempre imediatos (sem janela):</strong> Pedido Criado, Pagamento Aprovado/Pendente, Cancelamento, Boas-vindas.
         </div>
       </div>
-
-      {/* Busca */}
-      <div style={{ position:'relative',marginBottom:16 }}>
-        <Search size={13} style={{ position:'absolute',left:12,top:'50%',
-          transform:'translateY(-50%)',color:T.ink4,pointerEvents:'none' }}/>
-        <input value={busca} onChange={e=>setBusca(e.target.value)}
-          placeholder="Buscar gatilho..."
-          style={{ width:'100%',padding:'9px 12px 9px 36px',borderRadius:10,
-            background:T.bg2,border:`1px solid ${T.sep2}`,color:T.ink1,
-            fontSize:13,outline:'none',fontFamily:'inherit',
-            boxSizing:'border-box',transition:'border-color .18s' }}
-          onFocus={e=>e.target.style.borderColor=`${T.purple}60`}
-          onBlur={e=>e.target.style.borderColor=T.sep2}/>
+      <div style={{ position:'relative',marginBottom:14 }}>
+        <Search size={13} style={{ position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:T.ink4,pointerEvents:'none' }}/>
+        <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar gatilho..."
+          style={{ width:'100%',padding:'9px 12px 9px 35px',borderRadius:10,background:T.bg2,
+            border:`1px solid ${T.sep2}`,color:T.ink1,fontSize:13,outline:'none',
+            fontFamily:'inherit',boxSizing:'border-box' }}/>
       </div>
-
-      {loading ? (
-        <div style={{ textAlign:'center',padding:40,color:T.ink4 }}>
-          <RefreshCw size={16} style={{ animation:'cfg-spin 1s linear infinite',
-            display:'block',margin:'0 auto 10px',color:T.purple }}/>
-          Carregando configurações...
-        </div>
-      ) : filtrados ? (
-        <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
-          {filtrados.map(g=>(
-            <GatilhoCard key={g.id} g={g}
-              schedule={schedules[g.id]} indicador={indicadores[g.id]}
-              onSave={salvar}/>
-          ))}
-        </div>
-      ) : (
-        Object.entries(grupos).map(([grupo,items])=>(
-          <div key={grupo} style={{ marginBottom:16 }}>
-            <button onClick={()=>setGrupoAberto(v=>v===grupo?null:grupo)}
-              style={{ display:'flex',alignItems:'center',gap:8,marginBottom:8,
-                background:'none',border:'none',cursor:'pointer',padding:'4px 0',width:'100%' }}>
-              <div style={{ fontSize:9.5,fontWeight:700,textTransform:'uppercase',
-                letterSpacing:'.1em',color:T.ink4 }}>{grupo}</div>
-              <div style={{ flex:1,height:1,background:T.sep }}/>
-              <ChevronDown size={11} style={{ color:T.ink4,
-                transform:grupoAberto===grupo?'rotate(180deg)':'rotate(0)',transition:'transform .2s' }}/>
-            </button>
-            {grupoAberto===grupo && (
-              <div style={{ display:'flex',flexDirection:'column',gap:6,
-                animation:'cfg-fadeIn .2s ease' }}>
-                {items.map(g=>(
-                  <GatilhoCard key={g.id} g={g}
-                    schedule={schedules[g.id]} indicador={indicadores[g.id]}
-                    onSave={salvar}/>
-                ))}
-              </div>
-            )}
+      {loading?<div style={{ textAlign:'center',padding:32,color:T.ink4 }}>Carregando...</div>
+        :filtrados?(
+          <div style={{ display:'flex',flexDirection:'column',gap:7 }}>
+            {filtrados.map(g=><GatilhoCard key={g.id} g={g} schedule={schedules[g.id]} indicador={indicadores[g.id]} onSave={salvar}/>)}
           </div>
-        ))
-      )}
+        ):(
+          Object.entries(grupos).map(([grupo,items])=>(
+            <div key={grupo} style={{ marginBottom:14 }}>
+              <button onClick={()=>setGrupoAberto(v=>v===grupo?null:grupo)}
+                style={{ display:'flex',alignItems:'center',gap:8,marginBottom:8,background:'none',
+                  border:'none',cursor:'pointer',padding:'4px 0',width:'100%' }}>
+                <div style={{ fontSize:9.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'.1em',color:T.ink4 }}>{grupo}</div>
+                <div style={{ flex:1,height:1,background:T.sep }}/>
+                <ChevronDown size={11} style={{ color:T.ink4,transform:grupoAberto===grupo?'rotate(180deg)':'rotate(0)',transition:'transform .2s' }}/>
+              </button>
+              {grupoAberto===grupo&&(
+                <div style={{ display:'flex',flexDirection:'column',gap:6,animation:'cfg-fadeIn .2s ease' }}>
+                  {items.map(g=><GatilhoCard key={g.id} g={g} schedule={schedules[g.id]} indicador={indicadores[g.id]} onSave={salvar}/>)}
+                </div>
+              )}
+            </div>
+          ))
+        )}
     </div>
   )
 }
 
+// ═══════════════════════════════════════════════════
+// 4. RASTREIO UNIFICADO
+// ═══════════════════════════════════════════════════
 function SecaoRastreio({ api }) {
-  const [canais,   setCanais]   = useState([])
-  const [loading,  setLoading]  = useState(true)
-  const [salvando, setSalvando] = useState(false)
-  const [ok,       setOk]       = useState(false)
+  const [canais,setCanais]=useState([])
+  const [stats,setStats]=useState({})
+  const [loading,setLoading]=useState(true)
+  const [salvando,setSalvando]=useState(false)
+  const [ok,setOk]=useState(false)
 
   useEffect(()=>{
-    fetch(`${api}/api/dashboard/operacao/canais`).then(r=>r.json())
-      .then(d=>{ setCanais(d.canais||[]); setLoading(false) }).catch(()=>setLoading(false))
+    Promise.all([
+      fetch(`${api}/api/dashboard/operacao/canais`).then(r=>r.json()).catch(()=>({canais:[]})),
+      fetch(`${api}/api/dashboard/monitoramento`).then(r=>r.json()).catch(()=>({})),
+    ]).then(([c,m])=>{ setCanais(c.canais||[]); setStats(m); setLoading(false) })
   },[api])
 
-  const salvar = async () => {
+  const salvar=async()=>{
     setSalvando(true)
     const p={}; canais.forEach(c=>{p[c.id]=c.ativo})
-    await fetch(`${api}/api/dashboard/operacao/canais`,{
-      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({canais:p})
-    }).catch(()=>{})
-    setOk(true); setTimeout(()=>setOk(false),2500); setSalvando(false)
+    await fetch(`${api}/api/dashboard/operacao/canais`,{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({canais:p})}).catch(()=>{})
+    setOk(true);setTimeout(()=>setOk(false),2500);setSalvando(false)
   }
 
-  const proprios   = canais.filter(c=>!CANAL_META[c.id]?.mktp)
-  const marketplaces= canais.filter(c=>CANAL_META[c.id]?.mktp)
+  const proprios=canais.filter(c=>!CANAL_META[c.id]?.mktp)
+  const mktps=canais.filter(c=>CANAL_META[c.id]?.mktp)
+  const ativos=canais.filter(c=>c.ativo).length
+  const totalFila=canais.reduce((a,c)=>a+(c.naFila||0),0)
 
-  const CanalCard = ({ c }) => {
-    const m = CANAL_META[c.id]||{cor:T.ink3,lbl:c.nome}
+  const CanalCard=({c})=>{
+    const m=CANAL_META[c.id]||{cor:T.ink3,lbl:c.nome||c.id,desc:'Canal de rastreio',mktp:false}
     return (
       <GlowCard cor={c.ativo?m.cor:undefined}>
         <div style={{ padding:'14px 16px',display:'flex',alignItems:'center',gap:12 }}>
-          <div style={{ position:'relative',flexShrink:0 }}>
-            <div style={{ width:10,height:10,borderRadius:'50%',
-              background:c.ativo?m.cor:T.ink4,
-              boxShadow:c.ativo?`0 0 10px ${m.cor},0 0 20px ${m.cor}50`:undefined,
-              transition:'all .3s' }}/>
+          <div style={{ flexShrink:0 }}>
+            <PulsingDot cor={c.ativo?m.cor:T.ink4} size={9}/>
           </div>
           <div style={{ flex:1 }}>
-            <div style={{ fontSize:13.5,fontWeight:700,color:T.ink1,marginBottom:3 }}>{m.lbl}</div>
-            <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-              <span style={{ fontSize:11,color:T.ink4 }}>{c.desc}</span>
-              {(c.naFila||0)>0&&(
-                <StatusChip label={`${c.naFila} na fila`} cor={T.amber}/>
-              )}
+            <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:4 }}>
+              <span style={{ fontSize:13.5,fontWeight:700,color:T.ink1 }}>{m.lbl}</span>
+              {m.mktp&&<Chip label="Marketplace" cor={T.ink3} xs/>}
+            </div>
+            <div style={{ display:'flex',alignItems:'center',gap:10 }}>
+              <span style={{ fontSize:11,color:T.ink4 }}>{m.desc}</span>
+              {(c.naFila||0)>0&&<Chip label={`${c.naFila} na fila`} cor={T.amber}/>}
+              {c.ultimoRastreio&&<span style={{ fontSize:10,color:T.ink4 }}>
+                Último: {tempoRel(c.ultimoRastreio)||'—'}
+              </span>}
             </div>
           </div>
           <PremiumToggle value={c.ativo}
@@ -808,51 +878,77 @@ function SecaoRastreio({ api }) {
     )
   }
 
-  if (loading) return <div style={{ textAlign:'center',padding:40,color:T.ink4 }}>Carregando...</div>
+  if(loading) return <div style={{ textAlign:'center',padding:32,color:T.ink4 }}>Carregando...</div>
 
   return (
     <div>
-      <div style={{ marginBottom:20 }}>
-        <div style={{ fontSize:11,fontWeight:700,color:T.ink4,textTransform:'uppercase',
-          letterSpacing:'.09em',marginBottom:10 }}>Canais Próprios</div>
-        <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:20 }}>
+        {[{l:'Canais ativos',v:ativos,cor:T.green},{l:'Na fila',v:totalFila,cor:totalFila>0?T.amber:T.ink3},
+          {l:'Transportadoras',v:stats?.transportadoras?.length||0,cor:T.cyan}].map(s=>(
+          <GlowCard key={s.l} cor={s.cor}>
+            <div style={{ padding:'14px 16px' }}>
+              <div style={{ fontSize:26,fontWeight:800,color:s.cor,
+                textShadow:`0 0 18px ${s.cor}35` }}>{s.v}</div>
+              <div style={{ fontSize:10.5,color:T.ink4,marginTop:3 }}>{s.l}</div>
+            </div>
+          </GlowCard>
+        ))}
+      </div>
+
+      {proprios.length>0&&(<>
+        <div style={{ fontSize:10,fontWeight:700,color:T.ink4,textTransform:'uppercase',
+          letterSpacing:'.09em',marginBottom:8 }}>Canais Próprios</div>
+        <div style={{ display:'flex',flexDirection:'column',gap:8,marginBottom:16 }}>
           {proprios.map(c=><CanalCard key={c.id} c={c}/>)}
         </div>
-      </div>
-      <div style={{ marginBottom:20 }}>
-        <div style={{ fontSize:11,fontWeight:700,color:T.ink4,textTransform:'uppercase',
+      </>)}
+
+      {mktps.length>0&&(<>
+        <div style={{ fontSize:10,fontWeight:700,color:T.ink4,textTransform:'uppercase',
           letterSpacing:'.09em',marginBottom:6 }}>Marketplaces</div>
         <div style={{ fontSize:11.5,color:T.ink4,marginBottom:10,lineHeight:1.6 }}>
-          Marketplaces têm rastreio próprio. Ative apenas se quiser acompanhar também por aqui.
+          Marketplaces têm rastreio próprio. Ative se quiser acompanhar via Bia também.
         </div>
-        <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
-          {marketplaces.map(c=><CanalCard key={c.id} c={c}/>)}
+        <div style={{ display:'flex',flexDirection:'column',gap:8,marginBottom:16 }}>
+          {mktps.map(c=><CanalCard key={c.id} c={c}/>)}
         </div>
-      </div>
+      </>)}
+
       <button onClick={salvar} disabled={salvando} style={{
-        display:'flex',alignItems:'center',gap:8,padding:'10px 22px',
-        borderRadius:11,border:'none',cursor:'pointer',fontSize:13,fontWeight:700,
-        background:`linear-gradient(135deg,${T.green},${T.green}cc)`,
-        color:'#000',boxShadow:`0 4px 18px ${T.green}35`,
-        opacity:salvando?.6:1 }}>
+        display:'flex',alignItems:'center',gap:8,padding:'10px 22px',borderRadius:11,
+        border:'none',cursor:'pointer',fontSize:13,fontWeight:700,
+        background:`linear-gradient(135deg,${T.green},${T.green}cc)`,color:'#000',
+        boxShadow:`0 4px 18px ${T.green}35`,opacity:salvando?.6:1 }}>
         {ok?<><Check size={14}/>Salvo!</>:<><Save size={14}/>Salvar canais</>}
       </button>
     </div>
   )
 }
 
+// ═══════════════════════════════════════════════════
+// 5. ATENDIMENTO & SLA — NIVELMAX
+// ═══════════════════════════════════════════════════
 function SecaoSLA({ api }) {
-  const [sla, setSla] = useState({
+  const [sla,setSla]=useState({
     horario_inicio:8,horario_fim:22,dias:[1,2,3,4,5,6],
     sla_primeira_resposta_min:5,sla_resolucao_h:24,
-    fora_horario_msg:'Olá! Nosso atendimento funciona das 8h às 22h. Retornaremos em breve!'
+    sla_vip_min:2,sla_vip_resolucao_h:4,
+    limiar_vip_reais:500,
+    escalacao_sem_resposta_min:15,
+    escalacao_reclamacoes_n:3,
+    auto_close_horas:72,
+    bot_handoff_min:3,
+    fora_horario_msg:'Olá! Nosso atendimento funciona das 8h às 22h. Em breve retornaremos!',
+    aguardando_humano_msg:'Já recebi sua mensagem e vou transferir para um atendente. Aguarde um momento.',
+    sla_breach_msg:'Pedimos desculpas pela demora. Nossa equipe está te atendendo agora.',
   })
+  const [tab,setTab]=useState('horario')
   const [salvando,setSalvando]=useState(false)
   const [ok,setOk]=useState(false)
 
   useEffect(()=>{
     fetch(`${api}/api/dashboard/config/sla`).then(r=>r.json())
-      .then(d=>{ if(d.sla) setSla(d.sla) }).catch(()=>{})
+      .then(d=>{ if(d.sla) setSla(prev=>({...prev,...d.sla})) }).catch(()=>{})
   },[api])
 
   const salvar=async()=>{
@@ -862,226 +958,659 @@ function SecaoSLA({ api }) {
     setOk(true);setTimeout(()=>setOk(false),2500);setSalvando(false)
   }
 
+  const TABS=[
+    {id:'horario',lbl:'Horário',icon:Clock},
+    {id:'tiers',lbl:'Tiers de SLA',icon:Shield},
+    {id:'escalacao',lbl:'Escalonamento',icon:Bell},
+    {id:'msgs',lbl:'Mensagens',icon:MessageSquare},
+  ]
+
   return (
-    <div style={{ display:'flex',flexDirection:'column',gap:16 }}>
-      {/* Horário */}
-      <GlowCard cor={T.cyan}>
-        <div style={{ padding:'18px 20px' }}>
-          <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:16 }}>
-            <Clock size={15} style={{ color:T.cyan }}/>
-            <span style={{ fontSize:14,fontWeight:700,color:T.ink1 }}>Horário de atendimento</span>
-          </div>
-          <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16 }}>
-            {[{l:'Abertura',k:'horario_inicio',r:[6,7,8,9,10]},
-              {l:'Fechamento',k:'horario_fim',r:[20,21,22,23,24]}].map(f=>(
-              <div key={f.k}>
-                <div style={{ fontSize:10,fontWeight:700,color:T.ink4,textTransform:'uppercase',
-                  letterSpacing:'.08em',marginBottom:8 }}>{f.l}</div>
+    <div>
+      {/* Tabs */}
+      <div style={{ display:'flex',gap:4,marginBottom:20,
+        background:T.bg2,borderRadius:12,padding:4,border:`1px solid ${T.sep}` }}>
+        {TABS.map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)}
+            style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,
+              padding:'8px',borderRadius:9,border:'none',cursor:'pointer',
+              fontSize:11.5,fontWeight:tab===t.id?700:500,
+              background:tab===t.id?T.bg3:'transparent',
+              color:tab===t.id?T.cyan:T.ink4,
+              boxShadow:tab===t.id?`0 2px 12px rgba(0,0,0,.3)`:undefined,
+              transition:'all .15s' }}>
+            <t.icon size={12}/> {t.lbl}
+          </button>
+        ))}
+      </div>
+
+      {/* TAB: Horário */}
+      {tab==='horario'&&(
+        <div style={{ display:'flex',flexDirection:'column',gap:14 }}>
+          <GlowCard cor={T.cyan}>
+            <div style={{ padding:'18px 20px' }}>
+              <div style={{ fontSize:13,fontWeight:700,color:T.ink1,marginBottom:16,
+                display:'flex',alignItems:'center',gap:8 }}>
+                <Clock size={14} style={{ color:T.cyan }}/> Horário de funcionamento
+              </div>
+              <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16 }}>
+                {[{l:'Abertura',k:'horario_inicio',r:Array.from({length:13},(_,i)=>i+5)},
+                  {l:'Fechamento',k:'horario_fim',r:[...Array.from({length:7},(_,i)=>i+18),24]}].map(f=>(
+                  <div key={f.k}>
+                    <div style={{ fontSize:9.5,fontWeight:700,color:T.ink4,textTransform:'uppercase',
+                      letterSpacing:'.08em',marginBottom:8 }}>{f.l}</div>
+                    <div style={{ display:'flex',gap:4,flexWrap:'wrap' }}>
+                      {f.r.map(h=>(
+                        <button key={h} onClick={()=>setSla(s=>({...s,[f.k]:h}))}
+                          style={{ width:38,height:28,borderRadius:7,border:'none',cursor:'pointer',
+                            fontSize:10,fontWeight:700,transition:'all .13s',
+                            background:sla[f.k]===h?T.cyan:T.bg4,
+                            color:sla[f.k]===h?'#000':T.ink4,
+                            boxShadow:sla[f.k]===h?`0 0 10px ${T.cyan}50`:undefined }}>
+                          {h}h
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div style={{ fontSize:9.5,fontWeight:700,color:T.ink4,textTransform:'uppercase',
+                  letterSpacing:'.08em',marginBottom:8 }}>Dias de atendimento</div>
                 <div style={{ display:'flex',gap:5 }}>
-                  {f.r.map(h=>(
-                    <button key={h} onClick={()=>setSla(s=>({...s,[f.k]:h}))}
-                      style={{ width:40,height:30,borderRadius:8,border:'none',cursor:'pointer',
-                        fontSize:11,fontWeight:700,transition:'all .15s',
-                        background:sla[f.k]===h?T.cyan:T.bg4,
-                        color:sla[f.k]===h?'#000':T.ink4,
-                        boxShadow:sla[f.k]===h?`0 0 10px ${T.cyan}50`:undefined }}>
-                      {h}h
-                    </button>
-                  ))}
+                  {DIAS.map((d,i)=>{
+                    const a=sla.dias?.includes(i)
+                    return <button key={i} onClick={()=>setSla(s=>({...s,
+                      dias:a?s.dias.filter(x=>x!==i):[...(s.dias||[]),i].sort()}))}
+                      style={{ width:40,height:34,borderRadius:9,border:'none',cursor:'pointer',
+                        fontSize:10.5,fontWeight:700,transition:'all .14s',
+                        background:a?T.cyan:T.bg4,color:a?'#000':T.ink4,
+                        boxShadow:a?`0 0 10px ${T.cyan}50`:undefined }}>{d}</button>
+                  })}
                 </div>
               </div>
-            ))}
-          </div>
-          <div>
-            <div style={{ fontSize:10,fontWeight:700,color:T.ink4,textTransform:'uppercase',
-              letterSpacing:'.08em',marginBottom:8 }}>Dias</div>
-            <div style={{ display:'flex',gap:5 }}>
-              {DIAS.map((d,i)=>{
-                const a=sla.dias?.includes(i)
-                return (
-                  <button key={i} onClick={()=>setSla(s=>({...s,
-                    dias:a?s.dias.filter(x=>x!==i):[...(s.dias||[]),i].sort()}))}
-                    style={{ width:40,height:34,borderRadius:9,border:'none',cursor:'pointer',
-                      fontSize:10.5,fontWeight:700,transition:'all .15s',
-                      background:a?T.cyan:T.bg4,color:a?'#000':T.ink4,
-                      boxShadow:a?`0 0 10px ${T.cyan}50`:undefined }}>
-                    {d}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      </GlowCard>
-
-      {/* SLAs */}
-      <GlowCard cor={T.purple}>
-        <div style={{ padding:'18px 20px' }}>
-          <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:16 }}>
-            <Activity size={15} style={{ color:T.purple }}/>
-            <span style={{ fontSize:14,fontWeight:700,color:T.ink1 }}>Metas de SLA</span>
-          </div>
-          <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:14 }}>
-            {[{l:'1ª resposta (min)',k:'sla_primeira_resposta_min',max:120},
-              {l:'Resolução (horas)',k:'sla_resolucao_h',max:168}].map(f=>(
-              <div key={f.k}>
-                <div style={{ fontSize:10,fontWeight:700,color:T.ink4,textTransform:'uppercase',
-                  letterSpacing:'.08em',marginBottom:7 }}>{f.l}</div>
-                <PInput type="number" value={sla[f.k]} min={1} max={f.max}
-                  onChange={e=>setSla(s=>({...s,[f.k]:parseInt(e.target.value)||0}))}/>
+              {/* Preview */}
+              <div style={{ marginTop:14,padding:'10px 14px',borderRadius:10,
+                background:T.bg4,border:`1px solid ${T.sep}` }}>
+                <div style={{ fontSize:11,color:T.cyan,fontWeight:600 }}>
+                  📅 {sla.dias?.filter(d=>d>0&&d<7).length||0} dias úteis ·
+                  {' '}{sla.horario_inicio}h–{sla.horario_fim}h ·
+                  {' '}~{((sla.horario_fim-sla.horario_inicio)*(sla.dias?.filter(d=>d>0&&d<7).length||5))}h/sem
+                </div>
               </div>
-            ))}
-          </div>
+            </div>
+          </GlowCard>
         </div>
-      </GlowCard>
+      )}
 
-      {/* Msg fora do horário */}
-      <GlowCard cor={T.amber}>
-        <div style={{ padding:'18px 20px' }}>
-          <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:12 }}>
-            <Moon size={14} style={{ color:T.amber }}/>
-            <span style={{ fontSize:14,fontWeight:700,color:T.ink1 }}>Fora do horário</span>
-          </div>
-          <PInput rows={3} value={sla.fora_horario_msg}
-            onChange={e=>setSla(s=>({...s,fora_horario_msg:e.target.value}))}
-            placeholder="Mensagem enviada fora do horário..."/>
-          <div style={{ fontSize:10.5,color:T.ink4,marginTop:6 }}>
-            A IA envia esta mensagem quando o cliente contata fora do horário configurado.
-          </div>
+      {/* TAB: Tiers */}
+      {tab==='tiers'&&(
+        <div style={{ display:'flex',flexDirection:'column',gap:12 }}>
+          {/* Standard */}
+          <GlowCard cor={T.blue}>
+            <div style={{ padding:'18px 20px' }}>
+              <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:14 }}>
+                <Chip label="STANDARD" cor={T.blue}/>
+                <span style={{ fontSize:13,fontWeight:700,color:T.ink1 }}>Clientes padrão</span>
+              </div>
+              <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
+                {[{l:'1ª resposta (min)',k:'sla_primeira_resposta_min',max:60},
+                  {l:'Resolução (horas)',k:'sla_resolucao_h',max:168}].map(f=>(
+                  <div key={f.k}>
+                    <div style={{ fontSize:9.5,color:T.ink4,textTransform:'uppercase',
+                      letterSpacing:'.07em',marginBottom:6,fontWeight:700 }}>{f.l}</div>
+                    <PInput type="number" value={sla[f.k]} min={1} max={f.max}
+                      onChange={e=>setSla(s=>({...s,[f.k]:parseInt(e.target.value)||0}))}/>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </GlowCard>
+
+          {/* VIP */}
+          <GlowCard cor={T.amber}>
+            <div style={{ padding:'18px 20px' }}>
+              <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:14 }}>
+                <Chip label="VIP 🔥" cor={T.amber}/>
+                <span style={{ fontSize:13,fontWeight:700,color:T.ink1 }}>
+                  Clientes com compra acima de
+                </span>
+                <PInput type="number" value={sla.limiar_vip_reais} small
+                  onChange={e=>setSla(s=>({...s,limiar_vip_reais:parseInt(e.target.value)||0}))}
+                  style={{ width:80 }}/>
+                <span style={{ fontSize:13,color:T.ink3 }}>reais</span>
+              </div>
+              <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
+                {[{l:'1ª resposta VIP (min)',k:'sla_vip_min',max:30},
+                  {l:'Resolução VIP (horas)',k:'sla_vip_resolucao_h',max:48}].map(f=>(
+                  <div key={f.k}>
+                    <div style={{ fontSize:9.5,color:T.ink4,textTransform:'uppercase',
+                      letterSpacing:'.07em',marginBottom:6,fontWeight:700 }}>{f.l}</div>
+                    <PInput type="number" value={sla[f.k]} min={1} max={f.max}
+                      onChange={e=>setSla(s=>({...s,[f.k]:parseInt(e.target.value)||0}))}/>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </GlowCard>
         </div>
-      </GlowCard>
+      )}
+
+      {/* TAB: Escalonamento */}
+      {tab==='escalacao'&&(
+        <div style={{ display:'flex',flexDirection:'column',gap:12 }}>
+          <GlowCard cor={T.red}>
+            <div style={{ padding:'18px 20px' }}>
+              <div style={{ fontSize:13,fontWeight:700,color:T.ink1,marginBottom:16,
+                display:'flex',alignItems:'center',gap:8 }}>
+                <AlertTriangle size={14} style={{ color:T.red }}/> Regras de escalonamento
+              </div>
+              <div style={{ display:'flex',flexDirection:'column',gap:14 }}>
+                {[{l:'Transferir para humano após',k:'escalacao_sem_resposta_min',unit:'min sem resposta',max:120},
+                  {l:'Marcar como VIP após',k:'escalacao_reclamacoes_n',unit:'reclamações',max:10},
+                  {l:'Bot handoff após',k:'bot_handoff_min',unit:'min de espera',max:30},
+                  {l:'Fechar ticket inativo após',k:'auto_close_horas',unit:'horas',max:168},
+                ].map(f=>(
+                  <div key={f.k} style={{ display:'flex',alignItems:'center',gap:12,
+                    padding:'10px 14px',borderRadius:10,background:T.bg4,border:`1px solid ${T.sep}` }}>
+                    <ArrowRight size={12} style={{ color:T.red,flexShrink:0 }}/>
+                    <span style={{ flex:1,fontSize:12.5,color:T.ink2 }}>{f.l}</span>
+                    <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+                      <input type="number" value={sla[f.k]} min={1} max={f.max}
+                        onChange={e=>setSla(s=>({...s,[f.k]:parseInt(e.target.value)||0}))}
+                        style={{ width:64,padding:'5px 8px',borderRadius:8,background:T.bg2,
+                          border:`1px solid ${T.sep2}`,color:T.ink1,fontSize:13,fontWeight:700,
+                          outline:'none',textAlign:'center' }}/>
+                      <span style={{ fontSize:11,color:T.ink4,whiteSpace:'nowrap' }}>{f.unit}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </GlowCard>
+        </div>
+      )}
+
+      {/* TAB: Mensagens automáticas */}
+      {tab==='msgs'&&(
+        <div style={{ display:'flex',flexDirection:'column',gap:12 }}>
+          {[
+            {k:'fora_horario_msg',lbl:'Fora do horário',cor:T.amber,icon:Moon,
+              desc:'Enviada quando o cliente contata fora do horário de atendimento'},
+            {k:'aguardando_humano_msg',lbl:'Aguardando humano',cor:T.cyan,icon:Users,
+              desc:'Enviada quando o cliente está na fila para atendimento humano'},
+            {k:'sla_breach_msg',lbl:'SLA em risco',cor:T.red,icon:AlertTriangle,
+              desc:'Enviada quando o tempo de resposta excede o SLA configurado'},
+          ].map(f=>(
+            <GlowCard key={f.k} cor={f.cor}>
+              <div style={{ padding:'16px 18px' }}>
+                <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:10 }}>
+                  <f.icon size={14} style={{ color:f.cor }}/>
+                  <span style={{ fontSize:13,fontWeight:700,color:T.ink1 }}>{f.lbl}</span>
+                </div>
+                <div style={{ fontSize:11,color:T.ink4,marginBottom:10 }}>{f.desc}</div>
+                <PInput rows={2} value={sla[f.k]}
+                  onChange={e=>setSla(s=>({...s,[f.k]:e.target.value}))}
+                  placeholder={`Mensagem de ${f.lbl.toLowerCase()}...`}/>
+              </div>
+            </GlowCard>
+          ))}
+        </div>
+      )}
 
       <button onClick={salvar} disabled={salvando} style={{
-        display:'flex',alignItems:'center',gap:8,alignSelf:'flex-start',
+        display:'flex',alignItems:'center',gap:8,marginTop:16,
         padding:'10px 22px',borderRadius:11,border:'none',cursor:'pointer',
         fontSize:13,fontWeight:700,
-        background:`linear-gradient(135deg,${T.cyan},${T.cyan}cc)`,
-        color:'#000',boxShadow:`0 4px 18px ${T.cyan}35`,opacity:salvando?.6:1 }}>
+        background:`linear-gradient(135deg,${T.cyan},${T.cyan}cc)`,color:'#000',
+        boxShadow:`0 4px 18px ${T.cyan}35`,opacity:salvando?.6:1 }}>
         {ok?<><Check size={14}/>Salvo!</>:<><Save size={14}/>Salvar SLA</>}
       </button>
     </div>
   )
 }
 
-function SecaoBlacklist({ api }) {
+// ═══════════════════════════════════════════════════
+// 6. GESTÃO DE CONTATOS (substituiu Blacklist simples)
+// ═══════════════════════════════════════════════════
+function SecaoContatos({ api }) {
+  const [contatos,setContatos]=useState([])
+  const [loading,setLoading]=useState(true)
+  const [busca,setBusca]=useState('')
+  const [filtro,setFiltro]=useState('todos')
   const [phones,setPhones]=useState([])
   const [keywords,setKeywords]=useState([])
   const [novoTel,setNovoTel]=useState('')
   const [novaKw,setNovaKw]=useState('')
-  const [salvando,setSalvando]=useState(false)
-  const [ok,setOk]=useState(false)
+  const [salvandoBl,setSalvandoBl]=useState(false)
+  const [okBl,setOkBl]=useState(false)
+  const [aba,setAba]=useState('contatos')
 
   useEffect(()=>{
-    fetch(`${api}/api/dashboard/config/blacklist`).then(r=>r.json())
-      .then(d=>{ setPhones(d.phones||[]); setKeywords(d.keywords||[]) }).catch(()=>{})
+    Promise.all([
+      fetch(`${api}/api/dashboard/contatos`).then(r=>r.ok?r.json():{contatos:[]}).catch(()=>({contatos:[]})),
+      fetch(`${api}/api/dashboard/config/blacklist`).then(r=>r.ok?r.json():{phones:[],keywords:[]}).catch(()=>({phones:[],keywords:[]})),
+    ]).then(([c,bl])=>{
+      setContatos(c.contatos||[])
+      setPhones(bl.phones||[])
+      setKeywords(bl.keywords||[])
+      setLoading(false)
+    })
   },[api])
 
-  const salvar=async()=>{
-    setSalvando(true)
+  const toggleBlacklist=async(tel,in_list)=>{
+    const next=in_list?phones.filter(p=>p!==tel):[...phones,tel]
+    setPhones(next)
     await fetch(`${api}/api/dashboard/config/blacklist`,{method:'POST',
-      headers:{'Content-Type':'application/json'},body:JSON.stringify({phones,keywords})}).catch(()=>{})
-    setOk(true);setTimeout(()=>setOk(false),2500);setSalvando(false)
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({phones:next})}).catch(()=>{})
   }
 
+  const patchContato=async(tel,patch)=>{
+    setContatos(cs=>cs.map(c=>c.telefone===tel?{...c,...patch}:c))
+    await fetch(`${api}/api/contatos/${tel}`,{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)}).catch(()=>{})
+  }
+
+  const salvarBl=async()=>{
+    setSalvandoBl(true)
+    await fetch(`${api}/api/dashboard/config/blacklist`,{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({phones,keywords})}).catch(()=>{})
+    setOkBl(true);setTimeout(()=>setOkBl(false),2000);setSalvandoBl(false)
+  }
+
+  const filtrados=contatos.filter(c=>{
+    const ql=(c.nome||c.telefone||'').toLowerCase()
+    if(busca&&!ql.includes(busca.toLowerCase())&&!c.telefone?.includes(busca)) return false
+    if(filtro==='blacklist') return phones.includes(c.telefone)
+    if(filtro==='manual') return c.modo==='manual'
+    if(filtro==='ia') return c.modo!=='manual'
+    return true
+  })
+
+  const pal=[T.purple,T.green,T.amber,T.cyan,T.blue,T.orange]
+  const avatarCor=(nome)=>pal[(nome||'?').charCodeAt(0)%pal.length]
+
+  const TABS_C=[{id:'contatos',lbl:'Contatos'},{id:'blacklist',lbl:'Blacklist'}]
+
   return (
-    <div style={{ display:'flex',flexDirection:'column',gap:16 }}>
-      <GlowCard cor={T.red}>
-        <div style={{ padding:'18px 20px' }}>
-          <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14 }}>
-            <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-              <ShieldOff size={15} style={{ color:T.red }}/>
-              <span style={{ fontSize:14,fontWeight:700,color:T.ink1 }}>Números bloqueados</span>
-            </div>
-            <StatusChip label={`${phones.length}`} cor={T.red}/>
-          </div>
-          <div style={{ display:'flex',gap:8,marginBottom:12 }}>
-            <PInput value={novoTel} onChange={e=>setNovoTel(e.target.value)}
-              placeholder="55119... (com DDI)" mono/>
-            <button onClick={()=>{
-              const t=novoTel.replace(/\D/g,'')
-              if(t.length>=10&&!phones.includes(t)){setPhones(p=>[...p,t]);setNovoTel('')}
-            }} style={{ padding:'9px 16px',borderRadius:10,border:'none',cursor:'pointer',
-              background:T.red,color:'#fff',fontWeight:700,flexShrink:0,
-              boxShadow:`0 3px 12px ${T.red}35` }}>
-              <Plus size={14}/>
-            </button>
-          </div>
-          <div style={{ display:'flex',flexWrap:'wrap',gap:6,minHeight:32 }}>
-            {phones.length===0
-              ? <span style={{ fontSize:11.5,color:T.ink4 }}>Nenhum número bloqueado</span>
-              : phones.map(p=>(
-                <span key={p} style={{ display:'inline-flex',alignItems:'center',gap:5,
-                  padding:'3px 10px',borderRadius:99,background:T.redDim,
-                  color:T.red,border:`1px solid ${T.redBor}`,
-                  fontSize:11,fontWeight:600,fontFamily:'monospace' }}>
-                  {p}
-                  <button onClick={()=>setPhones(prev=>prev.filter(x=>x!==p))}
-                    style={{ background:'none',border:'none',cursor:'pointer',
-                      color:T.red,padding:0,display:'flex' }}>
-                    <X size={10}/>
-                  </button>
-                </span>
-              ))}
-          </div>
-        </div>
-      </GlowCard>
+    <div>
+      {/* Mini tabs */}
+      <div style={{ display:'flex',gap:4,marginBottom:16,
+        background:T.bg2,borderRadius:10,padding:3,border:`1px solid ${T.sep}` }}>
+        {TABS_C.map(t=>(
+          <button key={t.id} onClick={()=>setAba(t.id)}
+            style={{ flex:1,padding:'7px',borderRadius:8,border:'none',cursor:'pointer',
+              fontSize:12,fontWeight:aba===t.id?700:500,
+              background:aba===t.id?T.bg3:'transparent',
+              color:aba===t.id?T.red:T.ink4,transition:'all .15s' }}>
+            {t.lbl}
+          </button>
+        ))}
+      </div>
 
-      <GlowCard cor={T.amber}>
-        <div style={{ padding:'18px 20px' }}>
-          <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10 }}>
-            <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-              <Bell size={15} style={{ color:T.amber }}/>
-              <span style={{ fontSize:14,fontWeight:700,color:T.ink1 }}>Palavras-chave de opt-out</span>
+      {/* ABA: Contatos */}
+      {aba==='contatos'&&(
+        <>
+          {/* Filtros */}
+          <div style={{ display:'flex',gap:8,marginBottom:14 }}>
+            <div style={{ position:'relative',flex:1 }}>
+              <Search size={12} style={{ position:'absolute',left:10,top:'50%',
+                transform:'translateY(-50%)',color:T.ink4,pointerEvents:'none' }}/>
+              <input value={busca} onChange={e=>setBusca(e.target.value)}
+                placeholder="Buscar por nome ou telefone..."
+                style={{ width:'100%',padding:'8px 10px 8px 32px',borderRadius:9,background:T.bg2,
+                  border:`1px solid ${T.sep2}`,color:T.ink1,fontSize:12.5,outline:'none',
+                  fontFamily:'inherit',boxSizing:'border-box' }}/>
             </div>
-            <StatusChip label={`${keywords.length}`} cor={T.amber}/>
+            {['todos','ia','manual','blacklist'].map(f=>(
+              <button key={f} onClick={()=>setFiltro(f)}
+                style={{ padding:'7px 12px',borderRadius:9,border:`1px solid ${filtro===f?T.red+'40':T.sep}`,
+                  background:filtro===f?T.redDim:'transparent',
+                  color:filtro===f?T.red:T.ink4,cursor:'pointer',fontSize:11,
+                  fontWeight:filtro===f?700:400,transition:'all .14s',whiteSpace:'nowrap' }}>
+                {f==='todos'?'Todos':f==='ia'?'IA':f==='manual'?'Humano':'🚫 Blacklist'}
+              </button>
+            ))}
           </div>
-          <div style={{ fontSize:11.5,color:T.ink4,marginBottom:12,lineHeight:1.6 }}>
-            Quando o cliente enviar estas palavras, os disparos automáticos pausam para o número.
-          </div>
-          <div style={{ display:'flex',gap:8,marginBottom:12 }}>
-            <PInput value={novaKw} onChange={e=>setNovaKw(e.target.value)}
-              placeholder="Ex: sair, parar, cancelar"/>
-            <button onClick={()=>{
-              const k=novaKw.trim().toLowerCase()
-              if(k&&!keywords.includes(k)){setKeywords(p=>[...p,k]);setNovaKw('')}
-            }} style={{ padding:'9px 16px',borderRadius:10,border:'none',cursor:'pointer',
-              background:T.amber,color:'#000',fontWeight:700,flexShrink:0,
-              boxShadow:`0 3px 12px ${T.amber}35` }}>
-              <Plus size={14}/>
-            </button>
-          </div>
-          <div style={{ display:'flex',flexWrap:'wrap',gap:6 }}>
-            {keywords.length===0
-              ? <span style={{ fontSize:11.5,color:T.ink4 }}>Nenhuma palavra cadastrada</span>
-              : keywords.map(k=>(
-                <span key={k} style={{ display:'inline-flex',alignItems:'center',gap:5,
-                  padding:'3px 10px',borderRadius:99,background:T.amberDim,
-                  color:T.amber,border:`1px solid ${T.amberBor}`,
-                  fontSize:11,fontWeight:600 }}>
-                  {k}
-                  <button onClick={()=>setKeywords(prev=>prev.filter(x=>x!==k))}
-                    style={{ background:'none',border:'none',cursor:'pointer',
-                      color:T.amber,padding:0,display:'flex' }}>
-                    <X size={10}/>
-                  </button>
-                </span>
-              ))}
-          </div>
-        </div>
-      </GlowCard>
 
-      <button onClick={salvar} disabled={salvando} style={{
-        display:'flex',alignItems:'center',gap:8,alignSelf:'flex-start',
-        padding:'10px 22px',borderRadius:11,border:'none',cursor:'pointer',
-        fontSize:13,fontWeight:700,
-        background:`linear-gradient(135deg,${T.red},${T.red}cc)`,
-        color:'#fff',boxShadow:`0 4px 18px ${T.red}35`,opacity:salvando?.6:1 }}>
-        {ok?<><Check size={14}/>Salvo!</>:<><Save size={14}/>Salvar blacklist</>}
-      </button>
+          {loading?<div style={{ textAlign:'center',padding:32,color:T.ink4 }}>Carregando contatos...</div>
+            :filtrados.length===0?<div style={{ textAlign:'center',padding:32,color:T.ink4 }}>
+                <Users size={24} style={{ display:'block',margin:'0 auto 8px',opacity:.15 }}/>
+                <p style={{ margin:0,fontSize:12 }}>Nenhum contato encontrado</p>
+              </div>
+            :(
+              <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+                {filtrados.slice(0,30).map(c=>{
+                  const isBlocked=phones.includes(c.telefone)
+                  const isManual=c.modo==='manual'
+                  const cor=avatarCor(c.nome||c.telefone)
+                  const init=(c.nome||c.telefone||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()
+                  return (
+                    <GlowCard key={c.telefone} cor={isBlocked?T.red:isManual?T.blue:undefined}>
+                      <div style={{ padding:'13px 16px' }}>
+                        <div style={{ display:'flex',alignItems:'flex-start',gap:13 }}>
+                          {/* Avatar */}
+                          <div style={{ width:40,height:40,borderRadius:'50%',flexShrink:0,
+                            background:`${cor}20`,border:`2px solid ${cor}40`,
+                            display:'flex',alignItems:'center',justifyContent:'center',
+                            fontSize:13,fontWeight:800,color:cor }}>
+                            {init}
+                          </div>
+
+                          {/* Info */}
+                          <div style={{ flex:1,minWidth:0 }}>
+                            <div style={{ display:'flex',alignItems:'center',gap:7,marginBottom:4 }}>
+                              <span style={{ fontSize:13.5,fontWeight:700,color:T.ink1,
+                                textDecoration:isBlocked?'line-through':undefined,
+                                opacity:isBlocked?.6:1 }}>
+                                {c.nome||'Sem nome'}
+                              </span>
+                              {isBlocked&&<Chip label="BLOQUEADO" cor={T.red} icon={PhoneOff} xs/>}
+                              {isManual&&!isBlocked&&<Chip label="HUMANO" cor={T.blue} icon={UserCheck} xs/>}
+                              {!isManual&&!isBlocked&&<Chip label="IA" cor={T.green} icon={Bot} xs/>}
+                            </div>
+                            <div style={{ fontFamily:'monospace',fontSize:11,color:T.ink4,marginBottom:6 }}>
+                              {c.telefone}
+                            </div>
+                            <div style={{ display:'flex',alignItems:'center',gap:12,flexWrap:'wrap' }}>
+                              {c.total_msgs>0&&(
+                                <span style={{ fontSize:10.5,color:T.ink3,display:'flex',alignItems:'center',gap:3 }}>
+                                  <MessageSquare size={10}/> {c.total_msgs} mensagens
+                                </span>
+                              )}
+                              {c.ultima_msg&&(
+                                <span style={{ fontSize:10.5,color:T.ink4 }}>
+                                  Último: {tempoRel(c.ultima_msg)||'—'}
+                                </span>
+                              )}
+                              {c.ltv>0&&(
+                                <span style={{ fontSize:10.5,color:T.green,fontWeight:600 }}>
+                                  LTV: R${parseFloat(c.ltv).toFixed(0)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Controles */}
+                          <div style={{ display:'flex',flexDirection:'column',gap:10,flexShrink:0,alignItems:'flex-end' }}>
+                            <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+                              <span style={{ fontSize:10,color:T.ink4 }}>Recebe notif.</span>
+                              <PremiumToggle value={!isBlocked}
+                                onChange={v=>toggleBlacklist(c.telefone,v)}
+                                cor={T.green} size="sm"/>
+                            </div>
+                            <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+                              <span style={{ fontSize:10,color:T.ink4 }}>Modo IA</span>
+                              <PremiumToggle value={!isManual}
+                                onChange={v=>patchContato(c.telefone,{modo:v?'auto':'manual'})}
+                                cor={T.purple} size="sm"/>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </GlowCard>
+                  )
+                })}
+                {filtrados.length>30&&(
+                  <div style={{ textAlign:'center',padding:'12px 0',fontSize:11.5,color:T.ink4 }}>
+                    + {filtrados.length-30} contatos · use a busca para filtrar
+                  </div>
+                )}
+              </div>
+            )}
+        </>
+      )}
+
+      {/* ABA: Blacklist */}
+      {aba==='blacklist'&&(
+        <div style={{ display:'flex',flexDirection:'column',gap:14 }}>
+          <GlowCard cor={T.red}>
+            <div style={{ padding:'18px 20px' }}>
+              <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14 }}>
+                <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+                  <PhoneOff size={15} style={{ color:T.red }}/>
+                  <span style={{ fontSize:14,fontWeight:700,color:T.ink1 }}>Números bloqueados</span>
+                </div>
+                <Chip label={`${phones.length}`} cor={T.red}/>
+              </div>
+              <div style={{ display:'flex',gap:8,marginBottom:12 }}>
+                <PInput value={novoTel} onChange={e=>setNovoTel(e.target.value)}
+                  placeholder="55119... (com DDI)" mono/>
+                <button onClick={()=>{
+                  const t=novoTel.replace(/\D/g,'')
+                  if(t.length>=10&&!phones.includes(t)){setPhones(p=>[...p,t]);setNovoTel('')}
+                }} style={{ padding:'9px 16px',borderRadius:10,border:'none',cursor:'pointer',
+                  background:T.red,color:'#fff',fontWeight:700,flexShrink:0,
+                  boxShadow:`0 3px 12px ${T.red}35` }}><Plus size={14}/></button>
+              </div>
+              <div style={{ display:'flex',flexWrap:'wrap',gap:6 }}>
+                {phones.map(p=>(
+                  <span key={p} style={{ display:'inline-flex',alignItems:'center',gap:5,
+                    padding:'3px 10px',borderRadius:99,background:T.redDim,color:T.red,
+                    border:`1px solid ${T.redBor}`,fontSize:11,fontFamily:'monospace',fontWeight:600 }}>
+                    {p}
+                    <button onClick={()=>setPhones(prev=>prev.filter(x=>x!==p))}
+                      style={{ background:'none',border:'none',cursor:'pointer',color:T.red,padding:0,display:'flex' }}>
+                      <X size={10}/>
+                    </button>
+                  </span>
+                ))}
+                {phones.length===0&&<span style={{ fontSize:11.5,color:T.ink4 }}>Nenhum número</span>}
+              </div>
+            </div>
+          </GlowCard>
+          <GlowCard cor={T.amber}>
+            <div style={{ padding:'18px 20px' }}>
+              <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10 }}>
+                <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+                  <Bell size={15} style={{ color:T.amber }}/>
+                  <span style={{ fontSize:14,fontWeight:700,color:T.ink1 }}>Palavras de opt-out</span>
+                </div>
+                <Chip label={`${keywords.length}`} cor={T.amber}/>
+              </div>
+              <div style={{ fontSize:11.5,color:T.ink4,marginBottom:12,lineHeight:1.6 }}>
+                Se o cliente enviar estas palavras, os disparos pausam automaticamente.
+              </div>
+              <div style={{ display:'flex',gap:8,marginBottom:12 }}>
+                <PInput value={novaKw} onChange={e=>setNovaKw(e.target.value)} placeholder="Ex: sair, parar"/>
+                <button onClick={()=>{
+                  const k=novaKw.trim().toLowerCase()
+                  if(k&&!keywords.includes(k)){setKeywords(p=>[...p,k]);setNovaKw('')}
+                }} style={{ padding:'9px 16px',borderRadius:10,border:'none',cursor:'pointer',
+                  background:T.amber,color:'#000',fontWeight:700,flexShrink:0 }}><Plus size={14}/></button>
+              </div>
+              <div style={{ display:'flex',flexWrap:'wrap',gap:6 }}>
+                {keywords.map(k=>(
+                  <span key={k} style={{ display:'inline-flex',alignItems:'center',gap:5,
+                    padding:'3px 10px',borderRadius:99,background:T.amberDim,color:T.amber,
+                    border:`1px solid ${T.amberBor}`,fontSize:11,fontWeight:600 }}>
+                    {k}
+                    <button onClick={()=>setKeywords(prev=>prev.filter(x=>x!==k))}
+                      style={{ background:'none',border:'none',cursor:'pointer',color:T.amber,padding:0,display:'flex' }}>
+                      <X size={10}/>
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </GlowCard>
+          <button onClick={salvarBl} disabled={salvandoBl} style={{
+            display:'flex',alignItems:'center',gap:8,alignSelf:'flex-start',
+            padding:'10px 22px',borderRadius:11,border:'none',cursor:'pointer',
+            fontSize:13,fontWeight:700,
+            background:`linear-gradient(135deg,${T.red},${T.red}cc)`,color:'#fff',
+            boxShadow:`0 4px 18px ${T.red}35`,opacity:salvandoBl?.6:1 }}>
+            {okBl?<><Check size={14}/>Salvo!</>:<><Save size={14}/>Salvar</>}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
 
+// ═══════════════════════════════════════════════════
+// 7. AUDITORIA NIVELMAX — timeline com diff
+// ═══════════════════════════════════════════════════
+function SecaoAuditoria({ api }) {
+  const [audit,setAudit]=useState(null)
+  const [loading,setLoading]=useState(true)
+  const [expandido,setExpandido]=useState(null)
+  const [filtro,setFiltro]=useState('todos')
+
+  useEffect(()=>{
+    fetch(`${api}/api/dashboard/config/audit`).then(r=>r.json())
+      .then(d=>{ setAudit(d); setLoading(false) }).catch(()=>setLoading(false))
+  },[api])
+
+  if(loading) return <div style={{ textAlign:'center',padding:40,color:T.ink4 }}>
+    <RefreshCw size={16} style={{ display:'block',margin:'0 auto 10px',
+      animation:'cfg-spin 1s linear infinite',color:T.purple }}/>Carregando auditoria...
+  </div>
+
+  const tplChanges=(audit?.template_changes||[]).map(t=>({
+    tipo:'template',subtipo:t.ativo?'ativado':'desativado',
+    label:t.nome||t.gatilho,desc:t.gatilho,
+    cor:t.ativo?T.green:T.red,
+    icon:t.ativo?CheckCircle:XCircle,
+    ts:t.atualizado_em,
+    antes:t.ativo?'inativo':'ativo',
+    depois:t.ativo?'ativo':'inativo',
+  }))
+
+  const cfgChanges=(audit?.config_changes||[]).map(c=>({
+    tipo:'config',subtipo:'alteração',
+    label:c.chave,desc:'Configuração atualizada',
+    cor:T.purple,icon:Settings2,
+    ts:c.dados?.ts||null,
+    antes:c.dados?.antes||'—',
+    depois:JSON.stringify(c.dados?.schedule||c.dados||'').slice(0,60),
+  }))
+
+  const all=[...tplChanges,...cfgChanges]
+    .sort((a,b)=>new Date(b.ts)-new Date(a.ts))
+    .filter(item=>filtro==='todos'||item.tipo===filtro||item.subtipo===filtro)
+
+  const TIPO_ICONES={
+    ativado:CheckCircle,desativado:XCircle,alteração:Settings2,
+  }
+
+  return (
+    <div>
+      {/* Filtros */}
+      <div style={{ display:'flex',gap:6,marginBottom:16,flexWrap:'wrap' }}>
+        {[
+          {id:'todos',lbl:'Todos',cor:T.ink3},
+          {id:'template',lbl:'Templates',cor:T.amber},
+          {id:'config',lbl:'Configurações',cor:T.purple},
+          {id:'ativado',lbl:'Ativações',cor:T.green},
+          {id:'desativado',lbl:'Desativações',cor:T.red},
+        ].map(f=>(
+          <button key={f.id} onClick={()=>setFiltro(f.id)}
+            style={{ padding:'5px 12px',borderRadius:99,border:`1px solid ${filtro===f.id?f.cor+'50':T.sep}`,
+              background:filtro===f.id?`${f.cor}15`:'transparent',
+              color:filtro===f.id?f.cor:T.ink4,cursor:'pointer',fontSize:11,fontWeight:600,
+              transition:'all .14s' }}>
+            {f.lbl}
+          </button>
+        ))}
+        <div style={{ marginLeft:'auto',fontSize:11,color:T.ink4,display:'flex',alignItems:'center' }}>
+          {all.length} registros
+        </div>
+      </div>
+
+      {all.length===0?(
+        <div style={{ textAlign:'center',padding:'48px 0',color:T.ink4 }}>
+          <History size={28} style={{ opacity:.15,display:'block',margin:'0 auto 12px' }}/>
+          <p style={{ fontSize:13,margin:0 }}>Nenhuma alteração encontrada</p>
+        </div>
+      ):(
+        <div style={{ position:'relative' }}>
+          {/* Linha da timeline */}
+          <div style={{ position:'absolute',left:17,top:8,bottom:8,width:2,
+            background:`linear-gradient(180deg,${T.purple}50,transparent)` }}/>
+
+          <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+            {all.map((item,i)=>{
+              const Ic=TIPO_ICONES[item.subtipo]||Settings2
+              const isOpen=expandido===i
+              return (
+                <div key={i} style={{ display:'flex',gap:12 }}>
+                  {/* Node da timeline */}
+                  <div style={{ width:36,height:36,borderRadius:'50%',flexShrink:0,
+                    background:`${item.cor}18`,border:`2px solid ${item.cor}40`,
+                    display:'flex',alignItems:'center',justifyContent:'center',
+                    boxShadow:`0 0 12px ${item.cor}30`,zIndex:1 }}>
+                    <Ic size={14} style={{ color:item.cor }}/>
+                  </div>
+
+                  {/* Card do evento */}
+                  <GlowCard cor={item.cor} style={{ flex:1 }}>
+                    <div style={{ padding:'12px 14px',cursor:'pointer' }}
+                      onClick={()=>setExpandido(isOpen?null:i)}>
+                      <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:4 }}>
+                        <span style={{ fontSize:13,fontWeight:700,color:T.ink1 }}>{item.label}</span>
+                        <Chip label={item.subtipo} cor={item.cor} xs/>
+                      </div>
+                      <div style={{ display:'flex',alignItems:'center',gap:12 }}>
+                        <span style={{ fontSize:10.5,color:T.ink4 }}>{item.desc}</span>
+                        <span style={{ marginLeft:'auto',fontSize:10.5,color:T.ink4,flexShrink:0 }}>
+                          {item.ts?tempoRel(item.ts)||new Date(item.ts).toLocaleString('pt-BR'):'—'}
+                        </span>
+                        <ChevronDown size={12} style={{ color:T.ink4,flexShrink:0,
+                          transform:isOpen?'rotate(180deg)':'rotate(0)',transition:'transform .2s' }}/>
+                      </div>
+                    </div>
+
+                    {/* Diff expandido */}
+                    {isOpen&&(
+                      <div style={{ borderTop:`1px solid ${item.cor}20`,
+                        padding:'12px 14px',animation:'cfg-fadeIn .2s ease' }}>
+                        <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:10 }}>
+                          <div style={{ padding:'10px 12px',borderRadius:9,
+                            background:T.redDim,border:`1px solid ${T.redBor}` }}>
+                            <div style={{ fontSize:9,fontWeight:700,color:T.red,
+                              textTransform:'uppercase',letterSpacing:'.08em',marginBottom:6 }}>
+                              ANTES
+                            </div>
+                            <div style={{ fontSize:12,color:T.ink2,fontFamily:'monospace',
+                              wordBreak:'break-all' }}>
+                              {item.antes||'—'}
+                            </div>
+                          </div>
+                          <div style={{ padding:'10px 12px',borderRadius:9,
+                            background:T.greenDim,border:`1px solid ${T.greenBor}` }}>
+                            <div style={{ fontSize:9,fontWeight:700,color:T.green,
+                              textTransform:'uppercase',letterSpacing:'.08em',marginBottom:6 }}>
+                              DEPOIS
+                            </div>
+                            <div style={{ fontSize:12,color:T.ink2,fontFamily:'monospace',
+                              wordBreak:'break-all' }}>
+                              {item.depois||'—'}
+                            </div>
+                          </div>
+                        </div>
+                        {item.ts&&(
+                          <div style={{ marginTop:8,fontSize:10,color:T.ink4 }}>
+                            {new Date(item.ts).toLocaleString('pt-BR',{
+                              dateStyle:'full',timeStyle:'medium'})}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </GlowCard>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════
+// 8. EXPORTAÇÃO
+// ═══════════════════════════════════════════════════
 function SecaoExportacao({ api }) {
   const hoje=new Date().toISOString().split('T')[0]
   const [from,setFrom]=useState(new Date(Date.now()-30*86400000).toISOString().split('T')[0])
@@ -1106,185 +1635,117 @@ function SecaoExportacao({ api }) {
   }
 
   return (
-    <div style={{ display:'flex',flexDirection:'column',gap:16 }}>
-      <GlowCard cor={T.blue}>
-        <div style={{ padding:'18px 20px' }}>
-          <div style={{ fontSize:11,fontWeight:700,color:T.ink4,textTransform:'uppercase',
-            letterSpacing:'.08em',marginBottom:14 }}>Período</div>
-          <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16 }}>
-            {[{l:'De',v:from,s:setFrom},{l:'Até',v:to,s:setTo}].map(f=>(
-              <div key={f.l}>
-                <div style={{ fontSize:10,color:T.ink4,marginBottom:6 }}>{f.l}</div>
-                <PInput type="date" value={f.v} onChange={e=>f.s(e.target.value)}/>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginBottom:14 }}>
-            <div style={{ fontSize:10,color:T.ink4,marginBottom:6 }}>Gatilho (opcional)</div>
-            <select value={gat} onChange={e=>setGat(e.target.value)}
-              style={{ width:'100%',padding:'9px 13px',borderRadius:10,
-                background:T.bg1,border:`1px solid ${T.sep2}`,color:T.ink1,
-                fontSize:13,outline:'none',fontFamily:'inherit' }}>
-              <option value="">Todos os gatilhos</option>
-              {GATILHOS_DEF.map(g=><option key={g.id} value={g.id}>{g.label}</option>)}
-            </select>
-          </div>
-          <div style={{ marginBottom:20 }}>
-            <div style={{ fontSize:10,color:T.ink4,marginBottom:8 }}>Formato</div>
-            <div style={{ display:'flex',gap:8 }}>
-              {['csv','json'].map(f=>(
-                <button key={f} onClick={()=>setFmt(f)}
-                  style={{ padding:'8px 24px',borderRadius:9,border:'none',cursor:'pointer',
-                    fontSize:12.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'.04em',
-                    transition:'all .15s',
-                    background:fmt===f?T.blue:T.bg4,
-                    color:fmt===f?'#fff':T.ink4,
-                    boxShadow:fmt===f?`0 4px 14px ${T.blue}35`:undefined }}>
-                  {f}
-                </button>
-              ))}
+    <GlowCard cor={T.blue}>
+      <div style={{ padding:'20px' }}>
+        <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:16 }}>
+          {[{l:'De',v:from,s:setFrom},{l:'Até',v:to,s:setTo}].map(f=>(
+            <div key={f.l}>
+              <div style={{ fontSize:10,color:T.ink4,marginBottom:6,textTransform:'uppercase',
+                letterSpacing:'.07em',fontWeight:700 }}>{f.l}</div>
+              <PInput type="date" value={f.v} onChange={e=>f.s(e.target.value)}/>
             </div>
-          </div>
-          <button onClick={exportar} disabled={baixando} style={{
-            display:'flex',alignItems:'center',gap:8,
-            padding:'10px 22px',borderRadius:11,border:'none',cursor:'pointer',
-            fontSize:13,fontWeight:700,
-            background:`linear-gradient(135deg,${T.blue},${T.blue}cc)`,
-            color:'#fff',boxShadow:`0 4px 18px ${T.blue}35`,opacity:baixando?.6:1 }}>
-            {baixando?<><RefreshCw size={13} style={{ animation:'cfg-spin 1s linear infinite' }}/>Baixando...</>
-              :<><FileDown size={13}/>Exportar {fmt.toUpperCase()}</>}
-          </button>
-        </div>
-      </GlowCard>
-    </div>
-  )
-}
-
-function SecaoAuditoria({ api }) {
-  const [audit,setAudit]=useState(null)
-  const [loading,setLoading]=useState(true)
-
-  useEffect(()=>{
-    fetch(`${api}/api/dashboard/config/audit`).then(r=>r.json())
-      .then(d=>{ setAudit(d); setLoading(false) }).catch(()=>setLoading(false))
-  },[api])
-
-  if (loading) return <div style={{ textAlign:'center',padding:40,color:T.ink4 }}>Carregando...</div>
-
-  const all = [
-    ...(audit?.template_changes||[]).map(t=>({
-      tipo: t.ativo?'ativado':'desativado',
-      label: t.nome||t.gatilho,
-      cor: t.ativo?T.green:T.red,
-      ts: t.atualizado_em,
-    })),
-    ...(audit?.config_changes||[]).map(c=>({
-      tipo:'config',label:c.chave,cor:T.purple,ts:c.dados?.ts
-    })),
-  ].sort((a,b)=>new Date(b.ts)-new Date(a.ts)).slice(0,30)
-
-  return (
-    <div>
-      {all.length===0 ? (
-        <div style={{ textAlign:'center',padding:'48px 0',color:T.ink4 }}>
-          <History size={28} style={{ opacity:.15,display:'block',margin:'0 auto 12px' }}/>
-          <p style={{ fontSize:13,margin:0 }}>Nenhuma alteração registrada nos últimos 30 dias</p>
-        </div>
-      ) : (
-        <div style={{ display:'flex',flexDirection:'column',gap:6 }}>
-          {all.map((item,i)=>(
-            <GlowCard key={i} cor={item.cor}>
-              <div style={{ padding:'12px 16px',display:'flex',alignItems:'center',gap:12 }}>
-                <div style={{ width:8,height:8,borderRadius:'50%',flexShrink:0,
-                  background:item.cor,boxShadow:`0 0 8px ${item.cor}` }}/>
-                <div style={{ flex:1 }}>
-                  <span style={{ fontSize:13,fontWeight:600,color:T.ink1 }}>{item.label}</span>
-                  <span style={{ fontSize:11,color:item.cor,marginLeft:8,fontWeight:600 }}>
-                    — {item.tipo}
-                  </span>
-                </div>
-                <span style={{ fontSize:11,color:T.ink4,flexShrink:0 }}>
-                  {tempoRel(item.ts)||'—'}
-                </span>
-              </div>
-            </GlowCard>
           ))}
         </div>
-      )}
-    </div>
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:10,color:T.ink4,marginBottom:6,textTransform:'uppercase',
+            letterSpacing:'.07em',fontWeight:700 }}>Gatilho (opcional)</div>
+          <select value={gat} onChange={e=>setGat(e.target.value)}
+            style={{ width:'100%',padding:'9px 13px',borderRadius:10,background:T.bg1,
+              border:`1px solid ${T.sep2}`,color:T.ink1,fontSize:13,outline:'none',fontFamily:'inherit' }}>
+            <option value="">Todos os gatilhos</option>
+            {GATILHOS_DEF.map(g=><option key={g.id} value={g.id}>{g.label}</option>)}
+          </select>
+        </div>
+        <div style={{ marginBottom:20 }}>
+          <div style={{ fontSize:10,color:T.ink4,marginBottom:8,textTransform:'uppercase',
+            letterSpacing:'.07em',fontWeight:700 }}>Formato</div>
+          <div style={{ display:'flex',gap:8 }}>
+            {['csv','json'].map(f=>(
+              <button key={f} onClick={()=>setFmt(f)}
+                style={{ padding:'8px 24px',borderRadius:9,border:'none',cursor:'pointer',
+                  fontSize:12.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'.04em',
+                  transition:'all .15s',background:fmt===f?T.blue:T.bg4,
+                  color:fmt===f?'#fff':T.ink4,boxShadow:fmt===f?`0 4px 14px ${T.blue}35`:undefined }}>
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button onClick={exportar} disabled={baixando} style={{
+          display:'flex',alignItems:'center',gap:8,padding:'10px 22px',borderRadius:11,
+          border:'none',cursor:'pointer',fontSize:13,fontWeight:700,
+          background:`linear-gradient(135deg,${T.blue},${T.blue}cc)`,color:'#fff',
+          boxShadow:`0 4px 18px ${T.blue}35`,opacity:baixando?.6:1 }}>
+          {baixando?<><RefreshCw size={13} style={{ animation:'cfg-spin 1s linear infinite' }}/>Baixando...</>
+            :<><FileDown size={13}/>Exportar {fmt.toUpperCase()}</>}
+        </button>
+      </div>
+    </GlowCard>
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// NAVEGAÇÃO LATERAL NIVELMAX
-// ─────────────────────────────────────────────────────────────────────────────
-const SECOES = [
-  { id:'visao',     label:'Visão Geral',        icon:LayoutDashboard, cor:T.purple, desc:'Status global'           },
-  { id:'gatilhos',  label:'Gatilhos & Horários', icon:Zap,             cor:T.amber,  desc:'Schedules por gatilho', badge:'novo' },
-  { id:'rastreio',  label:'Rastreio por Canal',  icon:Truck,           cor:T.green,  desc:'Canais ativos'          },
-  { id:'sla',       label:'Atendimento & SLA',   icon:Clock,           cor:T.cyan,   desc:'Horário + metas'        },
-  { id:'blacklist', label:'Blacklist & Opt-out', icon:ShieldOff,       cor:T.red,    desc:'Bloqueio de contatos'   },
-  { id:'export',    label:'Exportação',           icon:Download,        cor:T.blue,   desc:'CSV / JSON'             },
-  { id:'auditoria', label:'Auditoria',            icon:History,         cor:T.ink3,   desc:'Log de mudanças'        },
+// ═══════════════════════════════════════════════════
+// NAVEGAÇÃO LATERAL
+// ═══════════════════════════════════════════════════
+const SECOES=[
+  { id:'monitor',   label:'Monitoramento',      icon:Activity,       cor:T.green,  desc:'Cockpit do sistema'     },
+  { id:'integracoes',label:'Integrações',        icon:Globe,          cor:T.blue,   desc:'WhatsApp, Bling, Meta'  },
+  { id:'gatilhos',  label:'Gatilhos & Horários', icon:Zap,            cor:T.amber,  desc:'Schedules',badge:'novo' },
+  { id:'rastreio',  label:'Rastreio por Canal',  icon:Truck,          cor:T.green,  desc:'Canais unificados'      },
+  { id:'sla',       label:'Atendimento & SLA',   icon:Clock,          cor:T.cyan,   desc:'Tiers + escalonamento'  },
+  { id:'contatos',  label:'Contatos & Blacklist', icon:Users,          cor:T.red,    desc:'Gestão de contatos'     },
+  { id:'export',    label:'Exportação',           icon:Download,       cor:T.ink3,   desc:'CSV / JSON'             },
+  { id:'auditoria', label:'Auditoria',            icon:History,        cor:T.purple, desc:'Timeline de mudanças'   },
 ]
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════
 // COMPONENTE PRINCIPAL
-// ─────────────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════
 export default function PageCentralConfig({ api=API }) {
-  const [secao, setSecao] = useState('visao')
-  const mainRef = useRef()
+  const [secao,setSecao]=useState('monitor')
+  const mainRef=useRef()
 
-  const goTo = (id) => {
-    setSecao(id)
-    mainRef.current?.scrollTo({top:0,behavior:'smooth'})
-  }
+  const goTo=(id)=>{ setSecao(id); mainRef.current?.scrollTo({top:0,behavior:'smooth'}) }
+  const current=SECOES.find(s=>s.id===secao)
 
-  const current = SECOES.find(s=>s.id===secao)
-
-  const renderSecao = () => {
-    switch(secao) {
-      case 'visao':     return <SecaoVisaoGeral api={api} onGoTo={goTo}/>
-      case 'gatilhos':  return <SecaoGatilhosHorarios api={api}/>
-      case 'rastreio':  return <SecaoRastreio api={api}/>
-      case 'sla':       return <SecaoSLA api={api}/>
-      case 'blacklist': return <SecaoBlacklist api={api}/>
-      case 'export':    return <SecaoExportacao api={api}/>
-      case 'auditoria': return <SecaoAuditoria api={api}/>
+  const renderSecao=()=>{
+    switch(secao){
+      case 'monitor':    return <SecaoMonitoramento api={api}/>
+      case 'integracoes':return <SecaoIntegracoes api={api}/>
+      case 'gatilhos':   return <SecaoGatilhosHorarios api={api}/>
+      case 'rastreio':   return <SecaoRastreio api={api}/>
+      case 'sla':        return <SecaoSLA api={api}/>
+      case 'contatos':   return <SecaoContatos api={api}/>
+      case 'export':     return <SecaoExportacao api={api}/>
+      case 'auditoria':  return <SecaoAuditoria api={api}/>
       default: return null
     }
   }
 
   return (
-    <div style={{ display:'flex',height:'100%',background:T.bg0,overflow:'hidden',
-      fontFamily:'system-ui,sans-serif' }}>
+    <div style={{ display:'flex',height:'100%',background:T.bg0,overflow:'hidden',fontFamily:'system-ui,sans-serif' }}>
       <style>{`
         @keyframes cfg-spin   { to{transform:rotate(360deg)} }
-        @keyframes cfg-pulse  { 0%,100%{opacity:1} 50%{opacity:.35} }
+        @keyframes cfg-ping   { 0%{transform:scale(1);opacity:.5} 75%,100%{transform:scale(2.2);opacity:0} }
         @keyframes cfg-fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes cfg-slideR { from{opacity:0;transform:translateX(12px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes cfg-slideR { from{opacity:0;transform:translateX(10px)} to{opacity:1;transform:translateX(0)} }
       `}</style>
 
-      {/* ── SIDE PANEL ──────────────────────────────────────────────── */}
-      <aside style={{
-        width:270, flexShrink:0,
-        display:'flex', flexDirection:'column',
+      {/* SIDE PANEL */}
+      <aside style={{ width:268,flexShrink:0,display:'flex',flexDirection:'column',
         background:`linear-gradient(180deg,${T.bg2} 0%,${T.bg1} 100%)`,
-        borderRight:`1px solid ${T.sep}`,
-        boxShadow:`6px 0 32px rgba(0,0,0,.4)`,
-      }}>
-        {/* Header do painel */}
-        <div style={{ padding:'24px 18px 18px',borderBottom:`1px solid ${T.sep}` }}>
-          <div style={{ display:'flex',alignItems:'center',gap:11,marginBottom:3 }}>
+        borderRight:`1px solid ${T.sep}`,boxShadow:`6px 0 32px rgba(0,0,0,.4)` }}>
+
+        <div style={{ padding:'22px 16px 16px',borderBottom:`1px solid ${T.sep}` }}>
+          <div style={{ display:'flex',alignItems:'center',gap:11 }}>
             <div style={{ width:40,height:40,borderRadius:13,flexShrink:0,
               background:'linear-gradient(135deg,rgba(167,139,250,.25),rgba(167,139,250,.1))',
-              border:`1.5px solid ${T.purpleBor}`,
-              display:'flex',alignItems:'center',justifyContent:'center',
-              boxShadow:`0 4px 20px ${T.purple}25` }}>
+              border:`1.5px solid ${T.purpleBor}`,display:'flex',alignItems:'center',
+              justifyContent:'center',boxShadow:`0 4px 20px ${T.purple}25` }}>
               <Settings2 size={18} style={{ color:T.purple }}/>
             </div>
             <div>
-              <div style={{ fontSize:16,fontWeight:800,color:T.ink1,letterSpacing:'-.03em' }}>
+              <div style={{ fontSize:15.5,fontWeight:800,color:T.ink1,letterSpacing:'-.03em' }}>
                 Configurações
               </div>
               <div style={{ fontSize:10,color:T.ink4,marginTop:1 }}>Central de controle</div>
@@ -1292,77 +1753,60 @@ export default function PageCentralConfig({ api=API }) {
           </div>
         </div>
 
-        {/* Navegação */}
-        <nav style={{ flex:1,overflowY:'auto',padding:'10px 10px',
-          scrollbarWidth:'none' }}>
+        <nav style={{ flex:1,overflowY:'auto',padding:'8px 8px',scrollbarWidth:'none' }}>
           {SECOES.map(s=>{
-            const ativa = secao === s.id
+            const ativa=secao===s.id
             return (
               <button key={s.id} onClick={()=>goTo(s.id)}
                 style={{ width:'100%',display:'flex',alignItems:'center',gap:11,
-                  padding:'10px 12px',borderRadius:13,border:'none',cursor:'pointer',
-                  marginBottom:4,textAlign:'left',position:'relative',
-                  background:ativa?`${s.cor}16`:'transparent',
-                  transition:'all .16s cubic-bezier(.4,0,.2,1)' }}
+                  padding:'9px 12px',borderRadius:12,border:'none',cursor:'pointer',
+                  marginBottom:3,textAlign:'left',position:'relative',
+                  background:ativa?`${s.cor}14`:'transparent',transition:'all .16s' }}
                 onMouseEnter={e=>{ if(!ativa) e.currentTarget.style.background=T.gray }}
                 onMouseLeave={e=>{ if(!ativa) e.currentTarget.style.background='transparent' }}>
-
-                {/* Acento lateral */}
-                <div style={{ position:'absolute',left:0,top:'18%',bottom:'18%',
-                  width:3,borderRadius:'0 3px 3px 0',
+                <div style={{ position:'absolute',left:0,top:'18%',bottom:'18%',width:3,
+                  borderRadius:'0 3px 3px 0',
                   background:ativa?`linear-gradient(180deg,${s.cor},${s.cor}60)`:'transparent',
-                  boxShadow:ativa?`0 0 12px ${s.cor}70`:undefined,
-                  transition:'all .2s' }}/>
-
-                {/* Ícone */}
-                <div style={{ width:34,height:34,borderRadius:10,flexShrink:0,
+                  boxShadow:ativa?`0 0 12px ${s.cor}70`:undefined,transition:'all .2s' }}/>
+                <div style={{ width:32,height:32,borderRadius:10,flexShrink:0,
                   background:ativa?`${s.cor}22`:'rgba(255,255,255,.04)',
                   border:`1px solid ${ativa?s.cor+'45':'rgba(255,255,255,.06)'}`,
                   display:'flex',alignItems:'center',justifyContent:'center',
-                  boxShadow:ativa?`0 2px 14px ${s.cor}25`:undefined,
-                  transition:'all .18s' }}>
+                  boxShadow:ativa?`0 2px 14px ${s.cor}25`:undefined,transition:'all .18s' }}>
                   <s.icon size={14} style={{ color:ativa?s.cor:T.ink4,transition:'color .15s' }}/>
                 </div>
-
                 <div style={{ flex:1,minWidth:0 }}>
                   <div style={{ display:'flex',alignItems:'center',gap:6,marginBottom:2 }}>
-                    <span style={{ fontSize:13,fontWeight:ativa?700:500,
-                      color:ativa?s.cor:T.ink3,transition:'all .15s',
-                      letterSpacing:'-.01em' }}>
+                    <span style={{ fontSize:12.5,fontWeight:ativa?700:500,
+                      color:ativa?s.cor:T.ink3,letterSpacing:'-.01em',transition:'all .15s' }}>
                       {s.label}
                     </span>
-                    {s.badge && (
-                      <span style={{ fontSize:8,padding:'1px 6px',borderRadius:99,
-                        background:`${s.cor}22`,color:s.cor,
-                        border:`1px solid ${s.cor}35`,fontWeight:700,letterSpacing:'.05em',
-                        textTransform:'uppercase' }}>{s.badge}</span>
-                    )}
+                    {s.badge&&<span style={{ fontSize:8,padding:'1px 6px',borderRadius:99,
+                      background:`${s.cor}20`,color:s.cor,border:`1px solid ${s.cor}35`,
+                      fontWeight:700,textTransform:'uppercase',letterSpacing:'.05em' }}>{s.badge}</span>}
                   </div>
-                  <div style={{ fontSize:10.5,color:T.ink4 }}>{s.desc}</div>
+                  <div style={{ fontSize:10,color:T.ink4 }}>{s.desc}</div>
                 </div>
               </button>
             )
           })}
         </nav>
 
-        {/* Info footer */}
-        <div style={{ padding:'12px 16px 16px',borderTop:`1px solid ${T.sep}` }}>
+        <div style={{ padding:'12px 16px 14px',borderTop:`1px solid ${T.sep}` }}>
           <div style={{ fontSize:10.5,color:T.ink4,lineHeight:1.6 }}>
-            Mudanças salvas em tempo real. O sistema aplica no próximo ciclo de 30 min.
+            Mudanças salvas em tempo real. Aplicadas no próximo ciclo (≤30 min).
           </div>
         </div>
       </aside>
 
-      {/* ── CONTEÚDO PRINCIPAL ──────────────────────────────────────── */}
+      {/* CONTEÚDO */}
       <div style={{ flex:1,display:'flex',flexDirection:'column',overflow:'hidden' }}>
-
-        {/* Header da seção ativa */}
-        {current && (
-          <div style={{ flexShrink:0,padding:'22px 36px 18px',
+        {current&&(
+          <div style={{ flexShrink:0,padding:'20px 36px 16px',
             borderBottom:`1px solid ${T.sep}`,
-            background:`linear-gradient(90deg,${current.cor}08,transparent 60%)` }}>
+            background:`linear-gradient(90deg,${current.cor}07,transparent 50%)` }}>
             <div style={{ display:'flex',alignItems:'center',gap:13,
-              animation:'cfg-slideR .25s ease' }} key={secao}>
+              animation:'cfg-slideR .22s ease' }} key={secao}>
               <div style={{ width:44,height:44,borderRadius:13,flexShrink:0,
                 background:`${current.cor}20`,border:`1.5px solid ${current.cor}40`,
                 display:'flex',alignItems:'center',justifyContent:'center',
@@ -1370,22 +1814,16 @@ export default function PageCentralConfig({ api=API }) {
                 <current.icon size={20} style={{ color:current.cor }}/>
               </div>
               <div>
-                <h1 style={{ margin:0,fontSize:20,fontWeight:800,color:T.ink1,
-                  letterSpacing:'-.03em' }}>
+                <h1 style={{ margin:0,fontSize:20,fontWeight:800,color:T.ink1,letterSpacing:'-.03em' }}>
                   {current.label}
                 </h1>
-                <p style={{ margin:0,fontSize:12,color:T.ink4,marginTop:3 }}>
-                  {current.desc}
-                </p>
+                <p style={{ margin:0,fontSize:12,color:T.ink4,marginTop:3 }}>{current.desc}</p>
               </div>
             </div>
           </div>
         )}
-
-        {/* Área de conteúdo scrollável */}
         <main ref={mainRef} style={{ flex:1,overflowY:'auto',padding:'28px 36px' }}>
-          <div style={{ maxWidth:820,margin:'0 auto',
-            animation:'cfg-fadeIn .3s ease' }} key={secao}>
+          <div style={{ maxWidth:860,margin:'0 auto',animation:'cfg-fadeIn .3s ease' }} key={secao}>
             {renderSecao()}
           </div>
         </main>
