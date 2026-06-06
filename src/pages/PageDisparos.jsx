@@ -404,7 +404,6 @@ function CmdPalette({open, onClose, log=[], onOpenDisparo, onOpenCliente,
           <span style={{fontSize:10,color:T.ink4}}>abrir</span>
           <span style={{marginLeft:'auto',fontSize:10,color:T.ink4}}>⌘K para fechar</span>
         </div>
-      </div>
     </>
   )
 }
@@ -598,7 +597,39 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
     if (tipo==='cliente' && dados?.telefone) {
       setLoad(true); setCli(null)
       fetch(`${api}/api/dashboard/disparos-cliente/${encodeURIComponent(dados.telefone)}`)
-        .then(r=>r.json()).then(d=>{ setCli(d); setLoad(false) }).catch(()=>setLoad(false))
+        .then(r=>r.json())
+        .then(d=>{
+          // Normaliza: aceita tanto { resumo, disparos } quanto resposta flat ou erro
+          if (d && d.resumo) {
+            setCli(d)
+          } else if (d && Array.isArray(d.disparos)) {
+            // Resposta sem resumo: constrói resumo a partir dos disparos
+            const dis = d.disparos
+            const enviados  = dis.filter(x=>x.status==='enviado').length
+            const erros     = dis.filter(x=>x.status==='erro').length
+            const pedidos   = [...new Set(dis.map(x=>x.numero_pedido).filter(Boolean))]
+            setCli({
+              disparos: dis,
+              resumo: {
+                nome:           dis.find(x=>x.nome_cliente)?.nome_cliente || '',
+                total:          dis.length,
+                enviados, erros,
+                ignorados:      dis.length - enviados - erros,
+                pedidos,
+                telefone:       dados.telefone,
+                ultimo_contato: dis[0]?.criado_em || null,
+              }
+            })
+          } else {
+            // erro ou resposta inválida — mostra modal vazio mas funcional
+            setCli({ disparos:[], resumo:{ nome:'', total:0, enviados:0, erros:0, ignorados:0, pedidos:[], telefone:dados.telefone, ultimo_contato:null } })
+          }
+          setLoad(false)
+        })
+        .catch(()=>{
+          setCli({ disparos:[], resumo:{ nome:'', total:0, enviados:0, erros:0, ignorados:0, pedidos:[], telefone:dados.telefone, ultimo_contato:null } })
+          setLoad(false)
+        })
     }
     if (tipo==='disparo' && dados?.numero_pedido) {
       setOrdemDisp([])
@@ -637,19 +668,18 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
         animation:'fadeIn .25s ease'
       }}/>
 
-      {/* Modal centrado */}
-      <div style={{
-        position:'fixed',inset:0,zIndex:61,
-        display:'flex',alignItems:'center',justifyContent:'center',
-        padding:'20px 16px',pointerEvents:'none'
+      {/* Side panel — desliza da direita */}
+      <div className="modal-wc" style={{
+        position:'fixed',
+        top:0, right:0, bottom:0,
+        width:'min(500px,96vw)',
+        zIndex:61,
+        display:'flex', flexDirection:'column',
+        borderRadius:0,
+        borderLeft:'1px solid rgba(255,255,255,.08)',
+        animation:'slideIn .3s cubic-bezier(.2,.8,.2,1)',
+        boxShadow:'-8px 0 60px rgba(0,0,0,.7), -24px 0 80px rgba(0,0,0,.4)',
       }}>
-        <div className="modal-wc" style={{
-          width:'min(480px,96vw)',
-          maxHeight:'90vh',
-          display:'flex',flexDirection:'column',
-          animation:'fadeUp .35s cubic-bezier(.2,.8,.2,1)',
-          pointerEvents:'all'
-        }}>
 
           {/* ══════════════════════════════════════
               MODAL 1 — DETALHE DO DISPARO
@@ -1522,7 +1552,6 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
             )
           })()}
 
-        </div>
       </div>
     </>
   )
