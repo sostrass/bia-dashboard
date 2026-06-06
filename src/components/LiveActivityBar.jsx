@@ -254,7 +254,8 @@ export default function LiveActivityBar({ api, onNavigate }) {
   const [draggingId, setDraggingId] = useState(null)
   const [dragOverId, setDragOverId] = useState(null)
   const prevRef    = useRef(null)
-  const intervalRef= useRef(null)
+  const intervalRef  = useRef(null)
+  const delayRef     = useRef(30000)   // rastreia o intervalo atual separadamente
 
   // ── Busca com polling adaptativo ──────────────────────────────────────────
   const buscar = useCallback(async () => {
@@ -269,13 +270,13 @@ export default function LiveActivityBar({ api, onNavigate }) {
       prevRef.current = d
       setData(d); setError(false)
 
-      // Adapta o intervalo de polling
+      // Adapta o intervalo de polling (delayRef evita atribuir em número primitivo)
       const ativo = (d.msgs_hora||0) > 0 || (d.sessoes_ativas||0) > 0
-      const novoIntervalo = ativo ? 10000 : 45000
-      if (intervalRef.current?._delay !== novoIntervalo) {
+      const novoDelay = ativo ? 10000 : 45000
+      if (delayRef.current !== novoDelay) {
+        delayRef.current = novoDelay
         clearInterval(intervalRef.current)
-        intervalRef.current = setInterval(buscar, novoIntervalo)
-        intervalRef.current._delay = novoIntervalo
+        intervalRef.current = setInterval(buscar, novoDelay)
       }
     } catch { setError(true) }
     setLoading(false)
@@ -283,8 +284,8 @@ export default function LiveActivityBar({ api, onNavigate }) {
 
   useEffect(() => {
     buscar()
+    delayRef.current = 30000
     intervalRef.current = setInterval(buscar, 30000)
-    intervalRef.current._delay = 30000
     return () => clearInterval(intervalRef.current)
   }, [buscar])
 
