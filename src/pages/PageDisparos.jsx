@@ -940,7 +940,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',
                       marginBottom:12,fontSize:9,color:'#6b7294',textTransform:'uppercase',letterSpacing:'.07em'}}>
                       <span style={{display:'flex',alignItems:'center',gap:5}}>
-                        <Navigation size={11}/>
+                        <span style={{fontFamily:'monospace',fontSize:13,lineHeight:1,color:'#6b7294',letterSpacing:'-1px'}}>⇌</span>
                         Jornada {dados.numero_pedido?`#${dados.numero_pedido}`:'do pedido'}
                       </span>
                       {journeyStatus&&(
@@ -977,7 +977,14 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                         const isCur = st.id === dados.gatilho
                         const cor2  = ndCor(s,isCur)
                         const time  = stTime(st.id)
-                        const NdIc  = s==='enviado'?Check:isCur&&isIgn?MapPin:isCur&&isOk?Check:null
+                        const NdIc  = s==='enviado' ? Check
+                          : isCur&&(isIgn||isErr) ? st.icon
+                          : isCur&&isOk ? Check
+                          : st.icon  // sempre mostra o ícone da etapa (cinza se pendente)
+                        const nodeIconColor = s==='enviado' ? '#00e676'
+                          : isCur&&(isIgn||isErr) ? '#ffb300'
+                          : isCur&&isOk ? '#00e676'
+                          : '#2d3250'  // cinza profundo para pendente
                         return (
                           <div key={st.id} style={{display:'flex',flexDirection:'column',
                             alignItems:'center',gap:4,flex:1,minWidth:0}}>
@@ -991,7 +998,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                               animation:isCur&&!isOk?'glowNode 2s ease-in-out infinite':undefined,
                               position:'relative',zIndex:1
                             }}>
-                              {NdIc&&<NdIc size={10} style={{color:cor2||'#6b7294'}}/>}
+                              {NdIc&&<NdIc size={10} style={{color:nodeIconColor}}/>}
                             </div>
                             {/* Label + sub-label */}
                             <span style={{fontSize:8,textAlign:'center',lineHeight:1.3,
@@ -1025,7 +1032,9 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                         fontSize:9.5,color:'#6b7294',textTransform:'uppercase',letterSpacing:'.07em'
                       }}>
                         <span style={{display:'flex',alignItems:'center',gap:6}}>
-                          <Hash size={11}/>Diagnóstico técnico
+                          <span style={{fontFamily:'monospace',fontSize:11,color:'#6b7294',
+                            letterSpacing:'-1px',lineHeight:1}}>{'>'}_</span>
+                          Diagnóstico técnico
                         </span>
                         <ChevronDown size={11}/>
                       </summary>
@@ -1213,7 +1222,9 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontSize:15,fontWeight:700,color:'#eef0f6',
                         letterSpacing:'-.025em',marginBottom:3}}>
-                        {loadCli ? '...' : cli?.resumo?.nome || 'Cliente'}
+                        {loadCli
+                          ? (dados?.nome_cliente || '...')
+                          : (cli?.resumo?.nome || dados?.nome_cliente || 'Cliente')}
                       </div>
                       <div style={{fontSize:10.5,color:'#6b7294',fontFamily:'monospace',marginBottom:6}}>
                         {fmtTel(dados.telefone)}
@@ -2500,7 +2511,11 @@ export default function PageDisparos({api: apiProp}) {
           onVerPedido={num=>{ window.open(`https://whatsapp-sostrass.up.railway.app/pedido/${num}`,'_blank') }}
           onReenviar={reenviar}
           onFiltrarGatilho={(g,tel)=>{
-            if (g==='__cliente__') { setDrawer({tipo:'cliente',dados:{telefone:tel}}) }
+            if (g==='__cliente__') { setDrawer({tipo:'cliente',dados:{
+              telefone:tel,
+              nome_cliente: drawer?.dados?.nome_cliente || '',
+              numero_pedido: drawer?.dados?.numero_pedido || '',
+            }}) }
           }}
         />
       )}
