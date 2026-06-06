@@ -78,6 +78,17 @@ const CANAL_META = {
   rastreio_job: { label:'Rastreio',   cor:'#06b6d4', emoji:'📡' },
 }
 
+function PlataformaSVG({ canal, size=14 }) {
+  const c = canal==='shopee'?'#f97316':canal==='mercadolivre'?'#f59e0b':canal==='shein'?'#ec4899':canal==='tiktokshop'?'#94a3b8':canal==='nuvemshop'?'#4a9fff':'#00d4aa'
+  if (canal==='shopee') return <svg width={size} height={size} viewBox="0 0 24 24" fill={c}><path d="M12 2C9.5 2 7.5 4 7.5 6.5h-3l-1 15h17l-1-15h-3C16.5 4 14.5 2 12 2zm0 2c1.4 0 2.5 1.1 2.5 2.5h-5C9.5 5.1 10.6 4 12 4z"/></svg>
+  if (canal==='mercadolivre') return <svg width={size} height={size} viewBox="0 0 24 24"><rect width="24" height="24" rx="4" fill="#f59e0b"/><text x="12" y="16" textAnchor="middle" fill="#fff" fontSize="9" fontWeight="800">ML</text></svg>
+  if (canal==='nuvemshop') return <svg width={size} height={size} viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#4a9fff18"/><path d="M6 16a4 4 0 010-8 4 4 0 017.6-1.5A3.5 3.5 0 1119.5 10H17a2 2 0 00-2-2 2 2 0 00-2 2H7a1 1 0 000 2h9a2 2 0 002 2h-2.1a2 2 0 01-3.8 0H6z" fill="#4a9fff"/></svg>
+  if (canal==='shein') return <svg width={size} height={size} viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#ec489918"/><text x="12" y="16" textAnchor="middle" fill="#ec4899" fontSize="10" fontWeight="800">S</text></svg>
+  if (canal==='tiktokshop') return <svg width={size} height={size} viewBox="0 0 24 24" fill="#94a3b8"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.85a8.16 8.16 0 004.77 1.52V6.9a4.85 4.85 0 01-1-.21z"/></svg>
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#00d4aa18"/><path d="M20 7H4a1 1 0 00-1 1v1a3 3 0 003 3v6a1 1 0 001 1h10a1 1 0 001-1v-6a3 3 0 003-3V8a1 1 0 00-1-1zM4 9h16v1a1 1 0 01-1 1H5a1 1 0 01-1-1V9zm2 4h12v5H6v-5z" fill="#00d4aa"/></svg>
+}
+
+
 const STATUS_META = {
   enviado:    { label:'Enviado',    cor:'#22c55e', bg:'rgba(34,197,94,.12)',    icon:CheckCircle },
   erro:       { label:'Erro',       cor:'#ef4444', bg:'rgba(239,68,68,.12)',    icon:XCircle },
@@ -1610,6 +1621,19 @@ function LinhaLog({row, onVerDisparo, onVerCliente, selecionado, onToggleSel}) {
           {row.numero_pedido&&<span style={{fontSize:9.5,padding:'1px 7px',borderRadius:99,flexShrink:0,background:T.purpleDim,color:T.purple,border:`0.5px solid ${T.purpleBor}`,fontWeight:600}}>#{row.numero_pedido}</span>}
           {origem&&<span style={{fontSize:9,padding:'1px 6px',borderRadius:99,flexShrink:0,background:T.bg4,color:T.ink3,border:`0.5px solid ${T.sep2}`}}>{origem}</span>}
           {row.delay_min>0&&<span style={{fontSize:9,padding:'1px 6px',borderRadius:99,flexShrink:0,background:T.amberDim,color:T.amber}}>+{row.delay_min}min</span>}
+          {(()=>{
+            const cm = CANAL_META[row.canal]
+            if (!cm) return null
+            return (
+              <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:9,
+                padding:'1px 6px',borderRadius:99,flexShrink:0,
+                background:cm.bg||`${cm.cor}18`,color:cm.cor,
+                border:`0.5px solid ${cm.cor}35`,fontWeight:600}}>
+                <PlataformaSVG canal={row.canal} size={10}/>
+                {cm.label}
+              </span>
+            )
+          })()}
         </div>
         <div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:T.ink3}}>
           <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:180}}>{row.nome_cliente||'—'}</span>
