@@ -673,6 +673,81 @@ function Skel({w='100%', h=16, r=6}) {
 
 
 
+// ─── INSIGHT CARD — card de alerta no painel de gatilhos ─────────────────────
+function InsightCardGat({ ins, onDismiss, onGoto }) {
+  const [detail, setDetail] = useState(false)
+  const cfg = {
+    critico:      { cor:T.red,   dim:T.redDim,   bor:T.redBor,   icon:AlertTriangle, lbl:'CRÍTICO'      },
+    aviso:        { cor:T.amber, dim:T.amberDim, bor:T.amberBor, icon:Clock,         lbl:'ATENÇÃO'       },
+    oportunidade: { cor:T.blue,  dim:T.blueDim,  bor:T.blueBor,  icon:Star,          lbl:'OPORTUNIDADE'  },
+    positivo:     { cor:T.green, dim:T.greenDim, bor:T.greenBor, icon:TrendingUp,    lbl:'POSITIVO'      },
+  }[ins.tipo] || { cor:T.ink3, dim:T.bg3, bor:T.sep, icon:Info, lbl:'INFO' }
+  const Ic = cfg.icon
+  return (
+    <div style={{ borderRadius:11, padding:'12px 14px', background:cfg.dim,
+      border:`1px solid ${cfg.bor}`, animation:'fadeIn .3s ease' }}>
+      <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+        <div style={{ width:32, height:32, borderRadius:9, background:`${cfg.cor}18`,
+          border:`1px solid ${cfg.bor}`, display:'flex', alignItems:'center',
+          justifyContent:'center', flexShrink:0, marginTop:1 }}>
+          <Ic size={15} style={{ color:cfg.cor }}/>
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:5, flexWrap:'wrap' }}>
+            <span style={{ fontSize:9, padding:'1px 7px', borderRadius:99,
+              background:`${cfg.cor}20`, color:cfg.cor, fontWeight:700, letterSpacing:'.04em' }}>
+              {cfg.lbl}
+            </span>
+            {ins.clientes>0 && (
+              <span style={{ fontSize:10, color:T.ink3, display:'flex', alignItems:'center', gap:3 }}>
+                <Users size={9}/>{ins.clientes} clientes
+              </span>
+            )}
+            {ins.total>0 && !ins.clientes && (
+              <span style={{ fontSize:10, color:T.ink4 }}>{ins.total} disparos</span>
+            )}
+          </div>
+          <div style={{ fontSize:12.5, fontWeight:600, color:T.ink1, marginBottom:5, lineHeight:1.4 }}>
+            {ins.titulo}
+          </div>
+          {detail && (
+            <div style={{ fontSize:11, color:T.ink2, lineHeight:1.6, marginBottom:8,
+              animation:'fadeIn .2s ease' }}>
+              {ins.desc}
+            </div>
+          )}
+          <div style={{ display:'flex', alignItems:'center', gap:7, flexWrap:'wrap', marginTop:7 }}>
+            {ins.gatilho && onGoto && (
+              <button onClick={()=>onGoto(ins.gatilho)}
+                style={{ display:'inline-flex', alignItems:'center', gap:5,
+                  padding:'5px 11px', borderRadius:7, border:'none', cursor:'pointer',
+                  fontSize:11, fontWeight:600,
+                  background:'linear-gradient(135deg,#5b21b6,#9333ea)', color:'#fff' }}>
+                <Zap size={10}/>Abrir gatilho
+              </button>
+            )}
+            <button onClick={()=>setDetail(v=>!v)}
+              style={{ display:'inline-flex', alignItems:'center', gap:4,
+                padding:'5px 10px', borderRadius:7, cursor:'pointer',
+                fontSize:10.5, background:'transparent', border:`1px solid ${cfg.bor}`,
+                color:cfg.cor, fontWeight:500 }}>
+              {detail ? <ChevronUp size={10}/> : <ChevronDown size={10}/>}
+              {detail ? 'Menos' : 'Detalhes'}
+            </button>
+            <button onClick={onDismiss}
+              style={{ marginLeft:'auto', display:'inline-flex', alignItems:'center', gap:4,
+                padding:'5px 10px', borderRadius:7, cursor:'pointer',
+                fontSize:10.5, background:'transparent', border:`1px solid ${T.sep}`,
+                color:T.ink3, fontWeight:500 }}>
+              <CheckCircle size={10}/>Entendi
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── PAINEL MOLISE — copiloto de automações ────────────────────────────────
 function MolisePanel({ sugestoes, sugestoesFechadas, onDismiss, onGoto, onClose }) {
   const visíveis = sugestoes.filter(s => !sugestoesFechadas[s.id||s.titulo])
