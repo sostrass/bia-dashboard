@@ -383,18 +383,22 @@ function SecaoIntegracoes({ api }) {
       .catch(()=>setMeStatus('erro'))
   }
 
-  const abrirOAuthME = () => {
+  const abrirOAuthME = async () => {
     setMeConect(true)
-    const redirectUri = 'https://whatsapp-sostrass.up.railway.app/bling-webhook/me-callback'
-    const scope = 'shipping-calculate shipping-checkout shipping-companies shipping-generate shipping-preview shipping-print shipping-share shipping-tracking ecommerce-shipping'
-    const clientId = import.meta.env.VITE_ME_CLIENT_ID || ''
-    const url = `https://melhorenvio.com.br/oauth/authorize?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}`
-    const popup = window.open(url, 'me-oauth', 'width=620,height=720,scrollbars=yes')
-    const timer = setInterval(()=>{
-      if (!popup || popup.closed) {
-        clearInterval(timer); setMeConect(false); setTimeout(checarME, 1500)
-      }
-    }, 600)
+    try {
+      const r = await fetch(`${api}/bling-webhook/me-oauth-url`)
+      const d = await r.json()
+      if (d.erro) { alert('Erro: ' + d.erro); setMeConect(false); return }
+      const popup = window.open(d.url, 'me-oauth', 'width=620,height=720,scrollbars=yes')
+      const timer = setInterval(()=>{
+        if (!popup || popup.closed) {
+          clearInterval(timer); setMeConect(false); setTimeout(checarME, 1500)
+        }
+      }, 600)
+    } catch(e) {
+      alert('Erro ao obter URL OAuth: ' + e.message)
+      setMeConect(false)
+    }
   }
 
   useEffect(()=>{
