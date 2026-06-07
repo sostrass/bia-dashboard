@@ -4,7 +4,7 @@ import {
   Toggle3, MousePointer, Link, Phone, Reply, Eye, EyeOff,
   ChevronDown, ChevronUp, RefreshCw, Copy, CheckCircle,
   AlertCircle, Zap, ToggleLeft, ToggleRight, GripVertical,
-  MessageSquare, Send, Code, Hash
+  MessageSquare, Send, Code, Hash, Heading1, Quote
 } from 'lucide-react'
 
 const BASE = import.meta.env.VITE_API_URL || ''
@@ -30,10 +30,12 @@ const GATILHOS = [
 ]
 
 const TIPOS_BLOCO = [
-  { id:'texto',  label:'Texto',   icon: FileText  },
-  { id:'imagem', label:'Imagem',  icon: Image     },
-  { id:'botao',  label:'Botão',   icon: MousePointer },
-  { id:'link',   label:'Link',    icon: Link      },
+  { id:'cabecalho', label:'Cabeçalho',  icon: Heading1     },
+  { id:'texto',     label:'Texto',      icon: FileText     },
+  { id:'imagem',    label:'Imagem',     icon: Image        },
+  { id:'rodape',    label:'Rodapé',     icon: Quote        },
+  { id:'botao',     label:'Botão',      icon: MousePointer },
+  { id:'link',      label:'Link',       icon: Link         },
 ]
 
 function TagAlias({ onInsert }) {
@@ -77,6 +79,44 @@ function TagAlias({ onInsert }) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function BlocoCabecalho({ bloco, onChange }) {
+  const max = 60
+  const restante = max - (bloco.conteudo || '').length
+  return (
+    <div className="space-y-1.5">
+      <input
+        value={bloco.conteudo || ''}
+        onChange={e => onChange({ ...bloco, conteudo: e.target.value.slice(0, max) })}
+        placeholder="Título / cabeçalho (máx 60 caracteres)"
+        className="w-full px-3 py-2 rounded-[10px] text-[13px] font-semibold outline-none"
+        style={{ background:'var(--bg-3)', border:'1px solid var(--sep)', color:'var(--label)' }}
+      />
+      <p className="text-[11px]" style={{ color: restante < 10 ? 'var(--red)' : 'var(--label-4)' }}>
+        Aparece em *negrito* acima do texto · {restante} chars restantes
+      </p>
+    </div>
+  )
+}
+
+function BlocoRodape({ bloco, onChange }) {
+  const max = 60
+  const restante = max - (bloco.conteudo || '').length
+  return (
+    <div className="space-y-1.5">
+      <input
+        value={bloco.conteudo || ''}
+        onChange={e => onChange({ ...bloco, conteudo: e.target.value.slice(0, max) })}
+        placeholder="Rodapé (máx 60 caracteres)"
+        className="w-full px-3 py-2 rounded-[10px] text-[13px] outline-none"
+        style={{ background:'var(--bg-3)', border:'1px solid var(--sep)', color:'var(--label)', fontStyle:'italic' }}
+      />
+      <p className="text-[11px]" style={{ color: restante < 10 ? 'var(--red)' : 'var(--label-4)' }}>
+        Aparece em _itálico_ abaixo do texto — comportamento padrão do WhatsApp · {restante} chars restantes
+      </p>
     </div>
   )
 }
@@ -216,9 +256,11 @@ function Bloco({ bloco, idx, total, onChange, onDelete, onMove }) {
       {/* Conteúdo do bloco */}
       {aberto && (
         <div className="p-3">
-          {bloco.tipo === 'texto'  && <BlocoTexto  bloco={bloco} onChange={onChange} onDelete={onDelete}/>}
-          {bloco.tipo === 'imagem' && <BlocoImagem bloco={bloco} onChange={onChange}/>}
-          {bloco.tipo === 'botao'  && <BlocoBotao  bloco={bloco} onChange={onChange}/>}
+          {bloco.tipo === 'cabecalho' && <BlocoCabecalho bloco={bloco} onChange={onChange}/>}
+          {bloco.tipo === 'texto'     && <BlocoTexto  bloco={bloco} onChange={onChange} onDelete={onDelete}/>}
+          {bloco.tipo === 'imagem'    && <BlocoImagem bloco={bloco} onChange={onChange}/>}
+          {bloco.tipo === 'rodape'    && <BlocoRodape bloco={bloco} onChange={onChange}/>}
+          {bloco.tipo === 'botao'     && <BlocoBotao  bloco={bloco} onChange={onChange}/>}
           {bloco.tipo === 'link'   && (
             <div className="space-y-2">
               <input value={bloco.url||''} onChange={e=>onChange({...bloco,url:e.target.value})}
@@ -270,6 +312,10 @@ function PreviewWhatsApp({ blocos, nome }) {
           style={{ background:'#1f2c34' }}>
           {blocos.map((b, i) => (
             <div key={i} className="mb-2 last:mb-0">
+              {b.tipo === 'cabecalho' && b.conteudo && (
+                <p className="text-[13px] font-semibold pb-2 mb-1" style={{ color:'#e9edef', borderBottom:'1px solid #2a3942' }}
+                  dangerouslySetInnerHTML={{ __html: resolver(b.conteudo) }}/>
+              )}
               {b.tipo === 'texto' && (
                 <p className="text-[13px] leading-relaxed" style={{ color:'#e9edef' }}
                   dangerouslySetInnerHTML={{ __html: resolver(b.conteudo||'').replace(/\n/g,'<br/>').replace(/\*([^*]+)\*/g,'<strong>$1</strong>') }}/>
@@ -280,6 +326,11 @@ function PreviewWhatsApp({ blocos, nome }) {
                     style={{ maxHeight:150 }} onError={e=>e.target.style.display='none'}/>
                   {b.legenda && <p className="text-[11px] px-1 pt-1" style={{ color:'#8696a0' }}>{resolver(b.legenda)}</p>}
                 </div>
+              )}
+              {b.tipo === 'rodape' && b.conteudo && (
+                <p className="text-[11px] mt-2 pt-1" style={{ color:'#8696a0', fontStyle:'italic', borderTop:'1px solid #2a3942' }}>
+                  {resolver(b.conteudo)}
+                </p>
               )}
               {b.tipo === 'botao' && (
                 <div className="mt-2 pt-2" style={{ borderTop:'1px solid #2a3942' }}>
