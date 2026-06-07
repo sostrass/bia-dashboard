@@ -372,8 +372,33 @@ function SecaoMonitoramento({ api }) {
 function SecaoIntegracoes({ api }) {
   const [data,setData]=useState({})
   const [loading,setLoading]=useState(true)
+  const [meStatus,setMeStatus]=useState(null)
+  const [meUser,setMeUser]=useState('')
+  const [meConect,setMeConect]=useState(false)
+
+  const checarME = () => {
+    fetch(`${api}/bling-webhook/me-status`)
+      .then(r=>r.json())
+      .then(d=>{ setMeStatus(d.status); setMeUser(d.usuario||'') })
+      .catch(()=>setMeStatus('erro'))
+  }
+
+  const abrirOAuthME = () => {
+    setMeConect(true)
+    const redirectUri = 'https://whatsapp-sostrass.up.railway.app/bling-webhook/me-callback'
+    const scope = 'shipping-calculate shipping-checkout shipping-companies shipping-generate shipping-preview shipping-print shipping-share shipping-tracking ecommerce-shipping'
+    const clientId = import.meta.env.VITE_ME_CLIENT_ID || ''
+    const url = `https://melhorenvio.com.br/oauth/authorize?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}`
+    const popup = window.open(url, 'me-oauth', 'width=620,height=720,scrollbars=yes')
+    const timer = setInterval(()=>{
+      if (!popup || popup.closed) {
+        clearInterval(timer); setMeConect(false); setTimeout(checarME, 1500)
+      }
+    }, 600)
+  }
 
   useEffect(()=>{
+    checarME()
     Promise.all([
       fetch(`${api}/api/dashboard/monitoramento`).then(r=>r.json()).catch(()=>null),
       fetch(`${api}/api/ia/config`).then(r=>r.json()).catch(()=>null),
@@ -453,6 +478,18 @@ function SecaoIntegracoes({ api }) {
       ],
       actions:[],
     },
+    {
+      id:'melhorenvio', lbl:'MelhorEnvio', cor:'#009c3b', icon:Truck,
+      status: meStatus==='ativo',
+      _meCard: true,
+      metricas:[
+        { lbl:'Status',    val: meStatus==='ativo' ? 'Token ativo' : meStatus==='expirado' ? 'Expirado' : meStatus==='sem_token' ? 'Sem token' : 'Verificando', cor: meStatus==='ativo' ? T.green : T.amber },
+        { lbl:'Conta',     val: meUser||'—',                               cor:T.ink3 },
+        { lbl:'Rastreio',  val:'LGI-* / ME*',                              cor:T.ink3 },
+        { lbl:'Callback',  val:'whatsapp-sostrass…',                       cor:T.ink4 },
+      ],
+      actions:[],
+    },
   ]
 
   if(loading) return <div style={{ textAlign:'center',padding:40,color:T.ink4 }}>Carregando integrações...</div>
@@ -490,7 +527,36 @@ function SecaoIntegracoes({ api }) {
               </div>
 
               {/* Ações */}
-              <div style={{ display:'flex',gap:6,flexShrink:0 }}>
+              <div style={{ display:'flex',gap:6,flexShrink:0,flexWrap:'wrap' }}>
+                {/* Botão especial MelhorEnvio OAuth */}
+                {intg._meCard && (
+                  <>
+                    <button onClick={abrirOAuthME} disabled={meConect}
+                      style={{ display:'flex',alignItems:'center',gap:5,
+                        padding:'6px 14px',borderRadius:9,border:'none',
+                        cursor:meConect?'wait':'pointer',fontSize:11,fontWeight:700,
+                        background: meStatus==='ativo'
+                          ? `rgba(0,156,59,.15)` : `linear-gradient(135deg,#ffb300,#ffb300cc)`,
+                        color: meStatus==='ativo' ? '#00e676' : '#000',
+                        boxShadow: meStatus!=='ativo' ? '0 3px 12px rgba(255,179,0,.35)' : undefined,
+                        opacity: meConect ? .7 : 1 }}>
+                      {meConect
+                        ? <><RefreshCw size={10} style={{ animation:'spin-me 1s linear infinite' }}/>Aguardando...</>
+                        : meStatus==='ativo'
+                          ? <><RefreshCw size={10}/>Re-autenticar</>
+                          : <><ExternalLink size={10}/>{meStatus==='expirado'?'Reconectar':'Conectar'}</>
+                      }
+                    </button>
+                    <button onClick={checarME}
+                      style={{ display:'flex',alignItems:'center',gap:4,
+                        padding:'6px 10px',borderRadius:9,fontSize:10,fontWeight:600,
+                        border:`1px solid rgba(0,156,59,.3)`,background:'transparent',
+                        color:T.ink3,cursor:'pointer' }}>
+                      <RefreshCw size={9}/>Status
+                    </button>
+                  </>
+                )}
+                {/* Botões normais */}
                 {intg.actions.map((a,i)=>(
                   <button key={i} onClick={()=>{ if(a.href) window.open(a.href,'_blank'); a.handler?.() }}
                     style={{ display:'flex',alignItems:'center',gap:5,
@@ -1726,6 +1792,7 @@ export default function PageCentralConfig({ api=API }) {
     <div style={{ display:'flex',height:'100%',background:T.bg0,overflow:'hidden',fontFamily:'system-ui,sans-serif' }}>
       <style>{`
         @keyframes cfg-spin   { to{transform:rotate(360deg)} }
+        @keyframes spin-me      { to{transform:rotate(360deg)} }
         @keyframes cfg-ping   { 0%{transform:scale(1);opacity:.5} 75%,100%{transform:scale(2.2);opacity:0} }
         @keyframes cfg-fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
         @keyframes cfg-slideR { from{opacity:0;transform:translateX(10px)} to{opacity:1;transform:translateX(0)} }
