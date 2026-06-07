@@ -673,6 +673,20 @@ function Skel({w='100%', h=16, r=6}) {
 
 
 
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function tempoRel(iso) {
+  if (!iso) return null
+  const diff = Date.now() - new Date(iso).getTime()
+  const min = Math.floor(diff / 60000)
+  if (min < 1)  return 'agora'
+  if (min < 60) return `${min}min`
+  const h = Math.floor(min / 60)
+  if (h < 24)  return `${h}h`
+  const d = Math.floor(h / 24)
+  if (d === 1) return 'ontem'
+  return `${d}d`
+}
+
 // ─── INSIGHT CARD — card de alerta no painel de gatilhos ─────────────────────
 function InsightCardGat({ ins, onDismiss, onGoto }) {
   const [detail, setDetail] = useState(false)
