@@ -1186,10 +1186,16 @@ function IntelligenceCard({ conv, api, mensagens=[], carrinho=[], onModoChange, 
         )}
 
         {/* 5. INFORMAÇÕES DO CLIENTE ──────────────────────────────── */}
+        {/* Catálogo */}
+        <Secao title="Catálogo de Produtos" icon={ShoppingBag} cor={T.purple} defaultOpen={false}>
+          <AbaCatalogo tel={conv.telefone} api={api}/>
+        </Secao>
+
         <Secao title="Dados do Cliente" icon={User} cor={T.blue} defaultOpen={false}>
           <div style={{ display:'flex', flexDirection:'column' }}>
-            {conv.telefone && (
-              <Prop icon={Phone} label="Telefone" value={conv.telefone} mono copyVal={conv.telefone}/>
+            <Prop icon={Phone} label="Telefone" value={conv.telefone} mono copyVal={conv.telefone}/>
+            {(pedidos[0]?.cliente || conv.nome_wa || conv.nome) && (
+              <Prop icon={User} label="Nome" value={pedidos[0]?.cliente || conv.nome_wa || conv.nome}/>
             )}
             {(pedidos[0]?.email || conv.email) && (
               <Prop icon={MessageSquare} label="E-mail" value={pedidos[0]?.email || conv.email}/>
@@ -1198,7 +1204,11 @@ function IntelligenceCard({ conv, api, mensagens=[], carrinho=[], onModoChange, 
               <Prop icon={Navigation} label="Endereço" value={pedidos[0].endereco}/>
             )}
             {pedidos[0]?.numero_loja && (
-              <Prop icon={Hash} label="Pedido Loja" value={`#${pedidos[0].numero_loja}`} mono/>
+              <Prop icon={Hash} label="Nº Loja" value={`#${pedidos[0].numero_loja}`} mono/>
+            )}
+            {pedidos[0]?.status_pagamento && (
+              <Prop icon={CreditCard} label="Último pag." value={pedidos[0].status_pagamento}
+                cor={pedidos[0].status_pagamento==='Pago'?T.green:T.amber}/>
             )}
           </div>
         </Secao>
@@ -1735,6 +1745,420 @@ function HeatmapReceita({ api, onClose }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPONENTE PRINCIPAL
 // ─────────────────────────────────────────────────────────────────────────────
+function AbaContato({ conv, onModoChange }) {
+  const cor=avatarCor(conv.nome||conv.telefone)
+  const isIA=conv.modo_ia!=='manual'
+  const sc=STATUS_CFG[conv.status_atendimento]||STATUS_CFG.pendente
+  return (
+    <div style={{ padding:'14px 13px',overflowY:'auto',flex:1 }}>
+      <div style={{ textAlign:'center',marginBottom:12 }}>
+        <WaAvatar nome={conv.nome_wa||conv.nome||conv.telefone}
+          foto={conv.foto_perfil||''} size={52} cor={cor}/>
+        <div style={{ fontSize:14,fontWeight:700,color:T.ink1,marginTop:8 }}>
+          {conv.nome_wa||conv.nome||'Sem nome'}
+        </div>
+        {conv.nome_wa&&conv.nome&&conv.nome_wa!==conv.nome&&(
+          <div style={{ fontSize:10.5,color:T.ink4,marginTop:2 }}>Bling: {conv.nome}</div>
+        )}
+        <div style={{ fontFamily:'monospace',fontSize:11,color:T.ink4,marginTop:3 }}>{conv.telefone}</div>
+      </div>
+      <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',
+        padding:'8px 12px',borderRadius:10,marginBottom:12,
+        background:isIA?T.purpleDim:T.blueDim,border:`1px solid ${isIA?T.purpleBor:T.blueBor}` }}>
+        <div style={{ display:'flex',alignItems:'center',gap:6 }}>
+          {isIA?<Bot size={12} style={{ color:T.purple }}/>:<User size={12} style={{ color:T.blue }}/>}
+          <span style={{ fontSize:11.5,fontWeight:700,color:isIA?T.purple:T.blue }}>
+            {isIA?'Molise respondendo':'Atendimento humano'}
+          </span>
+        </div>
+        <Toggle value={isIA} onChange={v=>onModoChange(v)} cor={isIA?T.purple:T.blue}/>
+      </div>
+      <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:7 }}>
+        {[
+          { l:'Mensagens',v:conv.total_msgs||0,    cor:T.purple },
+          { l:'Do cliente',v:conv.msgs_entrada||0, cor:T.cyan   },
+          { l:'Carrinho',  v:conv.itens_carrinho||0,cor:T.amber },
+          { l:'Status',    v:sc.lbl,               cor:sc.cor   },
+        ].map(s=>(
+          <div key={s.l} style={{ padding:'9px 10px',borderRadius:10,
+            background:T.bg4,border:`1px solid ${T.sep}`,textAlign:'center' }}>
+            <div style={{ fontSize:17,fontWeight:800,color:s.cor,letterSpacing:'-.02em' }}>{s.v}</div>
+            <div style={{ fontSize:9.5,color:T.ink4,marginTop:2 }}>{s.l}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+
+function AbaCatalogo({ tel, api }) {
+  const [busca,setBusca]=useState('')
+  const [prods,setProds]=useState([])
+  const [load,setLoad]=useState(false)
+  const [avisei,setAvisei]=useState({})
+  const [env,setEnv]=useState(null)
+  const to=useRef()
+
+  useEffect(()=>{
+    clearTimeout(to.current);setLoad(true)
+    to.current=setTimeout(async()=>{
+      try { const r=await fetch(`${api}/api/dashboard/catalogo?q=${encodeURIComponent(busca)}&limit=20`); const d=await r.json(); setProds(d.produtos||[]) }
+      catch{} finally{setLoad(false)}
+    },busca?350:0)
+    return()=>clearTimeout(to.current)
+  },[busca,api])
+
+  const enviar=async(p)=>{
+    setEnv(p.id)
+    const preco=parseFloat(p.preco||p.precoVenda||0)
+    const pix=(preco*.9).toFixed(2).replace('.',',')
+    const msg=`🛍️ *${p.nome}*\n\n💰 PIX: R$ ${pix} *(10% off)*\n💳 Cartão: R$ ${preco.toFixed(2).replace('.',',')} em até 12x\n📦 ${p.disponivel?`✅ Em estoque (${p.estoque} un.)`:'❌ Fora de estoque'}\n🔑 Ref: ${p.codigo||'—'}`
+    await fetch(`${api}/api/dashboard/mensagem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone:tel,mensagem:msg})}).catch(()=>{})
+    setTimeout(()=>setEnv(null),2500)
+  }
+
+  const avise=async(p)=>{
+    await fetch(`${api}/api/dashboard/avise-me`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefone:tel,produto_id:p.id,nome_produto:p.nome,codigo:p.codigo})}).catch(()=>{})
+    setAvisei(prev=>({...prev,[p.id]:true}))
+  }
+
+  return (
+    <div style={{ display:'flex',flexDirection:'column',flex:1,overflow:'hidden' }}>
+      <div style={{ padding:'9px 12px',borderBottom:`1px solid ${T.sep}` }}>
+        <div style={{ position:'relative' }}>
+          <Search size={11} style={{ position:'absolute',left:9,top:'50%',transform:'translateY(-50%)',color:T.ink4,pointerEvents:'none' }}/>
+          <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar produto..."
+            style={{ width:'100%',padding:'7px 9px 7px 27px',borderRadius:9,background:T.bg1,border:`1px solid ${T.sep2}`,color:T.ink1,fontSize:12,outline:'none',fontFamily:'inherit',boxSizing:'border-box' }}/>
+        </div>
+      </div>
+      <div style={{ flex:1,overflowY:'auto' }}>
+        {load&&<div style={{ textAlign:'center',padding:'18px 0',color:T.ink4 }}><RefreshCw size={12} style={{ animation:'cv-spin 1s linear infinite' }}/></div>}
+        {!load&&prods.length===0&&<div style={{ textAlign:'center',padding:'20px 12px',color:T.ink4 }}>
+          <Package size={16} style={{ display:'block',margin:'0 auto 7px',opacity:.12 }}/>
+          <p style={{ fontSize:11,margin:0 }}>{busca?'Sem resultados':'Digite para buscar'}</p>
+        </div>}
+        {prods.map(p=>{
+          const preco=parseFloat(p.preco||p.precoVenda||0)
+          const disp=p.disponivel&&parseInt(p.estoque||0)>0
+          return (
+            <div key={p.id} style={{ padding:'9px 12px',borderBottom:`1px solid ${T.sep}`,display:'flex',gap:9 }}>
+              <div style={{ width:44,height:44,borderRadius:8,flexShrink:0,overflow:'hidden',
+                background:T.bg3,border:`1px solid ${T.sep}`,
+                display:'flex',alignItems:'center',justifyContent:'center' }}>
+                {p.imagem&&<img src={p.imagem} alt="" onError={e=>{e.target.style.display='none';e.target.nextSibling&&(e.target.nextSibling.style.display='flex')}} style={{ width:'100%',height:'100%',objectFit:'cover' }}/>}
+                <ShoppingBag size={15} style={{ color:T.ink4,display:p.imagem?'none':'flex' }}/>
+              </div>
+              <div style={{ flex:1,minWidth:0 }}>
+                <div style={{ fontSize:11.5,fontWeight:600,color:T.ink1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:2 }}>{p.nome}</div>
+                {p.descricao&&<div style={{ fontSize:10,color:T.ink4,lineHeight:1.35,marginBottom:4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{p.descricao}</div>}
+                <div style={{ display:'flex',alignItems:'center',gap:6,marginBottom:6 }}>
+                  <span style={{ fontSize:12,fontWeight:800,color:T.green }}>R${(preco*.9).toFixed(2).replace('.',',')}</span>
+                  <span style={{ fontSize:8.5,padding:'1px 5px',borderRadius:99,fontWeight:700,
+                    background:disp?T.greenDim:T.redDim,color:disp?T.green:T.red,
+                    border:`1px solid ${disp?T.greenBor:T.redBor}` }}>
+                    {disp?`${p.estoque}un`:'Esgotado'}
+                  </span>
+                </div>
+                <div style={{ display:'flex',gap:5 }}>
+                  {disp?(
+                    <button onClick={()=>env!==p.id&&enviar(p)} disabled={!!env}
+                      style={{ display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:7,
+                        border:`1px solid ${T.sep2}`,background:env===p.id?T.greenDim:T.bg4,
+                        color:env===p.id?T.green:T.ink3,cursor:'pointer',fontSize:10,fontWeight:600,
+                        opacity:env&&env!==p.id?.4:1,transition:'all .12s' }}>
+                      {env===p.id?<><Check size={9}/>Ok!</>:<><Send size={9}/>Enviar</>}
+                    </button>
+                  ):(
+                    <button onClick={()=>!avisei[p.id]&&avise(p)}
+                      style={{ display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:7,
+                        border:`1px solid ${T.amberBor}`,background:avisei[p.id]?T.amberDim:'transparent',
+                        color:T.amber,cursor:'pointer',fontSize:10,fontWeight:600 }}>
+                      {avisei[p.id]?<><Check size={9}/>Ok!</>:<><Bell size={9}/>Avise-me</>}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+
+function AbaPedidos({ tel, api, pixKey }) {
+  const [pedidos,setPedidos]=useState([])
+  const [load,setLoad]=useState(true)
+  const [modal,setModal]=useState(null)
+
+  useEffect(()=>{
+    fetch(`${api}/api/dashboard/contatos/${tel}/pedidos`).then(r=>r.ok?r.json():null)
+      .then(d=>{ if(d) setPedidos(d.pedidos||[]); setLoad(false) }).catch(()=>setLoad(false))
+  },[tel,api])
+
+  if(load) return <div style={{ textAlign:'center',padding:'20px 0',color:T.ink4 }}>
+    <RefreshCw size={12} style={{ animation:'cv-spin 1s linear infinite' }}/></div>
+
+  return (
+    <div style={{ flex:1,overflowY:'auto' }}>
+      {pedidos.length===0?<div style={{ textAlign:'center',padding:'20px 12px',color:T.ink4 }}>
+        <Package size={16} style={{ display:'block',margin:'0 auto 7px',opacity:.12 }}/>
+        <p style={{ fontSize:11,margin:0 }}>Nenhum pedido</p>
+      </div>:pedidos.map((p,i)=>(
+        <button key={p.id||i} onClick={()=>setModal(p)}
+          style={{ width:'100%',display:'flex',alignItems:'center',gap:9,padding:'10px 13px',
+            border:'none',cursor:'pointer',textAlign:'left',
+            borderBottom:`1px solid ${T.sep}`,background:'transparent',transition:'background .12s' }}
+          onMouseEnter={e=>e.currentTarget.style.background=T.gray}
+          onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+          <div style={{ width:7,height:7,borderRadius:'50%',flexShrink:0,background:T.green,boxShadow:`0 0 4px ${T.green}` }}/>
+          <div style={{ flex:1,minWidth:0 }}>
+            <div style={{ display:'flex',justifyContent:'space-between',marginBottom:2 }}>
+              <span style={{ fontSize:12.5,fontWeight:700,color:T.green }}>#{p.numero}</span>
+              <span style={{ fontSize:11,fontWeight:700,color:T.ink1 }}>{p.total}</span>
+            </div>
+            <div style={{ display:'flex',alignItems:'center',gap:7 }}>
+              <span style={{ fontSize:10,color:T.ink4 }}>{p.data}</span>
+              <span style={{ fontSize:9.5,padding:'1px 6px',borderRadius:99,background:T.bg4,
+                border:`1px solid ${T.sep}`,color:T.ink3,fontWeight:600 }}>{p.situacao}</span>
+              {p.rastreio&&p.rastreio!=='—'&&<Truck size={9} style={{ color:T.purple }}/>}
+            </div>
+          </div>
+          <ChevronRight size={11} style={{ color:T.ink4,flexShrink:0 }}/>
+        </button>
+      ))}
+      {modal&&<ModalPedido pedido={modal} tel={tel} api={api} pixKey={pixKey} onClose={()=>setModal(null)}/>}
+    </div>
+  )
+}
+
+
+function AbaCarrinho({ carrinho=[] }) {
+  if(carrinho.length===0) return (
+    <div style={{ display:'flex',flexDirection:'column',alignItems:'center',
+      justifyContent:'center',flex:1,color:T.ink4,padding:20,textAlign:'center' }}>
+      <ShoppingCart size={26} style={{ opacity:.1,display:'block',margin:'0 auto 10px' }}/>
+      <p style={{ fontSize:12,margin:'0 0 5px' }}>Carrinho vazio</p>
+      <p style={{ fontSize:10.5,color:T.ink4,margin:0 }}>Itens adicionados via WhatsApp aparecem aqui</p>
+    </div>
+  )
+  const total=carrinho.reduce((a,it)=>a+(parseFloat(it.preco||it.precoVenda||0)*parseInt(it.quantidade||it.qtd||1)),0)
+  return (
+    <div style={{ flex:1,overflowY:'auto' }}>
+      <div style={{ padding:'9px 13px',borderBottom:`1px solid ${T.sep}`,
+        display:'flex',alignItems:'center',justifyContent:'space-between' }}>
+        <span style={{ fontSize:11,fontWeight:700,color:T.ink2 }}>{carrinho.length} {carrinho.length===1?'item':'itens'}</span>
+        <span style={{ fontSize:14,fontWeight:800,color:T.green }}>R$ {total.toFixed(2).replace('.',',')}</span>
+      </div>
+      {carrinho.map((it,i)=>{
+        const qtd=parseInt(it.quantidade||it.qtd||1)
+        const preco=parseFloat(it.preco||it.precoVenda||0)
+        return (
+          <div key={i} style={{ padding:'9px 13px',borderBottom:`1px solid ${T.sep}`,display:'flex',gap:9 }}>
+            <div style={{ width:36,height:36,borderRadius:7,flexShrink:0,overflow:'hidden',
+              background:T.bg3,border:`1px solid ${T.sep}`,
+              display:'flex',alignItems:'center',justifyContent:'center' }}>
+              {it.imagem?<img src={it.imagem} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }}/>
+                :<ShoppingBag size={13} style={{ color:T.ink4 }}/>}
+            </div>
+            <div style={{ flex:1,minWidth:0 }}>
+              <div style={{ fontSize:11.5,fontWeight:600,color:T.ink1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{it.nome||it.descricao||'—'}</div>
+              <div style={{ display:'flex',gap:7,marginTop:2 }}>
+                <span style={{ fontSize:10,color:T.ink4 }}>{qtd}× R${preco.toFixed(2).replace('.',',')}</span>
+                <span style={{ fontSize:10.5,fontWeight:700,color:T.amber }}>= R${(preco*qtd).toFixed(2).replace('.',',')}</span>
+              </div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+
+function ModalPedido({ pedido, tel, api, onClose, pixKey }) {
+  const [disparos,setDisparos]=useState([])
+  const [copied,  setCopied]  =useState(null)
+  const [linkLoad,setLinkLoad]=useState(false)
+
+  useEffect(()=>{
+    if(!pedido) return
+    fetch(`${api}/api/dashboard/disparos-pedido/${pedido.numero}`)
+      .then(r=>r.ok?r.json():null).then(d=>{ if(d) setDisparos(d.disparos||[]) }).catch(()=>{})
+  },[pedido?.numero,api])
+
+  if(!pedido) return null
+
+  const isPendente = [6,24,'Em Aberto','Pag. pendente','pendente','aberto'].includes(String(pedido.situacao_id||pedido.situacao||'').toLowerCase())
+  const copiar=(txt,k)=>{ copyText(txt); setCopied(k); setTimeout(()=>setCopied(null),2000) }
+
+  const gerarLinkMP=async()=>{
+    setLinkLoad(true)
+    try {
+      const r=await fetch(`${api}/api/dashboard/mp-link-pagamento`,{method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ telefone:tel,numero_pedido:pedido.numero,
+          valor:parseFloat((pedido.total||'0').replace(/[R$\s.]/g,'').replace(',','.').trim())||0,
+          descricao:`Pedido #${pedido.numero}` })})
+      const d=await r.json()
+      if(d.init_point){ copyText(d.init_point); window.open(d.init_point,'_blank') }
+    } catch {}
+    setLinkLoad(false)
+  }
+
+  const disparoMap={}; disparos.forEach(d=>{ disparoMap[d.gatilho]=d })
+
+  const Btn=({label,onClick,cor,Icon,ld})=>(
+    <button onClick={onClick} disabled={ld}
+      style={{ display:'flex',alignItems:'center',gap:6,padding:'7px 13px',borderRadius:9,
+        border:`1px solid ${cor}40`,background:`${cor}12`,color:cor,cursor:'pointer',
+        fontSize:11,fontWeight:700,transition:'all .13s',opacity:ld?.6:1,whiteSpace:'nowrap' }}>
+      {ld?<RefreshCw size={11} style={{ animation:'cv-spin 1s linear infinite' }}/>:<Icon size={11}/>}
+      {label}
+    </button>
+  )
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position:'fixed',inset:0,zIndex:8000,
+        background:'rgba(0,0,0,.55)',backdropFilter:'blur(4px)',animation:'cv-bg .2s ease' }}/>
+      <div style={{ position:'fixed',top:0,right:0,bottom:0,zIndex:8001,
+        width:480,display:'flex',flexDirection:'column',
+        background:`linear-gradient(180deg,${T.bg2},${T.bg1})`,
+        borderLeft:`1px solid ${T.sep2}`,
+        boxShadow:'-24px 0 64px rgba(0,0,0,.6)',
+        animation:'cv-slideIn .28s cubic-bezier(.2,.8,.2,1)' }}>
+        <div style={{ padding:'18px 20px',borderBottom:`1px solid ${T.sep}`,
+          background:`linear-gradient(90deg,${T.green}08,transparent)`,flexShrink:0 }}>
+          <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10 }}>
+            <div style={{ display:'flex',alignItems:'center',gap:10 }}>
+              <div style={{ width:36,height:36,borderRadius:10,background:T.greenDim,
+                border:`1px solid ${T.greenBor}`,display:'flex',alignItems:'center',justifyContent:'center' }}>
+                <Package size={16} style={{ color:T.green }}/>
+              </div>
+              <div>
+                <div style={{ fontSize:18,fontWeight:800,color:T.green }}>#{pedido.numero}</div>
+                <div style={{ fontSize:11,color:T.ink4 }}>{pedido.data}</div>
+              </div>
+            </div>
+            <button onClick={onClose} style={{ width:30,height:30,borderRadius:8,
+              border:`1px solid ${T.sep2}`,background:T.gray,cursor:'pointer',
+              display:'flex',alignItems:'center',justifyContent:'center',color:T.ink4 }}>
+              <X size={13}/>
+            </button>
+          </div>
+          <div style={{ display:'flex',alignItems:'center',gap:9 }}>
+            <span style={{ padding:'3px 11px',borderRadius:99,fontSize:11,fontWeight:700,
+              background:T.bg3,border:`1px solid ${T.sep2}`,color:T.ink2 }}>{pedido.situacao}</span>
+            <span style={{ fontSize:17,fontWeight:800,color:T.ink1 }}>{pedido.total}</span>
+            {pedido.forma_pagamento&&pedido.forma_pagamento!=='—'&&(
+              <span style={{ fontSize:10.5,color:T.ink4 }}>{pedido.forma_pagamento}</span>
+            )}
+          </div>
+        </div>
+        <div style={{ flex:1,overflowY:'auto',padding:'16px 20px',display:'flex',flexDirection:'column',gap:14 }}>
+          <div style={{ display:'flex',flexWrap:'wrap',gap:6 }}>
+            <Btn label={copied==='link'?'Copiado!':'Link do pedido'}
+              onClick={()=>copiar(`https://rastreio.sostrass.com.br/pedido/${pedido.numero}`,'link')}
+              cor={T.cyan} Icon={copied==='link'?Check:Copy}/>
+            {pedido.rastreio&&pedido.rastreio!=='—'&&(
+              <Btn label="Rastrear"
+                onClick={()=>window.open(`https://rastreio.sostrass.com.br/p/${pedido.rastreio}`,'_blank')}
+                cor={T.purple} Icon={Truck}/>
+            )}
+            {pedido.nfe_link&&(
+              <Btn label="NF-e" onClick={()=>window.open(pedido.nfe_link,'_blank')} cor={T.blue} Icon={FileText}/>
+            )}
+            {isPendente&&pixKey&&(
+              <Btn label={copied==='pix'?'Copiado!':'Copiar PIX'}
+                onClick={()=>copiar(pixKey,'pix')} cor={T.green} Icon={copied==='pix'?Check:Copy}/>
+            )}
+            {isPendente&&(
+              <Btn label={linkLoad?'Gerando...':'Cartão (MP)'}
+                onClick={gerarLinkMP} ld={linkLoad} cor={T.amber} Icon={CreditCard}/>
+            )}
+          </div>
+
+          {pedido.rastreio&&pedido.rastreio!=='—'&&(
+            <div style={{ padding:'11px 14px',borderRadius:11,background:T.bg3,border:`1px solid ${T.sep}` }}>
+              <div style={{ fontSize:9.5,fontWeight:700,color:T.ink4,textTransform:'uppercase',letterSpacing:'.08em',marginBottom:5 }}>Rastreio</div>
+              <div style={{ display:'flex',alignItems:'center',gap:10 }}>
+                <span style={{ fontFamily:'monospace',fontSize:14,fontWeight:700,color:T.purple }}>{pedido.rastreio}</span>
+                {pedido.transportadora&&pedido.transportadora!=='—'&&<span style={{ fontSize:11,color:T.ink4 }}>{pedido.transportadora}</span>}
+              </div>
+            </div>
+          )}
+
+          {/* Timeline */}
+          <div>
+            <div style={{ fontSize:10,fontWeight:700,color:T.ink4,textTransform:'uppercase',letterSpacing:'.08em',marginBottom:10 }}>Jornada</div>
+            <div style={{ position:'relative' }}>
+              <div style={{ position:'absolute',left:14,top:8,bottom:8,width:2,background:`linear-gradient(180deg,${T.green}40,transparent)` }}/>
+              {JORNADA_STEPS.map((step,i)=>{
+                const d = disparoMap[step.gatilho]
+                // Inferência por status do pedido quando não há disparo registrado
+                const sitId = pedido.situacao_id
+                const infere = !d && (
+                  (step.gatilho==='pedido_criado') ||
+                  (step.gatilho==='pagamento_aprovado' && [15,27,14,30].includes(sitId)) ||
+                  (step.gatilho==='em_separacao'       && [27,14,30].includes(sitId)) ||
+                  (step.gatilho==='nfe_emitida'        && [14,30].includes(sitId)) ||
+                  (step.gatilho==='pedido_enviado'     && [30].includes(sitId)) ||
+                  (step.gatilho==='pedido_entregue'    && [30].includes(sitId))
+                )
+                const feito = !!d || infere
+                return (
+                  <div key={i} style={{ display:'flex',gap:12,alignItems:'flex-start',marginBottom:5 }}>
+                    <div style={{ width:30,height:30,borderRadius:'50%',flexShrink:0,
+                      background:feito?`${step.cor}22`:T.bg4,
+                      border:`2px solid ${feito?step.cor:T.sep}`,
+                      display:'flex',alignItems:'center',justifyContent:'center',
+                      boxShadow:feito&&d?`0 0 10px ${step.cor}30`:undefined,zIndex:1 }}>
+                      <step.Icon size={13} style={{ color:feito?step.cor:T.ink4 }}/>
+                    </div>
+                    <div style={{ flex:1,paddingTop:5 }}>
+                      <div style={{ display:'flex',alignItems:'center',gap:7 }}>
+                        <span style={{ fontSize:12.5,fontWeight:feito?700:400,color:feito?T.ink1:T.ink4 }}>{step.label}</span>
+                        {d?.criado_em&&<span style={{ fontSize:9.5,color:T.ink4 }}>
+                          {new Date(d.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+                        </span>}
+                        {infere&&!d&&<span style={{ fontSize:9,color:T.ink4,fontStyle:'italic' }}>pelo status</span>}
+                      </div>
+                      {d&&<div style={{ fontSize:9.5,fontWeight:600,marginTop:1,
+                        color:d.status==='enviado'?T.green:T.red }}>
+                        {d.status==='enviado'?'✓ Notificado':'✗ '+d.status}
+                      </div>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Itens */}
+          {pedido.itens?.length>0&&(
+            <div>
+              <div style={{ fontSize:10,fontWeight:700,color:T.ink4,textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8 }}>Itens</div>
+              {pedido.itens.map((it,i)=>(
+                <div key={i} style={{ display:'flex',alignItems:'center',gap:9,padding:'8px 11px',
+                  borderRadius:9,marginBottom:5,background:T.bg4,border:`1px solid ${T.sep}` }}>
+                  <Package size={12} style={{ color:T.ink4,flexShrink:0 }}/>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <div style={{ fontSize:12,color:T.ink1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{it.nome}</div>
+                    <div style={{ fontSize:10,color:T.ink4 }}>{it.codigo&&`${it.codigo} · `}{it.qtd}× · R$ {it.preco}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
 const RAPIDAS_DEFAULT = [
   'Olá! Como posso ajudar? 😊',
   'Vou verificar isso agora para você.',
