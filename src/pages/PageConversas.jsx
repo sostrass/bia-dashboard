@@ -708,6 +708,124 @@ function OrderContextBanner({ tel, api, pedidos=[] }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PAINEL DE OCORRÊNCIAS — componente próprio para respeitar regras de Hooks
+// ─────────────────────────────────────────────────────────────────────────────
+function OcorrenciasPanel({ tel, api, Secao }) {
+  const [ocors,  setOcors]  = useState([])
+  const [novaOc, setNovaOc] = useState('')
+  const [savOc,  setSavOc]  = useState(false)
+  const [loadOc, setLoadOc] = useState(false)
+
+  const carregarOcs = () => {
+    if (!tel) return
+    setLoadOc(true)
+    fetch(`${api}/api/dashboard/ocorrencias?telefone=${tel.replace(/\D/g,'')}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { setOcors(d?.ocorrencias||[]); setLoadOc(false) })
+      .catch(() => setLoadOc(false))
+  }
+
+  useEffect(() => { carregarOcs() }, [tel])
+
+  const criarOc = async () => {
+    if (!novaOc.trim() || !tel) return
+    setSavOc(true)
+    await fetch(`${api}/api/dashboard/ocorrencias`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ telefone: tel, tipo: 'suporte', descricao: novaOc.trim() })
+    }).catch(() => {})
+    setNovaOc('')
+    setSavOc(false)
+    carregarOcs()
+  }
+
+  const ocAbertos = ocors.filter(o => o.status !== 'resolvido').length
+
+  return (
+    <Secao title="Ocorrências" icon={AlertTriangle} cor={T.red}
+      defaultOpen={false} badge={ocAbertos}>
+
+      {/* Form nova ocorrência */}
+      <div style={{ display:'flex', gap:7, marginBottom:10 }}>
+        <input
+          value={novaOc}
+          onChange={e => setNovaOc(e.target.value)}
+          onKeyDown={e => e.key==='Enter' && criarOc()}
+          placeholder="Descreva o problema... (Enter para abrir)"
+          style={{ flex:1, padding:'7px 10px', borderRadius:9,
+            border:`1px solid ${T.sep2}`, background:T.bg4,
+            color:T.ink1, fontSize:12, fontFamily:'inherit', outline:'none' }}
+          onFocus={e => e.target.style.borderColor=T.redBor}
+          onBlur={e  => e.target.style.borderColor=T.sep2}
+        />
+        <button onClick={criarOc} disabled={savOc || !novaOc.trim()}
+          style={{ padding:'7px 14px', borderRadius:9, border:'none',
+            background:T.red, color:'#fff', cursor:'pointer',
+            fontSize:12, fontWeight:700,
+            opacity:!novaOc.trim() ? 0.4 : 1 }}>
+          {savOc ? '...' : 'Abrir'}
+        </button>
+      </div>
+
+      {/* Lista */}
+      {loadOc ? (
+        <div style={{ textAlign:'center', padding:'12px 0', color:T.ink4 }}>
+          <RefreshCw size={12} style={{ animation:'cv-spin 1s linear infinite' }}/>
+        </div>
+      ) : ocors.length === 0 ? (
+        <div style={{ textAlign:'center', padding:'12px 0', color:T.ink4, fontSize:11 }}>
+          Nenhuma ocorrência registrada
+        </div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+          {ocors.map((oc, i) => {
+            const corStatus = oc.status==='resolvido' ? T.green
+              : oc.status==='em_atendimento' ? T.blue : T.amber
+            return (
+              <div key={i} style={{ padding:'9px 11px', borderRadius:9,
+                background:T.bg4,
+                border:`1px solid ${oc.status==='resolvido' ? T.greenBor : T.sep}` }}>
+                <div style={{ display:'flex', alignItems:'center',
+                  justifyContent:'space-between', marginBottom:5 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                    <span style={{ fontSize:11, fontWeight:700, color:T.ink2 }}>
+                      {oc.tipo || 'Suporte'}
+                    </span>
+                    <span style={{ fontSize:9, padding:'1px 6px', borderRadius:99,
+                      background:`${corStatus}15`, color:corStatus,
+                      border:`1px solid ${corStatus}30`, fontWeight:700 }}>
+                      {oc.status || 'aberto'}
+                    </span>
+                  </div>
+                  <span style={{ fontSize:9.5, color:T.ink4 }}>
+                    {oc.criado_em
+                      ? new Date(oc.criado_em).toLocaleString('pt-BR', {
+                          day:'2-digit', month:'2-digit',
+                          hour:'2-digit', minute:'2-digit'
+                        })
+                      : '—'}
+                  </span>
+                </div>
+                <p style={{ fontSize:11.5, color:T.ink3, margin:0, lineHeight:1.5 }}>
+                  {oc.descricao}
+                </p>
+                {oc.numero_pedido && (
+                  <div style={{ fontSize:10, color:T.ink4, marginTop:4,
+                    display:'flex', alignItems:'center', gap:4 }}>
+                    <Hash size={9}/>Pedido #{oc.numero_pedido}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </Secao>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // INTELLIGENCE CARD — Scroll único sem abas. Nível Linear / Salesforce
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1242,7 +1360,10 @@ function IntelligenceCard({ conv, api, mensagens=[], carrinho=[], onModoChange, 
           </div>
         </Secao>
 
-        {/* 7. TODOS OS PEDIDOS ────────────────────────────────────── */}
+        {/* OCORRÊNCIAS DO CLIENTE */}
+        <OcorrenciasPanel tel={conv.telefone} api={api} Secao={Secao}/>
+
+                {/* 7. TODOS OS PEDIDOS ────────────────────────────────────── */}
         <Secao title="Histórico de Pedidos" icon={Package} cor={T.ink3}
           badge={pedidos.length} defaultOpen={false}>
           {loadPed ? (
