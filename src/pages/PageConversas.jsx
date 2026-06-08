@@ -11,12 +11,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Search, MessageSquare, Bot, User, Send, RefreshCw, X,
-  ChevronDown, ChevronRight, Zap, Check, Package, Truck,
+  ChevronDown, ChevronRight, ChevronUp, Zap, Check, Package, Truck,
   ShoppingCart, ShoppingBag, CreditCard, Copy, FileText,
   Image, Mic, Video, Bell, AlertTriangle, CheckCircle,
-  Clock, Inbox, ArrowLeft, Trash2, ExternalLink, Radio,
+  Clock, Inbox, Trash2, ExternalLink, Radio,
   Lightbulb, Paperclip, Camera, Volume2, Film, Tag,
-  RotateCcw, TrendingUp, Hash, Users, Filter,
+  RotateCcw, TrendingUp, TrendingDown, Hash, Users, Filter,
+  Star, Target, Activity, Flame, Shield, Award, Sparkles,
+  DollarSign, Heart, BarChart2, Navigation, Layers, Command,
 } from 'lucide-react'
 
 // ── T system ──────────────────────────────────────────────────────────────────
@@ -43,6 +45,56 @@ const tempoRel  = iso => {
   if(m<1) return 'agora'; if(m<60) return `${m}min`
   if(m<1440) return `${Math.floor(m/60)}h`
   const d=Math.floor(m/1440); return d===1?'ontem':d<7?`${d}d`:new Date(iso).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})
+}
+
+
+// ── Análise de sentimento client-side ─────────────────────────────────────────
+const SENT_POS = ['obrigad','ótim','perfeito','adorei','gostei','excelente','maravilh','top','amei','lindo','satisfeit','feliz','show','nota 10']
+const SENT_NEG = ['péssim','horrível','terrível','problema','errado','não recebi','cancelar','devolução','reclamação','demor','absurd','ridícul','decepcionado','indignado','urgente','revoltado']
+const calcSentimento = (msgs=[]) => {
+  const ultimas = msgs.filter(m=>m.direcao==='entrada').slice(-5)
+  if (!ultimas.length) return 0
+  let score = 0
+  ultimas.forEach(m => {
+    const txt = (m.conteudo||'').toLowerCase()
+    SENT_POS.forEach(p => { if (txt.includes(p)) score += 20 })
+    SENT_NEG.forEach(p => { if (txt.includes(p)) score -= 20 })
+  })
+  return Math.max(-100, Math.min(100, score))
+}
+
+const calcPropensidade = (carrinho=[], msgs=[], pedidos=[]) => {
+  let score = 15
+  if (carrinho.length > 0) score += 40
+  if (carrinho.length > 2) score += 15
+  const ultMsgs = msgs.slice(-10).map(m=>(m.conteudo||'').toLowerCase())
+  if (ultMsgs.some(m => /preço|valor|quanto|comprar|pagar|disponível|frete/.test(m))) score += 15
+  if (ultMsgs.some(m => /foto|imagem|ver|como é|quero|gostei/.test(m))) score += 10
+  if (pedidos.length > 0) score += 15
+  if (pedidos.length > 2) score += 10
+  const sent = calcSentimento(msgs)
+  if (sent > 0) score += 10
+  if (sent < -30) score -= 20
+  return Math.max(0, Math.min(100, score))
+}
+
+const calcClienteScore = (pedidos=[], ltv=0) => {
+  let s = 0
+  if (ltv > 500) s += 30; else if (ltv > 200) s += 20; else if (ltv > 50) s += 10
+  if (pedidos.length > 5) s += 25; else if (pedidos.length > 2) s += 15; else if (pedidos.length > 0) s += 5
+  if (pedidos.length > 0) {
+    const dias = (Date.now() - new Date(pedidos[0].data||Date.now())) / 86400000
+    if (dias < 30) s += 25; else if (dias < 90) s += 15; else if (dias < 180) s += 5
+  }
+  return Math.min(100, s)
+}
+
+const getSegmento = (score, ltv, pedidos=[]) => {
+  if (score >= 70 && ltv > 300) return { label:'VIP',        cor:'#ffb300', Icon:Award,    desc:'Cliente de alto valor' }
+  if (pedidos.length >= 3)      return { label:'Recorrente', cor:'#00e676', Icon:Heart,    desc:'Compra regularmente' }
+  if (score >= 40)              return { label:'Ativo',      cor:'#4f8ef7', Icon:Activity, desc:'Engajado' }
+  if (pedidos.length === 0)     return { label:'Novo',       cor:'#a78bfa', Icon:Star,     desc:'Primeiro contato' }
+  return                               { label:'Em risco',   cor:'#ff4757', Icon:Shield,   desc:'Inativo há algum tempo' }
 }
 
 const STATUS_CFG = {
@@ -350,6 +402,598 @@ function CartBanner({ carrinho=[], onVerCarrinho }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // INPUT BAR com upload de mídia + sugestão de IA
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCORE RING — gauge SVG animado para o score do cliente
+// ─────────────────────────────────────────────────────────────────────────────
+function ScoreRing({ score=0, size=80, strokeW=7 }) {
+  const r = (size - strokeW) / 2
+  const circ = 2 * Math.PI * r
+  const fill = (score / 100) * circ
+  const cor = score >= 70 ? T.green : score >= 40 ? T.amber : T.red
+  return (
+    <div style={{ position:'relative', width:size, height:size, flexShrink:0 }}>
+      <svg width={size} height={size} style={{ transform:'rotate(-90deg)' }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={T.bg4} strokeWidth={strokeW}/>
+        <circle cx={size/2} cy={size/2} r={r} fill="none"
+          stroke={cor} strokeWidth={strokeW} strokeLinecap="round"
+          strokeDasharray={`${fill} ${circ}`}
+          style={{ filter:`drop-shadow(0 0 6px ${cor})`, transition:'stroke-dasharray .8s ease' }}/>
+      </svg>
+      <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column',
+        alignItems:'center', justifyContent:'center' }}>
+        <span style={{ fontSize:size>70?20:14, fontWeight:800, color:cor, lineHeight:1 }}>{score}</span>
+        <span style={{ fontSize:8, color:T.ink4, marginTop:2, textTransform:'uppercase', letterSpacing:'.04em' }}>score</span>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROPENSITY BAR — inédito no Brasil: propensidade de compra em tempo real
+// ─────────────────────────────────────────────────────────────────────────────
+function PropensityBar({ score=0 }) {
+  const cor = score >= 70 ? T.green : score >= 40 ? T.amber : T.ink4
+  const lbl = score >= 70 ? 'Alta' : score >= 40 ? 'Média' : 'Baixa'
+  return (
+    <div style={{ padding:'10px 14px', borderRadius:10, background:T.bg3, border:`1px solid ${T.sep}` }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:7 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+          <Target size={11} style={{ color:cor }}/>
+          <span style={{ fontSize:10, fontWeight:700, color:T.ink3, textTransform:'uppercase', letterSpacing:'.04em' }}>Propensidade de Compra</span>
+        </div>
+        <span style={{ fontSize:14, fontWeight:800, color:cor }}>{score}%</span>
+      </div>
+      <div style={{ height:6, borderRadius:99, background:T.bg4, overflow:'hidden', marginBottom:5 }}>
+        <div style={{ height:'100%', borderRadius:99, width:`${score}%`,
+          background: score>=70 ? `linear-gradient(90deg,${T.green},${T.cyan})` :
+                      score>=40 ? `linear-gradient(90deg,${T.amber},${T.green})` : T.ink4,
+          boxShadow: score>=40 ? `0 0 8px ${cor}60` : 'none',
+          transition:'width .8s ease' }}/>
+      </div>
+      <div style={{ fontSize:9, color:T.ink4 }}>
+        {score >= 70 ? '✨ Cliente pronto para comprar' :
+         score >= 40 ? '📊 Interesse moderado detectado' :
+                       '💤 Pouco engajamento no momento'}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COMMAND PALETTE — ⌘K para ações rápidas sem sair da conversa
+// ─────────────────────────────────────────────────────────────────────────────
+function CommandPalette({ conversas=[], selTel, onSelect, onStatus, onToggleModo, onClose }) {
+  const [q, setQ] = useState('')
+  const [idx, setIdx] = useState(0)
+  const inputRef = useRef(null)
+
+  useEffect(() => { setTimeout(()=>inputRef.current?.focus(), 50) }, [])
+
+  const ACOES = [
+    { id:'resolve',  label:'Resolver conversa',    desc:'Marcar como resolvido',        icon:CheckCircle, cor:T.green  },
+    { id:'pending',  label:'Marcar como pendente',  desc:'Abrir para atendimento',       icon:Clock,       cor:T.amber  },
+    { id:'ia_on',    label:'Ativar Molise',          desc:'Passar para atendimento IA',   icon:Bot,         cor:T.purple },
+    { id:'ia_off',   label:'Desativar Molise',       desc:'Passar para humano',           icon:User,        cor:T.blue   },
+    { id:'close',    label:'Encerrar conversa',      desc:'Finalizar atendimento',        icon:X,           cor:T.ink4   },
+  ]
+
+  const convFilt = conversas.filter(c => {
+    if (!q) return true
+    const nome = (c.nome_wa||c.nome||c.telefone||'').toLowerCase()
+    return nome.includes(q.toLowerCase()) || (c.telefone||'').includes(q)
+  }).slice(0, 6)
+
+  const acoesFilt = ACOES.filter(a => !q || a.label.toLowerCase().includes(q.toLowerCase()))
+
+  const allItems = [
+    ...convFilt.map(c => ({ type:'conv', data:c })),
+    ...acoesFilt.map(a => ({ type:'acao', data:a })),
+  ]
+
+  useEffect(() => { setIdx(0) }, [q])
+
+  useEffect(() => {
+    const fn = e => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setIdx(i=>Math.min(i+1, allItems.length-1)) }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); setIdx(i=>Math.max(i-1, 0)) }
+      if (e.key === 'Escape')    onClose()
+      if (e.key === 'Enter') {
+        const item = allItems[idx]
+        if (!item) return
+        if (item.type === 'conv') { onSelect(item.data.telefone); onClose() }
+        else {
+          if (item.data.id === 'resolve')  onStatus('resolvido')
+          if (item.data.id === 'pending')  onStatus('pendente')
+          if (item.data.id === 'close')    onStatus('encerrado')
+          if (item.data.id === 'ia_on')    onToggleModo(true)
+          if (item.data.id === 'ia_off')   onToggleModo(false)
+          onClose()
+        }
+      }
+    }
+    window.addEventListener('keydown', fn)
+    return () => window.removeEventListener('keydown', fn)
+  }, [idx, allItems, onSelect, onStatus, onToggleModo, onClose])
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:9000,
+        background:'rgba(0,0,0,.6)', backdropFilter:'blur(8px)', animation:'cv-bg .15s ease' }}/>
+      <div style={{ position:'fixed', top:'20%', left:'50%', transform:'translateX(-50%)',
+        zIndex:9001, width:520, borderRadius:16,
+        background:`linear-gradient(160deg,${T.bg2},${T.bg3})`,
+        border:`1px solid ${T.purpleBor}`,
+        boxShadow:`0 24px 64px rgba(0,0,0,.8), 0 0 0 1px ${T.purpleBor}`,
+        overflow:'hidden', animation:'cv-slideIn .2s cubic-bezier(.2,.8,.2,1)' }}>
+        {/* Input */}
+        <div style={{ display:'flex', alignItems:'center', gap:10, padding:'14px 16px',
+          borderBottom:`1px solid ${T.sep}` }}>
+          <Command size={16} style={{ color:T.purple, flexShrink:0 }}/>
+          <input ref={inputRef} value={q} onChange={e=>setQ(e.target.value)}
+            placeholder="Buscar conversa ou ação..."
+            style={{ flex:1, background:'transparent', border:'none', outline:'none',
+              color:T.ink1, fontSize:15, fontFamily:'inherit' }}/>
+          <kbd style={{ fontSize:10, color:T.ink4, padding:'2px 6px', borderRadius:5,
+            background:T.bg4, border:`1px solid ${T.sep2}` }}>ESC</kbd>
+        </div>
+        {/* Results */}
+        <div style={{ maxHeight:340, overflowY:'auto' }}>
+          {allItems.length === 0 && (
+            <div style={{ padding:'24px', textAlign:'center', color:T.ink4, fontSize:12 }}>
+              Nenhum resultado para "{q}"
+            </div>
+          )}
+          {convFilt.length > 0 && (
+            <div>
+              <div style={{ padding:'8px 16px 4px', fontSize:9, fontWeight:700, color:T.ink4,
+                textTransform:'uppercase', letterSpacing:'.06em' }}>Conversas</div>
+              {convFilt.map((c, i) => {
+                const gi = allItems.findIndex(x=>x.type==='conv'&&x.data.telefone===c.telefone)
+                const ativo = gi === idx
+                const cor = avatarCor(c.nome_wa||c.nome||c.telefone)
+                return (
+                  <button key={c.telefone}
+                    onMouseEnter={()=>setIdx(gi)}
+                    onClick={()=>{ onSelect(c.telefone); onClose() }}
+                    style={{ width:'100%', display:'flex', alignItems:'center', gap:10,
+                      padding:'9px 16px', border:'none', cursor:'pointer', textAlign:'left',
+                      background: ativo ? `${T.purple}15` : 'transparent',
+                      borderLeft:`2px solid ${ativo?T.purple:'transparent'}`,
+                      transition:'all .08s' }}>
+                    <WaAvatar nome={c.nome_wa||c.nome||c.telefone} foto={c.foto_perfil||''} size={28} cor={cor}/>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:12, fontWeight:600, color:T.ink1 }}>{c.nome_wa||c.nome||c.telefone}</div>
+                      <div style={{ fontSize:10, color:T.ink4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        {c.ultima_mensagem||'—'}
+                      </div>
+                    </div>
+                    <span style={{ fontSize:9, color:T.ink4 }}>{tempoRel(c.ultima_atividade)}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          {acoesFilt.length > 0 && selTel && (
+            <div>
+              <div style={{ padding:'8px 16px 4px', fontSize:9, fontWeight:700, color:T.ink4,
+                textTransform:'uppercase', letterSpacing:'.06em', marginTop:4 }}>Ações</div>
+              {acoesFilt.map((a) => {
+                const gi = allItems.findIndex(x=>x.type==='acao'&&x.data.id===a.id)
+                const ativo = gi === idx
+                const Ic = a.icon
+                return (
+                  <button key={a.id}
+                    onMouseEnter={()=>setIdx(gi)}
+                    onClick={()=>{
+                      if (a.id==='resolve')  onStatus('resolvido')
+                      if (a.id==='pending')  onStatus('pendente')
+                      if (a.id==='close')    onStatus('encerrado')
+                      if (a.id==='ia_on')    onToggleModo(true)
+                      if (a.id==='ia_off')   onToggleModo(false)
+                      onClose()
+                    }}
+                    style={{ width:'100%', display:'flex', alignItems:'center', gap:10,
+                      padding:'9px 16px', border:'none', cursor:'pointer', textAlign:'left',
+                      background: ativo ? `${a.cor}12` : 'transparent',
+                      borderLeft:`2px solid ${ativo?a.cor:'transparent'}`,
+                      transition:'all .08s' }}>
+                    <div style={{ width:28, height:28, borderRadius:8, flexShrink:0,
+                      background:`${a.cor}18`, border:`1px solid ${a.cor}30`,
+                      display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      <Ic size={12} style={{ color:a.cor }}/>
+                    </div>
+                    <div>
+                      <div style={{ fontSize:12, fontWeight:600, color:T.ink1 }}>{a.label}</div>
+                      <div style={{ fontSize:10, color:T.ink4 }}>{a.desc}</div>
+                    </div>
+                    {ativo && <kbd style={{ marginLeft:'auto', fontSize:9, color:T.ink4,
+                      padding:'2px 6px', borderRadius:5, background:T.bg4,
+                      border:`1px solid ${T.sep2}` }}>↵</kbd>}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+        <div style={{ padding:'8px 16px', borderTop:`1px solid ${T.sep}`, display:'flex',
+          gap:12, fontSize:9, color:T.ink4 }}>
+          <span>↑↓ navegar</span>
+          <span>↵ selecionar</span>
+          <span>ESC fechar</span>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ORDER CONTEXT BANNER — jornada do pedido ativo dentro do chat
+// ─────────────────────────────────────────────────────────────────────────────
+function OrderContextBanner({ tel, api, pedidos=[] }) {
+  const [aberto, setAberto] = useState(true)
+  const ativo = pedidos.find(p => {
+    const sit = String(p.situacao_id||p.situacao||'')
+    return !['30','36','12','Entregue','Cancelado','Devolvido'].includes(sit)
+  }) || pedidos[0]
+  if (!ativo || pedidos.length === 0) return null
+
+  const sitId = ativo.situacao_id || 0
+  const stepAtual = (() => {
+    if ([30].includes(sitId)) return 6
+    if (['Entregue'].includes(String(ativo.situacao))) return 6
+    if (ativo.rastreio && ativo.rastreio !== '—') return 4
+    if ([27,24].includes(sitId)) return 3
+    if ([15,9].includes(sitId)) return 2
+    if ([6].includes(sitId)) return 1
+    return 0
+  })()
+
+  const cor = JORNADA_STEPS[stepAtual]?.cor || T.ink4
+
+  return (
+    <div style={{ flexShrink:0, borderBottom:`1px solid ${T.sep}`,
+      background:`linear-gradient(90deg,${cor}08,transparent)`,
+      transition:'all .2s' }}>
+      <button onClick={()=>setAberto(v=>!v)}
+        style={{ width:'100%', display:'flex', alignItems:'center', gap:8,
+          padding:'7px 14px', background:'transparent', border:'none', cursor:'pointer' }}>
+        <div style={{ width:18, height:18, borderRadius:6, flexShrink:0,
+          background:`${cor}20`, border:`1px solid ${cor}40`,
+          display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <Package size={9} style={{ color:cor }}/>
+        </div>
+        <span style={{ fontSize:10.5, fontWeight:700, color:cor }}>#{ativo.numero}</span>
+        <span style={{ fontSize:10, color:T.ink4 }}>{ativo.situacao}</span>
+        {ativo.total && <span style={{ fontSize:10.5, fontWeight:700, color:T.ink2, marginLeft:'auto' }}>{ativo.total}</span>}
+        {aberto ? <ChevronUp size={10} style={{ color:T.ink4 }}/> : <ChevronDown size={10} style={{ color:T.ink4 }}/>}
+      </button>
+      {aberto && (
+        <div style={{ padding:'4px 14px 10px', overflowX:'auto' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:0, minWidth:'max-content' }}>
+            {JORNADA_STEPS.map((step, i) => {
+              const feito = i <= stepAtual
+              const atual = i === stepAtual
+              const Ic = step.Icon
+              return (
+                <div key={i} style={{ display:'flex', alignItems:'center' }}>
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
+                    <div style={{ width:24, height:24, borderRadius:'50%',
+                      background: feito ? `${step.cor}20` : T.bg4,
+                      border:`2px solid ${feito ? step.cor : T.sep}`,
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      boxShadow: atual ? `0 0 10px ${step.cor}60` : 'none',
+                      transition:'all .3s' }}>
+                      <Ic size={10} style={{ color: feito ? step.cor : T.ink4 }}/>
+                    </div>
+                    <span style={{ fontSize:8, color: feito ? step.cor : T.ink4,
+                      fontWeight: atual ? 700 : 400, whiteSpace:'nowrap' }}>
+                      {step.label}
+                    </span>
+                  </div>
+                  {i < JORNADA_STEPS.length-1 && (
+                    <div style={{ width:20, height:2, margin:'0 2px', marginBottom:14,
+                      background: i < stepAtual ? `linear-gradient(90deg,${step.cor},${JORNADA_STEPS[i+1].cor})` : T.sep,
+                      borderRadius:99, transition:'background .3s', flexShrink:0 }}/>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INTELLIGENCE CARD — substitui o PainelDireito (inédito no Brasil)
+// ─────────────────────────────────────────────────────────────────────────────
+function IntelligenceCard({ conv, api, mensagens=[], carrinho=[], onModoChange, pixKey }) {
+  const [pedidos,   setPedidos]   = useState([])
+  const [loadPed,   setLoadPed]   = useState(true)
+  const [modal,     setModal]     = useState(null)
+  const [abaLocal,  setAbaLocal]  = useState('intel') // intel | pedidos | cart | catalog
+  const [insight,   setInsight]   = useState(null)
+
+  useEffect(() => {
+    if (!conv?.telefone) return
+    setLoadPed(true)
+    fetch(`${api}/api/dashboard/contatos/${conv.telefone}/pedidos`)
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{ if(d) setPedidos(d.pedidos||[]); setLoadPed(false) })
+      .catch(()=>setLoadPed(false))
+  }, [conv?.telefone, api])
+
+  if (!conv) return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center',
+      justifyContent:'center', height:'100%', color:T.ink4, gap:10 }}>
+      <Layers size={20} style={{ opacity:.12 }}/>
+      <span style={{ fontSize:11 }}>Selecione uma conversa</span>
+    </div>
+  )
+
+  const ltv = pedidos.reduce((s,p) => s + parseFloat((p.total||'0').replace(/[R$\s.]/g,'').replace(',','.')||0), 0)
+  const score = calcClienteScore(pedidos, ltv)
+  const propens = calcPropensidade(carrinho, mensagens, pedidos)
+  const sent = calcSentimento(mensagens)
+  const segmento = getSegmento(score, ltv, pedidos)
+  const SegIc = segmento.Icon
+  const nome = conv.nome_wa || conv.nome || conv.telefone
+  const cor = avatarCor(nome)
+  const isIA = conv.modo_ia !== 'manual'
+  const sc = STATUS_CFG[conv.status_atendimento] || STATUS_CFG.pendente
+  const ScIc = sc.Icon
+
+  // Insight gerado do contexto
+  const insights = []
+  if (propens >= 70) insights.push({ cor:T.green, icon:Target, txt:'Cliente pronto para comprar agora' })
+  if (carrinho.length > 0 && propens < 50) insights.push({ cor:T.orange, icon:Flame, txt:`Carrinho com ${carrinho.length} ${carrinho.length===1?'item':'itens'} — risco de abandono` })
+  if (sent < -30) insights.push({ cor:T.red, icon:AlertTriangle, txt:'Sentimento negativo detectado — atenção especial' })
+  if (sent > 40) insights.push({ cor:T.green, icon:Sparkles, txt:'Cliente satisfeito — boa hora para upsell' })
+  if (ltv > 500) insights.push({ cor:T.amber, icon:Award, txt:`LTV de R$ ${ltv.toFixed(0)} — cliente VIP` })
+  if (pedidos.length === 0) insights.push({ cor:T.purple, icon:Star, txt:'Primeiro contato — experiência decisiva' })
+
+  const TABS = [
+    { id:'intel',   lbl:'Inteligência', icon:Cpu     },
+    { id:'pedidos', lbl:'Pedidos',      icon:Package, badge:pedidos.length||null },
+    { id:'cart',    lbl:'Carrinho',     icon:ShoppingCart, badge:carrinho.length||null },
+    { id:'catalog', lbl:'Catálogo',     icon:ShoppingBag },
+  ]
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', height:'100%', background:T.bg1 }}>
+
+      {/* Header do cliente */}
+      <div style={{ padding:'14px 14px 10px', flexShrink:0,
+        background:`linear-gradient(135deg,${cor}08,transparent)`,
+        borderBottom:`1px solid ${T.sep}` }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
+          <WaAvatar nome={nome} foto={conv.foto_perfil||''} size={42} cor={cor}/>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:T.ink1,
+              overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{nome}</div>
+            <div style={{ fontSize:9.5, color:T.ink4, fontFamily:'monospace' }}>{conv.telefone}</div>
+            <div style={{ display:'flex', gap:4, marginTop:4 }}>
+              <span style={{ display:'inline-flex', alignItems:'center', gap:3,
+                padding:'2px 7px', borderRadius:99, fontSize:9, fontWeight:700,
+                background:`${segmento.cor}15`, border:`1px solid ${segmento.cor}30`,
+                color:segmento.cor }}>
+                <SegIc size={8}/>{segmento.label}
+              </span>
+              <span style={{ display:'inline-flex', alignItems:'center', gap:3,
+                padding:'2px 7px', borderRadius:99, fontSize:9, fontWeight:700,
+                background:`${sc.cor}12`, border:`1px solid ${sc.cor}22`, color:sc.cor }}>
+                <ScIc size={8}/>{sc.lbl}
+              </span>
+            </div>
+          </div>
+          <ScoreRing score={score} size={56} strokeW={5}/>
+        </div>
+
+        {/* Stats rápidos */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6 }}>
+          {[
+            { lbl:'LTV', val:`R$ ${ltv>0?ltv.toFixed(0):'0'}`, cor:T.green, icon:DollarSign },
+            { lbl:'Pedidos', val:pedidos.length, cor:T.blue, icon:Package },
+            { lbl:'Ticket', val:`R$ ${pedidos.length?Math.round(ltv/pedidos.length):0}`, cor:T.purple, icon:BarChart2 },
+          ].map(({lbl,val,cor:c,icon:Ic})=>(
+            <div key={lbl} style={{ padding:'7px 9px', borderRadius:8, background:T.bg3,
+              border:`1px solid ${T.sep}`, textAlign:'center' }}>
+              <div style={{ fontSize:14, fontWeight:800, color:c }}>{val}</div>
+              <div style={{ fontSize:8.5, color:T.ink4, marginTop:1 }}>{lbl}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Abas */}
+      <div style={{ display:'flex', borderBottom:`1px solid ${T.sep}`, flexShrink:0,
+        background:T.bg2 }}>
+        {TABS.map(t=>(
+          <button key={t.id} onClick={()=>setAbaLocal(t.id)}
+            style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center',
+              gap:3, padding:'7px 2px', border:'none', cursor:'pointer',
+              background:'transparent', fontSize:9.5,
+              fontWeight:abaLocal===t.id?700:500,
+              color:abaLocal===t.id?T.green:T.ink4,
+              borderBottom:`2px solid ${abaLocal===t.id?T.green:'transparent'}`,
+              position:'relative', transition:'all .13s' }}>
+            <t.icon size={10}/>
+            {t.lbl}
+            {t.badge>0&&<span style={{ position:'absolute', top:3, right:3, width:13, height:13,
+              borderRadius:'50%', background:T.amber, fontSize:7.5, fontWeight:800,
+              color:'#000', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              {t.badge>9?'9+':t.badge}
+            </span>}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
+
+        {/* ABA: Inteligência */}
+        {abaLocal==='intel' && (
+          <div style={{ flex:1, overflowY:'auto', padding:'12px 14px', display:'flex', flexDirection:'column', gap:10 }}>
+
+            {/* Propensidade de compra */}
+            <PropensityBar score={propens}/>
+
+            {/* Sentimento da conversa */}
+            <div style={{ padding:'10px 14px', borderRadius:10, background:T.bg3, border:`1px solid ${T.sep}` }}>
+              <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:7 }}>
+                <Activity size={11} style={{ color: sent>20?T.green:sent<-20?T.red:T.amber }}/>
+                <span style={{ fontSize:10, fontWeight:700, color:T.ink3, textTransform:'uppercase', letterSpacing:'.04em' }}>Sentimento da Conversa</span>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <div style={{ flex:1, height:6, borderRadius:99, background:T.bg4, overflow:'hidden' }}>
+                  <div style={{ height:'100%', borderRadius:99,
+                    width:`${Math.abs(sent/2)+50}%`,
+                    background: sent>20?`linear-gradient(90deg,${T.amber},${T.green})`:
+                                sent<-20?`linear-gradient(90deg,${T.red},${T.amber})`:
+                                `linear-gradient(90deg,${T.amber},${T.amber})`,
+                    transition:'width .8s ease' }}/>
+                </div>
+                <span style={{ fontSize:11, fontWeight:700,
+                  color:sent>20?T.green:sent<-20?T.red:T.amber, minWidth:50 }}>
+                  {sent>20?'Positivo':sent<-20?'Negativo':'Neutro'}
+                </span>
+              </div>
+            </div>
+
+            {/* Insights gerados */}
+            {insights.length > 0 && (
+              <div>
+                <div style={{ fontSize:9, fontWeight:700, color:T.ink4, textTransform:'uppercase',
+                  letterSpacing:'.06em', marginBottom:6 }}>Insights · Bia IA</div>
+                <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                  {insights.map((ins,i) => {
+                    const InsIc = ins.icon
+                    return (
+                      <div key={i} style={{ display:'flex', alignItems:'center', gap:8,
+                        padding:'8px 10px', borderRadius:8,
+                        background:`${ins.cor}08`, border:`1px solid ${ins.cor}20` }}>
+                        <InsIc size={12} style={{ color:ins.cor, flexShrink:0 }}/>
+                        <span style={{ fontSize:11, color:T.ink2, lineHeight:1.4 }}>{ins.txt}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Ações rápidas */}
+            <div>
+              <div style={{ fontSize:9, fontWeight:700, color:T.ink4, textTransform:'uppercase',
+                letterSpacing:'.06em', marginBottom:6 }}>Ações Rápidas</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                <button onClick={()=>onModoChange&&onModoChange(!isIA)}
+                  style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px',
+                    borderRadius:8, border:`1px solid ${isIA?T.purpleBor:T.blueBor}`,
+                    background:isIA?T.purpleDim:T.blueDim, cursor:'pointer',
+                    color:isIA?T.purple:T.blue }}>
+                  {isIA ? <><User size={11}/> <span style={{fontSize:11,fontWeight:600}}>Assumir atendimento manual</span></> :
+                          <><Bot size={11}/> <span style={{fontSize:11,fontWeight:600}}>Devolver para Molise</span></>}
+                </button>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* ABA: Pedidos */}
+        {abaLocal==='pedidos' && (
+          <div style={{ flex:1, overflowY:'auto' }}>
+            {loadPed ? (
+              <div style={{ textAlign:'center', padding:'20px 0', color:T.ink4 }}>
+                <RefreshCw size={12} style={{ animation:'cv-spin 1s linear infinite' }}/>
+              </div>
+            ) : pedidos.length===0 ? (
+              <div style={{ textAlign:'center', padding:'28px 12px', color:T.ink4 }}>
+                <Package size={18} style={{ display:'block', margin:'0 auto 8px', opacity:.12 }}/>
+                <p style={{ fontSize:11, margin:0 }}>Nenhum pedido</p>
+              </div>
+            ) : pedidos.map((p,i) => (
+              <button key={p.id||i} onClick={()=>setModal(p)}
+                style={{ width:'100%', display:'flex', alignItems:'center', gap:9, padding:'10px 14px',
+                  border:'none', cursor:'pointer', textAlign:'left',
+                  borderBottom:`1px solid ${T.sep}`, background:'transparent', transition:'background .12s' }}
+                onMouseEnter={e=>e.currentTarget.style.background=T.gray}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                <div style={{ width:7, height:7, borderRadius:'50%', flexShrink:0, background:T.green, boxShadow:`0 0 4px ${T.green}` }}/>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:2 }}>
+                    <span style={{ fontSize:12.5, fontWeight:700, color:T.green }}>#{p.numero}</span>
+                    <span style={{ fontSize:11, fontWeight:700, color:T.ink1 }}>{p.total}</span>
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+                    <span style={{ fontSize:10, color:T.ink4 }}>{p.data}</span>
+                    <span style={{ fontSize:9.5, padding:'1px 6px', borderRadius:99, background:T.bg4,
+                      border:`1px solid ${T.sep}`, color:T.ink3, fontWeight:600 }}>{p.situacao}</span>
+                    {p.rastreio&&p.rastreio!=='—'&&<Truck size={9} style={{ color:T.purple }}/>}
+                  </div>
+                </div>
+                <ChevronRight size={11} style={{ color:T.ink4 }}/>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ABA: Carrinho */}
+        {abaLocal==='cart' && (
+          <div style={{ flex:1, overflowY:'auto' }}>
+            {carrinho.length===0 ? (
+              <div style={{ display:'flex', flexDirection:'column', alignItems:'center',
+                justifyContent:'center', flex:1, color:T.ink4, padding:20, textAlign:'center', height:'100%' }}>
+                <ShoppingCart size={26} style={{ opacity:.1, display:'block', margin:'0 auto 10px' }}/>
+                <p style={{ fontSize:12, margin:'0 0 5px' }}>Carrinho vazio</p>
+              </div>
+            ) : (
+              <>
+                <div style={{ padding:'9px 14px', borderBottom:`1px solid ${T.sep}`,
+                  display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                  <span style={{ fontSize:11, fontWeight:700, color:T.ink2 }}>{carrinho.length} {carrinho.length===1?'item':'itens'}</span>
+                  <span style={{ fontSize:14, fontWeight:800, color:T.green }}>
+                    R$ {carrinho.reduce((a,it)=>a+(parseFloat(it.preco||it.precoVenda||0)*parseInt(it.quantidade||it.qtd||1)),0).toFixed(2).replace('.',',')}
+                  </span>
+                </div>
+                {carrinho.map((it,i)=>{
+                  const qtd=parseInt(it.quantidade||it.qtd||1)
+                  const preco=parseFloat(it.preco||it.precoVenda||0)
+                  return (
+                    <div key={i} style={{ padding:'9px 14px', borderBottom:`1px solid ${T.sep}`, display:'flex', gap:9 }}>
+                      <div style={{ width:36, height:36, borderRadius:7, flexShrink:0, overflow:'hidden',
+                        background:T.bg3, border:`1px solid ${T.sep}`,
+                        display:'flex', alignItems:'center', justifyContent:'center' }}>
+                        {it.imagem?<img src={it.imagem} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
+                          :<ShoppingBag size={13} style={{ color:T.ink4 }}/>}
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:11.5, fontWeight:600, color:T.ink1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{it.nome||it.descricao||'—'}</div>
+                        <div style={{ display:'flex', gap:7, marginTop:2 }}>
+                          <span style={{ fontSize:10, color:T.ink4 }}>{qtd}× R${preco.toFixed(2).replace('.',',')}</span>
+                          <span style={{ fontSize:10.5, fontWeight:700, color:T.amber }}>= R${(preco*qtd).toFixed(2).replace('.',',')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ABA: Catálogo */}
+        {abaLocal==='catalog' && (
+          <AbaCatalogo tel={conv.telefone} api={api}/>
+        )}
+      </div>
+
+      {modal && <ModalPedido pedido={modal} tel={conv.telefone} api={api} pixKey={pixKey} onClose={()=>setModal(null)}/>}
+    </div>
+  )
+}
+
 const RAPIDAS = [
   'Olá! Como posso ajudar?',
   'Vou verificar isso agora para você.',
@@ -999,50 +1643,80 @@ function PainelDireito({ conv, api, pixKey, carrinho, onModoChange }) {
 // ITEM DA LISTA — com avatar WA
 // ─────────────────────────────────────────────────────────────────────────────
 function ConversaItem({ c, ativo, onClick }) {
-  const cor=avatarCor(c.nome||c.telefone)
+  const cor=avatarCor(c.nome_wa||c.nome||c.telefone)
   const isIA=c.modo_ia!=='manual'
   const sc=STATUS_CFG[c.status_atendimento]||STATUS_CFG.pendente
   const isAtivo=c.ultima_atividade&&(Date.now()-new Date(c.ultima_atividade))<5*60*1000
   const nome=c.nome_wa||c.nome||c.telefone
+  const minutosInativo = c.ultima_atividade ? Math.floor((Date.now()-new Date(c.ultima_atividade))/60000) : 999
+  const riscoAbandono = (c.itens_carrinho||0)>0 && minutosInativo>25 && c.status_atendimento!=='resolvido'
   return (
-    <button onClick={onClick} style={{ width:'100%',padding:'10px 13px',border:'none',cursor:'pointer',
-      textAlign:'left',position:'relative',
-      background:ativo?`linear-gradient(90deg,${cor}10,${T.bg3})`:'transparent',
-      borderLeft:`3px solid ${ativo?cor:'transparent'}`,transition:'all .13s' }}
-      onMouseEnter={e=>{ if(!ativo) e.currentTarget.style.background=T.gray }}
-      onMouseLeave={e=>{ if(!ativo) e.currentTarget.style.background='transparent' }}>
+    <button onClick={onClick}
+      style={{ width:'100%',padding:'10px 13px',border:'none',cursor:'pointer',
+        textAlign:'left',position:'relative',
+        background:ativo?`linear-gradient(90deg,${cor}10,${T.bg3})`:riscoAbandono?'rgba(255,159,10,.04)':'transparent',
+        borderLeft:`3px solid ${ativo?cor:riscoAbandono?'#ff9f0a':'transparent'}`,transition:'all .13s' }}
+      onMouseEnter={e=>{ if(!ativo) e.currentTarget.style.background=riscoAbandono?'rgba(255,159,10,.07)':T.gray }}
+      onMouseLeave={e=>{ if(!ativo) e.currentTarget.style.background=riscoAbandono?'rgba(255,159,10,.04)':'transparent' }}>
       <div style={{ display:'flex',alignItems:'center',gap:9 }}>
         <div style={{ position:'relative',flexShrink:0 }}>
           <WaAvatar nome={nome} foto={c.foto_perfil||''} size={38} cor={cor}/>
           {isAtivo&&<div style={{ position:'absolute',bottom:0,right:0 }}><Dot cor={T.green} size={8}/></div>}
+          {riscoAbandono&&!isAtivo&&(
+            <div style={{ position:'absolute',bottom:-2,right:-2,
+              background:'#ff9f0a',borderRadius:'50%',width:13,height:13,
+              display:'flex',alignItems:'center',justifyContent:'center',
+              border:`2px solid ${T.bg2}` }}>
+              <Flame size={7} style={{ color:'#000' }}/>
+            </div>
+          )}
         </div>
         <div style={{ flex:1,minWidth:0 }}>
-          <div style={{ display:'flex',justifyContent:'space-between',marginBottom:2 }}>
+          <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:2 }}>
             <span style={{ fontSize:12.5,fontWeight:ativo?700:600,color:T.ink1,
-              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:115 }}>
+              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:108 }}>
               {nome}
             </span>
-            <span style={{ fontSize:9.5,color:T.ink4,flexShrink:0 }}>{tempoRel(c.ultima_atividade)}</span>
+            <div style={{ display:'flex',alignItems:'center',gap:4 }}>
+              {(c.nao_lidas||0)>0&&(
+                <span style={{ minWidth:16,height:16,borderRadius:99,background:T.green,
+                  color:'#000',fontSize:8,fontWeight:800,
+                  display:'flex',alignItems:'center',justifyContent:'center',padding:'0 3px' }}>
+                  {c.nao_lidas>9?'9+':c.nao_lidas}
+                </span>
+              )}
+              <span style={{ fontSize:9.5,color:T.ink4,flexShrink:0 }}>{tempoRel(c.ultima_atividade)}</span>
+            </div>
           </div>
           <div style={{ fontSize:11,color:T.ink3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:4 }}>
             {c.ultima_mensagem||'—'}
           </div>
-          <div style={{ display:'flex',gap:4,flexWrap:'wrap' }}>
+          <div style={{ display:'flex',gap:4,flexWrap:'wrap',alignItems:'center' }}>
             <span style={{ display:'inline-flex',alignItems:'center',gap:2,padding:'1px 5px',borderRadius:99,fontSize:8,fontWeight:700,
               background:isIA?T.purpleDim:T.blueDim,color:isIA?T.purple:T.blue,border:`1px solid ${isIA?T.purpleBor:T.blueBor}` }}>
-              {isIA?<Bot size={6}/>:<User size={6}/>}{isIA?'Molise':'H'}
+              {isIA?<><Bot size={6}/> Molise</>:<><User size={6}/> H</>}
             </span>
             <span style={{ display:'inline-flex',alignItems:'center',gap:2,padding:'1px 5px',borderRadius:99,fontSize:8,fontWeight:700,
               background:`${sc.cor}12`,color:sc.cor,border:`1px solid ${sc.cor}22` }}>{sc.lbl}</span>
-            {(c.itens_carrinho||0)>0&&<span style={{ display:'inline-flex',alignItems:'center',gap:2,padding:'1px 5px',borderRadius:99,fontSize:8,fontWeight:700,
-              background:T.amberDim,color:T.amber,border:`1px solid ${T.amberBor}` }}>
-              <ShoppingCart size={6}/>{c.itens_carrinho}
-            </span>}
+            {(c.itens_carrinho||0)>0&&!riscoAbandono&&(
+              <span style={{ display:'inline-flex',alignItems:'center',gap:2,padding:'1px 5px',borderRadius:99,fontSize:8,fontWeight:700,
+                background:T.amberDim,color:T.amber,border:`1px solid ${T.amberBor}` }}>
+                <ShoppingCart size={6}/>{c.itens_carrinho}
+              </span>
+            )}
+            {riscoAbandono&&(
+              <span style={{ display:'inline-flex',alignItems:'center',gap:2,padding:'1px 5px',borderRadius:99,fontSize:8,fontWeight:700,
+                background:'rgba(255,159,10,.15)',color:'#ff9f0a',border:'1px solid rgba(255,159,10,.3)' }}>
+                <Flame size={6}/> Abandono
+              </span>
+            )}
           </div>
         </div>
       </div>
     </button>
   )
+}
+
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1094,6 +1768,8 @@ export default function PageConversas({ api='' }) {
   const [pixKey,    setPixKey]    = useState('')
   const [toast,     setToast]     = useState(null)
   const [resetConf, setResetConf] = useState(false)
+  const [pedidosAtivos, setPedidosAtivos] = useState([])  // pedidos do cliente selecionado
+  const [cmdK, setCmdK] = useState(false)  // Command Palette ⌘K
   const [resetting, setResetting] = useState(false)
 
   const prevStatusRef = useRef({})
@@ -1135,10 +1811,27 @@ export default function PageConversas({ api='' }) {
   },[api])
 
   useEffect(()=>{ fetchConversas(); const iv=setInterval(fetchConversas,20000); return()=>clearInterval(iv) },[fetchConversas])
+
+  // ⌘K / Ctrl+K para abrir Command Palette
+  useEffect(()=>{
+    const fn = e => {
+      if ((e.metaKey||e.ctrlKey) && e.key==='k') { e.preventDefault(); setCmdK(v=>!v) }
+      if (e.key==='Escape') setCmdK(false)
+    }
+    window.addEventListener('keydown', fn)
+    return () => window.removeEventListener('keydown', fn)
+  }, [])
   useEffect(()=>{
     if(!sel){ setMensagens([]); setCarrinho([]); return }
     fetchMensagens(sel,true)
     const iv=setInterval(()=>fetchMensagens(sel,false),8000)
+    // Busca pedidos para o Order Context Banner
+    if (sel) {
+      fetch(`${api}/api/dashboard/contatos/${sel}/pedidos`)
+        .then(r=>r.ok?r.json():null)
+        .then(d=>{ if(d) setPedidosAtivos(d.pedidos||[]) })
+        .catch(()=>{})
+    }
     return()=>clearInterval(iv)
   },[sel]) // eslint-disable-line
 
@@ -1188,6 +1881,10 @@ export default function PageConversas({ api='' }) {
     if(filtro==='manual')   return c.modo_ia==='manual'
     if(filtro==='pendente') return c.status_atendimento==='pendente'
     if(filtro==='resolvido')return c.status_atendimento==='resolvido'
+    if(filtro==='risco') {
+      const min = c.ultima_atividade ? Math.floor((Date.now()-new Date(c.ultima_atividade))/60000) : 999
+      return (c.itens_carrinho||0)>0 && min>25 && c.status_atendimento!=='resolvido'
+    }
     return true
   })
 
@@ -1211,6 +1908,7 @@ export default function PageConversas({ api='' }) {
     {id:'manual',  lbl:'Humano',   Icon:User,         n:conversas.filter(c=>c.modo_ia==='manual').length},
     {id:'pendente',lbl:'Pendente', Icon:Clock,        n:conversas.filter(c=>c.status_atendimento==='pendente').length},
     {id:'resolvido',lbl:'Resolvido',Icon:CheckCircle, n:conversas.filter(c=>c.status_atendimento==='resolvido').length},
+    {id:'risco',    lbl:'Abandono', Icon:Flame,        n:conversas.filter(c=>(c.itens_carrinho||0)>0&&c.ultima_atividade&&Math.floor((Date.now()-new Date(c.ultima_atividade))/60000)>25&&c.status_atendimento!=='resolvido').length},
   ]
 
   return (
@@ -1220,10 +1918,23 @@ export default function PageConversas({ api='' }) {
         @keyframes cv-ping   { 0%{transform:scale(1);opacity:.5} 75%,100%{transform:scale(2.2);opacity:0} }
         @keyframes cv-fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
         @keyframes cv-slideIn{ from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
-        @keyframes cv-bg     { from{opacity:0} to{opacity:1} }
+        @keyframes cv-bg          { from{opacity:0} to{opacity:1} }
+        @keyframes cv-ping-badge  { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.7;transform:scale(1.1)} }
       `}</style>
 
       {/* Toast */}
+      
+      {/* Command Palette ⌘K */}
+      {cmdK && (
+        <CommandPalette
+          conversas={conversas} selTel={sel}
+          onSelect={tel=>{ setSel(tel); setMensagens([]) }}
+          onStatus={mudarStatus}
+          onToggleModo={toggleModo}
+          onClose={()=>setCmdK(false)}
+        />
+      )}
+
       {toast&&(
         <div style={{ position:'fixed',bottom:24,right:24,zIndex:9999,
           display:'flex',alignItems:'center',gap:12,padding:'12px 16px',borderRadius:14,
@@ -1264,6 +1975,13 @@ export default function PageConversas({ api='' }) {
               </div>
               <span style={{ fontSize:15,fontWeight:800,color:T.ink1,letterSpacing:'-.02em' }}>Conversas</span>
             </div>
+            <button onClick={()=>setCmdK(true)} title="Command Palette ⌘K"
+              style={{ display:'flex',alignItems:'center',gap:3,
+                padding:'3px 8px',borderRadius:7,fontSize:9.5,
+                border:`1px solid ${T.purpleBor}`,background:T.purpleDim,
+                cursor:'pointer',color:T.purple,fontWeight:600 }}>
+              <Command size={9}/> K
+            </button>
             <button onClick={fetchConversas} style={{ width:26,height:26,borderRadius:7,
               border:`1px solid ${T.sep}`,background:'rgba(255,255,255,.04)',cursor:'pointer',
               display:'flex',alignItems:'center',justifyContent:'center',color:T.ink4 }}>
@@ -1311,6 +2029,10 @@ export default function PageConversas({ api='' }) {
             <Dot cor={T.green} size={5}/> 20s
           </div>
           <span style={{ fontSize:9.5,color:T.ink4 }}>{conversas.length} conversas</span>
+          <button onClick={()=>setCmdK(true)}
+            style={{ fontSize:9,color:T.purple,background:'none',border:'none',
+              cursor:'pointer',padding:'2px 6px',borderRadius:5,
+              background:T.purpleDim }}><Command size={8}/> ⌘K</button>
         </div>
       </aside>
 
@@ -1407,7 +2129,13 @@ export default function PageConversas({ api='' }) {
             }}/>
 
             {/* Mensagens */}
-            <div style={{ flex:1,overflowY:'auto',padding:'10px 0',background:T.bg0 }}
+            
+          {/* Order Context Banner — jornada do pedido ativo */}
+          {pedidosAtivos.length > 0 && (
+            <OrderContextBanner tel={sel} api={api} pedidos={pedidosAtivos}/>
+          )}
+
+<div style={{ flex:1,overflowY:'auto',padding:'10px 0',background:T.bg0 }}
               onClick={()=>statusMenu&&setStatusMenu(false)}>
               {loadMsg?(
                 <div style={{ textAlign:'center',padding:'32px 0',color:T.ink4 }}>
@@ -1446,8 +2174,8 @@ export default function PageConversas({ api='' }) {
           <div style={{ width:258,borderLeft:`1px solid ${T.sep}`,
             background:`linear-gradient(180deg,${T.bg2},${T.bg1})`,
             display:'flex',flexDirection:'column',overflow:'hidden' }}>
-            <PainelDireito conv={convAtiva} api={api} pixKey={pixKey}
-              carrinho={carrinho} onModoChange={v=>toggleModo(v)}/>
+            <IntelligenceCard conv={convAtiva} api={api} pixKey={pixKey}
+              mensagens={mensagens} carrinho={carrinho} onModoChange={toggleModo}/>
           </div>
         )}
       </div>
