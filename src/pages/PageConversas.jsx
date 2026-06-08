@@ -2124,12 +2124,26 @@ function AbaCarrinho({ carrinho=[] }) {
 }
 
 
-function ModalPedido({ pedido, tel, api, onClose, pixKey }) {
+function ModalPedido({ pedido: pedidoInit, tel, api, onClose, pixKey }) {
+  const [pedido,    setPedido]    = useState(pedidoInit)
   const [disparos,  setDisparos]  = useState([])
   const [copied,    setCopied]    = useState(null)
   const [linkLoad,  setLinkLoad]  = useState(false)
+  const [loadDet,   setLoadDet]   = useState(false)
   const [enviando,  setEnviando]  = useState(null)
   const [envResult, setEnvResult] = useState({})
+
+  // Se pedido do histórico não tiver itens, busca detalhe completo sob demanda
+  useEffect(() => {
+    if (pedidoInit && !pedidoInit.itens?.length && pedidoInit.id && api && tel) {
+      setLoadDet(true)
+      fetch(`${api}/api/dashboard/contatos/${tel}/pedido-detalhe/${pedidoInit.id}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.pedido) setPedido(prev => ({ ...prev, ...d.pedido })) })
+        .catch(() => {})
+        .finally(() => setLoadDet(false))
+    }
+  }, [pedidoInit?.id])
 
   useEffect(() => {
     if (!pedido) return
@@ -2501,12 +2515,18 @@ function ModalPedido({ pedido, tel, api, onClose, pixKey }) {
           </div>
 
           {/* Produtos */}
-          {pedido.itens?.length > 0 && (
+          {(loadDet || pedido.itens?.length > 0) && (
             <div style={{ padding:'11px 13px', borderRadius:12, background:T.bg3, border:`1px solid ${T.sep}` }}>
               <div style={{ fontSize:9, fontWeight:700, color:T.ink4, textTransform:'uppercase',
                 letterSpacing:'.06em', marginBottom:8 }}>
-                🛍️ Produtos ({pedido.itens.length})
+                🛍️ Produtos {pedido.itens?.length > 0 ? `(${pedido.itens.length})` : ''}
               </div>
+              {loadDet ? (
+                <div style={{ display:'flex', alignItems:'center', gap:8, color:T.ink4, fontSize:11, padding:'8px 0' }}>
+                  <RefreshCw size={11} style={{ animation:'cv-spin 1s linear infinite' }}/>
+                  Carregando itens do pedido...
+                </div>
+              ) : (
               <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                 {pedido.itens.map((it, i) => {
                   const preco = parseFloat(String(it.preco||'0').replace(/[R$\s]/g,'').replace(',','.')) || 0
@@ -2545,6 +2565,7 @@ function ModalPedido({ pedido, tel, api, onClose, pixKey }) {
                   <span style={{ fontSize:16, fontWeight:900, color:T.green }}>{pedido.total}</span>
                 </div>
               </div>
+              )}
             </div>
           )}
 
