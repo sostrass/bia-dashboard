@@ -19,6 +19,7 @@ import {
   RotateCcw, TrendingUp, TrendingDown, Hash, Users, Filter,
   Star, Target, Activity, Flame, Shield, Award, Sparkles,
   DollarSign, Heart, BarChart2, Navigation, Layers, Command,
+  Cpu, Calendar, MousePointer, ArrowLeft,
 } from 'lucide-react'
 
 // ── T system ──────────────────────────────────────────────────────────────────
