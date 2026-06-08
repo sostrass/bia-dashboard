@@ -19,7 +19,7 @@ import {
   RotateCcw, TrendingUp, TrendingDown, Hash, Users, Filter,
   Star, Target, Activity, Flame, Shield, Award, Sparkles,
   DollarSign, Heart, BarChart2, Navigation, Layers, Command,
-  Cpu, Calendar, MousePointer, ArrowLeft,
+  Cpu, Calendar, MousePointer, ArrowLeft, Phone,
 } from 'lucide-react'
 
 // ── T system ──────────────────────────────────────────────────────────────────
@@ -1296,178 +1296,463 @@ function InputBar({ api, tel, onEnviar, onEnviarMidia, enviando, disabled }) {
 // MODAL PEDIDO
 // ─────────────────────────────────────────────────────────────────────────────
 function ModalPedido({ pedido, tel, api, onClose, pixKey }) {
-  const [disparos,setDisparos]=useState([])
-  const [copied,  setCopied]  =useState(null)
-  const [linkLoad,setLinkLoad]=useState(false)
+  const [disparos,  setDisparos]  = useState([])
+  const [copied,    setCopied]    = useState(null)
+  const [linkLoad,  setLinkLoad]  = useState(false)
+  const [enviando,  setEnviando]  = useState(null)   // gatilho em envio
+  const [envResult, setEnvResult] = useState({})     // { gatilho: 'ok'|'erro' }
 
-  useEffect(()=>{
-    if(!pedido) return
+  useEffect(() => {
+    if (!pedido) return
     fetch(`${api}/api/dashboard/disparos-pedido/${pedido.numero}`)
-      .then(r=>r.ok?r.json():null).then(d=>{ if(d) setDisparos(d.disparos||[]) }).catch(()=>{})
-  },[pedido?.numero,api])
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setDisparos(d.disparos || []) })
+      .catch(() => {})
+  }, [pedido?.numero, api])
 
-  if(!pedido) return null
+  if (!pedido) return null
 
-  const isPendente = [6,24,'Em Aberto','Pag. pendente','pendente','aberto'].includes(String(pedido.situacao_id||pedido.situacao||'').toLowerCase())
-  const copiar=(txt,k)=>{ copyText(txt); setCopied(k); setTimeout(()=>setCopied(null),2000) }
+  const disparoMap = {}
+  disparos.forEach(d => { disparoMap[d.gatilho] = d })
 
-  const gerarLinkMP=async()=>{
+  const isPago     = ![6,24].includes(pedido.situacao_id) && !['Em Aberto','pendente','aberto'].includes(String(pedido.situacao||'').toLowerCase())
+  const isPendente = [6,24,'Em Aberto','pendente','aberto'].includes(String(pedido.situacao_id||pedido.situacao||'').toLowerCase())
+  const temRastreio = pedido.rastreio && pedido.rastreio !== '—'
+  const temNFe      = !!pedido.nfe_link
+
+  const copiar = (txt, k) => { copyText(txt); setCopied(k); setTimeout(() => setCopied(null), 2000) }
+
+  const gerarLinkMP = async () => {
     setLinkLoad(true)
     try {
-      const r=await fetch(`${api}/api/dashboard/mp-link-pagamento`,{method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ telefone:tel,numero_pedido:pedido.numero,
-          valor:parseFloat((pedido.total||'0').replace(/[R$\s.]/g,'').replace(',','.').trim())||0,
-          descricao:`Pedido #${pedido.numero}` })})
-      const d=await r.json()
-      if(d.init_point){ copyText(d.init_point); window.open(d.init_point,'_blank') }
+      const r = await fetch(`${api}/api/dashboard/mp-link-pagamento`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telefone:tel, numero_pedido:pedido.numero,
+          valor: parseFloat((pedido.total||'0').replace(/[R$\s.]/g,'').replace(',','.').trim())||0,
+          descricao: `Pedido #${pedido.numero}` })
+      })
+      const d = await r.json()
+      if (d.init_point) { copyText(d.init_point); window.open(d.init_point, '_blank') }
     } catch {}
     setLinkLoad(false)
   }
 
-  const disparoMap={}; disparos.forEach(d=>{ disparoMap[d.gatilho]=d })
+  // ── Enviar template via WhatsApp ──────────────────────────────────────────
+  const enviarTemplate = async (gatilho, label) => {
+    setEnviando(gatilho)
+    try {
+      const r = await fetch(`${api}/api/templates/disparar-gatilho`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gatilho,
+          telefone: tel,
+          variaveis: {
+            '{{numero_pedido}}':     pedido.numero,
+            '{{nome_cliente}}':      pedido.cliente || pedido.nome || '',
+            '{{primeiro_nome}}':     (pedido.cliente||pedido.nome||'').split(' ')[0],
+            '{{valor_total}}':       pedido.total || '',
+            '{{codigo_rastreio}}':   pedido.rastreio || '',
+            '{{transportadora}}':    pedido.transportadora || '',
+            '{{link_acompanhamento}}': pedido.rastreio ? `https://rastreio.sostrass.com.br/p/${pedido.rastreio}` : '',
+            '{{link_nfe}}':          pedido.nfe_link || '',
+            '{{numero_nfe}}':        pedido.nfe_numero || '',
+            '{{forma_pagamento}}':   pedido.forma_pagamento || '',
+          }
+        })
+      })
+      const d = await r.json()
+      setEnvResult(p => ({ ...p, [gatilho]: d.ok ? 'ok' : 'erro' }))
+      setTimeout(() => setEnvResult(p => { const n={...p}; delete n[gatilho]; return n }), 3500)
+    } catch {
+      setEnvResult(p => ({ ...p, [gatilho]: 'erro' }))
+      setTimeout(() => setEnvResult(p => { const n={...p}; delete n[gatilho]; return n }), 3500)
+    }
+    setEnviando(null)
+  }
 
-  const Btn=({label,onClick,cor,Icon,ld})=>(
-    <button onClick={onClick} disabled={ld}
-      style={{ display:'flex',alignItems:'center',gap:6,padding:'7px 13px',borderRadius:9,
-        border:`1px solid ${cor}40`,background:`${cor}12`,color:cor,cursor:'pointer',
-        fontSize:11,fontWeight:700,transition:'all .13s',opacity:ld?.6:1,whiteSpace:'nowrap' }}>
-      {ld?<RefreshCw size={11} style={{ animation:'cv-spin 1s linear infinite' }}/>:<Icon size={11}/>}
-      {label}
-    </button>
-  )
+  // ── Horizontal Journey Timeline ───────────────────────────────────────────
+  const sitId = pedido.situacao_id
+  const stepAtual = (() => {
+    if ([30].includes(sitId) || String(pedido.situacao||'').includes('Entregue')) return 7
+    if (temRastreio && String(pedido.situacao||'').toLowerCase().includes('saiu')) return 6
+    if (temRastreio) return 5
+    if ([27,24].includes(sitId)) return 4
+    if ([14].includes(sitId)) return 3
+    if ([9].includes(sitId))  return 2
+    if ([15].includes(sitId)) return 1
+    return 0
+  })()
+
+  const STEPS_H = [
+    { g:'pedido_criado',        lbl:'Criado',     cor:'#00d4aa', Icon:ShoppingBag  },
+    { g:'pagamento_aprovado',   lbl:'Pago',       cor:T.blue,    Icon:CreditCard   },
+    { g:'em_separacao',         lbl:'Separação',  cor:T.purple,  Icon:Package      },
+    { g:'nfe_emitida',          lbl:'NF-e',       cor:T.cyan,    Icon:FileText     },
+    { g:'pedido_enviado',       lbl:'Enviado',    cor:'#a78bfa', Icon:Truck        },
+    { g:'rastreio_em_transito', lbl:'Trânsito',   cor:T.blue,    Icon:Radio        },
+    { g:'saiu_entrega',         lbl:'Saiu',       cor:T.amber,   Icon:Truck        },
+    { g:'pedido_entregue',      lbl:'Entregue',   cor:T.green,   Icon:CheckCircle  },
+  ]
+
+  // Botões de envio de template
+  const BTNS_TEMPLATE = [
+    { gatilho:'pedido_criado',      lbl:'📦 Resumo do Pedido', cor:T.cyan,   show:true          },
+    { gatilho:'nfe_emitida',        lbl:'📄 Nota Fiscal',      cor:T.blue,   show:temNFe        },
+    { gatilho:'rastreio_em_transito',lbl:'🚚 Link de Rastreio', cor:T.purple, show:temRastreio   },
+    { gatilho:'pedido_entregue',    lbl:'✅ Entregue',          cor:T.green,  show:stepAtual>=7  },
+    { gatilho:'pagamento_pendente', lbl:'💳 Lembrar Pagamento', cor:T.amber,  show:isPendente    },
+  ].filter(b => b.show)
+
+  const valorTotal = parseFloat((pedido.total||'0').replace(/[R$\s.]/g,'').replace(',','.').trim()) || 0
 
   return (
     <>
-      <div onClick={onClose} style={{ position:'fixed',inset:0,zIndex:8000,
-        background:'rgba(0,0,0,.55)',backdropFilter:'blur(4px)',animation:'cv-bg .2s ease' }}/>
-      <div style={{ position:'fixed',top:0,right:0,bottom:0,zIndex:8001,
-        width:480,display:'flex',flexDirection:'column',
-        background:`linear-gradient(180deg,${T.bg2},${T.bg1})`,
+      <div onClick={onClose}
+        style={{ position:'fixed', inset:0, zIndex:8000,
+          background:'rgba(0,0,0,.6)', backdropFilter:'blur(5px)', animation:'cv-bg .2s ease' }}/>
+
+      <div style={{ position:'fixed', top:0, right:0, bottom:0, zIndex:8001,
+        width:500, display:'flex', flexDirection:'column',
+        background:`linear-gradient(180deg,${T.bg1},${T.bg0})`,
         borderLeft:`1px solid ${T.sep2}`,
-        boxShadow:'-24px 0 64px rgba(0,0,0,.6)',
+        boxShadow:'-32px 0 80px rgba(0,0,0,.7)',
         animation:'cv-slideIn .28s cubic-bezier(.2,.8,.2,1)' }}>
-        <div style={{ padding:'18px 20px',borderBottom:`1px solid ${T.sep}`,
-          background:`linear-gradient(90deg,${T.green}08,transparent)`,flexShrink:0 }}>
-          <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10 }}>
-            <div style={{ display:'flex',alignItems:'center',gap:10 }}>
-              <div style={{ width:36,height:36,borderRadius:10,background:T.greenDim,
-                border:`1px solid ${T.greenBor}`,display:'flex',alignItems:'center',justifyContent:'center' }}>
-                <Package size={16} style={{ color:T.green }}/>
+
+        {/* ── HEADER ─────────────────────────────────────────────────── */}
+        <div style={{ padding:'16px 20px 12px', borderBottom:`1px solid ${T.sep}`,
+          background:`linear-gradient(135deg,${T.green}08,transparent)`, flexShrink:0 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <div style={{ width:40, height:40, borderRadius:12,
+                background:T.greenDim, border:`1px solid ${T.greenBor}`,
+                display:'flex', alignItems:'center', justifyContent:'center',
+                boxShadow:`0 0 20px ${T.green}25` }}>
+                <Package size={18} style={{ color:T.green }}/>
               </div>
               <div>
-                <div style={{ fontSize:18,fontWeight:800,color:T.green }}>#{pedido.numero}</div>
-                <div style={{ fontSize:11,color:T.ink4 }}>{pedido.data}</div>
+                <div style={{ fontSize:22, fontWeight:900, color:T.green, letterSpacing:'-.04em',
+                  textShadow:`0 0 30px ${T.green}40` }}>#{pedido.numero}</div>
+                <div style={{ fontSize:10, color:T.ink4 }}>{pedido.data}</div>
               </div>
             </div>
-            <button onClick={onClose} style={{ width:30,height:30,borderRadius:8,
-              border:`1px solid ${T.sep2}`,background:T.gray,cursor:'pointer',
-              display:'flex',alignItems:'center',justifyContent:'center',color:T.ink4 }}>
-              <X size={13}/>
-            </button>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ padding:'4px 12px', borderRadius:99, fontSize:11, fontWeight:700,
+                background: isPago ? T.greenDim : T.amberDim,
+                border:`1px solid ${isPago ? T.greenBor : T.amberBor}`,
+                color: isPago ? T.green : T.amber }}>
+                {isPago ? '✅ Pago' : '⏳ ' + (pedido.situacao || 'Pendente')}
+              </span>
+              <button onClick={onClose}
+                style={{ width:30, height:30, borderRadius:8, border:`1px solid ${T.sep2}`,
+                  background:'rgba(255,255,255,.04)', cursor:'pointer',
+                  display:'flex', alignItems:'center', justifyContent:'center', color:T.ink4 }}>
+                <X size={13}/>
+              </button>
+            </div>
           </div>
-          <div style={{ display:'flex',alignItems:'center',gap:9 }}>
-            <span style={{ padding:'3px 11px',borderRadius:99,fontSize:11,fontWeight:700,
-              background:T.bg3,border:`1px solid ${T.sep2}`,color:T.ink2 }}>{pedido.situacao}</span>
-            <span style={{ fontSize:17,fontWeight:800,color:T.ink1 }}>{pedido.total}</span>
-            {pedido.forma_pagamento&&pedido.forma_pagamento!=='—'&&(
-              <span style={{ fontSize:10.5,color:T.ink4 }}>{pedido.forma_pagamento}</span>
+
+          {/* Valor + forma de pagamento */}
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <span style={{ fontSize:22, fontWeight:900, color:T.ink1, letterSpacing:'-.03em' }}>
+              {pedido.total || '—'}
+            </span>
+            {pedido.forma_pagamento && pedido.forma_pagamento !== '—' && (
+              <span style={{ fontSize:10.5, color:T.ink4 }}>{pedido.forma_pagamento}</span>
             )}
           </div>
         </div>
-        <div style={{ flex:1,overflowY:'auto',padding:'16px 20px',display:'flex',flexDirection:'column',gap:14 }}>
-          <div style={{ display:'flex',flexWrap:'wrap',gap:6 }}>
-            <Btn label={copied==='link'?'Copiado!':'Link do pedido'}
-              onClick={()=>copiar(`https://rastreio.sostrass.com.br/pedido/${pedido.numero}`,'link')}
-              cor={T.cyan} Icon={copied==='link'?Check:Copy}/>
-            {pedido.rastreio&&pedido.rastreio!=='—'&&(
-              <Btn label="Rastrear"
-                onClick={()=>window.open(`https://rastreio.sostrass.com.br/p/${pedido.rastreio}`,'_blank')}
-                cor={T.purple} Icon={Truck}/>
-            )}
-            {pedido.nfe_link&&(
-              <Btn label="NF-e" onClick={()=>window.open(pedido.nfe_link,'_blank')} cor={T.blue} Icon={FileText}/>
-            )}
-            {isPendente&&pixKey&&(
-              <Btn label={copied==='pix'?'Copiado!':'Copiar PIX'}
-                onClick={()=>copiar(pixKey,'pix')} cor={T.green} Icon={copied==='pix'?Check:Copy}/>
-            )}
-            {isPendente&&(
-              <Btn label={linkLoad?'Gerando...':'Cartão (MP)'}
-                onClick={gerarLinkMP} ld={linkLoad} cor={T.amber} Icon={CreditCard}/>
-            )}
-          </div>
 
-          {pedido.rastreio&&pedido.rastreio!=='—'&&(
-            <div style={{ padding:'11px 14px',borderRadius:11,background:T.bg3,border:`1px solid ${T.sep}` }}>
-              <div style={{ fontSize:9.5,fontWeight:700,color:T.ink4,textTransform:'uppercase',letterSpacing:'.08em',marginBottom:5 }}>Rastreio</div>
-              <div style={{ display:'flex',alignItems:'center',gap:10 }}>
-                <span style={{ fontFamily:'monospace',fontSize:14,fontWeight:700,color:T.purple }}>{pedido.rastreio}</span>
-                {pedido.transportadora&&pedido.transportadora!=='—'&&<span style={{ fontSize:11,color:T.ink4 }}>{pedido.transportadora}</span>}
-              </div>
-            </div>
-          )}
+        {/* ── HORIZONTAL TIMELINE ────────────────────────────────────── */}
+        <div style={{ padding:'12px 16px', borderBottom:`1px solid ${T.sep}`,
+          background:T.bg2, flexShrink:0 }}>
+          <div style={{ overflowX:'auto', paddingBottom:4 }}>
+            <div style={{ display:'flex', alignItems:'flex-start', minWidth:'max-content', gap:0 }}>
+              {STEPS_H.map((step, i) => {
+                const feito  = i <= stepAtual
+                const atual  = i === stepAtual
+                const d      = disparoMap[step.g]
+                const Ic     = step.Icon
+                const dateStr = d?.criado_em
+                  ? new Date(d.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+                  : null
 
-          {/* Timeline */}
-          <div>
-            <div style={{ fontSize:10,fontWeight:700,color:T.ink4,textTransform:'uppercase',letterSpacing:'.08em',marginBottom:10 }}>Jornada</div>
-            <div style={{ position:'relative' }}>
-              <div style={{ position:'absolute',left:14,top:8,bottom:8,width:2,background:`linear-gradient(180deg,${T.green}40,transparent)` }}/>
-              {JORNADA_STEPS.map((step,i)=>{
-                const d = disparoMap[step.gatilho]
-                // Inferência por status do pedido quando não há disparo registrado
-                const sitId = pedido.situacao_id
-                const infere = !d && (
-                  (step.gatilho==='pedido_criado') ||
-                  (step.gatilho==='pagamento_aprovado' && [15,27,14,30].includes(sitId)) ||
-                  (step.gatilho==='em_separacao'       && [27,14,30].includes(sitId)) ||
-                  (step.gatilho==='nfe_emitida'        && [14,30].includes(sitId)) ||
-                  (step.gatilho==='pedido_enviado'     && [30].includes(sitId)) ||
-                  (step.gatilho==='pedido_entregue'    && [30].includes(sitId))
-                )
-                const feito = !!d || infere
                 return (
-                  <div key={i} style={{ display:'flex',gap:12,alignItems:'flex-start',marginBottom:5 }}>
-                    <div style={{ width:30,height:30,borderRadius:'50%',flexShrink:0,
-                      background:feito?`${step.cor}22`:T.bg4,
-                      border:`2px solid ${feito?step.cor:T.sep}`,
-                      display:'flex',alignItems:'center',justifyContent:'center',
-                      boxShadow:feito&&d?`0 0 10px ${step.cor}30`:undefined,zIndex:1 }}>
-                      <step.Icon size={13} style={{ color:feito?step.cor:T.ink4 }}/>
-                    </div>
-                    <div style={{ flex:1,paddingTop:5 }}>
-                      <div style={{ display:'flex',alignItems:'center',gap:7 }}>
-                        <span style={{ fontSize:12.5,fontWeight:feito?700:400,color:feito?T.ink1:T.ink4 }}>{step.label}</span>
-                        {d?.criado_em&&<span style={{ fontSize:9.5,color:T.ink4 }}>
-                          {new Date(d.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
-                        </span>}
-                        {infere&&!d&&<span style={{ fontSize:9,color:T.ink4,fontStyle:'italic' }}>pelo status</span>}
+                  <div key={i} style={{ display:'flex', alignItems:'flex-start' }}>
+                    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, minWidth:64 }}>
+                      {/* Círculo */}
+                      <div style={{ width:34, height:34, borderRadius:'50%',
+                        background: feito ? `${step.cor}20` : T.bg4,
+                        border:`2px solid ${feito ? step.cor : T.sep2}`,
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        boxShadow: atual ? `0 0 16px ${step.cor}70` : feito ? `0 0 8px ${step.cor}30` : 'none',
+                        transition:'all .3s', flexShrink:0 }}>
+                        <Ic size={13} style={{ color: feito ? step.cor : T.ink4 }}/>
                       </div>
-                      {d&&<div style={{ fontSize:9.5,fontWeight:600,marginTop:1,
-                        color:d.status==='enviado'?T.green:T.red }}>
-                        {d.status==='enviado'?'✓ Notificado':'✗ '+d.status}
-                      </div>}
+                      {/* Label */}
+                      <div style={{ textAlign:'center' }}>
+                        <div style={{ fontSize:9, fontWeight: atual ? 800 : feito ? 600 : 400,
+                          color: feito ? step.cor : T.ink4, whiteSpace:'nowrap' }}>
+                          {step.lbl}
+                        </div>
+                        {dateStr && (
+                          <div style={{ fontSize:8, color:T.ink4, whiteSpace:'nowrap', marginTop:1 }}>
+                            {dateStr}
+                          </div>
+                        )}
+                        {d && (
+                          <div style={{ fontSize:7.5, fontWeight:700, marginTop:1,
+                            color: d.status==='enviado' ? T.green : T.red }}>
+                            {d.status==='enviado' ? '✓ Notif.' : '✗'}
+                          </div>
+                        )}
+                      </div>
                     </div>
+                    {/* Conector */}
+                    {i < STEPS_H.length - 1 && (
+                      <div style={{ height:2, width:18, marginTop:16, flexShrink:0,
+                        background: i < stepAtual
+                          ? `linear-gradient(90deg,${step.cor},${STEPS_H[i+1].cor})`
+                          : T.sep,
+                        borderRadius:99, transition:'background .4s' }}/>
+                    )}
                   </div>
                 )
               })}
             </div>
           </div>
+        </div>
 
-          {/* Itens */}
-          {pedido.itens?.length>0&&(
-            <div>
-              <div style={{ fontSize:10,fontWeight:700,color:T.ink4,textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8 }}>Itens</div>
-              {pedido.itens.map((it,i)=>(
-                <div key={i} style={{ display:'flex',alignItems:'center',gap:9,padding:'8px 11px',
-                  borderRadius:9,marginBottom:5,background:T.bg4,border:`1px solid ${T.sep}` }}>
-                  <Package size={12} style={{ color:T.ink4,flexShrink:0 }}/>
-                  <div style={{ flex:1,minWidth:0 }}>
-                    <div style={{ fontSize:12,color:T.ink1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{it.nome}</div>
-                    <div style={{ fontSize:10,color:T.ink4 }}>{it.codigo&&`${it.codigo} · `}{it.qtd}× · R$ {it.preco}</div>
+        {/* ── CONTEÚDO SCROLLÁVEL ─────────────────────────────────────── */}
+        <div style={{ flex:1, overflowY:'auto', padding:'14px 20px',
+          display:'flex', flexDirection:'column', gap:12 }}>
+
+          {/* ── BADGES DE ENVIO DE TEMPLATE (NIVELMAX) ─────────────── */}
+          {BTNS_TEMPLATE.length > 0 && (
+            <div style={{ padding:'12px 14px', borderRadius:12,
+              background:`linear-gradient(135deg,${T.purple}08,${T.bg3})`,
+              border:`1px solid ${T.purpleBor}` }}>
+              <div style={{ fontSize:9, fontWeight:700, color:T.purple,
+                textTransform:'uppercase', letterSpacing:'.06em', marginBottom:9 }}>
+                ⚡ Enviar via WhatsApp
+              </div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                {BTNS_TEMPLATE.map(({ gatilho, lbl, cor }) => {
+                  const res     = envResult[gatilho]
+                  const loading = enviando === gatilho
+                  return (
+                    <button key={gatilho}
+                      onClick={() => !loading && !res && enviarTemplate(gatilho, lbl)}
+                      disabled={loading || !!res}
+                      style={{ display:'flex', alignItems:'center', gap:6,
+                        padding:'7px 14px', borderRadius:9, cursor: loading||res ? 'default' : 'pointer',
+                        fontSize:11.5, fontWeight:700, transition:'all .15s',
+                        border:`1px solid ${res==='ok' ? T.greenBor : res==='erro' ? T.redBor : cor+'50'}`,
+                        background: res==='ok' ? T.greenDim : res==='erro' ? T.redDim : `${cor}12`,
+                        color: res==='ok' ? T.green : res==='erro' ? T.red : cor,
+                        opacity: loading ? .7 : 1 }}>
+                      {loading
+                        ? <RefreshCw size={11} style={{ animation:'cv-spin 1s linear infinite' }}/>
+                        : res==='ok' ? <Check size={11}/> : res==='erro' ? <X size={11}/> : <Send size={11}/>}
+                      {loading ? 'Enviando...' : res==='ok' ? 'Enviado!' : res==='erro' ? 'Falhou' : lbl}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── DADOS DO CLIENTE ─────────────────────────────────────── */}
+          {(pedido.cliente || pedido.nome || pedido.email || pedido.endereco) && (
+            <div style={{ padding:'12px 14px', borderRadius:12, background:T.bg3,
+              border:`1px solid ${T.sep}` }}>
+              <div style={{ fontSize:9, fontWeight:700, color:T.ink4,
+                textTransform:'uppercase', letterSpacing:'.06em', marginBottom:9 }}>
+                👤 Cliente
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                {(pedido.cliente||pedido.nome) && (
+                  <div style={{ fontSize:14, fontWeight:800, color:T.ink1 }}>
+                    {pedido.cliente||pedido.nome}
                   </div>
+                )}
+                {tel && (
+                  <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                    <Phone size={10} style={{ color:T.ink4 }}/>
+                    <span style={{ fontSize:12, color:T.ink2, fontFamily:'monospace' }}>{tel}</span>
+                    <button onClick={() => copiar(tel, 'tel')}
+                      style={{ background:'none', border:'none', cursor:'pointer', color:T.ink4, display:'flex' }}>
+                      {copied==='tel' ? <Check size={10} style={{ color:T.green }}/> : <Copy size={10}/>}
+                    </button>
+                  </div>
+                )}
+                {pedido.email && pedido.email !== '—' && (
+                  <div style={{ fontSize:11, color:T.ink3 }}>✉ {pedido.email}</div>
+                )}
+                {pedido.endereco && pedido.endereco !== '—' && (
+                  <div style={{ fontSize:10.5, color:T.ink4, lineHeight:1.5, marginTop:2 }}>
+                    📍 {pedido.endereco}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── AÇÕES RÁPIDAS ────────────────────────────────────────── */}
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+            <button onClick={() => copiar(`https://rastreio.sostrass.com.br/pedido/${pedido.numero}`, 'link')}
+              style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 12px',
+                borderRadius:9, border:`1px solid ${T.cyanBor}`, background:T.cyanDim,
+                color:T.cyan, cursor:'pointer', fontSize:11, fontWeight:700 }}>
+              {copied==='link' ? <Check size={10}/> : <Copy size={10}/>}
+              {copied==='link' ? 'Copiado!' : 'Link do pedido'}
+            </button>
+            {temRastreio && (
+              <button onClick={() => window.open(`https://rastreio.sostrass.com.br/p/${pedido.rastreio}`, '_blank')}
+                style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 12px',
+                  borderRadius:9, border:`1px solid ${T.purpleBor}`, background:T.purpleDim,
+                  color:T.purple, cursor:'pointer', fontSize:11, fontWeight:700 }}>
+                <ExternalLink size={10}/> Rastrear
+              </button>
+            )}
+            {temNFe && (
+              <button onClick={() => window.open(pedido.nfe_link, '_blank')}
+                style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 12px',
+                  borderRadius:9, border:`1px solid ${T.blueBor}`, background:T.blueDim,
+                  color:T.blue, cursor:'pointer', fontSize:11, fontWeight:700 }}>
+                <FileText size={10}/> NF-e
+              </button>
+            )}
+            {isPendente && pixKey && (
+              <button onClick={() => copiar(pixKey, 'pix')}
+                style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 12px',
+                  borderRadius:9, border:`1px solid ${T.greenBor}`, background:T.greenDim,
+                  color:T.green, cursor:'pointer', fontSize:11, fontWeight:700 }}>
+                {copied==='pix' ? <Check size={10}/> : <Copy size={10}/>}
+                {copied==='pix' ? 'PIX copiado!' : 'Copiar PIX'}
+              </button>
+            )}
+            {isPendente && (
+              <button onClick={gerarLinkMP} disabled={linkLoad}
+                style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 12px',
+                  borderRadius:9, border:`1px solid ${T.amberBor}`, background:T.amberDim,
+                  color:T.amber, cursor:'pointer', fontSize:11, fontWeight:700,
+                  opacity:linkLoad?.6:1 }}>
+                {linkLoad ? <RefreshCw size={10} style={{ animation:'cv-spin 1s linear infinite' }}/> : <CreditCard size={10}/>}
+                {linkLoad ? 'Gerando...' : 'Cartão (MP)'}
+              </button>
+            )}
+          </div>
+
+          {/* ── RASTREIO ─────────────────────────────────────────────── */}
+          {temRastreio && (
+            <div style={{ padding:'12px 14px', borderRadius:12, background:T.bg3,
+              border:`1px solid ${T.sep}` }}>
+              <div style={{ fontSize:9, fontWeight:700, color:T.ink4,
+                textTransform:'uppercase', letterSpacing:'.06em', marginBottom:9 }}>
+                🚚 Rastreio
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+                <span style={{ fontFamily:'monospace', fontSize:15, fontWeight:800, color:T.purple }}>
+                  {pedido.rastreio}
+                </span>
+                <button onClick={() => copiar(pedido.rastreio, 'cod')}
+                  style={{ background:'none', border:'none', cursor:'pointer', color:T.ink4, display:'flex' }}>
+                  {copied==='cod' ? <Check size={11} style={{ color:T.green }}/> : <Copy size={11}/>}
+                </button>
+                <button onClick={() => window.open(`https://rastreio.net/${pedido.rastreio}`, '_blank')}
+                  style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 9px',
+                    borderRadius:7, border:`1px solid ${T.purpleBor}`, background:T.purpleDim,
+                    color:T.purple, cursor:'pointer', fontSize:10, fontWeight:700 }}>
+                  <ExternalLink size={9}/> Rastreio.net
+                </button>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                {[
+                  { l:'Transportadora', v:pedido.transportadora },
+                  { l:'Status atual',   v:pedido.ultimo_status||pedido.situacao },
+                  { l:'Data postagem',  v:pedido.data_postagem },
+                  { l:'Data entrega',   v:pedido.data_entrega },
+                ].filter(x => x.v && x.v !== '—').map(({l,v}) => (
+                  <div key={l}>
+                    <div style={{ fontSize:9, color:T.ink4, marginBottom:2 }}>{l}</div>
+                    <div style={{ fontSize:11.5, fontWeight:600, color:T.ink2 }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── NF-e ─────────────────────────────────────────────────── */}
+          {temNFe && (
+            <div style={{ padding:'12px 14px', borderRadius:12, background:T.bg3,
+              border:`1px solid ${T.sep}` }}>
+              <div style={{ fontSize:9, fontWeight:700, color:T.ink4,
+                textTransform:'uppercase', letterSpacing:'.06em', marginBottom:8 }}>
+                📄 Nota Fiscal
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                {pedido.nfe_numero && (
+                  <span style={{ fontFamily:'monospace', fontSize:13, fontWeight:700, color:T.blue }}>
+                    NF-e {pedido.nfe_numero}
+                  </span>
+                )}
+                <button onClick={() => window.open(pedido.nfe_link, '_blank')}
+                  style={{ display:'flex', alignItems:'center', gap:4, padding:'4px 10px',
+                    borderRadius:7, border:`1px solid ${T.blueBor}`, background:T.blueDim,
+                    color:T.blue, cursor:'pointer', fontSize:10, fontWeight:700 }}>
+                  <ExternalLink size={9}/> Abrir NF-e
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── PRODUTOS ─────────────────────────────────────────────── */}
+          {pedido.itens?.length > 0 && (
+            <div style={{ padding:'12px 14px', borderRadius:12, background:T.bg3,
+              border:`1px solid ${T.sep}` }}>
+              <div style={{ fontSize:9, fontWeight:700, color:T.ink4,
+                textTransform:'uppercase', letterSpacing:'.06em', marginBottom:9 }}>
+                🛍️ Produtos ({pedido.itens.length})
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                {pedido.itens.map((it, i) => {
+                  const preco = parseFloat(String(it.preco||'0').replace(/[R$\s]/g,'').replace(',','.')) || 0
+                  const qtd   = parseInt(it.qtd||it.quantidade||1)
+                  return (
+                    <div key={i} style={{ display:'flex', alignItems:'center', gap:10,
+                      padding:'9px 12px', borderRadius:9, background:T.bg4,
+                      border:`1px solid ${T.sep}` }}>
+                      <div style={{ width:32, height:32, borderRadius:8, flexShrink:0,
+                        background:`${T.purple}15`, border:`1px solid ${T.purpleBor}`,
+                        display:'flex', alignItems:'center', justifyContent:'center' }}>
+                        <ShoppingBag size={13} style={{ color:T.purple }}/>
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:12, color:T.ink1, fontWeight:600,
+                          overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                          {it.nome}
+                        </div>
+                        <div style={{ fontSize:10, color:T.ink4, marginTop:2 }}>
+                          {it.codigo && `${it.codigo} · `}{qtd}× · R$ {preco.toFixed(2).replace('.',',')}
+                        </div>
+                      </div>
+                      <div style={{ textAlign:'right', flexShrink:0 }}>
+                        <div style={{ fontSize:13, fontWeight:800, color:T.amber }}>
+                          R$ {(preco*qtd).toFixed(2).replace('.',',')}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+                {/* Total */}
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
+                  padding:'9px 12px', borderRadius:9,
+                  background:`linear-gradient(90deg,${T.green}08,transparent)`,
+                  border:`1px solid ${T.greenBor}` }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:T.ink3 }}>Total do pedido</span>
+                  <span style={{ fontSize:17, fontWeight:900, color:T.green }}>{pedido.total}</span>
                 </div>
-              ))}
+              </div>
             </div>
           )}
         </div>
@@ -1475,6 +1760,7 @@ function ModalPedido({ pedido, tel, api, onClose, pixKey }) {
     </>
   )
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ABAS DO PAINEL DIREITO
