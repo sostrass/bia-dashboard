@@ -1309,7 +1309,7 @@ function IntelligenceCard({ conv, api, mensagens=[], carrinho=[], onModoChange, 
           <AbaCatalogo tel={conv.telefone} api={api}/>
         </Secao>
 
-        <Secao title="Dados do Cliente" icon={User} cor={T.blue} defaultOpen={false}>
+        <Secao title="Dados do Cliente" icon={User} cor={T.blue} defaultOpen={true}>
           <div style={{ display:'flex', flexDirection:'column' }}>
             <Prop icon={Phone} label="Telefone" value={conv.telefone} mono copyVal={conv.telefone}/>
             {(pedidos[0]?.cliente || conv.nome_wa || conv.nome) && (
@@ -1324,9 +1324,23 @@ function IntelligenceCard({ conv, api, mensagens=[], carrinho=[], onModoChange, 
             {pedidos[0]?.numero_loja && (
               <Prop icon={Hash} label="Nº Loja" value={`#${pedidos[0].numero_loja}`} mono/>
             )}
+            {pedidos[0]?.forma_pagamento && (
+              <Prop icon={CreditCard} label="Forma pag." value={pedidos[0].forma_pagamento}/>
+            )}
             {pedidos[0]?.status_pagamento && (
               <Prop icon={CreditCard} label="Último pag." value={pedidos[0].status_pagamento}
                 cor={pedidos[0].status_pagamento==='Pago'?T.green:T.amber}/>
+            )}
+            {!pedidos.length && loadPed && (
+              <div style={{ fontSize:11, color:T.ink4, display:'flex', alignItems:'center', gap:5 }}>
+                <RefreshCw size={10} style={{ animation:'cv-spin 1s linear infinite' }}/>
+                Carregando dados do Bling...
+              </div>
+            )}
+            {!pedidos.length && !loadPed && (
+              <div style={{ fontSize:11, color:T.ink4 }}>
+                Sem pedidos vinculados a este contato
+              </div>
             )}
           </div>
         </Secao>
