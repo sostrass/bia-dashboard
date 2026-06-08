@@ -640,15 +640,26 @@ function OrderContextBanner({ tel, api, pedidos=[] }) {
   if (!ativo || pedidos.length === 0) return null
 
   const sitId = ativo.situacao_id || 0
-  const stepAtual = (() => {
-    if ([30].includes(sitId)) return 6
-    if (['Entregue'].includes(String(ativo.situacao))) return 6
-    if (ativo.rastreio && ativo.rastreio !== '—') return 4
-    if ([27,24].includes(sitId)) return 3
-    if ([15,9].includes(sitId)) return 2
-    if ([6].includes(sitId)) return 1
-    return 0
-  })()
+  const sitStr = String(ativo.situacao||'').toLowerCase()
+  const temRas = ativo.rastreio && ativo.rastreio !== '—'
+  const temNFe = !!ativo.nfe_link
+
+  // Avaliação independente — cada step tem sua própria condição
+  const PAGO_SITS = [9, 15, 24, 27, 30, 14]
+  const stepFeito = [
+    true,                                                          // 0 pedido_criado — sempre
+    PAGO_SITS.includes(sitId),                                    // 1 pagamento_aprovado
+    [9,24,27,30].includes(sitId),                                 // 2 em_separacao
+    temNFe || sitId === 24,                                       // 3 nfe_emitida — só se NF-e existe
+    temRas || [27,30].includes(sitId),                            // 4 pedido_enviado
+    temRas && (sitStr.includes('transito')||sitStr.includes('trânsito')||[27].includes(sitId)), // 5 em_transito
+    temRas && (sitStr.includes('saiu')||sitStr.includes('entrega')),   // 6 saiu_entrega
+    sitId === 30 || sitStr.includes('entregue'),                  // 7 pedido_entregue
+  ]
+
+  // stepAtual = último step concluído
+  let stepAtual = 0
+  stepFeito.forEach((feito, i) => { if (feito) stepAtual = i })
 
   const cor = JORNADA_STEPS[stepAtual]?.cor || T.ink4
 
@@ -673,7 +684,7 @@ function OrderContextBanner({ tel, api, pedidos=[] }) {
         <div style={{ padding:'4px 14px 10px', overflowX:'auto' }}>
           <div style={{ display:'flex', alignItems:'center', gap:0, minWidth:'max-content' }}>
             {JORNADA_STEPS.map((step, i) => {
-              const feito = i <= stepAtual
+              const feito = stepFeito[i] ?? false
               const atual = i === stepAtual
               const Ic = step.Icon
               return (
@@ -2186,18 +2197,25 @@ function ModalPedido({ pedido, tel, api, onClose, pixKey }) {
     setEnviando(null)
   }
 
-  // ── Horizontal Journey Timeline ───────────────────────────────────────────
-  const sitId = pedido.situacao_id
-  const stepAtual = (() => {
-    if ([30,15].includes(sitId) || String(pedido.situacao||'').toLowerCase().includes('entregue')) return 7
-    if (temRastreio && String(pedido.situacao||'').toLowerCase().includes('saiu')) return 6
-    if (temRastreio) return 5
-    if ([27,24].includes(sitId)) return 4
-    if ([14].includes(sitId))  return 3
-    if ([9].includes(sitId))   return 2
-    if ([15].includes(sitId))  return 1
-    return 0
-  })()
+  // ── Horizontal Journey Timeline — avaliação independente por step ──────────
+  const sitId  = pedido.situacao_id
+  const sitStr = String(pedido.situacao||'').toLowerCase()
+  const temNFeModal = !!(pedido.nfe_link || pedido.nfe_numero)
+
+  const MODAL_PAGO = [9, 15, 24, 27, 30, 14]
+  const modalStepFeito = [
+    true,                                                               // 0 criado
+    MODAL_PAGO.includes(sitId),                                        // 1 pago
+    [9, 24, 27, 30].includes(sitId),                                   // 2 separação
+    temNFeModal || sitId === 24,                                       // 3 nf-e — só se existe
+    temRastreio || [27, 30].includes(sitId),                           // 4 enviado
+    temRastreio,                                                       // 5 trânsito
+    temRastreio && (sitStr.includes('saiu')||dispMap['saiu_entrega']), // 6 saiu
+    sitId === 30 || sitStr.includes('entregue') || !!dispMap['pedido_entregue'], // 7 entregue
+  ]
+
+  let stepAtual = 0
+  modalStepFeito.forEach((f, i) => { if (f) stepAtual = i })
 
   const STEPS_H = [
     { g:'pedido_criado',        lbl:'Criado',     cor:'#00d4aa', Icon:ShoppingBag  },
@@ -2214,8 +2232,8 @@ function ModalPedido({ pedido, tel, api, onClose, pixKey }) {
     { gatilho:'pedido_criado',        lbl:'📦 Resumo',           show:true              },
     { gatilho:'nfe_emitida',          lbl:'📄 NF-e',             show:temNFe            },
     { gatilho:'rastreio_em_transito', lbl:'🚚 Rastreio',         show:temRastreio       },
-    { gatilho:'pedido_entregue',      lbl:'✅ Entregue',         show:stepAtual>=7      },
-    { gatilho:'avaliar_pedido',       lbl:'⭐ Avaliação',        show:stepAtual>=7      },
+    { gatilho:'pedido_entregue',      lbl:'✅ Entregue',         show: sitId===30 || sitStr.includes('entregue') },
+    { gatilho:'avaliar_pedido',       lbl:'⭐ Avaliação',        show: sitId===30 || sitStr.includes('entregue') },
     { gatilho:'pagamento_pendente',   lbl:'💳 Lembrar pag.',     show:isPendente        },
   ].filter(b => b.show)
 
@@ -2266,7 +2284,7 @@ function ModalPedido({ pedido, tel, api, onClose, pixKey }) {
           <div style={{ overflowX:'auto', paddingBottom:4 }}>
             <div style={{ display:'flex', alignItems:'flex-start', minWidth:'max-content' }}>
               {STEPS_H.map((step, i) => {
-                const feito = i <= stepAtual, atual = i === stepAtual
+                const feito = modalStepFeito[i] ?? false, atual = i === stepAtual
                 const d = disparoMap[step.g]
                 const Ic = step.Icon
                 return (
