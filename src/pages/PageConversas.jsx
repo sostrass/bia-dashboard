@@ -882,6 +882,114 @@ function IntelligenceCard({ conv, api, mensagens=[], carrinho=[], onModoChange, 
               </div>
             )}
 
+            {/* Feature 1: Previsão de Recompra — inédito no BR */}
+            {pedidos.length >= 2 && (() => {
+              const datas = pedidos.map(p => new Date(p.data||0)).filter(d=>!isNaN(d)).sort((a,b)=>b-a)
+              if (datas.length < 2) return null
+              const intervalos = []
+              for (let i=0; i<datas.length-1; i++)
+                intervalos.push((datas[i]-datas[i+1])/(1000*60*60*24))
+              const mediaIntervalo = Math.round(intervalos.reduce((a,b)=>a+b,0)/intervalos.length)
+              const proximaCompra = new Date(datas[0].getTime() + mediaIntervalo*24*60*60*1000)
+              const diasAteRecompra = Math.round((proximaCompra-Date.now())/(1000*60*60*24))
+              const urgente = diasAteRecompra <= 7
+              const venceu  = diasAteRecompra < 0
+              return (
+                <div style={{ padding:'10px 14px', borderRadius:10,
+                  background: urgente ? `rgba(255,179,0,.08)` : T.bg3,
+                  border: `1px solid ${urgente ? T.amberBor : T.sep}` }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:6 }}>
+                    <Calendar size={11} style={{ color: urgente ? T.amber : T.ink4 }}/>
+                    <span style={{ fontSize:10, fontWeight:700, color:T.ink3,
+                      textTransform:'uppercase', letterSpacing:'.04em' }}>
+                      Previsão de Recompra
+                    </span>
+                    {urgente && !venceu && (
+                      <span style={{ fontSize:8, padding:'1px 5px', borderRadius:99,
+                        background:T.amberDim, border:`1px solid ${T.amberBor}`,
+                        color:T.amber, fontWeight:700 }}>em breve</span>
+                    )}
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                    <div>
+                      <div style={{ fontSize:15, fontWeight:800,
+                        color: venceu ? T.red : urgente ? T.amber : T.ink1 }}>
+                        {venceu ? 'Atrasado' :
+                         diasAteRecompra === 0 ? 'Hoje' :
+                         `em ${diasAteRecompra}d`}
+                      </div>
+                      <div style={{ fontSize:10, color:T.ink4 }}>
+                        {proximaCompra.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} · ciclo médio {mediaIntervalo}d
+                      </div>
+                    </div>
+                    {(urgente || venceu) && (
+                      <button
+                        style={{ padding:'5px 11px', borderRadius:7, cursor:'pointer',
+                          border:`1px solid ${T.amberBor}`, background:T.amberDim,
+                          color:T.amber, fontSize:10, fontWeight:700 }}>
+                        ⚡ Disparar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Feature 3: Alerta de Estoque — exibe no painel quando carrinho tem itens */}
+            {carrinho.length > 0 && (
+              <div style={{ padding:'10px 14px', borderRadius:10, background:T.bg3, border:`1px solid ${T.sep}` }}>
+                <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:7 }}>
+                  <Package size={11} style={{ color:T.purple }}/>
+                  <span style={{ fontSize:10, fontWeight:700, color:T.ink3,
+                    textTransform:'uppercase', letterSpacing:'.04em' }}>Carrinho · Risco de Estoque</span>
+                </div>
+                {carrinho.map((it,i) => {
+                  const qtd = parseInt(it.quantidade||it.qtd||1)
+                  const estoque = it.estoque !== undefined ? it.estoque : null
+                  const semInfo = estoque === null
+                  const baixo   = estoque !== null && estoque <= 5
+                  const critico = estoque !== null && estoque <= 2
+                  const ok      = estoque !== null && estoque > 5
+                  return (
+                    <div key={i} style={{ display:'flex', alignItems:'center', gap:8,
+                      padding:'6px 0', borderBottom: i < carrinho.length-1 ? `1px solid ${T.sep}` : 'none' }}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:11, color:T.ink1, overflow:'hidden',
+                          textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{it.nome||'—'}</div>
+                        <div style={{ fontSize:9.5, color:T.ink4 }}>{qtd}× no carrinho</div>
+                      </div>
+                      {semInfo && (
+                        <span style={{ fontSize:9, color:T.ink4, padding:'2px 6px',
+                          borderRadius:99, background:T.bg4, border:`1px solid ${T.sep}` }}>
+                          sem dados
+                        </span>
+                      )}
+                      {ok && (
+                        <span style={{ fontSize:9, color:T.green, padding:'2px 6px',
+                          borderRadius:99, background:T.greenDim, border:`1px solid ${T.greenBor}` }}>
+                          ✅ OK
+                        </span>
+                      )}
+                      {baixo && !critico && (
+                        <span style={{ fontSize:9, color:T.amber, padding:'2px 6px',
+                          borderRadius:99, background:T.amberDim, border:`1px solid ${T.amberBor}`,
+                          fontWeight:700 }}>
+                          ⚠️ {estoque} un.
+                        </span>
+                      )}
+                      {critico && (
+                        <span style={{ fontSize:9, color:T.red, padding:'2px 6px',
+                          borderRadius:99, background:T.redDim, border:`1px solid ${T.redBor}`,
+                          fontWeight:800, animation:'cv-ping-badge 1.2s ease infinite' }}>
+                          🔴 {estoque} un.!
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
             {/* Ações rápidas */}
             <div>
               <div style={{ fontSize:9, fontWeight:700, color:T.ink4, textTransform:'uppercase',
@@ -994,8 +1102,10 @@ function IntelligenceCard({ conv, api, mensagens=[], carrinho=[], onModoChange, 
   )
 }
 
-const RAPIDAS = [
-  'Olá! Como posso ajudar?',
+// Respostas rápidas são carregadas dinamicamente do ia_config
+// (editáveis em Configurações → Respostas Rápidas)
+const RAPIDAS_DEFAULT = [
+  'Olá! Como posso ajudar? 😊',
   'Vou verificar isso agora para você.',
   'Pode me informar o número do seu pedido?',
   'O prazo de entrega é de 3 a 7 dias úteis.',
@@ -1053,7 +1163,7 @@ function InputBar({ api, tel, onEnviar, onEnviarMidia, enviando, disabled }) {
             fontSize:9.5,fontWeight:700,color:T.ink4,textTransform:'uppercase',letterSpacing:'.08em' }}>
             Respostas rápidas
           </div>
-          {RAPIDAS.map((r,i)=>(
+          {(rapidas||RAPIDAS_DEFAULT).map((r,i)=>(
             <button key={i} onClick={()=>{ setTxt(r); setRp(false); setSug([]); ref.current?.focus() }}
               style={{ display:'block',width:'100%',padding:'9px 14px',textAlign:'left',border:'none',
                 cursor:'pointer',background:'transparent',color:T.ink2,fontSize:12,
@@ -1750,6 +1860,333 @@ function GlassFilter({ id, lbl, Icon, n, ativo, onClick }) {
   )
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FEATURE 2: DETECTOR DE INTENÇÃO + EMENDA DE PEDIDO VIA CHAT
+// Inédito no Brasil: detecta pedido de alteração e edita no Bling direto do chat
+// ─────────────────────────────────────────────────────────────────────────────
+const INTENCOES = [
+  { re:/(?:trocar?|mudar?|alterar?|corrigir?).*(?:endere[cç]o|cep|rua|avenida|bairro)/i, tipo:'endereco', label:'Alteração de Endereço', icon:Navigation, cor:'#4f8ef7' },
+  { re:/(?:trocar?|mudar?|alterar?).*(?:cor\b|tamanho|modelo|variante|versão)/i,          tipo:'variante', label:'Troca de Variante',     icon:Layers,     cor:'#a78bfa' },
+  { re:/(?:cancelar?|quero cancelar|não quero mais)/i,                                    tipo:'cancel',   label:'Pedido de Cancelamento',icon:X,          cor:'#ff4757' },
+  { re:/(?:trocar?|mudar?|alterar?).*(?:pagamento|forma de pag|pix|cartão|boleto)/i,      tipo:'payment',  label:'Troca de Pagamento',    icon:CreditCard, cor:'#ffb300' },
+]
+
+function detectarIntencao(msgs=[]) {
+  const ultimas = msgs.filter(m=>m.direcao==='entrada').slice(-3)
+  for (const m of ultimas) {
+    const txt = m.conteudo || ''
+    for (const int of INTENCOES) {
+      if (int.re.test(txt)) return { ...int, mensagem: txt }
+    }
+  }
+  return null
+}
+
+function PainelEmendaPedido({ intencao, pedidos=[], tel, api, onClose }) {
+  const [pedidoSel, setPedidoSel] = useState(pedidos[0]?.numero||'')
+  const [campo,     setCampo]     = useState('')
+  const [salvando,  setSalv]      = useState(false)
+  const [resultado, setResultado] = useState(null)
+  const IntIc = intencao?.icon || Package
+
+  const salvar = async () => {
+    if (!pedidoSel || !campo.trim()) return
+    setSalv(true)
+    try {
+      const r = await fetch(`${api}/api/dashboard/emendar-pedido`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telefone: tel, numero_pedido: pedidoSel,
+          tipo: intencao?.tipo, valor: campo.trim()
+        })
+      })
+      const d = await r.json()
+      setResultado(d.ok ? 'ok' : (d.erro || 'Erro ao atualizar'))
+    } catch (e) { setResultado('Erro de conexão') }
+    setSalv(false)
+  }
+
+  if (!intencao) return null
+  return (
+    <>
+      <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:8000,
+        background:'rgba(0,0,0,.5)', backdropFilter:'blur(4px)' }}/>
+      <div style={{ position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)',
+        zIndex:8001, width:420, borderRadius:16,
+        background:`linear-gradient(160deg,${T.bg2},${T.bg3})`,
+        border:`1px solid ${intencao.cor}40`,
+        boxShadow:`0 24px 64px rgba(0,0,0,.7)`,
+        padding:'20px', animation:'cv-slideIn .2s ease' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
+          <div style={{ width:36, height:36, borderRadius:10, flexShrink:0,
+            background:`${intencao.cor}15`, border:`1px solid ${intencao.cor}30`,
+            display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <IntIc size={16} style={{ color:intencao.cor }}/>
+          </div>
+          <div>
+            <div style={{ fontSize:14, fontWeight:800, color:T.ink1 }}>{intencao.label}</div>
+            <div style={{ fontSize:10, color:T.ink4 }}>Detectado na conversa · atualiza no Bling</div>
+          </div>
+          <button onClick={onClose} style={{ marginLeft:'auto', width:28, height:28, borderRadius:7,
+            border:`1px solid ${T.sep}`, background:'transparent', cursor:'pointer',
+            display:'flex', alignItems:'center', justifyContent:'center', color:T.ink4 }}>
+            <X size={12}/>
+          </button>
+        </div>
+
+        {/* Mensagem detectada */}
+        <div style={{ padding:'10px 12px', borderRadius:9, background:T.bg4,
+          border:`1px solid ${T.sep}`, marginBottom:14, fontSize:12, color:T.ink3,
+          fontStyle:'italic', lineHeight:1.5 }}>
+          "{(intencao.mensagem||'').slice(0,120)}"
+        </div>
+
+        {resultado ? (
+          <div style={{ padding:'16px', borderRadius:10, textAlign:'center',
+            background: resultado==='ok' ? T.greenDim : T.redDim,
+            border:`1px solid ${resultado==='ok' ? T.greenBor : T.redBor}` }}>
+            <div style={{ fontSize:16, fontWeight:800, color:resultado==='ok'?T.green:T.red, marginBottom:6 }}>
+              {resultado==='ok' ? '✅ Pedido atualizado!' : '❌ ' + resultado}
+            </div>
+            {resultado==='ok' && <p style={{ fontSize:11, color:T.ink4, margin:0 }}>
+              Alteração aplicada no Bling. Avise o cliente.
+            </p>}
+            <button onClick={onClose} style={{ marginTop:12, padding:'7px 18px', borderRadius:8,
+              border:`1px solid ${T.sep}`, background:T.bg4, color:T.ink3, cursor:'pointer', fontSize:11 }}>
+              Fechar
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Pedido */}
+            {pedidos.length > 1 && (
+              <div style={{ marginBottom:12 }}>
+                <label style={{ fontSize:10, fontWeight:700, color:T.ink4,
+                  textTransform:'uppercase', letterSpacing:'.04em', display:'block', marginBottom:5 }}>
+                  Pedido
+                </label>
+                <select value={pedidoSel} onChange={e=>setPedidoSel(e.target.value)}
+                  style={{ width:'100%', padding:'8px 10px', borderRadius:8, background:T.bg4,
+                    border:`1px solid ${T.sep2}`, color:T.ink1, fontSize:12, fontFamily:'inherit' }}>
+                  {pedidos.map(p=>(
+                    <option key={p.numero} value={p.numero}>#{p.numero} — {p.situacao} — {p.total}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Campo da alteração */}
+            <div style={{ marginBottom:16 }}>
+              <label style={{ fontSize:10, fontWeight:700, color:T.ink4,
+                textTransform:'uppercase', letterSpacing:'.04em', display:'block', marginBottom:5 }}>
+                {intencao.tipo==='endereco' ? 'Novo endereço completo' :
+                 intencao.tipo==='variante' ? 'Nova variante/cor/tamanho' :
+                 intencao.tipo==='payment'  ? 'Nova forma de pagamento' : 'Observação'}
+              </label>
+              <textarea value={campo} onChange={e=>setCampo(e.target.value)}
+                placeholder={
+                  intencao.tipo==='endereco' ? 'Ex: Rua das Flores, 123 — Apto 4 — Centro — São Paulo/SP — 01000-000' :
+                  intencao.tipo==='variante' ? 'Ex: Tamanho M, Cor Azul Marinho' : 'Digite aqui...'
+                }
+                rows={3}
+                style={{ width:'100%', padding:'9px 12px', borderRadius:8, resize:'vertical',
+                  background:T.bg4, border:`1px solid ${intencao.cor}40`,
+                  color:T.ink1, fontSize:12, fontFamily:'inherit', outline:'none',
+                  boxSizing:'border-box' }}/>
+            </div>
+
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={onClose}
+                style={{ flex:1, padding:'10px', borderRadius:9, border:`1px solid ${T.sep}`,
+                  background:'transparent', color:T.ink4, cursor:'pointer', fontSize:12 }}>
+                Cancelar
+              </button>
+              <button onClick={salvar} disabled={!campo.trim()||salvando}
+                style={{ flex:2, padding:'10px', borderRadius:9,
+                  border:`1px solid ${intencao.cor}60`,
+                  background:`${intencao.cor}15`, color:intencao.cor,
+                  cursor:'pointer', fontSize:12, fontWeight:700,
+                  opacity:!campo.trim()?0.5:1 }}>
+                {salvando ? 'Atualizando Bling...' : '✅ Aplicar alteração no Bling'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FEATURE 4: HEATMAP DE RECEITA POR DIA/HORA
+// Inédito no Brasil: visualização de quando o WhatsApp gera mais conversões
+// ─────────────────────────────────────────────────────────────────────────────
+function HeatmapReceita({ api, onClose }) {
+  const [dados,  setDados]  = useState(null)
+  const [load,   setLoad]   = useState(true)
+  const [view,   setView]   = useState('hora') // hora | dia
+
+  useEffect(() => {
+    fetch(`${api}/api/dashboard/heatmap-receita`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if(d) setDados(d); setLoad(false) })
+      .catch(() => setLoad(false))
+  }, [api])
+
+  const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
+  const HORAS = Array.from({length:24}, (_,i)=>i)
+
+  // Fallback: dados simulados se backend não tiver o endpoint
+  const matrix = dados?.matrix || (() => {
+    const m = {}
+    DIAS.forEach((d,di) => {
+      HORAS.forEach(h => {
+        // Simular padrão: mais vendas de ter-sex, 9-12h e 19-22h
+        const base = (di>=2&&di<=5)?0.6:0.2
+        const pico = ((h>=9&&h<=12)||(h>=19&&h<=22))?0.8:0.2
+        m[`${di}-${h}`] = Math.random() < (base+pico)/2 ? Math.floor(Math.random()*5) : 0
+      })
+    })
+    return m
+  })()
+
+  const maxVal = Math.max(...Object.values(matrix), 1)
+  const cellColor = (v) => {
+    if (v === 0) return T.bg3
+    const intensity = v / maxVal
+    if (intensity > 0.7) return '#00e676'
+    if (intensity > 0.4) return '#ffb300'
+    if (intensity > 0.1) return '#4f8ef7'
+    return '#1c2238'
+  }
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:8000,
+        background:'rgba(0,0,0,.6)', backdropFilter:'blur(6px)' }}/>
+      <div style={{ position:'fixed', top:'50%', left:'50%',
+        transform:'translate(-50%,-50%)', zIndex:8001,
+        width:'min(760px,95vw)', maxHeight:'85vh', overflowY:'auto',
+        borderRadius:18, background:`linear-gradient(160deg,${T.bg1},${T.bg2})`,
+        border:`1px solid ${T.sep2}`,
+        boxShadow:'0 32px 80px rgba(0,0,0,.8)',
+        animation:'cv-slideIn .25s ease' }}>
+
+        {/* Header */}
+        <div style={{ padding:'18px 22px', borderBottom:`1px solid ${T.sep}`,
+          display:'flex', alignItems:'center', gap:12, position:'sticky', top:0,
+          background:`linear-gradient(90deg,${T.bg1},${T.bg2})`, zIndex:1 }}>
+          <div style={{ width:36, height:36, borderRadius:10,
+            background:T.greenDim, border:`1px solid ${T.greenBor}`,
+            display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <BarChart2 size={16} style={{ color:T.green }}/>
+          </div>
+          <div>
+            <div style={{ fontSize:16, fontWeight:800, color:T.ink1 }}>Heatmap de Receita via WhatsApp</div>
+            <div style={{ fontSize:10, color:T.ink4 }}>
+              Quando seus clientes mais compram · {dados ? 'dados reais' : 'dados simulados'}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ marginLeft:'auto', width:30, height:30,
+            borderRadius:8, border:`1px solid ${T.sep}`, background:T.bg4,
+            cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:T.ink4 }}>
+            <X size={13}/>
+          </button>
+        </div>
+
+        <div style={{ padding:'20px 22px' }}>
+          {load ? (
+            <div style={{ textAlign:'center', padding:'48px 0', color:T.ink4 }}>
+              <RefreshCw size={18} style={{ animation:'cv-spin 1s linear infinite', display:'block', margin:'0 auto 12px' }}/>
+              Carregando dados...
+            </div>
+          ) : (
+            <>
+              {/* Legenda */}
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16, justifyContent:'flex-end' }}>
+                <span style={{ fontSize:10, color:T.ink4 }}>Nenhum</span>
+                {['#1c2238','#4f8ef7','#ffb300','#00e676'].map((c,i)=>(
+                  <div key={i} style={{ width:16, height:16, borderRadius:4, background:c, border:`1px solid ${T.sep}` }}/>
+                ))}
+                <span style={{ fontSize:10, color:T.ink4 }}>Muito</span>
+              </div>
+
+              {/* Grid: Dia × Hora */}
+              <div style={{ overflowX:'auto' }}>
+                <div style={{ display:'grid',
+                  gridTemplateColumns:`40px repeat(24, 1fr)`,
+                  gap:3, minWidth:600 }}>
+                  {/* Header de horas */}
+                  <div/>
+                  {HORAS.map(h => (
+                    <div key={h} style={{ fontSize:8, color:T.ink4, textAlign:'center',
+                      paddingBottom:3 }}>
+                      {h}h
+                    </div>
+                  ))}
+                  {/* Linhas por dia */}
+                  {DIAS.map((dia, di) => (
+                    <>
+                      <div key={`d${di}`} style={{ fontSize:9, color:T.ink3, fontWeight:600,
+                        display:'flex', alignItems:'center', paddingRight:6 }}>
+                        {dia}
+                      </div>
+                      {HORAS.map(h => {
+                        const v = matrix[`${di}-${h}`] || 0
+                        return (
+                          <div key={`${di}-${h}`} title={`${dia} ${h}h: ${v} pedido${v!==1?'s':''}`}
+                            style={{ height:22, borderRadius:4,
+                              background:cellColor(v),
+                              border:`1px solid rgba(255,255,255,.04)`,
+                              transition:'transform .1s',
+                              cursor:'default' }}
+                            onMouseEnter={e=>e.currentTarget.style.transform='scale(1.3)'}
+                            onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}/>
+                        )
+                      })}
+                    </>
+                  ))}
+                </div>
+              </div>
+
+              {/* Insights do heatmap */}
+              {!dados && (
+                <div style={{ marginTop:16, padding:'12px 14px', borderRadius:10,
+                  background:T.amberDim, border:`1px solid ${T.amberBor}` }}>
+                  <p style={{ fontSize:11, color:T.amber, margin:0, lineHeight:1.6 }}>
+                    ⚠️ Exibindo dados simulados. Para dados reais, adicione o endpoint
+                    <code style={{ background:T.bg4, padding:'1px 5px', borderRadius:4, margin:'0 3px', fontSize:10 }}>
+                      GET /api/dashboard/heatmap-receita
+                    </code>
+                    no backend retornando <code style={{ background:T.bg4, padding:'1px 5px', borderRadius:4, fontSize:10 }}>{`{ matrix: { "0-9": 3, ... } }`}</code>
+                  </p>
+                </div>
+              )}
+
+              <div style={{ marginTop:12, display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
+                {[
+                  { lbl:'Melhor dia',  val:dados?.melhor_dia||'Terça-feira', icon:TrendingUp, cor:T.green },
+                  { lbl:'Melhor hora', val:dados?.melhor_hora||'19h–21h',    icon:Clock,      cor:T.amber },
+                  { lbl:'Pico semanal',val:dados?.pico||'Qui às 20h',        icon:Star,       cor:T.purple },
+                ].map(({lbl,val,icon:Ic,cor:c})=>(
+                  <div key={lbl} style={{ padding:'10px 12px', borderRadius:9,
+                    background:`${c}08`, border:`1px solid ${c}20`, textAlign:'center' }}>
+                    <Ic size={14} style={{ color:c, display:'block', margin:'0 auto 5px' }}/>
+                    <div style={{ fontSize:13, fontWeight:800, color:c, marginBottom:2 }}>{val}</div>
+                    <div style={{ fontSize:9, color:T.ink4 }}>{lbl}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPONENTE PRINCIPAL
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1770,6 +2207,10 @@ export default function PageConversas({ api='' }) {
   const [resetConf, setResetConf] = useState(false)
   const [pedidosAtivos, setPedidosAtivos] = useState([])  // pedidos do cliente selecionado
   const [cmdK, setCmdK] = useState(false)  // Command Palette ⌘K
+  const [rapidas, setRapidas] = useState(RAPIDAS_DEFAULT)  // carregadas do backend
+  const [intencaoEdit, setIntencaoEdit] = useState(null)  // { tipo, pedido, campo, valor }
+  const [editPedidoOpen, setEditPedidoOpen] = useState(false)
+  const [heatmapOpen,    setHeatmapOpen]   = useState(false)
   const [resetting, setResetting] = useState(false)
 
   const prevStatusRef = useRef({})
@@ -1778,6 +2219,13 @@ export default function PageConversas({ api='' }) {
   useEffect(()=>{
     fetch(`${api}/api/dashboard/pix-key`).then(r=>r.ok?r.json():null)
       .then(d=>{ if(d?.chave) setPixKey(d.chave) }).catch(()=>{})
+    // Carregar respostas rápidas do ia_config
+    fetch(`${api}/api/ia/config`).then(r=>r.ok?r.json():null)
+      .then(d=>{
+        if(d?.respostas_rapidas) {
+          try { setRapidas(JSON.parse(d.respostas_rapidas)) } catch {}
+        }
+      }).catch(()=>{})
   },[api])
 
   const fetchConversas = useCallback(async()=>{
@@ -1836,6 +2284,13 @@ export default function PageConversas({ api='' }) {
   },[sel]) // eslint-disable-line
 
   useEffect(()=>{ if(mensagens.length) bottomRef.current?.scrollIntoView({behavior:'smooth'}) },[mensagens.length])
+
+  // Feature 2: Detectar intenção de alteração de pedido nas últimas mensagens
+  useEffect(() => {
+    if (!mensagens.length) return
+    const intencao = detectarIntencao(mensagens)
+    setIntencaoEdit(intencao || null)
+  }, [mensagens])
 
   const enviar=async(txt)=>{
     if(!sel) return; setEnviando(true)
@@ -1924,6 +2379,22 @@ export default function PageConversas({ api='' }) {
 
       {/* Toast */}
       
+      {/* Feature 2: Painel de Emenda de Pedido */}
+      {editPedidoOpen && intencaoEdit && (
+        <PainelEmendaPedido
+          intencao={intencaoEdit}
+          pedidos={pedidosAtivos}
+          tel={sel}
+          api={api}
+          onClose={()=>setEditPedidoOpen(false)}
+        />
+      )}
+
+      {/* Feature 4: Heatmap de Receita */}
+      {heatmapOpen && (
+        <HeatmapReceita api={api} onClose={()=>setHeatmapOpen(false)}/>
+      )}
+
       {/* Command Palette ⌘K */}
       {cmdK && (
         <CommandPalette
@@ -2033,6 +2504,11 @@ export default function PageConversas({ api='' }) {
             style={{ fontSize:9,color:T.purple,background:'none',border:'none',
               cursor:'pointer',padding:'2px 6px',borderRadius:5,
               background:T.purpleDim }}><Command size={8}/> ⌘K</button>
+          <button onClick={()=>setHeatmapOpen(true)} title="Heatmap de Receita"
+            style={{ padding:'2px 6px',borderRadius:5,border:'none',
+              background:T.greenDim,color:T.green,cursor:'pointer',fontSize:9 }}>
+            <BarChart2 size={8}/>
+          </button>
         </div>
       </aside>
 
@@ -2130,6 +2606,33 @@ export default function PageConversas({ api='' }) {
 
             {/* Mensagens */}
             
+          {/* Feature 2: Banner de Intenção Detectada */}
+          {intencaoEdit && !editPedidoOpen && (() => {
+            const IntIc = intencaoEdit.icon || Package
+            return (
+              <div style={{ flexShrink:0, padding:'7px 14px', display:'flex', alignItems:'center',
+                gap:8, background:`${intencaoEdit.cor}08`,
+                borderBottom:`1px solid ${intencaoEdit.cor}20` }}>
+                <IntIc size={11} style={{ color:intencaoEdit.cor, flexShrink:0 }}/>
+                <span style={{ fontSize:11, color:intencaoEdit.cor, fontWeight:600, flex:1 }}>
+                  💡 {intencaoEdit.label} detectada
+                </span>
+                <button onClick={()=>setEditPedidoOpen(true)}
+                  style={{ padding:'4px 10px', borderRadius:7, cursor:'pointer',
+                    border:`1px solid ${intencaoEdit.cor}50`,
+                    background:`${intencaoEdit.cor}15`,
+                    color:intencaoEdit.cor, fontSize:10, fontWeight:700 }}>
+                  Aplicar →
+                </button>
+                <button onClick={()=>setIntencaoEdit(null)}
+                  style={{ background:'none', border:'none', cursor:'pointer',
+                    color:T.ink4, display:'flex', padding:2 }}>
+                  <X size={10}/>
+                </button>
+              </div>
+            )
+          })()}
+
           {/* Order Context Banner — jornada do pedido ativo */}
           {pedidosAtivos.length > 0 && (
             <OrderContextBanner tel={sel} api={api} pedidos={pedidosAtivos}/>
