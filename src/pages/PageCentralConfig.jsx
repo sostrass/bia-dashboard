@@ -1761,6 +1761,216 @@ function SecaoExportacao({ api }) {
 // Variáveis de texto fixo salvas em ia_config.
 // São substituídas automaticamente em qualquer mensagem antes do envio.
 // Exemplos: {{instagram_loja}}, {{link_whatsapp}}, {{horario_atendimento}}
+
+// ═══════════════════════════════════════════════════
+// SEÇÃO: RESPOSTAS RÁPIDAS
+// ═══════════════════════════════════════════════════
+function SecaoRespostasRapidas({ api }) {
+  const [lista,   setLista]   = useState([])
+  const [novoTxt, setNovoTxt] = useState('')
+  const [editIdx, setEditIdx] = useState(null)  // índice sendo editado
+  const [editTxt, setEditTxt] = useState('')
+  const [salvando,setSalv]    = useState(false)
+  const [toast,   setToast]   = useState(null)
+
+  const DEFAULTS = [
+    'Olá! Como posso ajudar? 😊',
+    'Vou verificar isso agora para você.',
+    'Pode me informar o número do seu pedido?',
+    'O prazo de entrega é de 3 a 7 dias úteis.',
+    'Pagando via PIX você tem 10% de desconto automático! 💰',
+    'Vou transferir para nossa equipe. Um momento!',
+    'Pedido confirmado! Você receberá atualizações por aqui.',
+  ]
+
+  useEffect(() => {
+    fetch(`${api}/api/ia/config`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.respostas_rapidas) {
+          try { setLista(JSON.parse(d.respostas_rapidas)) } catch { setLista(DEFAULTS) }
+        } else {
+          setLista(DEFAULTS)
+        }
+      }).catch(() => setLista(DEFAULTS))
+  }, [api])
+
+  const salvar = async (novaLista) => {
+    setSalv(true)
+    await fetch(`${api}/api/ia/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chave: 'respostas_rapidas', valor: JSON.stringify(novaLista) })
+    }).catch(() => {})
+    setSalv(false)
+    setToast('Salvo!')
+    setTimeout(() => setToast(null), 2000)
+  }
+
+  const adicionar = () => {
+    if (!novoTxt.trim()) return
+    const nova = [...lista, novoTxt.trim()]
+    setLista(nova); setNovoTxt(''); salvar(nova)
+  }
+
+  const remover = (idx) => {
+    const nova = lista.filter((_,i) => i !== idx)
+    setLista(nova); salvar(nova)
+  }
+
+  const salvarEdicao = () => {
+    if (editIdx === null || !editTxt.trim()) return
+    const nova = lista.map((t,i) => i === editIdx ? editTxt.trim() : t)
+    setLista(nova); setEditIdx(null); setEditTxt(''); salvar(nova)
+  }
+
+  const mover = (idx, dir) => {
+    const nova = [...lista]
+    const t = idx + dir
+    if (t < 0 || t >= nova.length) return
+    ;[nova[idx], nova[t]] = [nova[t], nova[idx]]
+    setLista(nova); salvar(nova)
+  }
+
+  const cS = { // cardStyle
+    padding: '12px 14px', borderRadius: 10, background: T.bg3,
+    border: `1px solid ${T.sep2}`, marginBottom: 8,
+  }
+
+  return (
+    <div style={{ maxWidth: 640 }}>
+      <div style={{ marginBottom: 20 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 800, color: T.ink1, margin: '0 0 6px' }}>
+          Respostas Rápidas
+        </h2>
+        <p style={{ fontSize: 12, color: T.ink4, margin: 0, lineHeight: 1.6 }}>
+          Textos pré-definidos que aparecem no botão ⚡ dentro do chat.
+          O operador clica uma vez e a mensagem é inserida no campo de texto.
+        </p>
+      </div>
+
+      {/* Toast */}
+      {toast && (
+        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
+          padding: '10px 18px', borderRadius: 10, background: T.greenDim,
+          border: `1px solid ${T.greenBor}`, color: T.green, fontSize: 12, fontWeight: 700 }}>
+          ✅ {toast}
+        </div>
+      )}
+
+      {/* Lista de respostas */}
+      {lista.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '32px 20px', color: T.ink4 }}>
+          <Zap size={20} style={{ opacity: .12, display: 'block', margin: '0 auto 10px' }}/>
+          <p style={{ fontSize: 12, margin: 0 }}>Nenhuma resposta rápida. Adicione abaixo.</p>
+        </div>
+      ) : (
+        <div style={{ marginBottom: 16 }}>
+          {lista.map((txt, i) => (
+            <div key={i} style={cS}>
+              {editIdx === i ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <textarea value={editTxt} onChange={e => setEditTxt(e.target.value)}
+                    rows={3}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, resize: 'vertical',
+                      background: T.bg4, border: `1px solid ${T.purpleBor}`,
+                      color: T.ink1, fontSize: 13, fontFamily: 'inherit', outline: 'none',
+                      boxSizing: 'border-box' }}/>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={salvarEdicao}
+                      style={{ padding: '6px 14px', borderRadius: 7, border: `1px solid ${T.greenBor}`,
+                        background: T.greenDim, color: T.green, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                      ✅ Salvar
+                    </button>
+                    <button onClick={() => { setEditIdx(null); setEditTxt('') }}
+                      style={{ padding: '6px 14px', borderRadius: 7, border: `1px solid ${T.sep2}`,
+                        background: 'transparent', color: T.ink4, cursor: 'pointer', fontSize: 11 }}>
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  {/* Número */}
+                  <span style={{ fontSize: 10, fontWeight: 700, color: T.ink4,
+                    minWidth: 20, marginTop: 2 }}>{i + 1}</span>
+                  {/* Texto */}
+                  <span style={{ flex: 1, fontSize: 13, color: T.ink2, lineHeight: 1.55 }}>{txt}</span>
+                  {/* Ações */}
+                  <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                    <button onClick={() => mover(i, -1)} disabled={i === 0}
+                      style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${T.sep}`,
+                        background: 'transparent', color: T.ink4, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        opacity: i === 0 ? .3 : 1 }}>
+                      <ChevronUp size={11}/>
+                    </button>
+                    <button onClick={() => mover(i, 1)} disabled={i === lista.length - 1}
+                      style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${T.sep}`,
+                        background: 'transparent', color: T.ink4, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        opacity: i === lista.length - 1 ? .3 : 1 }}>
+                      <ChevronDown size={11}/>
+                    </button>
+                    <button onClick={() => { setEditIdx(i); setEditTxt(txt) }}
+                      style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${T.sep}`,
+                        background: 'transparent', color: T.ink3, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Edit3 size={10}/>
+                    </button>
+                    <button onClick={() => remover(i)}
+                      style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${T.redBor}`,
+                        background: T.redDim, color: T.red, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Trash2 size={10}/>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Adicionar nova */}
+      <div style={{ padding: '14px', borderRadius: 12, border: `1px dashed ${T.purpleBor}`,
+        background: T.purpleDim }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: T.purple, marginBottom: 8,
+          textTransform: 'uppercase', letterSpacing: '.05em' }}>
+          + Nova resposta rápida
+        </div>
+        <textarea value={novoTxt} onChange={e => setNovoTxt(e.target.value)}
+          placeholder="Digite a resposta... ex: Oi! Tudo bem? Como posso ajudar hoje? 😊"
+          rows={3}
+          onKeyDown={e => { if (e.key === 'Enter' && e.ctrlKey) adicionar() }}
+          style={{ width: '100%', padding: '9px 12px', borderRadius: 8, resize: 'vertical',
+            background: T.bg4, border: `1px solid ${T.sep2}`,
+            color: T.ink1, fontSize: 13, fontFamily: 'inherit', outline: 'none',
+            boxSizing: 'border-box', marginBottom: 8 }}/>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 10, color: T.ink4 }}>Ctrl+Enter para adicionar rápido</span>
+          <button onClick={adicionar} disabled={!novoTxt.trim() || salvando}
+            style={{ padding: '7px 16px', borderRadius: 8,
+              border: `1px solid ${T.purpleBor}`, background: T.purpleDim,
+              color: T.purple, cursor: 'pointer', fontSize: 12, fontWeight: 700,
+              opacity: !novoTxt.trim() ? .5 : 1 }}>
+            {salvando ? 'Salvando...' : '+ Adicionar'}
+          </button>
+        </div>
+      </div>
+
+      {/* Tip */}
+      <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 8,
+        background: T.amberDim, border: `1px solid ${T.amberBor}` }}>
+        <p style={{ fontSize: 11, color: T.amber, margin: 0, lineHeight: 1.6 }}>
+          💡 As respostas aparecem no chat quando o operador clica no botão ⚡.
+          Suporta emojis. A ordem aqui é a ordem que aparece no chat.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 function SecaoVariaveis({ api }) {
   const [vars,    setVars]    = useState({})  // { "{{nome}}": "valor" }
   const [loading, setLoading] = useState(true)
@@ -1961,6 +2171,7 @@ const SECOES=[
   { id:'export',    label:'Exportação',           icon:Download,       cor:T.ink3,   desc:'CSV / JSON'             },
   { id:'auditoria', label:'Auditoria',            icon:History,        cor:T.purple, desc:'Timeline de mudanças'   },
   { id:'variaveis',  label:'Variáveis Custom',    icon:Hash,           cor:T.purple, desc:'Substituições estáticas' },
+  { id:'rapidas',    label:'Respostas Rápidas',   icon:Zap,            cor:T.amber,  desc:'Textos pré-definidos do chat' },
 ]
 
 // ═══════════════════════════════════════════════════
@@ -1984,6 +2195,7 @@ export default function PageCentralConfig({ api=API }) {
       case 'export':     return <SecaoExportacao api={api}/>
       case 'auditoria':  return <SecaoAuditoria api={api}/>
       case 'variaveis':  return <SecaoVariaveis api={api}/>
+      case 'rapidas':    return <SecaoRespostasRapidas api={api}/>
       default: return null
     }
   }
