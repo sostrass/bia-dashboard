@@ -2118,33 +2118,31 @@ function ConversaItem({ c, ativo, onClick }) {
 // FILTROS GLASSMORPHISM
 // ─────────────────────────────────────────────────────────────────────────────
 function GlassFilter({ id, lbl, Icon, n, ativo, onClick }) {
-  const CORS = { todos:T.purple, ia:T.blue, manual:T.cyan, pendente:T.amber, resolvido:T.green, encerrado:T.ink4 }
+  const CORS = { todos:T.purple, ia:T.blue, manual:T.cyan, pendente:T.amber, resolvido:T.green, encerrado:T.ink4, risco:'#ff9f0a' }
   const cor = CORS[id] || T.purple
   return (
     <button onClick={onClick}
-      style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:3,
-        padding:'8px 6px',borderRadius:11,border:'none',cursor:'pointer',
-        background:ativo?`rgba(255,255,255,.08)`:'transparent',
-        backdropFilter:ativo?'blur(10px)':undefined,
-        WebkitBackdropFilter:ativo?'blur(10px)':undefined,
-        boxShadow:ativo?`0 4px 16px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.1)`:undefined,
-        outline:`1px solid ${ativo?cor+'50':'transparent'}`,
-        transition:'all .18s', flex:1 }}>
-      <div style={{ width:26,height:26,borderRadius:9,flexShrink:0,
-        background:ativo?`${cor}25`:'rgba(255,255,255,.05)',
-        border:`1px solid ${ativo?cor+'50':'rgba(255,255,255,.08)'}`,
-        display:'flex',alignItems:'center',justifyContent:'center',
-        boxShadow:ativo?`0 0 12px ${cor}40`:undefined,transition:'all .18s' }}>
-        <Icon size={12} style={{ color:ativo?cor:T.ink4 }}/>
+      style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+        gap:3, padding:'6px 4px', borderRadius:10, border:'none', cursor:'pointer',
+        transition:'all .15s', flex:1, minWidth:0,
+        background: ativo ? `${cor}18` : 'rgba(255,255,255,.03)',
+        outline: `1px solid ${ativo ? cor+'50' : 'rgba(255,255,255,.06)'}`,
+        boxShadow: ativo ? `0 2px 12px ${cor}20` : 'none' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:3 }}>
+        <Icon size={11} style={{ color: ativo ? cor : T.ink4, flexShrink:0 }}/>
+        {n > 0 && (
+          <span style={{ fontSize:9, fontWeight:800, color: ativo ? cor : T.ink4,
+            lineHeight:1 }}>{n > 99 ? '99+' : n}</span>
+        )}
       </div>
-      <span style={{ fontSize:9.5,fontWeight:ativo?700:500,color:ativo?cor:T.ink4,
-        transition:'color .15s' }}>{lbl}</span>
-      {n>0&&<span style={{ fontSize:9,fontWeight:800,color:ativo?cor:T.ink4,
-        lineHeight:1 }}>{n>999?'999+':n}</span>}
+      <span style={{ fontSize:9.5, fontWeight: ativo ? 700 : 500,
+        color: ativo ? cor : T.ink4, lineHeight:1, whiteSpace:'nowrap',
+        overflow:'hidden', textOverflow:'ellipsis', maxWidth:'100%', textAlign:'center' }}>
+        {lbl}
+      </span>
     </button>
   )
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FEATURE 2: DETECTOR DE INTENÇÃO + EMENDA DE PEDIDO VIA CHAT
@@ -2755,10 +2753,8 @@ export default function PageConversas({ api='' }) {
                 fontFamily:'inherit',boxSizing:'border-box' }}/>
           </div>
 
-          {/* Filtros glassmorphism */}
-          <div style={{ display:'flex',gap:4,background:'rgba(255,255,255,.03)',
-            borderRadius:13,padding:4,border:`1px solid rgba(255,255,255,.06)`,
-            backdropFilter:'blur(8px)' }}>
+          {/* Filtros — grade 2×3, tudo visível sem scroll */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:4 }}>
             {FILTROS.map(f=>(
               <GlassFilter key={f.id} {...f} ativo={filtro===f.id} onClick={()=>setFiltro(f.id)}/>
             ))}
