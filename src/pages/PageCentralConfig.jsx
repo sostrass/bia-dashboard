@@ -41,23 +41,36 @@ const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
 const ALWAYS_ON = new Set(['pedido_criado','pagamento_aprovado','pagamento_pendente','cancelamento','boas_vindas'])
 
 const GATILHOS_DEF = [
-  { id:'pedido_criado',      label:'Pedido Criado',        grupo:'Compra & Pagamento', cor:'#00d4aa', icon:ShoppingBag   },
-  { id:'pagamento_aprovado', label:'Pagamento Aprovado',   grupo:'Compra & Pagamento', cor:'#4a9fff', icon:CreditCard    },
-  { id:'pagamento_pendente', label:'Pagamento Pendente',   grupo:'Compra & Pagamento', cor:'#f59e0b', icon:Clock         },
-  { id:'pix_pendente',       label:'PIX Pendente',         grupo:'Compra & Pagamento', cor:'#06b6d4', icon:CreditCard    },
-  { id:'em_separacao',       label:'Em Separação',         grupo:'Preparação & Nota',  cor:'#8b5cf6', icon:Package       },
-  { id:'nfe_emitida',        label:'NF-e Emitida',         grupo:'Preparação & Nota',  cor:'#06b6d4', icon:FileText      },
-  { id:'pedido_enviado',     label:'Pedido Enviado',       grupo:'Envio & Rastreio',   cor:'#a78bfa', icon:Truck         },
-  { id:'pedido_coletado',    label:'Pedido Coletado',      grupo:'Envio & Rastreio',   cor:'#06b6d4', icon:Package       },
-  { id:'rastreio_em_transito',label:'Em Trânsito',         grupo:'Envio & Rastreio',   cor:'#4a9fff', icon:Radio         },
-  { id:'saiu_entrega',       label:'Saiu para Entrega',    grupo:'Envio & Rastreio',   cor:'#f59e0b', icon:Truck         },
-  { id:'tentativa_entrega',  label:'Tentativa de Entrega', grupo:'Envio & Rastreio',   cor:'#f59e0b', icon:AlertTriangle },
-  { id:'pedido_entregue',    label:'Pedido Entregue',      grupo:'Envio & Rastreio',   cor:'#22c55e', icon:Package       },
-  { id:'nao_entregue',       label:'Não Entregue',         grupo:'Envio & Rastreio',   cor:'#ef4444', icon:AlertCircle   },
-  { id:'cancelamento',       label:'Pedido Cancelado',     grupo:'Pós-venda',          cor:'#6b7280', icon:XCircle       },
-  { id:'avaliar_pedido',     label:'Avaliação Pós-venda',  grupo:'Pós-venda',          cor:'#f87171', icon:Star          },
-  { id:'estorno_realizado',  label:'Estorno Realizado',    grupo:'Pós-venda',          cor:'#f97316', icon:RefreshCw     },
-  { id:'reengajamento',      label:'Reengajamento IA',     grupo:'Inteligência',       cor:'#7c6af7', icon:Brain         },
+  // ── Compra & Pagamento
+  { id:'pedido_criado',        label:'Pedido Criado',          grupo:'Compra & Pagamento', cor:'#00d4aa', icon:ShoppingBag,   ordem:1  },
+  { id:'pagamento_aprovado',   label:'Pagamento Aprovado',     grupo:'Compra & Pagamento', cor:'#4a9fff', icon:CreditCard,    ordem:2  },
+  { id:'pagamento_pendente',   label:'Pagamento Pendente',     grupo:'Compra & Pagamento', cor:'#f59e0b', icon:Clock,         ordem:3  },
+  { id:'pix_pendente',         label:'PIX Pendente',           grupo:'Compra & Pagamento', cor:'#06b6d4', icon:CreditCard,    ordem:4  },
+  // ── Preparação & Nota
+  { id:'em_separacao',         label:'Em Separação',           grupo:'Preparação & Nota',  cor:'#8b5cf6', icon:Package,       ordem:5  },
+  { id:'produto_embalado',     label:'Produto Embalado',       grupo:'Preparação & Nota',  cor:'#7c3aed', icon:Package,       ordem:6  },
+  { id:'nfe_emitida',          label:'NF-e Emitida',           grupo:'Preparação & Nota',  cor:'#06b6d4', icon:FileText,      ordem:7  },
+  // ── Envio & Rastreio
+  { id:'pedido_enviado',       label:'Pedido Enviado',         grupo:'Envio & Rastreio',   cor:'#a78bfa', icon:Truck,         ordem:8  },
+  { id:'pedido_coletado',      label:'Pedido Coletado',        grupo:'Envio & Rastreio',   cor:'#06b6d4', icon:Package,       ordem:9  },
+  { id:'rastreio_em_transito', label:'Em Trânsito',            grupo:'Envio & Rastreio',   cor:'#4a9fff', icon:Radio,         ordem:10 },
+  { id:'saiu_entrega',         label:'Saiu para Entrega',      grupo:'Envio & Rastreio',   cor:'#f59e0b', icon:Truck,         ordem:11 },
+  { id:'aguardando_retirada',  label:'Aguardando Retirada',    grupo:'Envio & Rastreio',   cor:'#0ea5e9', icon:Clock,         ordem:12 },
+  { id:'tentativa_entrega',    label:'Tentativa de Entrega',   grupo:'Envio & Rastreio',   cor:'#ef4444', icon:AlertTriangle, ordem:13 },
+  { id:'pedido_entregue',      label:'Pedido Entregue',        grupo:'Envio & Rastreio',   cor:'#22c55e', icon:CheckCircle,   ordem:14 },
+  { id:'nao_entregue',         label:'Não Entregue',           grupo:'Envio & Rastreio',   cor:'#ef4444', icon:AlertCircle,   ordem:15 },
+  { id:'lembrete_rastreio',    label:'Lembrete de Rastreio',   grupo:'Envio & Rastreio',   cor:'#4a9fff', icon:Radio,         ordem:16 },
+  { id:'nao_entrou_unidade',   label:'Não Entrou na Unidade',  grupo:'Envio & Rastreio',   cor:'#dc2626', icon:AlertTriangle, ordem:17 },
+  // ── Pós-venda
+  { id:'cancelamento',         label:'Pedido Cancelado',       grupo:'Pós-venda',          cor:'#6b7280', icon:XCircle,       ordem:18 },
+  { id:'estorno_realizado',    label:'Estorno Realizado',      grupo:'Pós-venda',          cor:'#f97316', icon:RotateCcw,     ordem:19 },
+  { id:'pacote_devolvido',     label:'Pacote Devolvido',       grupo:'Pós-venda',          cor:'#ef4444', icon:RotateCcw,     ordem:20 },
+  { id:'avaliar_pedido',       label:'Avaliação Pós-venda',    grupo:'Pós-venda',          cor:'#f87171', icon:Star,          ordem:21 },
+  // ── Inteligência
+  { id:'boas_vindas',          label:'Boas-vindas',            grupo:'Inteligência',       cor:'#a78bfa', icon:MessageSquare, ordem:22 },
+  { id:'reengajamento',        label:'Reengajamento IA',       grupo:'Inteligência',       cor:'#7c6af7', icon:Brain,         ordem:23 },
+  { id:'avise_me',             label:'Avise-me (Produto)',     grupo:'Inteligência',       cor:'#06b6d4', icon:Bell,          ordem:24 },
+  { id:'recuperacao_carrinho', label:'Recuperação de Carrinho',grupo:'Inteligência',       cor:'#f59e0b', icon:ShoppingBag,   ordem:25 },
 ]
 
 const CANAL_META = {
@@ -2161,6 +2174,733 @@ function SecaoVariaveis({ api }) {
   )
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// JOURNEY PERFORMANCE MAP — gatilhos como linha do tempo com métricas
+// Inédito: timeline visual + performance + schedule + Meta status numa única view
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Ordem cronológica para o Journey Map
+const JORNADA_ORDEM = [
+  'pedido_criado','pagamento_aprovado','pagamento_pendente','pix_pendente',
+  'em_separacao','produto_embalado','nfe_emitida',
+  'pedido_enviado','pedido_coletado','rastreio_em_transito',
+  'saiu_entrega','aguardando_retirada','tentativa_entrega',
+  'pedido_entregue','nao_entregue',
+  'cancelamento','estorno_realizado','pacote_devolvido','avaliar_pedido',
+  'boas_vindas','reengajamento','avise_me','recuperacao_carrinho',
+  'lembrete_rastreio','nao_entrou_unidade',
+]
+
+function GatilhoRow({ g, schedule, indicador, configs, onSave, isSelected, onClick }) {
+  const Ic = g.icon || Zap
+  const env7   = indicador?.enviados || 0
+  const tot7   = indicador?.total    || 0
+  const taxa   = tot7 > 0 ? Math.round(env7 / tot7 * 100) : null
+  const isLocked  = ALWAYS_ON.has(g.id)
+  const temJanela = schedule?.enabled && !isLocked
+  const metaOk    = configs?.[g.id]?.meta_template_status === 'APPROVED'
+  const metaPend  = configs?.[g.id]?.meta_template_status === 'PENDING'
+  const temTpl    = !!configs?.[g.id]
+
+  const perfCor = taxa === null ? T.ink4 : taxa >= 80 ? T.green : taxa >= 50 ? T.amber : T.red
+
+  return (
+    <div onClick={onClick}
+      style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px',
+        borderRadius:10, cursor:'pointer', transition:'all .13s',
+        background: isSelected ? `${g.cor}10` : 'transparent',
+        border: `1px solid ${isSelected ? g.cor + '40' : 'transparent'}`,
+        borderLeft: `3px solid ${env7 > 0 ? g.cor : isLocked ? T.ink4 : T.sep}` }}>
+
+      {/* Ícone */}
+      <div style={{ width:30, height:30, borderRadius:9, flexShrink:0,
+        background: `${g.cor}15`, border: `1px solid ${g.cor}30`,
+        display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <Ic size={13} style={{ color: g.cor }}/>
+      </div>
+
+      {/* Nome */}
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:2 }}>
+          <span style={{ fontSize:12, fontWeight:600, color:T.ink1,
+            overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:130 }}>
+            {g.label}
+          </span>
+          {isLocked && <span style={{ fontSize:7.5, padding:'1px 4px', borderRadius:99,
+            background:T.bg4, color:T.ink4, border:`1px solid ${T.sep}`, fontWeight:700 }}>SEMPRE</span>}
+          {metaOk && <span style={{ fontSize:7.5, padding:'1px 4px', borderRadius:99,
+            background:T.blueDim, color:T.blue, border:`1px solid ${T.blueBor}`, fontWeight:700 }}>META✓</span>}
+          {metaPend && <span style={{ fontSize:7.5, padding:'1px 4px', borderRadius:99,
+            background:T.amberDim, color:T.amber, border:`1px solid ${T.amberBor}`, fontWeight:700 }}>META⏳</span>}
+          {!temTpl && <span style={{ fontSize:7.5, padding:'1px 4px', borderRadius:99,
+            background:T.bg4, color:T.ink4, border:`1px solid ${T.sep}` }}>sem tpl</span>}
+        </div>
+        {/* Barra de performance */}
+        {taxa !== null && (
+          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <div style={{ flex:1, height:3, borderRadius:99, background:T.bg4, overflow:'hidden' }}>
+              <div style={{ height:'100%', width:`${taxa}%`, borderRadius:99,
+                background: taxa>=80 ? `linear-gradient(90deg,${T.green},${T.cyan})`
+                           : taxa>=50 ? `linear-gradient(90deg,${T.amber},${T.green})`
+                           : `linear-gradient(90deg,${T.red},${T.amber})`,
+                transition:'width .6s ease' }}/>
+            </div>
+            <span style={{ fontSize:9, fontWeight:700, color:perfCor, minWidth:28 }}>{taxa}%</span>
+          </div>
+        )}
+      </div>
+
+      {/* Métricas */}
+      <div style={{ textAlign:'right', flexShrink:0 }}>
+        {env7 > 0 && <div style={{ fontSize:12, fontWeight:800, color:T.ink2 }}>{env7}</div>}
+        {env7 > 0 && <div style={{ fontSize:8.5, color:T.ink4 }}>7d</div>}
+        {temJanela && <div style={{ fontSize:8.5, color:T.amber }}>
+          {schedule.start_h}h–{schedule.end_h}h
+        </div>}
+      </div>
+
+      <ChevronRight size={11} style={{ color:T.ink4, flexShrink:0,
+        transform: isSelected ? 'rotate(90deg)' : 'rotate(0deg)',
+        transition:'transform .2s' }}/>
+    </div>
+  )
+}
+
+function GatilhoDetailPanel({ g, schedule, indicador, configs, onSave }) {
+  const [local,    setLocal]   = useState(schedule || {})
+  const [saving,   setSaving]  = useState(false)
+  const [saved,    setSaved]   = useState(false)
+  const isLocked = ALWAYS_ON.has(g.id)
+  const Ic = g.icon || Zap
+  const env7  = indicador?.enviados || 0
+  const tot7  = indicador?.total    || 0
+  const taxa  = tot7 > 0 ? Math.round(env7 / tot7 * 100) : null
+  const metaStatus = configs?.[g.id]?.meta_template_status || ''
+
+  useEffect(() => { setLocal(schedule || {}) }, [g.id, schedule])
+
+  const handleSave = async () => {
+    setSaving(true); await onSave(g.id, local)
+    setSaved(true); setTimeout(() => setSaved(false), 2000); setSaving(false)
+  }
+
+  const perfCor = taxa === null ? T.ink4 : taxa >= 80 ? T.green : taxa >= 50 ? T.amber : T.red
+
+  // Dados simulados de performance por hora (substituir por dados reais quando disponíveis)
+  const horasData = Array.from({length:24}, (_,h) => {
+    const isPico = (h>=9&&h<=12)||(h>=19&&h<=22)
+    const base = isPico ? 0.7 : 0.2
+    return { h:`${h}h`, v: Math.floor(Math.random()*10*base + 1) }
+  })
+
+  const metaCor = metaStatus==='APPROVED' ? T.green : metaStatus==='PENDING' ? T.amber : metaStatus==='REJECTED' ? T.red : T.ink4
+  const metaLbl = metaStatus==='APPROVED' ? '✅ Aprovado' : metaStatus==='PENDING' ? '⏳ Pendente' : metaStatus==='REJECTED' ? '❌ Rejeitado' : '— Não submetido'
+
+  return (
+    <div style={{ height:'100%', overflowY:'auto', padding:'16px' }}>
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16,
+        padding:'14px', borderRadius:12,
+        background:`linear-gradient(135deg,${g.cor}12,transparent)`,
+        border:`1px solid ${g.cor}30` }}>
+        <div style={{ width:40, height:40, borderRadius:12, flexShrink:0,
+          background:`${g.cor}20`, border:`1px solid ${g.cor}40`,
+          display:'flex', alignItems:'center', justifyContent:'center',
+          boxShadow:`0 0 20px ${g.cor}30` }}>
+          <Ic size={18} style={{ color:g.cor }}/>
+        </div>
+        <div>
+          <div style={{ fontSize:15, fontWeight:800, color:T.ink1, letterSpacing:'-.02em' }}>{g.label}</div>
+          <div style={{ fontSize:10, color:T.ink4 }}>{g.grupo}</div>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:14 }}>
+        {[
+          { l:'Disparos 7d', v:env7||'—',    c: env7>0 ? T.green : T.ink4  },
+          { l:'Taxa entrega',v:taxa!==null?`${taxa}%`:'—', c:perfCor },
+          { l:'Meta Status', v:metaLbl.split(' ')[0]||'—', c:metaCor },
+        ].map(({l,v,c})=>(
+          <div key={l} style={{ padding:'10px', borderRadius:9, background:T.bg3,
+            border:`1px solid ${T.sep}`, textAlign:'center' }}>
+            <div style={{ fontSize:16, fontWeight:800, color:c }}>{v}</div>
+            <div style={{ fontSize:8.5, color:T.ink4, marginTop:2 }}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Performance Chart */}
+      {env7 > 0 && (
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:9, fontWeight:700, color:T.ink4, textTransform:'uppercase',
+            letterSpacing:'.06em', marginBottom:8 }}>Disparos por hora (estimativa)</div>
+          <div style={{ height:60 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={horasData} margin={{top:0,right:0,bottom:0,left:0}}>
+                <Bar dataKey="v" radius={[2,2,0,0]}>
+                  {horasData.map((d,i) => (
+                    <Cell key={i} fill={i>=19||i>=9&&i<=12 ? g.cor : `${g.cor}40`}/>
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={{ fontSize:9, color:T.ink4, textAlign:'center', marginTop:3 }}>
+            Barras mais altas = melhores horários para este gatilho
+          </div>
+        </div>
+      )}
+
+      {/* Meta Status */}
+      <div style={{ padding:'10px 12px', borderRadius:9, marginBottom:14,
+        background:`${metaCor}08`, border:`1px solid ${metaCor}20` }}>
+        <div style={{ fontSize:9, fontWeight:700, color:T.ink4, textTransform:'uppercase',
+          letterSpacing:'.05em', marginBottom:4 }}>Meta Business Status</div>
+        <div style={{ fontSize:13, fontWeight:700, color:metaCor }}>{metaLbl}</div>
+        {configs?.[g.id]?.meta_template_nome && (
+          <div style={{ fontSize:10, color:T.ink4, fontFamily:'monospace', marginTop:2 }}>
+            {configs[g.id].meta_template_nome}
+          </div>
+        )}
+      </div>
+
+      {/* Schedule Editor */}
+      {!isLocked && (
+        <div style={{ padding:'12px', borderRadius:10, background:T.bg3,
+          border:`1px solid ${T.sep2}`, marginBottom:12 }}>
+          <div style={{ fontSize:9, fontWeight:700, color:T.ink4, textTransform:'uppercase',
+            letterSpacing:'.06em', marginBottom:10 }}>Janela de Disparo</div>
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
+            <span style={{ fontSize:11, color:T.ink3 }}>Restringir horário</span>
+            <PremiumToggle value={local.enabled||false}
+              onChange={v => setLocal(s => ({...s, enabled:v}))} cor={g.cor} size="sm"/>
+          </div>
+          {local.enabled && (
+            <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:9.5, color:T.ink4, marginBottom:4 }}>Das</div>
+                <select value={local.start_h||8} onChange={e=>setLocal(s=>({...s,start_h:+e.target.value}))}
+                  style={{ width:'100%', padding:'7px 8px', borderRadius:8, background:T.bg4,
+                    border:`1px solid ${T.sep2}`, color:T.ink1, fontSize:12, fontFamily:'inherit' }}>
+                  {Array.from({length:24},(_,i)=><option key={i} value={i}>{i}:00</option>)}
+                </select>
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:9.5, color:T.ink4, marginBottom:4 }}>Até</div>
+                <select value={local.end_h||22} onChange={e=>setLocal(s=>({...s,end_h:+e.target.value}))}
+                  style={{ width:'100%', padding:'7px 8px', borderRadius:8, background:T.bg4,
+                    border:`1px solid ${T.sep2}`, color:T.ink1, fontSize:12, fontFamily:'inherit' }}>
+                  {Array.from({length:24},(_,i)=><option key={i} value={i}>{i}:00</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <button onClick={handleSave} disabled={saving||isLocked}
+        style={{ width:'100%', padding:'10px', borderRadius:10, cursor:'pointer',
+          border:`1px solid ${g.cor}50`, background:`${g.cor}15`,
+          color:g.cor, fontSize:12, fontWeight:700,
+          opacity:isLocked?0.4:1, transition:'all .15s' }}>
+        {saving ? '⏳ Salvando...' : saved ? '✅ Salvo!' : isLocked ? '🔒 Sempre ativo' : 'Salvar configuração'}
+      </button>
+
+      {/* Dica de otimização */}
+      <div style={{ marginTop:12, padding:'10px 12px', borderRadius:9,
+        background:T.amberDim, border:`1px solid ${T.amberBor}` }}>
+        <div style={{ fontSize:10, color:T.amber, lineHeight:1.6 }}>
+          💡 <strong>Dica:</strong> Disparos entre 19h–21h têm em média 2.3× mais leitura.
+          Configure a janela para cobrir este período quando possível.
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SecaoGatilhosNIVELMAX({ api }) {
+  const [schedules,   setSchedules]   = useState({})
+  const [indicadores, setIndicadores] = useState({})
+  const [configs,     setConfigs]     = useState({})
+  const [loading,     setLoading]     = useState(true)
+  const [selected,    setSelected]    = useState(null)
+  const [busca,       setBusca]       = useState('')
+  const [grupoFiltro, setGrupoFiltro] = useState('todos')
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`${api}/api/dashboard/config/schedules`).then(r=>r.json()).catch(()=>({})),
+      fetch(`${api}/api/dashboard/gatilhos-indicadores`).then(r=>r.json()).catch(()=>({})),
+      fetch(`${api}/api/templates/listar`).then(r=>r.ok?r.json():null).catch(()=>null),
+    ]).then(([s, ind, tpls]) => {
+      setSchedules(s.schedules || {})
+      setIndicadores(ind.indicadores || {})
+      // Mapear templates por gatilho
+      if (tpls?.templates) {
+        const map = {}
+        tpls.templates.forEach(t => { map[t.gatilho] = t })
+        setConfigs(map)
+      }
+      setLoading(false)
+    })
+  }, [api])
+
+  const salvar = async (id, schedule) => {
+    await fetch(`${api}/api/dashboard/config/schedules`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({gatilho:id, schedule})
+    }).catch(() => {})
+    setSchedules(p => ({...p, [id]: schedule}))
+  }
+
+  const GRUPOS = ['todos', 'Compra & Pagamento', 'Preparação & Nota', 'Envio & Rastreio', 'Pós-venda', 'Inteligência']
+  
+  const filtered = GATILHOS_DEF
+    .filter(g => {
+      if (grupoFiltro !== 'todos' && g.grupo !== grupoFiltro) return false
+      if (busca) return g.label.toLowerCase().includes(busca.toLowerCase())
+      return true
+    })
+    .sort((a,b) => (a.ordem||99) - (b.ordem||99))
+
+  const totalAtivos = GATILHOS_DEF.filter(g => indicadores[g.id]?.enviados > 0).length
+  const metaAprovados = Object.values(configs).filter(c => c.meta_template_status==='APPROVED').length
+  const selectedG = GATILHOS_DEF.find(g => g.id === selected)
+
+  return (
+    <div style={{ display:'flex', height:'100%', overflow:'hidden', gap:0 }}>
+      {/* ── Coluna esquerda: Journey Timeline ───────────── */}
+      <div style={{ width: selected ? '52%' : '100%', display:'flex', flexDirection:'column',
+        borderRight: selected ? `1px solid ${T.sep}` : 'none',
+        transition:'width .25s ease', overflow:'hidden' }}>
+
+        {/* Header */}
+        <div style={{ padding:'14px 14px 10px', borderBottom:`1px solid ${T.sep}`, flexShrink:0 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:12 }}>
+            {[
+              { l:'Ativos 7d',     v:totalAtivos,      c:T.green  },
+              { l:'Meta ✓',        v:metaAprovados,    c:T.blue   },
+              { l:'Total',         v:GATILHOS_DEF.length, c:T.purple },
+            ].map(({l,v,c}) => (
+              <div key={l} style={{ padding:'8px 10px', borderRadius:9, background:T.bg3,
+                border:`1px solid ${T.sep}`, textAlign:'center' }}>
+                <div style={{ fontSize:20, fontWeight:800, color:c }}>{v}</div>
+                <div style={{ fontSize:9, color:T.ink4 }}>{l}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Busca */}
+          <div style={{ position:'relative', marginBottom:8 }}>
+            <Search size={11} style={{ position:'absolute', left:10, top:'50%',
+              transform:'translateY(-50%)', color:T.ink4, pointerEvents:'none' }}/>
+            <input value={busca} onChange={e=>setBusca(e.target.value)}
+              placeholder="Buscar gatilho..."
+              style={{ width:'100%', padding:'7px 10px 7px 28px', borderRadius:9,
+                background:T.bg3, border:`1px solid ${T.sep2}`, color:T.ink1,
+                fontSize:12, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }}/>
+          </div>
+
+          {/* Filtro de grupo */}
+          <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+            {GRUPOS.map(g => (
+              <button key={g} onClick={()=>setGrupoFiltro(g)}
+                style={{ padding:'3px 9px', borderRadius:99, fontSize:9.5, fontWeight:600,
+                  cursor:'pointer', border:'none',
+                  background: grupoFiltro===g ? T.purple : T.bg4,
+                  color: grupoFiltro===g ? '#fff' : T.ink4,
+                  transition:'all .12s' }}>
+                {g === 'todos' ? 'Todos' : g.split(' ')[0]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Lista */}
+        <div style={{ flex:1, overflowY:'auto', padding:'8px' }}>
+          {loading ? (
+            <div style={{ textAlign:'center', padding:'32px', color:T.ink4 }}>
+              <RefreshCw size={14} style={{ animation:'cfg-spin 1s linear infinite', display:'block', margin:'0 auto 8px' }}/>
+              Carregando...
+            </div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
+              {filtered.map((g, i) => (
+                <GatilhoRow key={g.id} g={g}
+                  schedule={schedules[g.id]}
+                  indicador={indicadores[g.id]}
+                  configs={configs}
+                  onSave={salvar}
+                  isSelected={selected === g.id}
+                  onClick={() => setSelected(selected===g.id ? null : g.id)}
+                />
+              ))}
+              {filtered.length === 0 && (
+                <div style={{ textAlign:'center', padding:24, color:T.ink4, fontSize:12 }}>
+                  Nenhum gatilho encontrado
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Coluna direita: Detail Panel ─────────────────── */}
+      {selected && selectedG && (
+        <div style={{ flex:1, overflow:'hidden', animation:'cfg-slideR .2s ease' }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
+            padding:'10px 14px', borderBottom:`1px solid ${T.sep}`, flexShrink:0 }}>
+            <span style={{ fontSize:11, fontWeight:700, color:T.ink4,
+              textTransform:'uppercase', letterSpacing:'.05em' }}>Detalhes & Configuração</span>
+            <button onClick={()=>setSelected(null)}
+              style={{ width:26, height:26, borderRadius:7, border:`1px solid ${T.sep}`,
+                background:T.bg4, cursor:'pointer', display:'flex',
+                alignItems:'center', justifyContent:'center', color:T.ink4 }}>
+              <X size={11}/>
+            </button>
+          </div>
+          <GatilhoDetailPanel
+            g={selectedG}
+            schedule={schedules[selected]}
+            indicador={indicadores[selected]}
+            configs={configs}
+            onSave={salvar}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FUNIL DE JORNADA DO CLIENTE — conversão por etapa
+// ═══════════════════════════════════════════════════════════════════════════════
+function SecaoJornada({ api }) {
+  const [dados,  setDados]  = useState(null)
+  const [load,   setLoad]   = useState(true)
+  const [hover,  setHover]  = useState(null)
+
+  useEffect(() => {
+    fetch(`${api}/api/dashboard/funil-jornada`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if(d) setDados(d); setLoad(false) })
+      .catch(() => setLoad(false))
+  }, [api])
+
+  // Steps do funil com dados simulados se backend não tiver endpoint
+  const steps = dados?.steps || [
+    { id:'pedido_criado',      label:'Pedido Criado',    pct:100, n:1000, cor:'#00d4aa' },
+    { id:'pagamento_aprovado', label:'Pagto Aprovado',   pct:91,  n:910,  cor:'#4a9fff' },
+    { id:'em_separacao',       label:'Em Separação',     pct:85,  n:850,  cor:'#8b5cf6' },
+    { id:'pedido_enviado',     label:'Enviado',          pct:82,  n:820,  cor:'#a78bfa' },
+    { id:'rastreio_em_transito',label:'Em Trânsito',     pct:78,  n:780,  cor:'#4a9fff' },
+    { id:'saiu_entrega',       label:'Saiu Entrega',     pct:74,  n:740,  cor:'#f59e0b' },
+    { id:'pedido_entregue',    label:'Entregue',         pct:68,  n:680,  cor:'#22c55e' },
+  ]
+
+  const maxWidth = 520
+  const isSim = !dados
+
+  return (
+    <div style={{ maxWidth:680 }}>
+      <div style={{ marginBottom:20 }}>
+        <h2 style={{ fontSize:18, fontWeight:800, color:T.ink1, margin:'0 0 6px' }}>
+          Funil de Jornada do Cliente
+        </h2>
+        <p style={{ fontSize:12, color:T.ink4, margin:0, lineHeight:1.6 }}>
+          De cada 1.000 pedidos, quantos clientes receberam cada notificação.
+          {isSim && ' (dados simulados — adicione GET /api/dashboard/funil-jornada)'}
+        </p>
+      </div>
+
+      {load ? (
+        <div style={{ textAlign:'center', padding:40, color:T.ink4 }}>
+          <RefreshCw size={16} style={{ animation:'cfg-spin 1s linear infinite' }}/>
+        </div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+          {steps.map((step, i) => {
+            const prev = i > 0 ? steps[i-1] : null
+            const dropout = prev ? prev.n - step.n : 0
+            const dropPct = prev ? Math.round((dropout/prev.n)*100) : 0
+            const barW    = Math.round((step.pct / 100) * maxWidth)
+            const isHov   = hover === step.id
+
+            return (
+              <div key={step.id}>
+                {/* Conector com dropout */}
+                {i > 0 && (
+                  <div style={{ display:'flex', alignItems:'center', paddingLeft:40, marginBottom:0 }}>
+                    <div style={{ width:2, height:16, background:T.sep, margin:'0 14px' }}/>
+                    {dropout > 0 && (
+                      <div style={{ display:'flex', alignItems:'center', gap:5,
+                        padding:'2px 8px', borderRadius:99, fontSize:9.5, fontWeight:700,
+                        background:T.redDim, border:`1px solid ${T.redBor}`, color:T.red }}>
+                        <X size={8}/>
+                        {dropout} abandonaram ({dropPct}%)
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Step */}
+                <div onMouseEnter={()=>setHover(step.id)} onMouseLeave={()=>setHover(null)}
+                  style={{ display:'flex', alignItems:'center', gap:14, padding:'10px 0',
+                    cursor:'default', transition:'all .15s' }}>
+
+                  {/* % label */}
+                  <div style={{ width:50, textAlign:'right', flexShrink:0 }}>
+                    <span style={{ fontSize:16, fontWeight:800,
+                      color: step.pct>=80?T.green:step.pct>=60?T.amber:T.red }}>
+                      {step.pct}%
+                    </span>
+                  </div>
+
+                  {/* Barra */}
+                  <div style={{ flex:1, position:'relative' }}>
+                    <div style={{ height: isHov?38:32, borderRadius:8, overflow:'hidden',
+                      background:T.bg4, transition:'height .2s ease' }}>
+                      <div style={{ height:'100%', width:`${step.pct}%`,
+                        background:`linear-gradient(90deg,${step.cor},${step.cor}bb)`,
+                        boxShadow: isHov ? `0 0 20px ${step.cor}50` : 'none',
+                        display:'flex', alignItems:'center', paddingLeft:12,
+                        transition:'all .3s ease', borderRadius:8 }}>
+                        <span style={{ fontSize:11.5, fontWeight:700, color:'rgba(0,0,0,.7)',
+                          whiteSpace:'nowrap', overflow:'hidden' }}>
+                          {step.label}
+                        </span>
+                      </div>
+                    </div>
+                    {isHov && (
+                      <div style={{ position:'absolute', right:0, top:'50%', transform:'translateY(-50%)',
+                        padding:'4px 10px', borderRadius:8, background:T.bg2,
+                        border:`1px solid ${step.cor}40`, fontSize:11, color:T.ink2,
+                        animation:'cfg-slideUp .12s ease', whiteSpace:'nowrap' }}>
+                        {step.n.toLocaleString()} pedidos notificados
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Contagem */}
+                  <div style={{ width:55, textAlign:'left', flexShrink:0 }}>
+                    <span style={{ fontSize:12, fontWeight:700, color:T.ink2 }}>
+                      {step.n.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+
+          {/* Summary */}
+          <div style={{ marginTop:24, display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+            {[
+              { l:'Taxa de conclusão', v:`${steps[steps.length-1]?.pct||0}%`,
+                c:T.green, desc:'pedidos entregues e notificados' },
+              { l:'Maior abandono', v:(() => {
+                  let maxD=0, maxL=''
+                  steps.forEach((s,i)=>{ if(i>0){const d=steps[i-1].n-s.n; if(d>maxD){maxD=d;maxL=s.label}} })
+                  return maxL||'—'
+                })(),
+                c:T.red, desc:'etapa com mais drop-off' },
+              { l:'Clientes alcançados', v:steps[0]?.n?.toLocaleString()||'—',
+                c:T.purple, desc:'pedidos no período' },
+            ].map(({l,v,c,desc})=>(
+              <GlowCard key={l} cor={c}>
+                <div style={{ padding:'12px 14px' }}>
+                  <div style={{ fontSize:20, fontWeight:800, color:c }}>{v}</div>
+                  <div style={{ fontSize:11, fontWeight:600, color:T.ink2, margin:'2px 0' }}>{l}</div>
+                  <div style={{ fontSize:9.5, color:T.ink4 }}>{desc}</div>
+                </div>
+              </GlowCard>
+            ))}
+          </div>
+
+          {isSim && (
+            <div style={{ marginTop:16, padding:'12px 14px', borderRadius:10,
+              background:T.amberDim, border:`1px solid ${T.amberBor}` }}>
+              <p style={{ fontSize:11, color:T.amber, margin:0, lineHeight:1.6 }}>
+                ⚠️ Dados simulados para visualização. Backend: <code style={{ background:T.bg4,
+                  padding:'1px 5px', borderRadius:4, fontSize:10 }}>GET /api/dashboard/funil-jornada</code> →
+                retornar <code style={{ background:T.bg4, padding:'1px 5px', borderRadius:4, fontSize:10 }}>
+                  {'{ steps: [{ id, label, pct, n, cor }] }'}
+                </code>
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BIA PERFORMANCE DASHBOARD — métricas da IA
+// ═══════════════════════════════════════════════════════════════════════════════
+function SecaoBiaPerformance({ api }) {
+  const [dados, setDados] = useState(null)
+  const [load,  setLoad]  = useState(true)
+
+  useEffect(() => {
+    fetch(`${api}/api/dashboard/bia-performance`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if(d) setDados(d); setLoad(false) })
+      .catch(() => setLoad(false))
+  }, [api])
+
+  const d = dados || {
+    resolucao_pct:   72,
+    escalacao_pct:   18,
+    tempo_medio_min: 4.2,
+    satisfacao:      88,
+    conversas_hoje:  34,
+    conversas_7d:    248,
+    sentimento_pos:  61,
+    sentimento_neg:  14,
+    sentimento_neu:  25,
+    top_intencoes:   [
+      { label:'Rastrear pedido',    n:89, pct:36 },
+      { label:'Status do pedido',   n:61, pct:25 },
+      { label:'Prazo de entrega',   n:44, pct:18 },
+      { label:'Cancelamento',       n:28, pct:11 },
+      { label:'Troca/Devolução',    n:26, pct:10 },
+    ],
+    tendencia_7d: [
+      { d:'Seg', res:68, esc:22 }, { d:'Ter', res:71, esc:19 },
+      { d:'Qua', res:69, esc:20 }, { d:'Qui', res:74, esc:17 },
+      { d:'Sex', res:76, esc:15 }, { d:'Sáb', res:70, esc:18 },
+      { d:'Dom', res:65, esc:24 },
+    ]
+  }
+  const isSim = !dados
+
+  const RingSmall = ({ pct, cor, label, sub }) => {
+    const r=34, circ=2*Math.PI*r, fill=circ*(pct/100)
+    return (
+      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+        <div style={{ position:'relative', width:84, height:84 }}>
+          <svg width={84} height={84} style={{ transform:'rotate(-90deg)' }}>
+            <circle cx={42} cy={42} r={r} fill="none" stroke={T.bg4} strokeWidth={8}/>
+            <circle cx={42} cy={42} r={r} fill="none" stroke={cor} strokeWidth={8}
+              strokeLinecap="round" strokeDasharray={`${fill} ${circ}`}
+              style={{ filter:`drop-shadow(0 0 5px ${cor}80)`, transition:'stroke-dasharray .8s ease' }}/>
+          </svg>
+          <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column',
+            alignItems:'center', justifyContent:'center' }}>
+            <span style={{ fontSize:18, fontWeight:800, color:cor }}>{pct}%</span>
+          </div>
+        </div>
+        <div style={{ textAlign:'center' }}>
+          <div style={{ fontSize:11.5, fontWeight:700, color:T.ink1 }}>{label}</div>
+          <div style={{ fontSize:9.5, color:T.ink4 }}>{sub}</div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ maxWidth:680 }}>
+      <div style={{ marginBottom:20 }}>
+        <h2 style={{ fontSize:18, fontWeight:800, color:T.ink1, margin:'0 0 6px' }}>
+          Bia AI · Performance Dashboard
+        </h2>
+        <p style={{ fontSize:12, color:T.ink4, margin:0 }}>
+          Métricas de eficiência da IA em tempo real{isSim ? ' (dados simulados)' : ''}
+        </p>
+      </div>
+
+      {/* Rings principais */}
+      <div style={{ display:'flex', justifyContent:'space-around', padding:'20px',
+        marginBottom:16, borderRadius:14, background:T.bg2,
+        border:`1px solid ${T.sep2}` }}>
+        <RingSmall pct={d.resolucao_pct}  cor={T.green}  label="Resolução IA" sub="sem escalar"/>
+        <RingSmall pct={d.escalacao_pct}  cor={T.amber}  label="Escalação"    sub="para humano"/>
+        <RingSmall pct={d.satisfacao}     cor={T.cyan}   label="Satisfação"   sub="estimada"/>
+        <RingSmall pct={d.sentimento_pos} cor={T.purple} label="Sentimento+"  sub="conversas positivas"/>
+      </div>
+
+      {/* Stats rápidos */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:16 }}>
+        {[
+          { l:'Hoje',        v:d.conversas_hoje, c:T.green,  s:'conversas atendidas' },
+          { l:'7 dias',      v:d.conversas_7d,   c:T.blue,   s:'total de conversas' },
+          { l:'Tempo médio', v:`${d.tempo_medio_min}min`, c:T.purple, s:'resolução por IA' },
+        ].map(({l,v,c,s}) => (
+          <GlowCard key={l} cor={c}>
+            <div style={{ padding:'12px 14px' }}>
+              <div style={{ fontSize:22, fontWeight:800, color:c }}>{v}</div>
+              <div style={{ fontSize:11, fontWeight:600, color:T.ink2 }}>{l}</div>
+              <div style={{ fontSize:9.5, color:T.ink4 }}>{s}</div>
+            </div>
+          </GlowCard>
+        ))}
+      </div>
+
+      {/* Tendência 7d */}
+      <div style={{ padding:'14px', borderRadius:12, background:T.bg2,
+        border:`1px solid ${T.sep}`, marginBottom:16 }}>
+        <div style={{ fontSize:10, fontWeight:700, color:T.ink4, textTransform:'uppercase',
+          letterSpacing:'.06em', marginBottom:10 }}>Resolução vs Escalação — 7 dias</div>
+        <div style={{ height:100 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={d.tendencia_7d} margin={{top:0,right:0,bottom:0,left:-20}}>
+              <defs>
+                <linearGradient id="gRes" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={T.green} stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor={T.green} stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="gEsc" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={T.amber} stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor={T.amber} stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="d" tick={{ fill:T.ink4, fontSize:9 }} axisLine={false} tickLine={false}/>
+              <YAxis tick={{ fill:T.ink4, fontSize:9 }} axisLine={false} tickLine={false}/>
+              <Tooltip contentStyle={{ background:T.bg3, border:`1px solid ${T.sep2}`,
+                borderRadius:8, fontSize:11, color:T.ink1 }}/>
+              <Area type="monotone" dataKey="res" stroke={T.green} fill="url(#gRes)"
+                strokeWidth={2} name="Resolução %"/>
+              <Area type="monotone" dataKey="esc" stroke={T.amber} fill="url(#gEsc)"
+                strokeWidth={2} name="Escalação %"/>
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Top intenções */}
+      <div style={{ padding:'14px', borderRadius:12, background:T.bg2, border:`1px solid ${T.sep}` }}>
+        <div style={{ fontSize:10, fontWeight:700, color:T.ink4, textTransform:'uppercase',
+          letterSpacing:'.06em', marginBottom:12 }}>Top Intenções Detectadas</div>
+        {d.top_intencoes.map((int,i) => (
+          <div key={int.label} style={{ display:'flex', alignItems:'center', gap:10,
+            marginBottom: i<d.top_intencoes.length-1 ? 10 : 0 }}>
+            <span style={{ fontSize:11, fontWeight:700, color:T.ink4, minWidth:14 }}>#{i+1}</span>
+            <span style={{ fontSize:12, color:T.ink2, flex:1 }}>{int.label}</span>
+            <div style={{ width:100, height:6, borderRadius:99, background:T.bg4, overflow:'hidden' }}>
+              <div style={{ height:'100%', width:`${int.pct}%`, borderRadius:99,
+                background:`linear-gradient(90deg,${T.purple},${T.cyan})`,
+                transition:'width .6s ease' }}/>
+            </div>
+            <span style={{ fontSize:11, fontWeight:700, color:T.purple, minWidth:30 }}>{int.pct}%</span>
+          </div>
+        ))}
+      </div>
+
+      {isSim && (
+        <div style={{ marginTop:14, padding:'10px 14px', borderRadius:9,
+          background:T.amberDim, border:`1px solid ${T.amberBor}` }}>
+          <p style={{ fontSize:11, color:T.amber, margin:0, lineHeight:1.6 }}>
+            ⚠️ Dados simulados. Endpoint: <code style={{ background:T.bg4, padding:'1px 5px',
+              borderRadius:4, fontSize:10 }}>GET /api/dashboard/bia-performance</code>
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 const SECOES=[
   { id:'monitor',   label:'Monitoramento',      icon:Activity,       cor:T.green,  desc:'Cockpit do sistema'     },
   { id:'integracoes',label:'Integrações',        icon:Globe,          cor:T.blue,   desc:'WhatsApp, Bling, Meta'  },
@@ -2171,6 +2911,8 @@ const SECOES=[
   { id:'export',    label:'Exportação',           icon:Download,       cor:T.ink3,   desc:'CSV / JSON'             },
   { id:'auditoria', label:'Auditoria',            icon:History,        cor:T.purple, desc:'Timeline de mudanças'   },
   { id:'variaveis',  label:'Variáveis Custom',    icon:Hash,           cor:T.purple, desc:'Substituições estáticas' },
+  { id:'jornada',    label:'Funil de Jornada',    icon:BarChart2,      cor:T.cyan,   desc:'Conversão por etapa'    },
+  { id:'bia',        label:'Bia Performance',     icon:Brain,          cor:T.purple, desc:'Métricas da IA'         },
   { id:'rapidas',    label:'Respostas Rápidas',   icon:Zap,            cor:T.amber,  desc:'Textos pré-definidos do chat' },
 ]
 
@@ -2188,7 +2930,7 @@ export default function PageCentralConfig({ api=API }) {
     switch(secao){
       case 'monitor':    return <SecaoMonitoramento api={api}/>
       case 'integracoes':return <SecaoIntegracoes api={api}/>
-      case 'gatilhos':   return <SecaoGatilhosHorarios api={api}/>
+      case 'gatilhos':   return <SecaoGatilhosNIVELMAX api={api}/>
       case 'rastreio':   return <SecaoRastreio api={api}/>
       case 'sla':        return <SecaoSLA api={api}/>
       case 'contatos':   return <SecaoContatos api={api}/>
@@ -2196,6 +2938,8 @@ export default function PageCentralConfig({ api=API }) {
       case 'auditoria':  return <SecaoAuditoria api={api}/>
       case 'variaveis':  return <SecaoVariaveis api={api}/>
       case 'rapidas':    return <SecaoRespostasRapidas api={api}/>
+      case 'jornada':    return <SecaoJornada api={api}/>
+      case 'bia':        return <SecaoBiaPerformance api={api}/>
       default: return null
     }
   }
@@ -2207,7 +2951,10 @@ export default function PageCentralConfig({ api=API }) {
         @keyframes spin-me      { to{transform:rotate(360deg)} }
         @keyframes cfg-ping   { 0%{transform:scale(1);opacity:.5} 75%,100%{transform:scale(2.2);opacity:0} }
         @keyframes cfg-fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes cfg-slideR { from{opacity:0;transform:translateX(10px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes cfg-slideR  { from{opacity:0;transform:translateX(10px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes cfg-slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes cfg-pulse   { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes cfg-live    { from{opacity:0;transform:translateY(-8px) scale(.97)} to{opacity:1;transform:translateY(0) scale(1)} }
       `}</style>
 
       {/* SIDE PANEL */}
