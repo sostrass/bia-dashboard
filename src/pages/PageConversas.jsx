@@ -2388,8 +2388,8 @@ function ModalPedido({ pedido, tel, api, onClose, pixKey }) {
               {copied==='link'?<Check size={10}/>:<Copy size={10}/>}
               {copied==='link'?'Copiado!':'Link do pedido'}
             </button>
-            {temRastreio && (
-              <button onClick={() => window.open(`https://rastreio.net/${pedido.rastreio}`,'_blank')}
+            {temRastreio && pedido.link_rastreio && (
+              <button onClick={() => window.open(pedido.link_rastreio,'_blank')}
                 style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 11px',
                   borderRadius:9, border:`1px solid ${T.purpleBor}`, background:T.purpleDim,
                   color:T.purple, cursor:'pointer', fontSize:11, fontWeight:700 }}>
