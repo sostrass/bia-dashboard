@@ -1735,6 +1735,194 @@ function HeatmapReceita({ api, onClose }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPONENTE PRINCIPAL
 // ─────────────────────────────────────────────────────────────────────────────
+const RAPIDAS_DEFAULT = [
+  'Olá! Como posso ajudar? 😊',
+  'Vou verificar isso agora para você.',
+  'Pode me informar o número do seu pedido?',
+  'O prazo de entrega é de 3 a 7 dias úteis.',
+  'Pagando via PIX você tem 10% de desconto automático! 💰',
+]
+
+function InputBar({ api, tel, onEnviar, onEnviarMidia, enviando, disabled, rapidas: rapidasProp }) {
+  const [txt,    setTxt]    = useState('')
+  const [rp,     setRp]     = useState(false)
+  const [sug,    setSug]    = useState([])     // sugestões da IA
+  const [loadSug,setLoadSug]= useState(false)
+  const [preview,setPreview]= useState(null)   // { url, tipo, file, nome }
+  const ref     = useRef()
+  const fileRef = useRef()
+
+  const enviar = () => {
+    if (preview) {
+      onEnviarMidia(preview.file, preview.tipo)
+      setPreview(null); return
+    }
+    if (!txt.trim()||enviando||disabled) return
+    onEnviar(txt.trim()); setTxt(''); ref.current?.focus()
+  }
+
+  const buscarSugestao = async () => {
+    if (!tel||loadSug) return
+    setLoadSug(true)
+    try {
+      const r = await fetch(`${api}/api/dashboard/sugestoes/${tel}`)
+      const d = await r.json()
+      setSug(d.sugestoes||[])
+    } catch {}
+    setLoadSug(false)
+  }
+
+  const onFileChange = (e) => {
+    const f = e.target.files?.[0]; if (!f) return
+    const url = URL.createObjectURL(f)
+    const t   = f.type.startsWith('image')?'image':f.type.startsWith('video')?'video':'audio'
+    setPreview({ url, tipo:t, file:f, nome:f.name })
+    e.target.value=''
+  }
+
+  return (
+    <div style={{ padding:'10px 14px',borderTop:`1px solid ${T.sep}`,
+      background:T.bg2,position:'relative' }}>
+
+      {/* Respostas rápidas */}
+      {rp && (
+        <div style={{ position:'absolute',bottom:'100%',left:14,right:14,marginBottom:6,
+          background:`linear-gradient(160deg,${T.bg2},${T.bg3})`,
+          border:`1px solid ${T.sep2}`,borderRadius:14,overflow:'hidden',
+          boxShadow:'0 -12px 32px rgba(0,0,0,.5)',animation:'cv-fadeUp .15s ease' }}>
+          <div style={{ padding:'6px 12px',borderBottom:`1px solid ${T.sep}`,
+            fontSize:9.5,fontWeight:700,color:T.ink4,textTransform:'uppercase',letterSpacing:'.08em' }}>
+            Respostas rápidas
+          </div>
+          {(rapidasProp||RAPIDAS_DEFAULT||[]).map((r,i)=>(
+            <button key={i} onClick={()=>{ setTxt(r); setRp(false); setSug([]); ref.current?.focus() }}
+              style={{ display:'block',width:'100%',padding:'9px 14px',textAlign:'left',border:'none',
+                cursor:'pointer',background:'transparent',color:T.ink2,fontSize:12,
+                borderBottom:i<RAPIDAS.length-1?`1px solid ${T.sep}`:'none',transition:'background .1s' }}
+              onMouseEnter={e=>e.currentTarget.style.background=T.gray}
+              onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              {r}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Sugestões da IA */}
+      {sug.length>0 && (
+        <div style={{ marginBottom:8,display:'flex',flexDirection:'column',gap:5 }}>
+          <div style={{ fontSize:9.5,fontWeight:700,color:T.purple,textTransform:'uppercase',
+            letterSpacing:'.07em',display:'flex',alignItems:'center',gap:5 }}>
+            <Bot size={9}/> Molise sugere:
+          </div>
+          {sug.map((s,i)=>(
+            <button key={i}
+              onClick={()=>{ setTxt(s); setSug([]); ref.current?.focus() }}
+              style={{ padding:'8px 12px',borderRadius:9,textAlign:'left',
+                background:T.purpleDim,border:`1px solid ${T.purpleBor}`,
+                color:T.ink2,cursor:'pointer',fontSize:12,lineHeight:1.55,
+                transition:'background .13s' }}
+              onMouseEnter={e=>e.currentTarget.style.background=`${T.purple}20`}
+              onMouseLeave={e=>e.currentTarget.style.background=T.purpleDim}>
+              {s}
+            </button>
+          ))}
+          <button onClick={()=>setSug([])}
+            style={{ alignSelf:'flex-end',fontSize:10,color:T.ink4,background:'none',
+              border:'none',cursor:'pointer' }}>
+            Ignorar
+          </button>
+        </div>
+      )}
+
+      {/* Preview de mídia */}
+      {preview && (
+        <div style={{ marginBottom:8,display:'flex',alignItems:'center',gap:10,
+          padding:'8px 10px',borderRadius:10,
+          background:T.bg3,border:`1px solid ${T.sep}` }}>
+          {preview.tipo==='image'&&<img src={preview.url} alt="" style={{ height:48,borderRadius:7,objectFit:'cover' }}/>}
+          {preview.tipo==='video'&&<video src={preview.url} style={{ height:48,borderRadius:7 }}/>}
+          {preview.tipo==='audio'&&<div style={{ display:'flex',alignItems:'center',gap:6,color:T.green }}>
+            <Mic size={18}/><span style={{ fontSize:11,color:T.ink3 }}>Áudio selecionado</span>
+          </div>}
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:11.5,color:T.ink1,fontWeight:600 }}>{preview.nome}</div>
+            <div style={{ fontSize:10,color:T.ink4 }}>
+              {preview.tipo==='image'?'Imagem':preview.tipo==='video'?'Vídeo':'Áudio'} — clique em enviar
+            </div>
+          </div>
+          <button onClick={()=>setPreview(null)}
+            style={{ background:'none',border:'none',cursor:'pointer',color:T.red,display:'flex' }}>
+            <X size={14}/>
+          </button>
+        </div>
+      )}
+
+      <div style={{ display:'flex',alignItems:'flex-end',gap:6 }}>
+        {/* Respostas rápidas */}
+        <button onClick={()=>{ setRp(v=>!v); setSug([]) }}
+          style={{ width:32,height:32,borderRadius:9,border:`1px solid ${rp?T.purpleBor:T.sep2}`,
+            background:rp?T.purpleDim:'transparent',cursor:'pointer',
+            display:'flex',alignItems:'center',justifyContent:'center',
+            color:rp?T.purple:T.ink4,flexShrink:0,transition:'all .14s' }}
+          title="Respostas rápidas">
+          <Zap size={12}/>
+        </button>
+
+        {/* Sugestão IA */}
+        <button onClick={buscarSugestao} disabled={disabled||loadSug}
+          style={{ width:32,height:32,borderRadius:9,border:`1px solid ${T.sep2}`,
+            background:'transparent',cursor:'pointer',
+            display:'flex',alignItems:'center',justifyContent:'center',
+            color:loadSug?T.purple:T.ink4,flexShrink:0,transition:'all .14s',
+            opacity:disabled?.4:1 }}
+          title="Sugerir resposta com Molise">
+          {loadSug
+            ? <RefreshCw size={12} style={{ animation:'cv-spin 1s linear infinite',color:T.purple }}/>
+            : <Lightbulb size={12}/>}
+        </button>
+
+        {/* Upload de mídia */}
+        <input ref={fileRef} type="file" accept="image/*,video/*,audio/*"
+          style={{ display:'none' }} onChange={onFileChange}/>
+        <button onClick={()=>fileRef.current?.click()}
+          style={{ width:32,height:32,borderRadius:9,border:`1px solid ${T.sep2}`,
+            background:'transparent',cursor:'pointer',
+            display:'flex',alignItems:'center',justifyContent:'center',
+            color:T.ink4,flexShrink:0,transition:'all .14s' }}
+          title="Enviar imagem, vídeo ou áudio">
+          <Paperclip size={12}/>
+        </button>
+
+        {/* Textarea */}
+        <textarea ref={ref} value={txt}
+          onChange={e=>setTxt(e.target.value)}
+          onKeyDown={e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviar()} }}
+          onInput={e=>{ e.target.style.height='auto'; e.target.style.height=Math.min(e.target.scrollHeight,120)+'px' }}
+          disabled={disabled&&!preview} rows={1}
+          placeholder={preview?'Pressione enviar para enviar o arquivo...':disabled?'Molise está respondendo...':'Mensagem... (Enter para enviar)'}
+          style={{ flex:1,padding:'9px 12px',borderRadius:10,resize:'none',background:T.bg1,
+            border:`1px solid ${T.sep2}`,color:T.ink1,fontSize:13.5,lineHeight:1.5,outline:'none',
+            fontFamily:'inherit',boxSizing:'border-box',maxHeight:120,overflowY:'auto',
+            opacity:disabled&&!preview?.5:1,transition:'border-color .15s' }}
+          onFocus={e=>e.target.style.borderColor=`${T.purple}50`}
+          onBlur={e=>e.target.style.borderColor=T.sep2}/>
+
+        <button onClick={enviar}
+          disabled={!txt.trim()&&!preview||enviando||disabled&&!preview}
+          style={{ width:38,height:38,borderRadius:10,border:'none',cursor:'pointer',
+            flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',
+            background:(txt.trim()||preview)&&!(disabled&&!preview)?`linear-gradient(135deg,${T.green},${T.green}cc)`:'rgba(255,255,255,.08)',
+            color:(txt.trim()||preview)&&!(disabled&&!preview)?'#000':T.ink4,
+            boxShadow:(txt.trim()||preview)&&!(disabled&&!preview)?`0 3px 14px ${T.green}35`:undefined,
+            transition:'all .16s' }}>
+          {enviando?<RefreshCw size={14} style={{ animation:'cv-spin 1s linear infinite' }}/>:<Send size={14}/>}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+
 export default function PageConversas({ api='' }) {
   const [conversas, setConversas] = useState([])
   const [sel,       setSel]       = useState(null)
@@ -2207,7 +2395,7 @@ export default function PageConversas({ api='' }) {
               <div ref={bottomRef}/>
             </div>
 
-            <InputBar api={api} tel={sel} onEnviar={enviar} onEnviarMidia={enviarMidia}
+            <InputBar api={api} tel={sel} onEnviar={enviar} onEnviarMidia={enviarMidia} rapidas={rapidas}
               enviando={enviando} disabled={isIA}/>
           </>
         )}
