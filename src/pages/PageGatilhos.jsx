@@ -2666,6 +2666,267 @@ function MetaAnalyticsCard({ stats }) {
   )
 }
 
+// ─── EDITOR DE BLOCOS ─────────────────────────────────────────────────────────
+function VarChips({ vars, onInsert }) {
+  if (!vars?.length) return null
+  return (
+    <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginTop:6 }}>
+      {vars.map(v => (
+        <button key={v} onClick={() => onInsert(v)}
+          style={{ fontSize:9, padding:'2px 7px', borderRadius:99, cursor:'pointer',
+            background:T.bg4, border:`1px solid ${T.sep2}`, color:T.cyan,
+            fontFamily:'monospace', fontWeight:600 }}>
+          {v}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate }) {
+  const [aberto, setAberto] = useState(true)
+  const tipo = TIPOS_BLOCO.find(t => t.tipo === b.tipo)
+  const Ic = tipo?.icon || FileText
+  const cor = tipo?.cor || T.ink3
+
+  // Inserir variável no campo de texto
+  const insertVar = (field, v) => onChange({ ...b, [field]: (b[field]||'') + v })
+
+  const inputStyle = {
+    width:'100%', padding:'7px 10px', borderRadius:8, fontSize:12,
+    background:T.bg1, border:`1px solid ${T.sep2}`, color:T.ink1,
+    outline:'none', boxSizing:'border-box'
+  }
+  const labelStyle = { fontSize:10, color:T.ink3, marginBottom:3, display:'block', fontWeight:600 }
+
+  return (
+    <div style={{ borderRadius:12, overflow:'hidden', border:`1px solid ${T.sep}`,
+      background:T.bg2, marginBottom:8 }}>
+
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px',
+        background:T.bg3, borderBottom: aberto ? `1px solid ${T.sep}` : 'none' }}>
+        <GripVertical size={13} style={{ color:T.ink4, cursor:'grab', flexShrink:0 }}/>
+        <div style={{ width:22, height:22, borderRadius:6, display:'flex',
+          alignItems:'center', justifyContent:'center', background:`${cor}18`,
+          border:`1px solid ${cor}30`, flexShrink:0 }}>
+          <Ic size={11} style={{ color:cor }}/>
+        </div>
+        <span style={{ flex:1, fontSize:11, fontWeight:600, color:T.ink2 }}>
+          {tipo?.label || b.tipo}
+          {b.tipo==='texto' && b.conteudo && (
+            <span style={{ fontWeight:400, color:T.ink4, marginLeft:6 }}>
+              — {b.conteudo.slice(0,35).replace(/\n/g,' ')}{b.conteudo.length>35?'…':''}
+            </span>
+          )}
+        </span>
+        <div style={{ display:'flex', alignItems:'center', gap:2 }}>
+          <button onClick={() => onMove(idx,-1)} disabled={idx===0}
+            style={{ padding:'3px 4px', borderRadius:5, border:'none', cursor:idx===0?'not-allowed':'pointer',
+              background:'transparent', color:T.ink3, opacity:idx===0?.3:1 }}>
+            <ChevronUp size={11}/>
+          </button>
+          <button onClick={() => onMove(idx,1)} disabled={idx===total-1}
+            style={{ padding:'3px 4px', borderRadius:5, border:'none', cursor:idx===total-1?'not-allowed':'pointer',
+              background:'transparent', color:T.ink3, opacity:idx===total-1?.3:1 }}>
+            <ChevronDown size={11}/>
+          </button>
+          {onDuplicate && (
+            <button onClick={onDuplicate} title="Duplicar"
+              style={{ padding:'3px 4px', borderRadius:5, border:'none', cursor:'pointer',
+                background:'transparent', color:T.ink3 }}>
+              <Copy size={11}/>
+            </button>
+          )}
+          <button onClick={() => setAberto(v=>!v)}
+            style={{ padding:'3px 4px', borderRadius:5, border:'none', cursor:'pointer',
+              background:'transparent', color:T.ink3 }}>
+            {aberto ? <ChevronUp size={11}/> : <ChevronDown size={11}/>}
+          </button>
+          <button onClick={onDelete}
+            style={{ padding:'3px 4px', borderRadius:5, border:'none', cursor:'pointer',
+              background:'transparent', color:T.red }}>
+            <X size={11}/>
+          </button>
+        </div>
+      </div>
+
+      {/* Conteúdo */}
+      {aberto && (
+        <div style={{ padding:'10px 12px' }}>
+
+          {/* CABEÇALHO */}
+          {b.tipo==='cabecalho' && (
+            <div>
+              <label style={labelStyle}>Texto do cabeçalho <span style={{color:T.ink4,fontWeight:400}}>({60-(b.conteudo||'').length} restantes)</span></label>
+              <input value={b.conteudo||''} maxLength={60}
+                onChange={e => onChange({...b, conteudo:e.target.value})}
+                placeholder="Ex: Seu pedido foi enviado!"
+                style={inputStyle}/>
+              <VarChips vars={vars} onInsert={v => insertVar('conteudo', v)}/>
+            </div>
+          )}
+
+          {/* TEXTO */}
+          {b.tipo==='texto' && (
+            <div>
+              <label style={labelStyle}>Texto da mensagem</label>
+              <textarea value={b.conteudo||''} rows={4}
+                onChange={e => onChange({...b, conteudo:e.target.value})}
+                placeholder="Digite o texto. Use *negrito*, _itálico_, ~tachado~"
+                style={{...inputStyle, resize:'vertical', fontFamily:'inherit', lineHeight:1.5}}/>
+              <VarChips vars={vars} onInsert={v => insertVar('conteudo', v)}/>
+            </div>
+          )}
+
+          {/* RODAPÉ */}
+          {b.tipo==='rodape' && (
+            <div>
+              <label style={labelStyle}>Rodapé <span style={{color:T.ink4,fontWeight:400}}>(aparece em itálico — comportamento padrão do WhatsApp)</span></label>
+              <input value={b.conteudo||''} maxLength={60}
+                onChange={e => onChange({...b, conteudo:e.target.value})}
+                placeholder="Ex: Só Strass • sostrass.com.br"
+                style={{...inputStyle, fontStyle:'italic'}}/>
+            </div>
+          )}
+
+          {/* IMAGEM */}
+          {b.tipo==='imagem' && (
+            <div>
+              <label style={labelStyle}>URL da imagem</label>
+              <input value={b.url||''} onChange={e => onChange({...b, url:e.target.value})}
+                placeholder="https://... ou {{foto_produto}}"
+                style={{...inputStyle, fontFamily:'monospace', fontSize:11}}/>
+              <label style={{...labelStyle, marginTop:8}}>Legenda (opcional)</label>
+              <input value={b.legenda||''} onChange={e => onChange({...b, legenda:e.target.value})}
+                placeholder="Legenda da imagem"
+                style={inputStyle}/>
+              <VarChips vars={vars.filter(v=>v.includes('foto')||v.includes('link'))} onInsert={v => insertVar('url', v)}/>
+            </div>
+          )}
+
+          {/* VÍDEO */}
+          {b.tipo==='video' && (
+            <div>
+              <label style={labelStyle}>URL do vídeo</label>
+              <input value={b.url||''} onChange={e => onChange({...b, url:e.target.value})}
+                placeholder="https://... (MP4 público)"
+                style={{...inputStyle, fontFamily:'monospace', fontSize:11}}/>
+            </div>
+          )}
+
+          {/* ÁUDIO */}
+          {b.tipo==='audio' && (
+            <div>
+              <label style={labelStyle}>URL do áudio</label>
+              <input value={b.url||''} onChange={e => onChange({...b, url:e.target.value})}
+                placeholder="https://... (OGG ou MP3 público)"
+                style={{...inputStyle, fontFamily:'monospace', fontSize:11}}/>
+            </div>
+          )}
+
+          {/* BOTÃO */}
+          {b.tipo==='botao' && (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <div>
+                <label style={labelStyle}>Tipo de botão</label>
+                <select value={b.acao||'reply'} onChange={e => onChange({...b, acao:e.target.value})}
+                  style={{...inputStyle}}>
+                  <option value="reply">Resposta rápida</option>
+                  <option value="url">Abrir URL</option>
+                  <option value="phone">Ligar</option>
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Texto do botão <span style={{color:T.ink4,fontWeight:400}}>(máx. 20 caracteres)</span></label>
+                <input value={b.texto||''} maxLength={20}
+                  onChange={e => onChange({...b, texto:e.target.value})}
+                  placeholder="Ex: Rastrear pedido"
+                  style={inputStyle}/>
+              </div>
+              {(b.acao==='url'||!b.acao||b.acao==='reply'&&false) && b.acao==='url' && (
+                <div>
+                  <label style={labelStyle}>URL</label>
+                  <input value={b.url||''} onChange={e => onChange({...b, url:e.target.value})}
+                    placeholder="https://... ou {{link_rastreio}}"
+                    style={{...inputStyle, fontFamily:'monospace', fontSize:11}}/>
+                  <VarChips vars={vars.filter(v=>v.includes('link'))} onInsert={v => insertVar('url', v)}/>
+                </div>
+              )}
+              {b.acao==='phone' && (
+                <div>
+                  <label style={labelStyle}>Telefone</label>
+                  <input value={b.valor||''} onChange={e => onChange({...b, valor:e.target.value})}
+                    placeholder="+5519XXXXXXXXX"
+                    style={inputStyle}/>
+                </div>
+              )}
+              {b.acao==='reply' && (
+                <div>
+                  <label style={labelStyle}>Payload (opcional)</label>
+                  <input value={b.valor||''} onChange={e => onChange({...b, valor:e.target.value})}
+                    placeholder="valor interno enviado ao clicar"
+                    style={{...inputStyle, fontFamily:'monospace', fontSize:11}}/>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* LINK */}
+          {b.tipo==='link' && (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <div>
+                <label style={labelStyle}>Texto do botão <span style={{color:T.ink4,fontWeight:400}}>(máx. 20 caracteres)</span></label>
+                <input value={b.texto||''} maxLength={20}
+                  onChange={e => onChange({...b, texto:e.target.value})}
+                  placeholder="Ex: Ver pedido"
+                  style={inputStyle}/>
+              </div>
+              <div>
+                <label style={labelStyle}>URL</label>
+                <input value={b.url||''} onChange={e => onChange({...b, url:e.target.value})}
+                  placeholder="https://... ou {{link_acompanhamento}}"
+                  style={{...inputStyle, fontFamily:'monospace', fontSize:11}}/>
+                <VarChips vars={vars.filter(v=>v.includes('link'))} onInsert={v => insertVar('url', v)}/>
+              </div>
+            </div>
+          )}
+
+          {/* LIGAR */}
+          {b.tipo==='ligar' && (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <div>
+                <label style={labelStyle}>Texto do botão <span style={{color:T.ink4,fontWeight:400}}>(máx. 20 caracteres)</span></label>
+                <input value={b.texto||''} maxLength={20}
+                  onChange={e => onChange({...b, texto:e.target.value})}
+                  placeholder="Ex: Falar com suporte"
+                  style={inputStyle}/>
+              </div>
+              <div>
+                <label style={labelStyle}>Telefone</label>
+                <input value={b.valor||''} onChange={e => onChange({...b, valor:e.target.value})}
+                  placeholder="+5519XXXXXXXXX"
+                  style={inputStyle}/>
+              </div>
+            </div>
+          )}
+
+          {/* QUEBRA / NOVA MENSAGEM */}
+          {b.tipo==='quebra' && (
+            <div style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 0',
+              color:T.ink4, fontSize:11 }}>
+              <div style={{ flex:1, height:1, background:T.sep }}/>
+              <span>Nova mensagem separada</span>
+              <div style={{ flex:1, height:1, background:T.sep }}/>
+            </div>
+          )}
+
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function PageGatilhos({ api }) {
   // ── Estado ─────────────────────────────────────────────────────────────────
   const [selId,       setSelId]     = useState(null)
