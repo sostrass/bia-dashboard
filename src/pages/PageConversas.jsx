@@ -2482,14 +2482,16 @@ function ModalPedido({ pedido, tel, api, onClose, pixKey }) {
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:5 }}>
               {[
                 ['Forma de pag.',    pedido.forma_pagamento],
+                ['Produtos',         pedido.total_produtos],
                 ['Frete',            pedido.frete],
+                ['Desconto',         pedido.desconto],
                 ['Status pag.',      pedido.status_pagamento],
                 ['Total',            pedido.total],
               ].filter(([,v]) => v && v!=='—').map(([l,v]) => (
                 <div key={l} style={{ padding:'7px 9px', borderRadius:8, background:T.bg4 }}>
                   <div style={{ fontSize:9, color:T.ink4, marginBottom:2 }}>{l}</div>
                   <div style={{ fontSize:12, fontWeight:700,
-                    color:l==='Total'?T.green:l==='Status pag.'?(v==='Pago'?T.green:T.amber):T.ink1 }}>
+                    color:l==='Total'?T.green:l==='Status pag.'?(v==='Pago'?T.green:T.amber):l==='Desconto'?T.red:T.ink1 }}>
                     {v}
                   </div>
                 </div>
