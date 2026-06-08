@@ -4311,7 +4311,8 @@ export default function PageGatilhos({ api }) {
                           vars={_varsEf}
                           onChange={nb=>updBloco(i,nb)} onDelete={()=>delBloco(i)}
                           onMove={moveBloco} onDuplicate={()=>dupBloco(i)}/>
-                      }})}
+                      })}
+
                     </div>
 
                     {/* Paleta de blocos */}
