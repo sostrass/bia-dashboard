@@ -2871,7 +2871,7 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
                 value={b.conteudo||''} maxLength={60}
                 onChange={e => onChange({...b, conteudo:e.target.value})}
                 placeholder="Ex: Só Strass • sostrass.com.br"
-                style={{...inputStyle, fontStyle:'italic'}}/>
+                style={inputStyle}/>
               <div style={toolbarStyle}>
                 <EmojiPicker onInsert={v => insertInto('conteudo', v)}/>
               </div>
@@ -3026,123 +3026,164 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
 
 // ─── PLANO DE DISPAROS ────────────────────────────────────────────────────────
 function PlanodeDisparos({ gatilhos, configs, atividade, onSelect, api }) {
-  const grupos = GRUPOS_ORDEM.map(g => ({
-    nome: g,
-    itens: gatilhos.filter(x => x.grupo === g)
-  })).filter(g => g.itens.length > 0)
+  const ORDEM_PADRAO = [
+    'pedido_criado','pagamento_pendente','pix_pendente','pagamento_aprovado',
+    'em_separacao','produto_embalado','nfe_pendente','nfe_emitida',
+    'pedido_enviado','pedido_coletado','rastreio_em_transito','saiu_entrega',
+    'pedido_entregue','tentativa_entrega','nao_entrou_unidade',
+    'cancelamento','estorno_realizado','avaliar_pedido','boas_vindas',
+  ]
 
-  const totalAtivos   = gatilhos.filter(g => configs[g.id]?.ativo).length
-  const totalDisp7d   = Object.values(atividade||{}).reduce((s,v)=>s+(v||0), 0)
+  const [delays,  setDelays]  = useState({})
+  const [ordem,   setOrdem]   = useState([])
+  const [salvando,setSalv]    = useState(null)
+
+  useEffect(() => {
+    fetch(`${api}/api/ia/config`)
+      .then(r => r.json())
+      .then(d => {
+        const dl = {}
+        for (const g of gatilhos) {
+          const v = d[`delay_${g.id}`]
+          if (v !== undefined) dl[g.id] = Number(v)
+        }
+        setDelays(dl)
+      }).catch(() => {})
+  }, [api, gatilhos])
+
+  useEffect(() => {
+    const ids = gatilhos.map(g => g.id)
+    const sorted = [
+      ...ORDEM_PADRAO.filter(id => ids.includes(id)),
+      ...ids.filter(id => !ORDEM_PADRAO.includes(id)),
+    ]
+    setOrdem(sorted)
+  }, [gatilhos])
+
+  const salvarDelay = async (gId, min) => {
+    setSalv(gId)
+    setDelays(p => ({...p, [gId]: min}))
+    await fetch(`${api}/api/ia/config`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ chave:`delay_${gId}`, valor:String(min) })
+    }).catch(() => {})
+    setSalv(null)
+  }
+
+  const mover = (idx, dir) => {
+    const t = idx + dir
+    if (t < 0 || t >= ordem.length) return
+    const a = [...ordem]; [a[idx], a[t]] = [a[t], a[idx]]; setOrdem(a)
+  }
+
+  const gatilhoMap = Object.fromEntries(gatilhos.map(g => [g.id, g]))
 
   return (
-    <div style={{ flex:1, overflowY:'auto', padding:'16px 20px' }}>
+    <div style={{ flex:1, overflowY:'auto', padding:'0 20px 20px' }}>
 
-      {/* Resumo topo */}
-      <div style={{ display:'flex', gap:10, marginBottom:20 }}>
-        {[
-          { l:'Gatilhos ativos',     v:totalAtivos,              cor:T.green  },
-          { l:'Total de gatilhos',   v:gatilhos.length,          cor:T.ink2   },
-          { l:'Disparos (7 dias)',   v:totalDisp7d,              cor:T.blue   },
-        ].map(({ l, v, cor }) => (
-          <div key={l} style={{ flex:1, borderRadius:10, padding:'10px 14px',
-            background:T.bg2, border:`1px solid ${T.sep}` }}>
-            <div style={{ fontSize:20, fontWeight:700, color:cor }}>{v}</div>
-            <div style={{ fontSize:10, color:T.ink4, marginTop:2 }}>{l}</div>
-          </div>
-        ))}
+      <div style={{ display:'flex', alignItems:'center', gap:16, padding:'12px 0 14px',
+        borderBottom:`1px solid ${T.sep}`, marginBottom:14 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:T.ink4 }}>
+          <div style={{ width:8, height:8, borderRadius:'50%', background:T.green }}/> Ativo com template
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:T.ink4 }}>
+          <div style={{ width:8, height:8, borderRadius:'50%', background:T.sep2 }}/> Inativo / sem template
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:T.ink4 }}>
+          <Timer size={11} style={{ color:T.amber }}/> Delay antes do disparo
+        </div>
+        <span style={{ marginLeft:'auto', fontSize:10, color:T.ink4 }}>
+          Use ↕ para reordenar a sequência
+        </span>
       </div>
 
-      {/* Grupos */}
-      {grupos.map(grupo => (
-        <div key={grupo.nome} style={{ marginBottom:20 }}>
-          <div style={{ fontSize:10, fontWeight:700, color:T.ink4, letterSpacing:'.06em',
-            textTransform:'uppercase', marginBottom:8, paddingLeft:4 }}>
-            {grupo.nome}
-          </div>
-          <div style={{ borderRadius:12, overflow:'hidden', border:`1px solid ${T.sep}`,
-            background:T.bg2 }}>
-            {grupo.itens.map((g, i) => {
-              const cfg    = configs[g.id]
-              const ativo  = cfg?.ativo ?? false
-              const disp7d = atividade?.[g.id] || 0
-              const delay  = cfg?.delay ?? 0
-              const Ic     = g.icon || Zap
-              const temMeta = cfg?.meta_template_status === 'APPROVED'
-              const statusMeta = cfg?.meta_template_status
+      <div style={{ position:'relative' }}>
+        <div style={{ position:'absolute', left:15, top:12, bottom:12, width:2,
+          background:`linear-gradient(to bottom, ${T.purple}50, ${T.blue}20)`,
+          borderRadius:1, pointerEvents:'none' }}/>
 
-              return (
-                <div key={g.id} onClick={() => onSelect(g.id)}
-                  style={{ display:'flex', alignItems:'center', gap:12,
-                    padding:'11px 14px', cursor:'pointer',
-                    borderTop: i > 0 ? `1px solid ${T.sep}` : 'none',
-                    transition:'background .12s' }}
-                  onMouseEnter={e => e.currentTarget.style.background = T.bg3}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+        {ordem.map((gId, idx) => {
+          const g    = gatilhoMap[gId]
+          if (!g) return null
+          const cfg   = configs[gId]
+          const ativo  = cfg?.ativo ?? false
+          const delay  = delays[gId] ?? 0
+          const disp   = atividade?.[gId] || 0
+          const Ic     = g.icon || Zap
+          const isSav  = salvando === gId
 
-                  {/* Ícone */}
-                  <div style={{ width:32, height:32, borderRadius:9, flexShrink:0,
-                    background:`${g.cor}18`, border:`1px solid ${g.cor}30`,
-                    display:'flex', alignItems:'center', justifyContent:'center' }}>
-                    <Ic size={14} style={{ color:g.cor }}/>
-                  </div>
+          return (
+            <div key={gId} style={{ display:'flex', alignItems:'flex-start', gap:12,
+              marginBottom:8, position:'relative' }}>
+              <div style={{ width:32, height:32, borderRadius:'50%', flexShrink:0,
+                background: ativo ? `${g.cor}20` : T.bg3,
+                border:`2px solid ${ativo ? g.cor : T.sep2}`,
+                display:'flex', alignItems:'center', justifyContent:'center',
+                zIndex:1, marginTop:4 }}>
+                <Ic size={13} style={{ color: ativo ? g.cor : T.ink4 }}/>
+              </div>
 
-                  {/* Nome + desc */}
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:12, fontWeight:600, color:T.ink1 }}>{g.label}</div>
-                    <div style={{ fontSize:10, color:T.ink4, marginTop:1,
-                      whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                      {g.desc}
-                    </div>
-                  </div>
-
-                  {/* Delay */}
-                  {delay > 0 && (
-                    <div style={{ display:'flex', alignItems:'center', gap:4,
-                      padding:'3px 8px', borderRadius:99, background:T.bg4,
-                      border:`1px solid ${T.sep2}` }}>
-                      <Timer size={9} style={{ color:T.amber }}/>
-                      <span style={{ fontSize:10, color:T.amber }}>
-                        {delay >= 60 ? `${delay/60}h` : `${delay}min`}
-                      </span>
-                    </div>
+              <div style={{ flex:1, borderRadius:10, background:T.bg2,
+                border:`1px solid ${T.sep}`, overflow:'hidden' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8,
+                  padding:'8px 10px', borderBottom:`1px solid ${T.sep}`,
+                  background:T.bg3 }}>
+                  <span style={{ flex:1, fontSize:11.5, fontWeight:600,
+                    color: ativo ? T.ink1 : T.ink4 }}>
+                    {g.label}
+                  </span>
+                  {disp > 0 && (
+                    <span style={{ fontSize:9, color:T.blue, padding:'1px 6px',
+                      borderRadius:99, background:T.blueDim, border:`1px solid ${T.blueBor}` }}>
+                      {disp} ult. 7d
+                    </span>
                   )}
-
-                  {/* Disparos 7d */}
-                  <div style={{ textAlign:'right', minWidth:48 }}>
-                    <div style={{ fontSize:13, fontWeight:700,
-                      color: disp7d > 0 ? T.blue : T.ink4 }}>{disp7d}</div>
-                    <div style={{ fontSize:9, color:T.ink4 }}>7 dias</div>
-                  </div>
-
-                  {/* Status Meta */}
-                  {cfg && (
-                    <div style={{ padding:'3px 8px', borderRadius:99, fontSize:9,
-                      fontWeight:700, letterSpacing:'.04em',
-                      background: temMeta ? T.greenDim : statusMeta === 'REJECTED' ? T.redDim : T.bg4,
-                      border: `1px solid ${temMeta ? T.greenBor : statusMeta === 'REJECTED' ? T.redBor : T.sep2}`,
-                      color: temMeta ? T.green : statusMeta === 'REJECTED' ? T.red : T.ink4 }}>
-                      {temMeta ? 'META ✓' : statusMeta === 'REJECTED' ? 'REJEITADO' : statusMeta === 'PENDING' ? 'PENDENTE' : 'SEM TEMPLATE'}
-                    </div>
-                  )}
-
-                  {/* Toggle ativo */}
-                  <div style={{ width:28, height:16, borderRadius:99, flexShrink:0,
-                    background: ativo ? T.green : T.bg4,
-                    border:`1px solid ${ativo ? T.greenBor : T.sep2}`,
-                    display:'flex', alignItems:'center',
-                    padding:'0 2px', transition:'background .2s',
-                    justifyContent: ativo ? 'flex-end' : 'flex-start' }}>
-                    <div style={{ width:12, height:12, borderRadius:99,
-                      background: ativo ? '#fff' : T.ink4 }}/>
-                  </div>
-
-                  <ChevronRight size={12} style={{ color:T.ink4, flexShrink:0 }}/>
+                  <span style={{ fontSize:9, color:T.ink4, fontFamily:'monospace' }}>
+                    {g.situacao}
+                  </span>
+                  <button onClick={() => mover(idx, -1)} disabled={idx===0}
+                    style={{ padding:'2px 4px', borderRadius:4, border:'none',
+                      background:'transparent', color:T.ink3, cursor:'pointer',
+                      opacity: idx===0 ? .3 : 1 }}>
+                    <ChevronUp size={11}/>
+                  </button>
+                  <button onClick={() => mover(idx, 1)} disabled={idx===ordem.length-1}
+                    style={{ padding:'2px 4px', borderRadius:4, border:'none',
+                      background:'transparent', color:T.ink3, cursor:'pointer',
+                      opacity: idx===ordem.length-1 ? .3 : 1 }}>
+                    <ChevronDown size={11}/>
+                  </button>
+                  <button onClick={() => onSelect(gId)}
+                    style={{ padding:'3px 8px', borderRadius:6, border:`1px solid ${T.sep}`,
+                      background:'transparent', color:T.ink3, cursor:'pointer', fontSize:10 }}>
+                    Editar →
+                  </button>
                 </div>
-              )
-            })}
-          </div>
-        </div>
-      ))}
+
+                <div style={{ padding:'8px 10px', display:'flex', alignItems:'center', gap:6,
+                  flexWrap:'wrap' }}>
+                  <Timer size={11} style={{ color:T.amber, flexShrink:0 }}/>
+                  <span style={{ fontSize:10, color:T.ink4, flexShrink:0 }}>Delay:</span>
+                  {DELAY_OPCOES.map(op => {
+                    const sel = delay === op.valor
+                    return (
+                      <button key={op.valor} onClick={() => salvarDelay(gId, op.valor)}
+                        disabled={isSav}
+                        style={{ padding:'3px 8px', borderRadius:6, fontSize:10,
+                          cursor:'pointer', fontWeight: sel ? 700 : 400,
+                          border:`1px solid ${sel ? g.cor+'80' : T.sep}`,
+                          background: sel ? `${g.cor}15` : 'transparent',
+                          color: sel ? g.cor : T.ink4, transition:'all .12s' }}>
+                        {isSav && sel ? '...' : op.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
