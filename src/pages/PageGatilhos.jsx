@@ -2927,6 +2927,129 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
   )
 }
 
+// ─── PLANO DE DISPAROS ────────────────────────────────────────────────────────
+function PlanodeDisparos({ gatilhos, configs, atividade, onSelect, api }) {
+  const grupos = GRUPOS_ORDEM.map(g => ({
+    nome: g,
+    itens: gatilhos.filter(x => x.grupo === g)
+  })).filter(g => g.itens.length > 0)
+
+  const totalAtivos   = gatilhos.filter(g => configs[g.id]?.ativo).length
+  const totalDisp7d   = Object.values(atividade||{}).reduce((s,v)=>s+(v||0), 0)
+
+  return (
+    <div style={{ flex:1, overflowY:'auto', padding:'16px 20px' }}>
+
+      {/* Resumo topo */}
+      <div style={{ display:'flex', gap:10, marginBottom:20 }}>
+        {[
+          { l:'Gatilhos ativos',     v:totalAtivos,              cor:T.green  },
+          { l:'Total de gatilhos',   v:gatilhos.length,          cor:T.ink2   },
+          { l:'Disparos (7 dias)',   v:totalDisp7d,              cor:T.blue   },
+        ].map(({ l, v, cor }) => (
+          <div key={l} style={{ flex:1, borderRadius:10, padding:'10px 14px',
+            background:T.bg2, border:`1px solid ${T.sep}` }}>
+            <div style={{ fontSize:20, fontWeight:700, color:cor }}>{v}</div>
+            <div style={{ fontSize:10, color:T.ink4, marginTop:2 }}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Grupos */}
+      {grupos.map(grupo => (
+        <div key={grupo.nome} style={{ marginBottom:20 }}>
+          <div style={{ fontSize:10, fontWeight:700, color:T.ink4, letterSpacing:'.06em',
+            textTransform:'uppercase', marginBottom:8, paddingLeft:4 }}>
+            {grupo.nome}
+          </div>
+          <div style={{ borderRadius:12, overflow:'hidden', border:`1px solid ${T.sep}`,
+            background:T.bg2 }}>
+            {grupo.itens.map((g, i) => {
+              const cfg    = configs[g.id]
+              const ativo  = cfg?.ativo ?? false
+              const disp7d = atividade?.[g.id] || 0
+              const delay  = cfg?.delay ?? 0
+              const Ic     = g.icon || Zap
+              const temMeta = cfg?.meta_template_status === 'APPROVED'
+              const statusMeta = cfg?.meta_template_status
+
+              return (
+                <div key={g.id} onClick={() => onSelect(g.id)}
+                  style={{ display:'flex', alignItems:'center', gap:12,
+                    padding:'11px 14px', cursor:'pointer',
+                    borderTop: i > 0 ? `1px solid ${T.sep}` : 'none',
+                    transition:'background .12s' }}
+                  onMouseEnter={e => e.currentTarget.style.background = T.bg3}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+
+                  {/* Ícone */}
+                  <div style={{ width:32, height:32, borderRadius:9, flexShrink:0,
+                    background:`${g.cor}18`, border:`1px solid ${g.cor}30`,
+                    display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <Ic size={14} style={{ color:g.cor }}/>
+                  </div>
+
+                  {/* Nome + desc */}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:12, fontWeight:600, color:T.ink1 }}>{g.label}</div>
+                    <div style={{ fontSize:10, color:T.ink4, marginTop:1,
+                      whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                      {g.desc}
+                    </div>
+                  </div>
+
+                  {/* Delay */}
+                  {delay > 0 && (
+                    <div style={{ display:'flex', alignItems:'center', gap:4,
+                      padding:'3px 8px', borderRadius:99, background:T.bg4,
+                      border:`1px solid ${T.sep2}` }}>
+                      <Timer size={9} style={{ color:T.amber }}/>
+                      <span style={{ fontSize:10, color:T.amber }}>
+                        {delay >= 60 ? `${delay/60}h` : `${delay}min`}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Disparos 7d */}
+                  <div style={{ textAlign:'right', minWidth:48 }}>
+                    <div style={{ fontSize:13, fontWeight:700,
+                      color: disp7d > 0 ? T.blue : T.ink4 }}>{disp7d}</div>
+                    <div style={{ fontSize:9, color:T.ink4 }}>7 dias</div>
+                  </div>
+
+                  {/* Status Meta */}
+                  {cfg && (
+                    <div style={{ padding:'3px 8px', borderRadius:99, fontSize:9,
+                      fontWeight:700, letterSpacing:'.04em',
+                      background: temMeta ? T.greenDim : statusMeta === 'REJECTED' ? T.redDim : T.bg4,
+                      border: `1px solid ${temMeta ? T.greenBor : statusMeta === 'REJECTED' ? T.redBor : T.sep2}`,
+                      color: temMeta ? T.green : statusMeta === 'REJECTED' ? T.red : T.ink4 }}>
+                      {temMeta ? 'META ✓' : statusMeta === 'REJECTED' ? 'REJEITADO' : statusMeta === 'PENDING' ? 'PENDENTE' : 'SEM TEMPLATE'}
+                    </div>
+                  )}
+
+                  {/* Toggle ativo */}
+                  <div style={{ width:28, height:16, borderRadius:99, flexShrink:0,
+                    background: ativo ? T.green : T.bg4,
+                    border:`1px solid ${ativo ? T.greenBor : T.sep2}`,
+                    display:'flex', alignItems:'center',
+                    padding:'0 2px', transition:'background .2s',
+                    justifyContent: ativo ? 'flex-end' : 'flex-start' }}>
+                    <div style={{ width:12, height:12, borderRadius:99,
+                      background: ativo ? '#fff' : T.ink4 }}/>
+                  </div>
+
+                  <ChevronRight size={12} style={{ color:T.ink4, flexShrink:0 }}/>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function PageGatilhos({ api }) {
   // ── Estado ─────────────────────────────────────────────────────────────────
   const [selId,       setSelId]     = useState(null)
