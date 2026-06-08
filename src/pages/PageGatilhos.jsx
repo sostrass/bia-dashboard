@@ -3430,11 +3430,14 @@ function GerenciarVars({ gatilhoId, varsList, onSave, api }) {
 }
 
 function PlanodeDisparos({ gatilhos, configs, atividade, onSelect, api }) {
-  const [delays,  setDelays]  = useState({})
-  const [ordemGrupo, setOrdemGrupo] = useState({}) // { [grupo]: [ids em ordem] }
-  const [salvando, setSalv]   = useState(null)
+  const [delays,    setDelays]  = useState({})
+  const [ordemGrupo,setOrdemGrupo] = useState({})
+  const [salvando,  setSalv]    = useState(null)
+  const [hoveredId, setHovered] = useState(null)
+  const [colapsados,setColaps]  = useState(new Set())
+  const [delayOpen, setDelayOpen] = useState(null)
 
-  // Carrega delays ao montar
+  // ── Carregar delays ────────────────────────────────────────────────────────
   useEffect(() => {
     fetch(`${api}/api/ia/config`)
       .then(r => r.json())
@@ -3448,207 +3451,536 @@ function PlanodeDisparos({ gatilhos, configs, atividade, onSelect, api }) {
       }).catch(() => {})
   }, [api, gatilhos])
 
-  // Inicializa ordem por grupo
+  // ── Ordem inicial por grupo ────────────────────────────────────────────────
   useEffect(() => {
     const og = {}
-    for (const grupo of GRUPOS_ORDEM) {
+    for (const grupo of GRUPOS_ORDEM)
       og[grupo] = gatilhos.filter(g => g.grupo === grupo).map(g => g.id)
-    }
     setOrdemGrupo(og)
   }, [gatilhos])
 
-  const salvarDelay = async (gId, min) => {
-    setSalv(gId)
-    setDelays(p => ({...p, [gId]: min}))
-    await fetch(`${api}/api/ia/config`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ chave:`delay_${gId}`, valor:String(min) })
-    }).catch(() => {})
-    setSalv(null)
-  }
+  // ── Jornada principal (ordem cronológica para score e preview) ─────────────
+  const JORNADA_CORE = [
+    'pedido_criado','pagamento_aprovado','em_separacao','produto_embalado',
+    'pedido_enviado','pedido_coletado','rastreio_em_transito','saiu_entrega','pedido_entregue'
+  ]
+  const JORNADA_PREVIEW = [
+    'pedido_criado','pagamento_aprovado','em_separacao','produto_embalado',
+    'pedido_enviado','pedido_coletado','rastreio_em_transito','saiu_entrega','pedido_entregue',
+    'tentativa_entrega','cancelamento','avaliar_pedido'
+  ]
 
-  const moverNoGrupo = (grupo, idx, dir) => {
-    setOrdemGrupo(prev => {
-      const lista = [...(prev[grupo] || [])]
-      const t = idx + dir
-      if (t < 0 || t >= lista.length) return prev;
-      [lista[idx], lista[t]] = [lista[t], lista[idx]]
-      return { ...prev, [grupo]: lista }
-    })
-  }
+  // ── Journey Score ──────────────────────────────────────────────────────────
+  const score = useMemo(() => {
+    const total    = JORNADA_CORE.length
+    const ativos   = JORNADA_CORE.filter(id => configs[id]?.ativo).length
+    const aprovados= JORNADA_CORE.filter(id => configs[id]?.meta_template_status==='APPROVED').length
+    const semTpl   = JORNADA_CORE.filter(id => !configs[id]).length
+    return { total, ativos, aprovados, semTpl, pct: Math.round(ativos/total*100) }
+  }, [configs])
+
+  // ── Gap Intelligence ───────────────────────────────────────────────────────
+  const gaps = useMemo(() => {
+    const result = []
+    for (let i = 0; i < JORNADA_CORE.length - 1; i++) {
+      const curr = JORNADA_CORE[i], next = JORNADA_CORE[i+1]
+      if (configs[curr]?.ativo && !configs[next]?.ativo)
+        result.push({ after: curr, missing: next })
+    }
+    return result
+  }, [configs])
 
   const gatilhoMap = Object.fromEntries(gatilhos.map(g => [g.id, g]))
 
-  const GRUPO_META = {
-    'Compra & Pagamento': { icon: ShoppingBag, cor: T.cyan,   desc: 'Disparos acionados por eventos de compra e pagamento' },
-    'Preparação & Nota':  { icon: Package,     cor: T.amber,  desc: 'Separação, embalagem e emissão de nota fiscal' },
-    'Envio & Rastreio':   { icon: Truck,       cor: T.purple, desc: 'Jornada física do pacote até o cliente' },
-    'Pós-venda':          { icon: Star,        cor: T.green,  desc: 'Cancelamentos, devoluções, avaliações e reengajamento' },
-    'Inteligência':       { icon: Brain,       cor: T.blue,   desc: 'Gatilhos automáticos gerenciados pela Bia IA' },
+  // ── Extrair preview real do template (com dados de exemplo) ───────────────
+  const SAMPLE = {
+    '{{nome_cliente}}':'Maria Silva','{{primeiro_nome}}':'Maria',
+    '{{numero_pedido}}':'#4521','{{valor_total}}':'R$ 89,90',
+    '{{transportadora}}':'Correios','{{codigo_rastreio}}':'AA123456789BR',
+    '{{previsao_entrega}}':'3 dias úteis','{{nome_loja}}':'Só Strass',
+    '{{forma_pagamento}}':'PIX','{{link_acompanhamento}}':'rastreio.link',
+    '{{data_pedido}}':'08/06/2026','{{numero_nfe}}':'004521',
+  }
+  const rv = txt => {
+    if (!txt) return txt
+    return Object.entries(SAMPLE).reduce(
+      (s,[k,v]) => s.replace(new RegExp(k.replace(/[{}]/g,'\\$&'),'g'), v), txt
+    )
+  }
+  const getPreview = (gId) => {
+    const cfg = configs[gId]
+    if (!cfg?.blocos?.length) return null
+    const cab = cfg.blocos.find(b=>b.tipo==='cabecalho')?.conteudo
+    const txt = cfg.blocos.find(b=>b.tipo==='texto')?.conteudo
+    const rod = cfg.blocos.find(b=>b.tipo==='rodape')?.conteudo
+    const bts = cfg.blocos.filter(b=>b.tipo==='botao'&&b.texto).slice(0,3)
+    const hasImg = cfg.blocos.some(b=>b.tipo==='imagem')
+    return { cab, txt, rod, bts, hasImg }
   }
 
+  // Mensagens da jornada com template e ativas para o preview
+  const previewMsgs = useMemo(() =>
+    JORNADA_PREVIEW
+      .filter(id => configs[id]?.ativo && getPreview(id))
+      .map(id => ({ id, g: gatilhoMap[id], delay: delays[id]||0, preview: getPreview(id) }))
+      .filter(x => x.g)
+  , [configs, delays, gatilhoMap])
+
+  // ── Ações ──────────────────────────────────────────────────────────────────
+  const salvarDelay = async (gId, min) => {
+    setSalv(gId); setDelays(p=>({...p,[gId]:min})); setDelayOpen(null)
+    await fetch(`${api}/api/ia/config`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chave:`delay_${gId}`,valor:String(min)})}).catch(()=>{})
+    setSalv(null)
+  }
+  const moverNoGrupo = (grupo, idx, dir) => {
+    setOrdemGrupo(prev=>{
+      const lista=[...(prev[grupo]||[])]; const t=idx+dir
+      if(t<0||t>=lista.length) return prev
+      ;[lista[idx],lista[t]]=[lista[t],lista[idx]]
+      return{...prev,[grupo]:lista}
+    })
+  }
+  const toggleColaps = grupo =>
+    setColaps(prev=>{ const s=new Set(prev); s.has(grupo)?s.delete(grupo):s.add(grupo); return s })
+
+  const GRUPO_META = {
+    'Compra & Pagamento': {icon:ShoppingBag, cor:T.cyan,   desc:'Eventos de compra e pagamento'},
+    'Preparação & Nota':  {icon:Package,     cor:T.amber,  desc:'Separação, embalagem e nota fiscal'},
+    'Envio & Rastreio':   {icon:Truck,       cor:T.purple, desc:'Jornada física do pacote'},
+    'Pós-venda':          {icon:Star,        cor:T.green,  desc:'Cancelamentos, devoluções e avaliações'},
+    'Inteligência':       {icon:Brain,       cor:T.blue,   desc:'Gatilhos automáticos da Bia IA'},
+  }
+
+  const delayLabel = min => {
+    if (!min) return 'Imediato'
+    if (min < 60) return `${min}min`
+    if (min % 60 === 0) return `${min/60}h`
+    return `${Math.floor(min/60)}h${min%60}m`
+  }
+
+  // Fechar delay popover ao clicar fora
+  useEffect(() => {
+    if (!delayOpen) return
+    const fn = e => {
+      if (!e.target.closest('[data-delay-pop]')) setDelayOpen(null)
+    }
+    document.addEventListener('mousedown', fn)
+    return () => document.removeEventListener('mousedown', fn)
+  }, [delayOpen])
+
   return (
-    <div style={{ flex:1, overflowY:'auto', padding:'0 20px 28px' }}>
+    <div style={{display:'flex',flex:1,overflow:'hidden',minHeight:0}}>
 
-      {/* Legenda */}
-      <div style={{ display:'flex', alignItems:'center', gap:16, padding:'12px 0 14px',
-        borderBottom:`1px solid ${T.sep}`, marginBottom:20 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:T.ink4 }}>
-          <div style={{ width:8, height:8, borderRadius:'50%', background:T.green }}/> Ativo
-        </div>
-        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:T.ink4 }}>
-          <div style={{ width:8, height:8, borderRadius:'50%', background:T.sep2 }}/> Inativo
-        </div>
-        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:T.ink4 }}>
-          <Timer size={11} style={{ color:T.amber }}/> Delay antes do disparo
-        </div>
-        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:T.ink4 }}>
-          <span>↕</span> Reordenar dentro do cenário
-        </div>
-      </div>
+      {/* ══════════════════════════════════════════════════════════════
+          PAINEL ESQUERDO — Journey Builder
+      ══════════════════════════════════════════════════════════════ */}
+      <div style={{width:'54%',display:'flex',flexDirection:'column',
+        borderRight:`1px solid ${T.sep}`,overflow:'hidden'}}>
 
-      {/* Um bloco por cenário/grupo */}
-      {GRUPOS_ORDEM.map(grupo => {
-        const meta  = GRUPO_META[grupo] || { icon: Zap, cor: T.ink3, desc: '' }
-        const GIc   = meta.icon
-        const ids   = ordemGrupo[grupo] || []
-        if (!ids.length) return null
-
-        const ativos = ids.filter(id => configs[id]?.ativo).length
-
-        return (
-          <div key={grupo} style={{ marginBottom:24 }}>
-
-            {/* Cabeçalho do cenário */}
-            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
-              <div style={{ width:28, height:28, borderRadius:8, flexShrink:0,
-                background:`${meta.cor}18`, border:`1px solid ${meta.cor}30`,
-                display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <GIc size={13} style={{ color:meta.cor }}/>
+        {/* Journey Score */}
+        <div style={{flexShrink:0,padding:'14px 16px 12px',borderBottom:`1px solid ${T.sep}`,
+          background:T.bg1}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+            <div style={{flex:1}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}>
+                <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>Cobertura da jornada</span>
+                <span style={{fontSize:18,fontWeight:800,
+                  color:score.pct>=80?T.green:score.pct>=50?T.amber:T.red}}>
+                  {score.pct}%
+                </span>
               </div>
-              <div style={{ flex:1 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:T.ink1 }}>{grupo}</div>
-                <div style={{ fontSize:10, color:T.ink4, marginTop:1 }}>{meta.desc}</div>
-              </div>
-              <div style={{ fontSize:10, color: ativos > 0 ? T.green : T.ink4,
-                padding:'2px 8px', borderRadius:99,
-                background: ativos > 0 ? T.greenDim : T.bg3,
-                border:`1px solid ${ativos > 0 ? T.greenBor : T.sep}` }}>
-                {ativos}/{ids.length} ativos
+              {/* Barra de progresso segmentada */}
+              <div style={{height:6,borderRadius:99,background:T.bg4,overflow:'hidden',position:'relative'}}>
+                <div style={{position:'absolute',left:0,top:0,height:'100%',
+                  width:`${score.pct}%`,borderRadius:99,transition:'width .6s ease',
+                  background:score.pct>=80
+                    ?`linear-gradient(90deg,${T.green},${T.cyan})`
+                    :score.pct>=50
+                    ?`linear-gradient(90deg,${T.amber},${T.green})`
+                    :`linear-gradient(90deg,${T.red},${T.amber})`}}/>
               </div>
             </div>
+            <div style={{display:'flex',gap:12,fontSize:10}}>
+              {[
+                {v:score.ativos,   l:'Ativos',   c:T.green},
+                {v:score.aprovados,l:'Meta ✓',   c:T.blue},
+                {v:score.semTpl,   l:'Sem tpl',  c:T.red},
+              ].map(({v,l,c})=>(
+                <div key={l} style={{textAlign:'center'}}>
+                  <div style={{fontSize:16,fontWeight:800,color:c}}>{v}</div>
+                  <div style={{color:T.ink4,fontSize:9}}>{l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
 
-            {/* Cards dentro do cenário — linha do tempo */}
-            <div style={{ borderRadius:12, border:`1px solid ${T.sep}`,
-              background:T.bg2, overflow:'hidden' }}>
-              {ids.map((gId, idx) => {
-                const g    = gatilhoMap[gId]
-                if (!g) return null
-                const cfg   = configs[gId]
-                const ativo  = cfg?.ativo ?? false
-                const delay  = delays[gId] ?? 0
-                const disp   = atividade?.[gId] || 0
-                const Ic     = g.icon || Zap
-                const isSav  = salvando === gId
-                const isLast = idx === ids.length - 1
+          {/* Gap alerts */}
+          {gaps.length>0&&(
+            <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+              {gaps.map(({after,missing})=>{
+                const gm=gatilhoMap[missing]
+                return gm?(
+                  <button key={missing} onClick={()=>onSelect(missing)}
+                    style={{display:'inline-flex',alignItems:'center',gap:5,
+                      padding:'3px 9px',borderRadius:99,cursor:'pointer',fontSize:10,
+                      background:T.amberDim,border:`1px solid ${T.amberBor}`,color:T.amber,
+                      fontWeight:600}}>
+                    <AlertTriangle size={9}/>
+                    Gap: {gm.label} sem template
+                  </button>
+                ):null
+              })}
+            </div>
+          )}
+        </div>
 
-                return (
-                  <div key={gId}>
-                    {/* Card do gatilho */}
-                    <div style={{ display:'flex', alignItems:'stretch',
-                      borderBottom: isLast ? 'none' : `1px solid ${T.sep}` }}>
+        {/* Lista de grupos */}
+        <div style={{flex:1,overflowY:'auto',padding:'10px 12px 20px'}}>
+          {GRUPOS_ORDEM.map(grupo=>{
+            const meta=GRUPO_META[grupo]||{icon:Zap,cor:T.ink3,desc:''}
+            const GIc=meta.icon
+            const ids=ordemGrupo[grupo]||[]
+            if(!ids.length) return null
+            const colapsado=colapsados.has(grupo)
+            const ativos=ids.filter(id=>configs[id]?.ativo).length
 
-                      {/* Linha de sequência à esquerda */}
-                      <div style={{ width:36, flexShrink:0, display:'flex',
-                        flexDirection:'column', alignItems:'center',
-                        padding:'10px 0', position:'relative' }}>
-                        <div style={{ width:20, height:20, borderRadius:'50%', flexShrink:0,
-                          background: ativo ? `${g.cor}20` : T.bg3,
-                          border:`2px solid ${ativo ? g.cor : T.sep2}`,
-                          display:'flex', alignItems:'center', justifyContent:'center', zIndex:1 }}>
-                          <Ic size={9} style={{ color: ativo ? g.cor : T.ink4 }}/>
-                        </div>
-                        {!isLast && (
-                          <div style={{ flex:1, width:2, background:`${meta.cor}25`,
-                            marginTop:3, borderRadius:1 }}/>
-                        )}
-                      </div>
+            return(
+              <div key={grupo} style={{marginBottom:10}}>
+                {/* Header do grupo */}
+                <button onClick={()=>toggleColaps(grupo)}
+                  style={{width:'100%',display:'flex',alignItems:'center',gap:8,
+                    padding:'7px 10px',borderRadius:8,border:`1px solid ${T.sep}`,
+                    background:T.bg3,cursor:'pointer',marginBottom:colapsado?0:6,
+                    transition:'background .12s'}}
+                  onMouseEnter={e=>e.currentTarget.style.background=T.bg4}
+                  onMouseLeave={e=>e.currentTarget.style.background=T.bg3}>
+                  <div style={{width:22,height:22,borderRadius:6,flexShrink:0,
+                    background:`${meta.cor}18`,border:`1px solid ${meta.cor}30`,
+                    display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <GIc size={11} style={{color:meta.cor}}/>
+                  </div>
+                  <span style={{flex:1,fontSize:11,fontWeight:700,color:T.ink1,textAlign:'left'}}>
+                    {grupo}
+                  </span>
+                  <span style={{fontSize:9,padding:'2px 7px',borderRadius:99,
+                    background:ativos>0?T.greenDim:T.bg4,
+                    border:`1px solid ${ativos>0?T.greenBor:T.sep}`,
+                    color:ativos>0?T.green:T.ink4}}>
+                    {ativos}/{ids.length}
+                  </span>
+                  {colapsado
+                    ?<ChevronDown size={11} style={{color:T.ink4,flexShrink:0}}/>
+                    :<ChevronUp size={11} style={{color:T.ink4,flexShrink:0}}/>
+                  }
+                </button>
 
-                      {/* Conteúdo do card */}
-                      <div style={{ flex:1, padding:'10px 12px 10px 4px' }}>
-                        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6 }}>
-                          <span style={{ flex:1, fontSize:11.5, fontWeight:600,
-                            color: ativo ? T.ink1 : T.ink4 }}>
-                            {g.label}
-                          </span>
-                          {disp > 0 && (
-                            <span style={{ fontSize:9, color:T.blue, padding:'1px 6px',
-                              borderRadius:99, background:T.blueDim,
-                              border:`1px solid ${T.blueBor}` }}>
-                              {disp} / 7d
-                            </span>
-                          )}
-                          <span style={{ fontSize:9, color:T.ink4, fontFamily:'monospace',
-                            background:T.bg4, padding:'1px 5px', borderRadius:4 }}>
-                            {g.situacao}
-                          </span>
-                          {/* Mover dentro do cenário */}
-                          <button onClick={() => moverNoGrupo(grupo, idx, -1)}
-                            disabled={idx===0}
-                            style={{ padding:'2px 3px', border:'none', borderRadius:4,
-                              background:'transparent', color:T.ink4, cursor:'pointer',
-                              opacity:idx===0?.3:1 }}>
-                            <ChevronUp size={10}/>
-                          </button>
-                          <button onClick={() => moverNoGrupo(grupo, idx, 1)}
-                            disabled={isLast}
-                            style={{ padding:'2px 3px', border:'none', borderRadius:4,
-                              background:'transparent', color:T.ink4, cursor:'pointer',
-                              opacity:isLast?.3:1 }}>
-                            <ChevronDown size={10}/>
-                          </button>
-                          <button onClick={() => onSelect(gId)}
-                            style={{ padding:'3px 8px', borderRadius:6,
-                              border:`1px solid ${T.sep}`, background:'transparent',
-                              color:T.ink3, cursor:'pointer', fontSize:10,
-                              whiteSpace:'nowrap' }}>
+                {/* Itens do grupo */}
+                {!colapsado&&(
+                  <div style={{borderRadius:10,border:`1px solid ${T.sep}`,
+                    background:T.bg2,overflow:'hidden'}}>
+                    {ids.map((gId,idx)=>{
+                      const g=gatilhoMap[gId]; if(!g) return null
+                      const cfg=configs[gId]
+                      const ativo=cfg?.ativo??false
+                      const temTpl=!!cfg
+                      const metaOk=cfg?.meta_template_status==='APPROVED'
+                      const metaRej=cfg?.meta_template_status==='REJECTED'
+                      const delay=delays[gId]??0
+                      const disp=atividade?.[gId]||0
+                      const Ic=g.icon||Zap
+                      const isHov=hoveredId===gId
+                      const isLast=idx===ids.length-1
+
+                      return(
+                        <div key={gId}
+                          onMouseEnter={()=>setHovered(gId)}
+                          onMouseLeave={()=>setHovered(null)}
+                          style={{display:'flex',alignItems:'center',gap:8,
+                            padding:'8px 10px',
+                            borderBottom:isLast?'none':`1px solid ${T.sep}`,
+                            background:isHov?T.bg3:'transparent',
+                            transition:'background .1s',
+                            borderLeft:`2px solid ${ativo?g.cor:T.sep}`}}>
+
+                          {/* Ícone */}
+                          <div style={{width:26,height:26,borderRadius:7,flexShrink:0,
+                            background:ativo?`${g.cor}15`:T.bg3,
+                            border:`1px solid ${ativo?g.cor+'30':T.sep}`,
+                            display:'flex',alignItems:'center',justifyContent:'center'}}>
+                            <Ic size={12} style={{color:ativo?g.cor:T.ink4}}/>
+                          </div>
+
+                          {/* Nome + badges */}
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{display:'flex',alignItems:'center',gap:5,
+                              flexWrap:'wrap'}}>
+                              <span style={{fontSize:11,fontWeight:600,
+                                color:ativo?T.ink1:T.ink4,
+                                whiteSpace:'nowrap',overflow:'hidden',
+                                textOverflow:'ellipsis',maxWidth:110}}>
+                                {g.label}
+                              </span>
+                              {metaOk&&<span style={{fontSize:8,padding:'1px 5px',
+                                borderRadius:99,background:T.blueDim,
+                                border:`1px solid ${T.blueBor}`,color:T.blue,
+                                fontWeight:700,flexShrink:0}}>META ✓</span>}
+                              {metaRej&&<span style={{fontSize:8,padding:'1px 5px',
+                                borderRadius:99,background:T.redDim,
+                                border:`1px solid ${T.redBor}`,color:T.red,
+                                fontWeight:700,flexShrink:0}}>REJEIT.</span>}
+                              {!temTpl&&<span style={{fontSize:8,padding:'1px 5px',
+                                borderRadius:99,background:T.bg4,
+                                border:`1px solid ${T.sep}`,color:T.ink4,
+                                flexShrink:0}}>sem tpl</span>}
+                              {disp>0&&<span style={{fontSize:8,color:T.blue,flexShrink:0}}>
+                                {disp}/7d
+                              </span>}
+                            </div>
+                          </div>
+
+                          {/* Delay badge clicável */}
+                          <div data-delay-pop style={{position:'relative',flexShrink:0}}>
+                            <button data-delay-pop
+                              onClick={()=>setDelayOpen(delayOpen===gId?null:gId)}
+                              style={{padding:'3px 8px',borderRadius:6,cursor:'pointer',
+                                fontSize:9,fontWeight:700,
+                                border:`1px solid ${delay>0?T.amberBor:T.sep}`,
+                                background:delay>0?T.amberDim:T.bg3,
+                                color:delay>0?T.amber:T.ink4,
+                                transition:'all .12s',display:'flex',
+                                alignItems:'center',gap:3}}>
+                              {delay>0&&<Timer size={8}/>}
+                              {delayLabel(delay)}
+                            </button>
+                            {delayOpen===gId&&(
+                              <div data-delay-pop
+                                style={{position:'absolute',top:'calc(100% + 4px)',
+                                  right:0,zIndex:200,background:T.bg2,
+                                  border:`1px solid ${T.sep2}`,borderRadius:9,
+                                  padding:'6px 8px',boxShadow:'0 8px 24px rgba(0,0,0,.6)',
+                                  minWidth:160,animation:'gat-fadeUp .12s ease'}}>
+                                <div style={{fontSize:9,color:T.ink4,fontWeight:700,
+                                  marginBottom:5,textTransform:'uppercase',
+                                  letterSpacing:'.04em'}}>
+                                  Delay de envio
+                                </div>
+                                <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                                  {DELAY_OPCOES.map(op=>{
+                                    const sel=delay===op.valor
+                                    return(
+                                      <button key={op.valor} data-delay-pop
+                                        onClick={()=>salvarDelay(gId,op.valor)}
+                                        disabled={salvando===gId}
+                                        style={{padding:'4px 9px',borderRadius:6,
+                                          fontSize:10,cursor:'pointer',fontWeight:sel?700:400,
+                                          border:`1px solid ${sel?g.cor+'80':T.sep}`,
+                                          background:sel?`${g.cor}15`:'transparent',
+                                          color:sel?g.cor:T.ink4,transition:'all .1s'}}>
+                                        {salvando===gId&&sel?'…':op.label}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Reordenar */}
+                          <div style={{display:'flex',gap:1,flexShrink:0}}>
+                            <button onClick={()=>moverNoGrupo(grupo,idx,-1)}
+                              disabled={idx===0}
+                              style={{padding:'3px',border:'none',borderRadius:4,
+                                background:'transparent',color:T.ink4,cursor:'pointer',
+                                opacity:idx===0?.25:1}}>
+                              <ChevronUp size={10}/>
+                            </button>
+                            <button onClick={()=>moverNoGrupo(grupo,idx,1)}
+                              disabled={isLast}
+                              style={{padding:'3px',border:'none',borderRadius:4,
+                                background:'transparent',color:T.ink4,cursor:'pointer',
+                                opacity:isLast?.25:1}}>
+                              <ChevronDown size={10}/>
+                            </button>
+                          </div>
+
+                          {/* Editar */}
+                          <button onClick={()=>onSelect(gId)}
+                            style={{padding:'4px 8px',borderRadius:6,flexShrink:0,
+                              border:`1px solid ${isHov?T.purpleBor:T.sep}`,
+                              background:isHov?T.purpleDim:'transparent',
+                              color:isHov?T.purple:T.ink4,
+                              cursor:'pointer',fontSize:10,fontWeight:isHov?600:400,
+                              transition:'all .12s',whiteSpace:'nowrap'}}>
                             Editar →
                           </button>
                         </div>
-
-                        {/* Delay selector */}
-                        <div style={{ display:'flex', alignItems:'center', gap:5, flexWrap:'wrap' }}>
-                          <Timer size={10} style={{ color:T.amber, flexShrink:0 }}/>
-                          <span style={{ fontSize:9, color:T.ink4, flexShrink:0 }}>Delay:</span>
-                          {DELAY_OPCOES.map(op => {
-                            const sel = delay === op.valor
-                            return (
-                              <button key={op.valor}
-                                onClick={() => salvarDelay(gId, op.valor)}
-                                disabled={isSav}
-                                style={{ padding:'2px 7px', borderRadius:5, fontSize:10,
-                                  cursor:'pointer', fontWeight: sel ? 700 : 400,
-                                  border:`1px solid ${sel ? g.cor+'70' : T.sep}`,
-                                  background: sel ? `${g.cor}15` : 'transparent',
-                                  color: sel ? g.cor : T.ink4,
-                                  transition:'all .12s' }}>
-                                {isSav && sel ? '…' : op.label}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    </div>
+                      )
+                    })}
                   </div>
-                )
-              })}
-            </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          PAINEL DIREITO — Customer Preview
+      ══════════════════════════════════════════════════════════════ */}
+      <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',
+        background:T.bg0}}>
+
+        {/* Header do preview */}
+        <div style={{flexShrink:0,padding:'12px 14px',borderBottom:`1px solid ${T.sep}`,
+          background:T.bg1,display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:32,height:32,borderRadius:99,background:'#128C7E',
+            display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <span style={{fontSize:14}}>👤</span>
           </div>
-        )
-      })}
+          <div>
+            <div style={{fontSize:12,fontWeight:700,color:T.ink1}}>Maria Silva</div>
+            <div style={{fontSize:9,color:T.green}}>● Simulação de jornada</div>
+          </div>
+          <div style={{marginLeft:'auto',fontSize:9,color:T.ink4,
+            padding:'3px 8px',borderRadius:99,background:T.bg3,
+            border:`1px solid ${T.sep}`}}>
+            {previewMsgs.length} mensagens
+          </div>
+        </div>
+
+        {/* Mensagens */}
+        <div style={{flex:1,overflowY:'auto',padding:'12px 14px',
+          background:'#0a1628',display:'flex',flexDirection:'column',gap:8}}>
+
+          {previewMsgs.length===0&&(
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',
+              justifyContent:'center',height:'100%',gap:10,color:T.ink4}}>
+              <MessageSquare size={28} style={{opacity:.3}}/>
+              <span style={{fontSize:12}}>Nenhuma mensagem ativa com template</span>
+              <span style={{fontSize:10,textAlign:'center',maxWidth:200,lineHeight:1.5}}>
+                Ative os gatilhos e adicione templates para ver a jornada do cliente aqui
+              </span>
+            </div>
+          )}
+
+          {previewMsgs.map(({id,g,delay,preview})=>{
+            if(!preview) return null
+            const isHov=hoveredId===id
+            const delayLbl=delay===0?'Imediato':`Após ${delayLabel(delay)}`
+
+            return(
+              <div key={id}
+                onMouseEnter={()=>setHovered(id)}
+                onMouseLeave={()=>setHovered(null)}
+                style={{display:'flex',flexDirection:'column',gap:3,
+                  transition:'transform .15s',
+                  transform:isHov?'translateX(-3px)':'translateX(0)'}}>
+
+                {/* Label do gatilho */}
+                <div style={{display:'flex',alignItems:'center',gap:5,
+                  paddingLeft:2}}>
+                  <div style={{width:5,height:5,borderRadius:99,
+                    background:isHov?g.cor:T.ink4,
+                    boxShadow:isHov?`0 0 6px ${g.cor}`:undefined,
+                    transition:'all .2s',flexShrink:0}}/>
+                  <span style={{fontSize:9,color:isHov?g.cor:T.ink4,
+                    fontWeight:isHov?700:400,transition:'color .2s'}}>
+                    {g.label}
+                  </span>
+                  <span style={{fontSize:8,color:T.ink4,
+                    padding:'1px 5px',borderRadius:99,
+                    background:T.bg3,border:`1px solid ${T.sep}`}}>
+                    {delayLbl}
+                  </span>
+                </div>
+
+                {/* Bolha WhatsApp */}
+                <div style={{maxWidth:'86%',borderRadius:'12px 12px 12px 3px',
+                  overflow:'hidden',background:isHov?'#1f2f3d':'#202c33',
+                  boxShadow:isHov?`0 0 0 1px ${g.cor}40,0 4px 16px rgba(0,0,0,.4)`
+                    :'0 1px 4px rgba(0,0,0,.3)',
+                  transition:'all .2s'}}>
+
+                  {/* Imagem placeholder */}
+                  {preview.hasImg&&(
+                    <div style={{height:60,background:'#1a2733',
+                      display:'flex',alignItems:'center',justifyContent:'center',
+                      borderBottom:'1px solid #2a3942'}}>
+                      <span style={{fontSize:20}}>🖼️</span>
+                    </div>
+                  )}
+
+                  {/* Cabeçalho */}
+                  {preview.cab&&(
+                    <div style={{padding:'8px 12px 4px',
+                      borderBottom:'1px solid rgba(255,255,255,.05)'}}>
+                      <p style={{fontSize:12.5,fontWeight:700,color:'#e9edef',
+                        margin:0,lineHeight:1.35}}>
+                        {rv(preview.cab)}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Texto */}
+                  {preview.txt&&(
+                    <div style={{padding:`${preview.cab?'4px':'8px'} 12px 4px`}}>
+                      <p style={{fontSize:11.5,color:'#e9edef',margin:0,
+                        lineHeight:1.6,whiteSpace:'pre-wrap',
+                        maxHeight:72,overflow:'hidden'}}
+                        dangerouslySetInnerHTML={{__html:
+                          rv(preview.txt).slice(0,200)
+                            .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                            .replace(/\n/g,'<br/>')
+                            .replace(/\*([^*\n]+)\*/g,'<strong>$1</strong>')
+                            .replace(/_([^_\n]+)_/g,'<em>$1</em>')
+                          +(preview.txt.length>200?'<span style="color:#8696a0"> …</span>':'')
+                        }}/>
+                    </div>
+                  )}
+
+                  {/* Rodapé */}
+                  {preview.rod&&(
+                    <div style={{padding:'2px 12px 5px'}}>
+                      <p style={{fontSize:9.5,color:'#8696a0',margin:0}}>
+                        {rv(preview.rod)}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Horário */}
+                  <div style={{padding:'2px 10px 7px',display:'flex',
+                    justifyContent:'flex-end',alignItems:'center',gap:3}}>
+                    <span style={{fontSize:9,color:'#8696a0'}}>
+                      {new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
+                    </span>
+                    <span style={{fontSize:10,color:'#53bdeb'}}>✓✓</span>
+                  </div>
+
+                  {/* Botões */}
+                  {preview.bts?.length>0&&(
+                    <div style={{borderTop:'1px solid #2a3942'}}>
+                      {preview.bts.map((b,i)=>(
+                        <div key={i} style={{display:'flex',alignItems:'center',
+                          justifyContent:'center',gap:5,padding:'9px 12px',
+                          borderTop:i>0?'1px solid #2a3942':'none',
+                          color:'#00a884',fontSize:11.5,fontWeight:500}}>
+                          <MousePointer size={10}/>
+                          {rv(b.texto||'')}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }
+
 export default function PageGatilhos({ api }) {
   // ── Estado ─────────────────────────────────────────────────────────────────
   const [selId,       setSelId]     = useState(null)
