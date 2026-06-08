@@ -2667,6 +2667,59 @@ function MetaAnalyticsCard({ stats }) {
 }
 
 // ─── EDITOR DE BLOCOS ─────────────────────────────────────────────────────────
+const EMOJIS_WA = [
+  // Celebração / positivo
+  '🎉','✅','🏆','⭐','🌟','💫','🔥','❤️','💚','💙',
+  // Pedido / entrega
+  '📦','🚚','🛵','✈️','📍','🏠','🏪','📋','🧾','🔖',
+  // Dinheiro / pagamento
+  '💰','💳','💵','🏦','🤑','💸','🎁','🛒','🛍️','🏷️',
+  // Comunicação / suporte
+  '📱','📞','💬','📣','📢','🔔','✉️','📩','💌','👋',
+  // Status / avisos
+  '⏳','⚡','🔧','⚠️','❌','🔴','🟡','🟢','ℹ️','❓',
+  // Rostos
+  '😊','🙏','😍','🤝','👍','🫶','😎','🥳','😄','🫡',
+]
+
+function EmojiPicker({ onInsert }) {
+  const [aberto, setAberto] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => {
+    if (!aberto) return
+    const fn = e => { if (ref.current && !ref.current.contains(e.target)) setAberto(false) }
+    document.addEventListener('mousedown', fn)
+    return () => document.removeEventListener('mousedown', fn)
+  }, [aberto])
+  return (
+    <div style={{ position:'relative', display:'inline-block' }} ref={ref}>
+      <button onClick={() => setAberto(v=>!v)} title="Inserir emoji"
+        style={{ padding:'4px 8px', borderRadius:7, border:`1px solid ${T.sep2}`,
+          background: aberto ? T.bg4 : 'transparent', cursor:'pointer',
+          fontSize:14, lineHeight:1, color:T.ink2 }}>
+        😊
+      </button>
+      {aberto && (
+        <div style={{ position:'absolute', top:'calc(100% + 4px)', left:0, zIndex:100,
+          background:T.bg3, border:`1px solid ${T.sep2}`, borderRadius:10,
+          padding:8, display:'grid', gridTemplateColumns:'repeat(10,1fr)', gap:2,
+          boxShadow:'0 8px 24px rgba(0,0,0,.5)', width:260 }}>
+          {EMOJIS_WA.map(e => (
+            <button key={e} onClick={() => { onInsert(e); setAberto(false) }}
+              style={{ fontSize:16, padding:'4px', borderRadius:5, border:'none',
+                background:'transparent', cursor:'pointer', lineHeight:1,
+                transition:'background .1s' }}
+              onMouseEnter={ev => ev.target.style.background = T.bg4}
+              onMouseLeave={ev => ev.target.style.background = 'transparent'}>
+              {e}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function VarChips({ vars, onInsert }) {
   if (!vars?.length) return null
   return (
@@ -2689,8 +2742,19 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
   const Ic = tipo?.icon || FileText
   const cor = tipo?.cor || T.ink3
 
-  // Inserir variável no campo de texto
-  const insertVar = (field, v) => onChange({ ...b, [field]: (b[field]||'') + v })
+  // Inserir no campo de texto — cursor-aware para textarea
+  const insertInto = (field, v) => {
+    const el = document.getElementById(`bloco-field-${b.id}-${field}`)
+    if (el && el.selectionStart !== undefined) {
+      const s = el.selectionStart, e = el.selectionEnd
+      const cur = b[field] || ''
+      onChange({ ...b, [field]: cur.slice(0,s) + v + cur.slice(e) })
+      // Reposiciona cursor após inserção
+      setTimeout(() => { el.selectionStart = el.selectionEnd = s + v.length; el.focus() }, 0)
+    } else {
+      onChange({ ...b, [field]: (b[field]||'') + v })
+    }
+  }
 
   const inputStyle = {
     width:'100%', padding:'7px 10px', borderRadius:8, fontSize:12,
@@ -2698,6 +2762,7 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
     outline:'none', boxSizing:'border-box'
   }
   const labelStyle = { fontSize:10, color:T.ink3, marginBottom:3, display:'block', fontWeight:600 }
+  const toolbarStyle = { display:'flex', alignItems:'center', gap:4, marginTop:5 }
 
   return (
     <div style={{ borderRadius:12, overflow:'hidden', border:`1px solid ${T.sep}`,
@@ -2717,6 +2782,11 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
           {b.tipo==='texto' && b.conteudo && (
             <span style={{ fontWeight:400, color:T.ink4, marginLeft:6 }}>
               — {b.conteudo.slice(0,35).replace(/\n/g,' ')}{b.conteudo.length>35?'…':''}
+            </span>
+          )}
+          {b.tipo==='cabecalho' && b.conteudo && (
+            <span style={{ fontWeight:400, color:T.ink4, marginLeft:6 }}>
+              {b.conteudo.slice(0,30)}{b.conteudo.length>30?'…':''}
             </span>
           )}
         </span>
@@ -2758,12 +2828,19 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
           {/* CABEÇALHO */}
           {b.tipo==='cabecalho' && (
             <div>
-              <label style={labelStyle}>Texto do cabeçalho <span style={{color:T.ink4,fontWeight:400}}>({60-(b.conteudo||'').length} restantes)</span></label>
-              <input value={b.conteudo||''} maxLength={60}
+              <label style={labelStyle}>
+                Texto do cabeçalho
+                <span style={{color:T.ink4,fontWeight:400}}> ({60-(b.conteudo||'').length} restantes)</span>
+              </label>
+              <input id={`bloco-field-${b.id}-conteudo`}
+                value={b.conteudo||''} maxLength={60}
                 onChange={e => onChange({...b, conteudo:e.target.value})}
-                placeholder="Ex: Seu pedido foi enviado!"
+                placeholder="Ex: 📦 Seu pedido foi enviado!"
                 style={inputStyle}/>
-              <VarChips vars={vars} onInsert={v => insertVar('conteudo', v)}/>
+              <div style={toolbarStyle}>
+                <EmojiPicker onInsert={v => insertInto('conteudo', v)}/>
+                <VarChips vars={vars} onInsert={v => insertInto('conteudo', v)}/>
+              </div>
             </div>
           )}
 
@@ -2771,22 +2848,33 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
           {b.tipo==='texto' && (
             <div>
               <label style={labelStyle}>Texto da mensagem</label>
-              <textarea value={b.conteudo||''} rows={4}
+              <textarea id={`bloco-field-${b.id}-conteudo`}
+                value={b.conteudo||''} rows={4}
                 onChange={e => onChange({...b, conteudo:e.target.value})}
                 placeholder="Digite o texto. Use *negrito*, _itálico_, ~tachado~"
                 style={{...inputStyle, resize:'vertical', fontFamily:'inherit', lineHeight:1.5}}/>
-              <VarChips vars={vars} onInsert={v => insertVar('conteudo', v)}/>
+              <div style={toolbarStyle}>
+                <EmojiPicker onInsert={v => insertInto('conteudo', v)}/>
+                <VarChips vars={vars} onInsert={v => insertInto('conteudo', v)}/>
+              </div>
             </div>
           )}
 
           {/* RODAPÉ */}
           {b.tipo==='rodape' && (
             <div>
-              <label style={labelStyle}>Rodapé <span style={{color:T.ink4,fontWeight:400}}>(aparece em itálico — comportamento padrão do WhatsApp)</span></label>
-              <input value={b.conteudo||''} maxLength={60}
+              <label style={labelStyle}>
+                Rodapé
+                <span style={{color:T.ink4,fontWeight:400}}> (aparece em itálico — comportamento padrão do WhatsApp)</span>
+              </label>
+              <input id={`bloco-field-${b.id}-conteudo`}
+                value={b.conteudo||''} maxLength={60}
                 onChange={e => onChange({...b, conteudo:e.target.value})}
                 placeholder="Ex: Só Strass • sostrass.com.br"
                 style={{...inputStyle, fontStyle:'italic'}}/>
+              <div style={toolbarStyle}>
+                <EmojiPicker onInsert={v => insertInto('conteudo', v)}/>
+              </div>
             </div>
           )}
 
@@ -2801,7 +2889,9 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
               <input value={b.legenda||''} onChange={e => onChange({...b, legenda:e.target.value})}
                 placeholder="Legenda da imagem"
                 style={inputStyle}/>
-              <VarChips vars={vars.filter(v=>v.includes('foto')||v.includes('link'))} onInsert={v => insertVar('url', v)}/>
+              <div style={toolbarStyle}>
+                <VarChips vars={vars.filter(v=>v.includes('foto')||v.includes('link'))} onInsert={v => insertInto('url', v)}/>
+              </div>
             </div>
           )}
 
@@ -2825,7 +2915,7 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
             </div>
           )}
 
-          {/* BOTÃO */}
+          {/* BOTÃO — acao: reply | url | phone */}
           {b.tipo==='botao' && (
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               <div>
@@ -2844,15 +2934,19 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
                   placeholder="Ex: Rastrear pedido"
                   style={inputStyle}/>
               </div>
-              {(b.acao==='url'||!b.acao||b.acao==='reply'&&false) && b.acao==='url' && (
+              {/* URL: armazenado em b.valor (não b.url) */}
+              {b.acao==='url' && (
                 <div>
-                  <label style={labelStyle}>URL</label>
-                  <input value={b.url||''} onChange={e => onChange({...b, url:e.target.value})}
+                  <label style={labelStyle}>URL de destino</label>
+                  <input value={b.valor||''} onChange={e => onChange({...b, valor:e.target.value})}
                     placeholder="https://... ou {{link_rastreio}}"
                     style={{...inputStyle, fontFamily:'monospace', fontSize:11}}/>
-                  <VarChips vars={vars.filter(v=>v.includes('link'))} onInsert={v => insertVar('url', v)}/>
+                  <div style={toolbarStyle}>
+                    <VarChips vars={vars.filter(v=>v.includes('link'))} onInsert={v => onChange({...b, valor:(b.valor||'')+v})}/>
+                  </div>
                 </div>
               )}
+              {/* Telefone: armazenado em b.valor */}
               {b.acao==='phone' && (
                 <div>
                   <label style={labelStyle}>Telefone</label>
@@ -2861,7 +2955,8 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
                     style={inputStyle}/>
                 </div>
               )}
-              {b.acao==='reply' && (
+              {/* Reply: payload em b.valor */}
+              {(!b.acao || b.acao==='reply') && (
                 <div>
                   <label style={labelStyle}>Payload (opcional)</label>
                   <input value={b.valor||''} onChange={e => onChange({...b, valor:e.target.value})}
@@ -2872,7 +2967,7 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
             </div>
           )}
 
-          {/* LINK */}
+          {/* LINK — URL em b.url, texto em b.texto */}
           {b.tipo==='link' && (
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               <div>
@@ -2887,7 +2982,9 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
                 <input value={b.url||''} onChange={e => onChange({...b, url:e.target.value})}
                   placeholder="https://... ou {{link_acompanhamento}}"
                   style={{...inputStyle, fontFamily:'monospace', fontSize:11}}/>
-                <VarChips vars={vars.filter(v=>v.includes('link'))} onInsert={v => insertVar('url', v)}/>
+                <div style={toolbarStyle}>
+                  <VarChips vars={vars.filter(v=>v.includes('link'))} onInsert={v => onChange({...b, url:(b.url||'')+v})}/>
+                </div>
               </div>
             </div>
           )}
