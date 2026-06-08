@@ -2691,11 +2691,114 @@ const EMOJI_CATS = [
   { label:'⚠️', title:'Status & Aviso',    list:['⏳','⚡','🔧','⚠️','❌','🔴','🟡','🟢','ℹ️','❓','🚨','🛑','⛔','✅','🔄'] },
 ]
 
-function EmojiPicker({ onInsert }) {
+// ─── AUTOCOMPLETE DE VARIÁVEIS — dispara com {{ ───────────────────────────────
+function VarDropdown({ query, vars, onSelect, anchorRect, onClose }) {
+  const [idx, setIdx] = useState(0)
+  const listRef = useRef(null)
+
+  // Lista flat filtrada pela query
+  const filtrado = Object.entries(vars).flatMap(([cat, list]) =>
+    list.filter(v => !query || v.replace(/[{}]/g,'').toLowerCase().includes(query.toLowerCase()))
+      .map(v => ({ cat, v }))
+  )
+
+  useEffect(() => { setIdx(0) }, [query])
+
+  // Scroll para o item ativo
+  useEffect(() => {
+    const el = listRef.current?.querySelector(`[data-ac-idx="${idx}"]`)
+    el?.scrollIntoView({ block:'nearest' })
+  }, [idx])
+
+  // Navegação por teclado
+  useEffect(() => {
+    const fn = e => {
+      if (e.key === 'ArrowDown')  { e.preventDefault(); e.stopPropagation(); setIdx(i => Math.min(i+1, filtrado.length-1)) }
+      if (e.key === 'ArrowUp')    { e.preventDefault(); e.stopPropagation(); setIdx(i => Math.max(i-1, 0)) }
+      if (e.key === 'Enter')      { e.preventDefault(); e.stopPropagation(); if (filtrado[idx]) onSelect(filtrado[idx].v) }
+      if (e.key === 'Escape')     { e.preventDefault(); onClose() }
+      if (e.key === 'Tab')        { e.preventDefault(); if (filtrado[idx]) onSelect(filtrado[idx].v) }
+    }
+    document.addEventListener('keydown', fn, true)
+    return () => document.removeEventListener('keydown', fn, true)
+  }, [idx, filtrado, onSelect, onClose])
+
+  if (!filtrado.length) return null
+
+  // Posiciona abaixo do campo, alinhado à esquerda
+  const top  = Math.min(anchorRect.bottom + 6, window.innerHeight - 260)
+  const left = Math.min(anchorRect.left, window.innerWidth - 268)
+
+  // Agrupa por categoria para exibição
+  const porCat = Object.entries(vars).map(([cat, list]) => ({
+    cat,
+    items: list.filter(v => !query || v.replace(/[{}]/g,'').toLowerCase().includes(query.toLowerCase()))
+  })).filter(({ items }) => items.length > 0)
+
+  return (
+    <div ref={listRef}
+      style={{ position:'fixed', top, left, zIndex:9999, width:260, maxHeight:248,
+        overflowY:'auto', background:T.bg2, border:`1px solid ${T.purpleBor}`,
+        borderRadius:10, boxShadow:`0 12px 40px rgba(0,0,0,.7), 0 0 0 1px ${T.purpleBor}`,
+        animation:'gat-fadeUp .12s ease' }}>
+
+      {/* Header */}
+      <div style={{ padding:'6px 12px 5px', borderBottom:`1px solid ${T.sep}`,
+        background:T.bg3, display:'flex', alignItems:'center', gap:6 }}>
+        <Hash size={10} style={{ color:T.purple }}/>
+        <span style={{ fontSize:9.5, fontWeight:700, color:T.purple, letterSpacing:'.04em' }}>
+          {query ? `Filtrando: ${query}` : 'Selecione ou continue digitando'}
+        </span>
+        <span style={{ marginLeft:'auto', fontSize:9, color:T.ink4 }}>
+          ↑↓ navegar · Enter inserir · Esc fechar
+        </span>
+      </div>
+
+      {porCat.map(({ cat, items }) => (
+        <div key={cat}>
+          <div style={{ padding:'5px 12px 3px', fontSize:9, fontWeight:700,
+            color:T.ink4, textTransform:'uppercase', letterSpacing:'.05em',
+            background:T.bg3, borderBottom:`1px solid ${T.sep}`,
+            position:'sticky', top:0 }}>
+            {cat}
+          </div>
+          {items.map(v => {
+            const gi = filtrado.findIndex(x => x.v === v)
+            const ativo = gi === idx
+            // Highlight da query dentro da variável
+            const partes = query
+              ? v.split(new RegExp(`(${query.replace(/[{}]/g,'')})`, 'i'))
+              : [v]
+            return (
+              <div key={v} data-ac-idx={gi}
+                onMouseDown={e => { e.preventDefault(); onSelect(v) }}
+                onMouseEnter={() => setIdx(gi)}
+                style={{ padding:'7px 12px 7px 14px', cursor:'pointer',
+                  fontSize:11, fontFamily:'monospace', fontWeight:500,
+                  color: ativo ? '#fff' : T.cyan,
+                  background: ativo ? `linear-gradient(90deg,${T.purple}40,${T.purple}20)` : 'transparent',
+                  borderLeft:`2px solid ${ativo ? T.purple : 'transparent'}`,
+                  transition:'background .06s' }}>
+                {partes.map((p, i) =>
+                  query && p.toLowerCase() === query.replace(/[{}]/g,'').toLowerCase()
+                    ? <mark key={i} style={{ background:`${T.purple}50`, color:T.purple,
+                        borderRadius:2, fontWeight:700 }}>{p}</mark>
+                    : <span key={i}>{p}</span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function EmojiPicker({ onInsert, floating = false }) {
   const [aberto, setAberto] = useState(false)
   const [cat,    setCat]    = useState(0)
-  const [pos,    setPos]    = useState({top:0,left:0,up:false})
-  const btnRef = useRef(null)
+  const [pos,    setPos]    = useState({ top:0, left:0 })
+  const btnRef   = useRef(null)
   const panelRef = useRef(null)
 
   const toggle = () => {
@@ -2703,9 +2806,8 @@ function EmojiPicker({ onInsert }) {
       const r = btnRef.current.getBoundingClientRect()
       const spaceBelow = window.innerHeight - r.bottom
       setPos({
-        top:  spaceBelow > 220 ? r.bottom + 6 : r.top - 226,
-        left: Math.min(r.left, window.innerWidth - 280),
-        up:   spaceBelow <= 220
+        top:  spaceBelow > 240 ? r.bottom + 6 : r.top - 246,
+        left: Math.min(r.right - 276, window.innerWidth - 284),
       })
     }
     setAberto(v => !v)
@@ -2721,70 +2823,76 @@ function EmojiPicker({ onInsert }) {
     return () => document.removeEventListener('mousedown', fn)
   }, [aberto])
 
+  const panel = aberto && (
+    <div ref={panelRef}
+      style={{ position:'fixed', top:pos.top, left:pos.left, zIndex:9999,
+        background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:12,
+        boxShadow:'0 12px 40px rgba(0,0,0,.7)', width:276,
+        overflow:'hidden', animation:'gat-fadeUp .15s ease' }}>
+      <div style={{ display:'flex', borderBottom:`1px solid ${T.sep}`, background:T.bg3 }}>
+        {EMOJI_CATS.map((c,i) => (
+          <button key={i} onClick={() => setCat(i)} title={c.title}
+            style={{ flex:1, padding:'7px 4px', border:'none', cursor:'pointer',
+              background: cat===i ? T.bg2 : 'transparent', fontSize:15,
+              borderBottom: cat===i ? `2px solid ${T.purple}` : '2px solid transparent',
+              transition:'background .1s' }}>
+            {c.label}
+          </button>
+        ))}
+      </div>
+      <div style={{ padding:'5px 10px 3px', fontSize:9, fontWeight:700,
+        color:T.ink4, letterSpacing:'.06em', textTransform:'uppercase' }}>
+        {EMOJI_CATS[cat].title}
+      </div>
+      <div style={{ padding:'4px 8px 10px',
+        display:'grid', gridTemplateColumns:'repeat(15,1fr)', gap:1 }}>
+        {EMOJI_CATS[cat].list.map(e => (
+          <button key={e}
+            onMouseDown={ev => { ev.preventDefault(); onInsert(e); setAberto(false) }}
+            style={{ fontSize:17, padding:'5px 2px', border:'none', borderRadius:5,
+              background:'transparent', cursor:'pointer', lineHeight:1,
+              transition:'background .08s', display:'flex', alignItems:'center',
+              justifyContent:'center' }}
+            onMouseEnter={ev => ev.currentTarget.style.background = T.bg4}
+            onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
+            {e}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
   return (
     <>
-      <button ref={btnRef} onMouseDown={e=>e.preventDefault()} onClick={toggle}
+      <button ref={btnRef} onMouseDown={e => e.preventDefault()} onClick={toggle}
         title="Inserir emoji"
-        style={{ display:'inline-flex', alignItems:'center', gap:4,
+        style={ floating ? {
+          position:'absolute', bottom:7, right:7, width:22, height:22,
+          borderRadius:6, border:'none', cursor:'pointer', fontSize:14,
+          lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center',
+          background: aberto ? T.purpleDim : 'transparent',
+          color: aberto ? T.purple : T.ink4,
+          boxShadow: aberto ? `0 0 0 1px ${T.purpleBor}` : 'none',
+          transition:'all .15s', zIndex:2,
+        } : {
+          display:'inline-flex', alignItems:'center', gap:4,
           padding:'3px 9px', borderRadius:6, cursor:'pointer', fontSize:11,
           border:`1px solid ${aberto ? T.purpleBor : T.sep2}`,
           background: aberto ? T.purpleDim : T.bg3,
           color: aberto ? T.purple : T.ink3,
-          fontWeight: aberto ? 600 : 400, transition:'all .15s' }}>
-        <span style={{fontSize:13}}>😊</span> Emoji
+          fontWeight: aberto ? 600 : 400, transition:'all .15s',
+        }}>
+        <span style={{ fontSize: floating ? 14 : 13 }}>😊</span>
+        {!floating && <span style={{marginLeft:3}}>Emoji</span>}
       </button>
-
-      {aberto && (
-        <div ref={panelRef}
-          style={{ position:'fixed', top:pos.top, left:pos.left, zIndex:9999,
-            background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:12,
-            boxShadow:'0 12px 40px rgba(0,0,0,.7)', width:276,
-            overflow:'hidden', animation:'gat-fadeUp .15s ease' }}>
-
-          {/* Tabs de categoria */}
-          <div style={{ display:'flex', borderBottom:`1px solid ${T.sep}`,
-            background:T.bg3 }}>
-            {EMOJI_CATS.map((c,i) => (
-              <button key={i} onClick={() => setCat(i)}
-                title={c.title}
-                style={{ flex:1, padding:'7px 4px', border:'none', cursor:'pointer',
-                  background: cat===i ? T.bg2 : 'transparent',
-                  fontSize:15, borderBottom: cat===i ? `2px solid ${T.purple}` : '2px solid transparent',
-                  transition:'background .1s' }}>
-                {c.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Título da categoria */}
-          <div style={{ padding:'5px 10px 3px', fontSize:9, fontWeight:700,
-            color:T.ink4, letterSpacing:'.06em', textTransform:'uppercase' }}>
-            {EMOJI_CATS[cat].title}
-          </div>
-
-          {/* Grid de emojis */}
-          <div style={{ padding:'4px 8px 10px',
-            display:'grid', gridTemplateColumns:'repeat(15,1fr)', gap:1 }}>
-            {EMOJI_CATS[cat].list.map(e => (
-              <button key={e}
-                onMouseDown={ev => { ev.preventDefault(); onInsert(e); setAberto(false) }}
-                style={{ fontSize:17, padding:'5px 2px', border:'none', borderRadius:5,
-                  background:'transparent', cursor:'pointer', lineHeight:1,
-                  transition:'background .08s', display:'flex', alignItems:'center',
-                  justifyContent:'center' }}
-                onMouseEnter={ev => ev.currentTarget.style.background = T.bg4}
-                onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
-                {e}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {panel}
     </>
   )
 }
 
 function VarChips({ vars, onInsert }) {
+  const [aberto, setAberto] = useState(false)
+
   // Aceita array simples OU objeto { Categoria: [vars] }
   if (!vars) return null
   const isObj = !Array.isArray(vars)
@@ -2792,28 +2900,51 @@ function VarChips({ vars, onInsert }) {
   const flat    = isObj ? null : vars
 
   if (isObj) {
+    const total = entries.reduce((s,[,l]) => s + l.length, 0)
+    if (!total) return null
     return (
-      <div style={{ marginTop:6, display:'flex', flexDirection:'column', gap:4 }}>
-        {entries.map(([cat, list]) => (
-          <div key={cat} style={{ display:'flex', alignItems:'flex-start', gap:6 }}>
-            <span style={{ fontSize:9, color:T.ink4, fontWeight:600, minWidth:72,
-              paddingTop:3, letterSpacing:'.02em', textTransform:'uppercase' }}>
-              {cat}
-            </span>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:3 }}>
-              {list.map(v => (
-                <button key={v} onMouseDown={e=>{e.preventDefault();onInsert(v)}}
-                  style={{ fontSize:9, padding:'2px 7px', borderRadius:99, cursor:'pointer',
-                    background:T.bg4, border:`1px solid ${T.sep2}`, color:T.cyan,
-                    fontFamily:'monospace', fontWeight:600, transition:'border-color .1s' }}
-                  onMouseEnter={e=>e.currentTarget.style.borderColor=T.cyan}
-                  onMouseLeave={e=>e.currentTarget.style.borderColor=T.sep2}>
-                  {v}
-                </button>
-              ))}
-            </div>
+      <div style={{ marginTop:5 }}>
+        {/* Toggle header */}
+        <button onClick={() => setAberto(v=>!v)}
+          style={{ display:'inline-flex', alignItems:'center', gap:5,
+            padding:'3px 9px', borderRadius:6, cursor:'pointer',
+            background: aberto ? T.bg4 : 'transparent',
+            border:`1px solid ${aberto ? T.sep2 : T.sep}`,
+            color: aberto ? T.cyan : T.ink4, fontSize:10, fontWeight:600,
+            transition:'all .15s' }}>
+          <Hash size={10}/>
+          Variáveis ({total})
+          {aberto ? <ChevronUp size={10}/> : <ChevronDown size={10}/>}
+        </button>
+
+        {/* Conteúdo expansível */}
+        {aberto && (
+          <div style={{ marginTop:6, display:'flex', flexDirection:'column', gap:5,
+            padding:'8px 10px', borderRadius:8, background:T.bg3,
+            border:`1px solid ${T.sep}`, animation:'gat-fadeUp .15s ease' }}>
+            {entries.map(([cat, list]) => (
+              <div key={cat} style={{ display:'flex', alignItems:'flex-start', gap:8 }}>
+                <span style={{ fontSize:9, color:T.ink4, fontWeight:700, minWidth:68,
+                  paddingTop:3, letterSpacing:'.04em', textTransform:'uppercase',
+                  flexShrink:0 }}>
+                  {cat}
+                </span>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:3 }}>
+                  {list.map(v => (
+                    <button key={v} onMouseDown={e=>{e.preventDefault();onInsert(v);setAberto(false)}}
+                      style={{ fontSize:9, padding:'2px 7px', borderRadius:99, cursor:'pointer',
+                        background:T.bg4, border:`1px solid ${T.sep2}`, color:T.cyan,
+                        fontFamily:'monospace', fontWeight:600, transition:'all .1s' }}
+                      onMouseEnter={e=>{e.currentTarget.style.borderColor=T.cyan;e.currentTarget.style.background=T.bg1}}
+                      onMouseLeave={e=>{e.currentTarget.style.borderColor=T.sep2;e.currentTarget.style.background=T.bg4}}>
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
     )
   }
@@ -2837,17 +2968,44 @@ function VarChips({ vars, onInsert }) {
 
 function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate }) {
   const [aberto, setAberto] = useState(true)
+  const [ac, setAc] = useState(null)   // { field, query, start, end, rect }
   const tipo = TIPOS_BLOCO.find(t => t.tipo === b.tipo)
   const Ic = tipo?.icon || FileText
   const cor = tipo?.cor || T.ink3
 
-  // Cache da última posição do cursor por campo — sobrevive ao clique no emoji
+  // Cache da última posição do cursor
   const selCache = useRef({})
 
   const onFieldSel = (field, e) => {
     selCache.current[field] = { s: e.target.selectionStart, e: e.target.selectionEnd }
   }
 
+  // Handler de change com detecção de {{ para autocomplete
+  const handleChange = (field, newVal, e) => {
+    onChange({ ...b, [field]: newVal })
+    const pos = e.target.selectionStart
+    selCache.current[field] = { s: pos, e: pos }
+    const before = newVal.slice(0, pos)
+    const match = before.match(/\{\{([^{}]*)$/)
+    if (match) {
+      setAc({ field, query: match[1], start: pos - match[0].length, end: pos,
+        rect: e.target.getBoundingClientRect() })
+    } else {
+      setAc(null)
+    }
+  }
+
+  // Inserir variável do autocomplete — substitui o {{parcial já digitado
+  const insertFromAC = (variable) => {
+    if (!ac) return
+    const cur = b[ac.field] || ''
+    const next = cur.slice(0, ac.start) + variable + cur.slice(ac.end)
+    onChange({ ...b, [ac.field]: next })
+    selCache.current[ac.field] = { s: ac.start + variable.length, e: ac.start + variable.length }
+    setAc(null)
+  }
+
+  // Inserir sem autocomplete (emoji, VarChips flat)
   const insertInto = (field, v) => {
     const cur = b[field] || ''
     const { s = cur.length, e = cur.length } = selCache.current[field] || {}
@@ -2940,17 +3098,16 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
                 Texto do cabeçalho
                 <span style={{color:T.ink4,fontWeight:400}}> ({60-(b.conteudo||'').length} restantes)</span>
               </label>
-              <input
-                value={b.conteudo||''} maxLength={60}
-                onChange={e => onChange({...b, conteudo:e.target.value})}
-                onSelect={e => onFieldSel('conteudo', e)}
-                onFocus={e  => onFieldSel('conteudo', e)}
-                placeholder="Ex: 📦 Seu pedido foi enviado!"
-                style={inputStyle}/>
-              <div style={toolbarStyle}>
-                <EmojiPicker onInsert={v => insertInto('conteudo', v)}/>
+              <div style={{ position:'relative' }}>
+                <input
+                  value={b.conteudo||''} maxLength={60}
+                  onChange={e => handleChange('conteudo', e.target.value, e)}
+                  onSelect={e => onFieldSel('conteudo', e)}
+                  onFocus={e  => onFieldSel('conteudo', e)}
+                  placeholder="Ex: 📦 Seu pedido foi enviado!"
+                  style={{...inputStyle, paddingRight:34}}/>
+                <EmojiPicker floating onInsert={v => insertInto('conteudo', v)}/>
               </div>
-              <VarChips vars={varsPorCat} onInsert={v => insertInto('conteudo', v)}/>
             </div>
           )}
 
@@ -2958,17 +3115,16 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
           {b.tipo==='texto' && (
             <div>
               <label style={labelStyle}>Texto da mensagem</label>
-              <textarea
-                value={b.conteudo||''} rows={4}
-                onChange={e => onChange({...b, conteudo:e.target.value})}
-                onSelect={e => onFieldSel('conteudo', e)}
-                onFocus={e  => onFieldSel('conteudo', e)}
-                placeholder="Digite o texto. Use *negrito*, _itálico_, ~tachado~"
-                style={{...inputStyle, resize:'vertical', fontFamily:'inherit', lineHeight:1.5}}/>
-              <div style={toolbarStyle}>
-                <EmojiPicker onInsert={v => insertInto('conteudo', v)}/>
+              <div style={{ position:'relative' }}>
+                <textarea
+                  value={b.conteudo||''} rows={4}
+                  onChange={e => handleChange('conteudo', e.target.value, e)}
+                  onSelect={e => onFieldSel('conteudo', e)}
+                  onFocus={e  => onFieldSel('conteudo', e)}
+                  placeholder="Digite o texto. Use *negrito*, _itálico_, ~tachado~"
+                  style={{...inputStyle, resize:'vertical', fontFamily:'inherit', lineHeight:1.5, paddingRight:34}}/>
+                <EmojiPicker floating onInsert={v => insertInto('conteudo', v)}/>
               </div>
-              <VarChips vars={varsPorCat} onInsert={v => insertInto('conteudo', v)}/>
             </div>
           )}
 
@@ -2979,17 +3135,16 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
                 Rodapé
                 <span style={{color:T.ink4,fontWeight:400}}> (aparece em itálico — comportamento padrão do WhatsApp)</span>
               </label>
-              <input
-                value={b.conteudo||''} maxLength={60}
-                onChange={e => onChange({...b, conteudo:e.target.value})}
-                onSelect={e => onFieldSel('conteudo', e)}
-                onFocus={e  => onFieldSel('conteudo', e)}
-                placeholder="Ex: Só Strass • sostrass.com.br"
-                style={inputStyle}/>
-              <div style={toolbarStyle}>
-                <EmojiPicker onInsert={v => insertInto('conteudo', v)}/>
+              <div style={{ position:'relative' }}>
+                <input
+                  value={b.conteudo||''} maxLength={60}
+                  onChange={e => handleChange('conteudo', e.target.value, e)}
+                  onSelect={e => onFieldSel('conteudo', e)}
+                  onFocus={e  => onFieldSel('conteudo', e)}
+                  placeholder="Ex: Só Strass • sostrass.com.br"
+                  style={{...inputStyle, paddingRight:34}}/>
+                <EmojiPicker floating onInsert={v => insertInto('conteudo', v)}/>
               </div>
-              <VarChips vars={varsPorCat} onInsert={v => insertInto('conteudo', v)}/>
             </div>
           )}
 
@@ -3128,6 +3283,17 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
           )}
 
         </div>
+      )}
+
+      {/* Autocomplete {{ — dropdown flutuante de variáveis */}
+      {ac && varsPorCat && Object.keys(varsPorCat).length > 0 && (
+        <VarDropdown
+          query={ac.query}
+          vars={varsPorCat}
+          anchorRect={ac.rect}
+          onSelect={insertFromAC}
+          onClose={() => setAc(null)}
+        />
       )}
     </div>
   )
