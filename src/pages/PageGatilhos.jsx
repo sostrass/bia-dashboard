@@ -41,48 +41,48 @@ const T = {
 // Grupos e gatilhos
 const GATILHOS = [
   // ── 1. Compra & Pagamento ──────────────────────────────────────────────
-  { id:'pedido_criado',       label:'Pedido Criado',         grupo:'Compra & Pagamento', tipo:'bling', icon:ShoppingBag, cor:'#00d4aa', situacao:'order.created', desc:'Disparo automático quando um novo pedido é criado no Bling (webhook order.created — status Em Aberto)', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}','{{link_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{endereco_entrega}}','{{endereco_faturamento}}'] },
-  { id:'pagamento_aprovado',  label:'Pagamento Aprovado',    grupo:'Compra & Pagamento', tipo:'bling', icon:CreditCard,  cor:'#4a9fff', situacao:'sit=15',  desc:'Pedido em Em Andamento (pagamento confirmado)', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{link_pedido}}'] },
-  { id:'pagamento_pendente',  label:'Pagamento Pendente',    grupo:'Compra & Pagamento', tipo:'bling', icon:Clock,       cor:'#f59e0b', situacao:'sit=6',   desc:'Pedido em Aberto (aguardando pagamento)', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{link_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  { id:'pedido_criado',       label:'Pedido Criado',         grupo:'Compra & Pagamento', tipo:'bling', icon:ShoppingBag, cor:'#00d4aa', situacao:'order.created', desc:'Disparo automático quando um novo pedido é criado no Bling (webhook order.created — status Em Aberto)', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}','{{data_pedido}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{link_pedido}}','{{endereco_entrega}}','{{endereco_faturamento}}'] },
+  { id:'pagamento_aprovado',  label:'Pagamento Aprovado',    grupo:'Compra & Pagamento', tipo:'bling', icon:CreditCard,  cor:'#4a9fff', situacao:'sit=15',  desc:'Pedido em Em Andamento (pagamento confirmado)', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}','{{data_pedido}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{link_pedido}}'] },
+  { id:'pagamento_pendente',  label:'Pagamento Pendente',    grupo:'Compra & Pagamento', tipo:'bling', icon:Clock,       cor:'#f59e0b', situacao:'sit=6',   desc:'Pedido em Aberto (aguardando pagamento)', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}','{{data_pedido}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{link_pedido}}'] },
 
   // ── 2. Preparação & Nota ───────────────────────────────────────────────
-  { id:'em_separacao',        label:'Em Separação',          grupo:'Preparação & Nota', tipo:'bling', icon:Layers,      cor:'#8b5cf6', situacao:'sit=9', desc:'Pedido em Atendido (separação/embalagem) — automático', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
-  { id:'produto_embalado',    label:'Produto Embalado',      grupo:'Preparação & Nota', tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'#EMBALADO',  desc:'Disparo via comando #EMBALADO nas observações internas do pedido no Bling', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}'] },
-  { id:'em_andamento',        label:'Em Andamento (info)',    grupo:'Preparação & Nota', tipo:'bling', icon:RefreshCw,   cor:'#8b5cf6', situacao:'manual',  manual:true, desc:'Gatilho informativo — sit=15 (Em Andamento) já dispara Pagamento Aprovado automaticamente. Use este apenas para comunicados extras.', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
-  { id:'nfe_pendente',        label:'NF-e Pendente',         grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#f59e0b', situacao:'nfe=1',   desc:'Nota emitida, aguardando autorização da SEFAZ', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}'] },
-  { id:'nfe_rejeitada',       label:'NF-e Rejeitada',        grupo:'Preparação & Nota', tipo:'bling', icon:AlertTriangle, cor:'#ef4444', situacao:'nfe=4',   desc:'Nota rejeitada pela SEFAZ (uso interno/aviso)', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}'] },
-  { id:'nfe_emitida',         label:'NF-e Emitida',          grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#06b6d4', situacao:'nfe=5',   desc:'Nota autorizada pela SEFAZ — DANFE disponível', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{numero_nfe}}','{{link_nfe}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  { id:'em_separacao',        label:'Em Separação',          grupo:'Preparação & Nota', tipo:'bling', icon:Layers,      cor:'#8b5cf6', situacao:'sit=9', desc:'Pedido em Atendido (separação/embalagem) — automático', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  { id:'produto_embalado',    label:'Produto Embalado',      grupo:'Preparação & Nota', tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'#EMBALADO',  desc:'Disparo via comando #EMBALADO nas observações internas do pedido no Bling', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{qtde_item_pedido}}','{{itens_linha_unica}}'] },
+  { id:'em_andamento',        label:'Em Andamento (info)',    grupo:'Preparação & Nota', tipo:'bling', icon:RefreshCw,   cor:'#8b5cf6', situacao:'manual',  manual:true, desc:'Gatilho informativo — sit=15 (Em Andamento) já dispara Pagamento Aprovado automaticamente. Use este apenas para comunicados extras.', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  { id:'nfe_pendente',        label:'NF-e Pendente',         grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#f59e0b', situacao:'nfe=1',   desc:'Nota emitida, aguardando autorização da SEFAZ', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{numero_nfe}}'] },
+  { id:'nfe_rejeitada',       label:'NF-e Rejeitada',        grupo:'Preparação & Nota', tipo:'bling', icon:AlertTriangle, cor:'#ef4444', situacao:'nfe=4',   desc:'Nota rejeitada pela SEFAZ (uso interno/aviso)', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{numero_nfe}}'] },
+  { id:'nfe_emitida',         label:'NF-e Emitida',          grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#06b6d4', situacao:'nfe=5',   desc:'Nota autorizada pela SEFAZ — DANFE disponível', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{numero_nfe}}','{{link_nfe}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
 
   // ── 3. Envio & Rastreio (jornada física do pacote) ─────────────────────
-  { id:'pedido_enviado',      label:'Pedido Enviado',        grupo:'Envio & Rastreio', tipo:'bling', icon:Truck,       cor:'#a78bfa', situacao:'sit=27',  desc:'Despachado com código de rastreio', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}','{{link_acompanhamento}}','{{previsao_entrega}}','{{endereco_entrega}}'] },
-  { id:'pedido_coletado',     label:'Pedido Coletado',       grupo:'Envio & Rastreio', tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'auto',    desc:'Transportadora coletou o pacote', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{previsao_entrega}}','{{historico_rastreio}}','{{link_acompanhamento}}'] },
+  { id:'pedido_enviado',      label:'Pedido Enviado',        grupo:'Envio & Rastreio', tipo:'bling', icon:Truck,       cor:'#a78bfa', situacao:'sit=27',  desc:'Despachado com código de rastreio', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{previsao_entrega}}','{{link_rastreio}}','{{link_acompanhamento}}','{{endereco_entrega}}'] },
+  { id:'pedido_coletado',     label:'Pedido Coletado',       grupo:'Envio & Rastreio', tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'auto',    desc:'Transportadora coletou o pacote', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{previsao_entrega}}','{{historico_rastreio}}','{{link_acompanhamento}}'] },
   { id:'rastreio_em_transito',label:'Em Trânsito',           grupo:'Envio & Rastreio', tipo:'bling', icon:Radio,       cor:'#4a9fff', situacao:'auto',    desc:'Pacote em movimentação entre bases', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{status_rastreio}}','{{previsao_entrega}}','{{historico_rastreio}}','{{historico_rastreio_citar}}','{{link_acompanhamento}}'] },
   { id:'saiu_entrega',        label:'Saiu para Entrega',     grupo:'Envio & Rastreio', tipo:'bling', icon:Truck,       cor:'#f59e0b', situacao:'auto / #SAIU', hibrido:true, desc:'Detectado pelo rastreio ou comando #SAIU', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}','{{previsao_entrega}}','{{endereco_entrega}}','{{historico_rastreio}}','{{link_acompanhamento}}'] },
-  { id:'tentativa_entrega',   label:'Tentativa de Entrega',  grupo:'Envio & Rastreio', tipo:'bling', icon:AlertTriangle,cor:'#f59e0b', situacao:'auto',   desc:'Destinatário ausente — vai tentar de novo', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{previsao_entrega}}','{{link_acompanhamento}}'] },
-  { id:'aguardando_retirada', label:'Aguardando Retirada',   grupo:'Envio & Rastreio', tipo:'bling', icon:Clock,       cor:'#0ea5e9', situacao:'auto / #AGUARDANDO', hibrido:true, desc:'Detectado pelo rastreio ou comando #AGUARDANDO', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}'] },
+  { id:'tentativa_entrega',   label:'Tentativa de Entrega',  grupo:'Envio & Rastreio', tipo:'bling', icon:AlertTriangle,cor:'#f59e0b', situacao:'auto',   desc:'Destinatário ausente — vai tentar de novo', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{previsao_entrega}}','{{link_acompanhamento}}'] },
+  { id:'aguardando_retirada', label:'Aguardando Retirada',   grupo:'Envio & Rastreio', tipo:'bling', icon:Clock,       cor:'#0ea5e9', situacao:'auto / #AGUARDANDO', hibrido:true, desc:'Detectado pelo rastreio ou comando #AGUARDANDO', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{link_acompanhamento}}','{{endereco_entrega}}'] },
   { id:'endereco_incorreto',  label:'Endereço Incorreto',    grupo:'Envio & Rastreio', tipo:'bling', icon:AlertCircle, cor:'#ef4444', situacao:'auto',    desc:'Endereço com problema — precisa revisar', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{endereco_entrega}}','{{link_acompanhamento}}'] },
   { id:'nao_entrou_unidade',  label:'Não Entrou na Unidade', grupo:'Envio & Rastreio', tipo:'bling', icon:AlertTriangle,cor:'#dc2626', situacao:'auto',   desc:'Objeto não chegou na unidade de destino (Jadlog)', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{transportadora}}','{{status_rastreio}}','{{link_acompanhamento}}'] },
-  { id:'pedido_entregue',     label:'Pedido Entregue',       grupo:'Envio & Rastreio', tipo:'bling', icon:Package,     cor:'#22c55e', situacao:'sit=30 / auto',  desc:'Entrega confirmada', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{historico_rastreio}}','{{historico_rastreio_citar}}','{{link_acompanhamento}}'] },
-  { id:'nao_entregue',        label:'Não Entregue',          grupo:'Envio & Rastreio', tipo:'bling', icon:AlertCircle, cor:'#ef4444', situacao:'sit=33',  desc:'Tentativa de entrega falhou', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{link_rastreio}}','{{link_acompanhamento}}'] },
-  { id:'pacote_devolvido',    label:'Pacote Devolvido',      grupo:'Envio & Rastreio', tipo:'bling', icon:RefreshCw,   cor:'#f87171', situacao:'auto',    desc:'Pacote retornou ao remetente', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{link_acompanhamento}}'] },
+  { id:'pedido_entregue',     label:'Pedido Entregue',       grupo:'Envio & Rastreio', tipo:'bling', icon:Package,     cor:'#22c55e', situacao:'sit=30 / auto',  desc:'Entrega confirmada', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{transportadora}}','{{historico_rastreio}}','{{historico_rastreio_citar}}','{{link_acompanhamento}}'] },
+  { id:'nao_entregue',        label:'Não Entregue',          grupo:'Envio & Rastreio', tipo:'bling', icon:AlertCircle, cor:'#ef4444', situacao:'sit=33',  desc:'Tentativa de entrega falhou', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}','{{link_acompanhamento}}'] },
+  { id:'pacote_devolvido',    label:'Pacote Devolvido',      grupo:'Envio & Rastreio', tipo:'bling', icon:RefreshCw,   cor:'#f87171', situacao:'auto',    desc:'Pacote retornou ao remetente', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{link_acompanhamento}}'] },
 
   // ── 4. Pós-venda ───────────────────────────────────────────────────────
-  { id:'cancelamento',        label:'Pedido Cancelado',      grupo:'Pós-venda',     tipo:'bling', icon:XCircle,     cor:'#6b7280', situacao:'sit=12',  desc:'Pedido cancelado', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}'] },
-  { id:'devolucao',           label:'Devolução',             grupo:'Pós-venda',     tipo:'bling', icon:RefreshCw,   cor:'#f87171', situacao:'sit=36',  desc:'Pedido devolvido', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}'] },
-  { id:'avaliar_pedido',      label:'Avaliação Pós-venda',   grupo:'Pós-venda',     tipo:'bling', icon:Star,        cor:'#f87171', situacao:'manual',  manual:true, desc:'Satisfação após entrega', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{link_acompanhamento}}'] },
-  { id:'boas_vindas',         label:'Boas-vindas',           grupo:'Pós-venda',     tipo:'bling', icon:Star,        cor:'#e879f9', situacao:'manual',  manual:true, desc:'Primeiro contato no WhatsApp', variaveis:['{{nome_cliente}}','{{nome_loja}}'] },
+  { id:'cancelamento',        label:'Pedido Cancelado',      grupo:'Pós-venda',     tipo:'bling', icon:XCircle,     cor:'#6b7280', situacao:'sit=12',  desc:'Pedido cancelado', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}'] },
+  { id:'devolucao',           label:'Devolução',             grupo:'Pós-venda',     tipo:'bling', icon:RefreshCw,   cor:'#f87171', situacao:'sit=36',  desc:'Pedido devolvido', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}'] },
+  { id:'avaliar_pedido',      label:'Avaliação Pós-venda',   grupo:'Pós-venda',     tipo:'bling', icon:Star,        cor:'#f87171', situacao:'manual',  manual:true, desc:'Satisfação após entrega', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{link_acompanhamento}}'] },
+  { id:'boas_vindas',         label:'Boas-vindas',           grupo:'Pós-venda',     tipo:'bling', icon:Star,        cor:'#e879f9', situacao:'manual',  manual:true, desc:'Primeiro contato no WhatsApp', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{nome_loja}}','{{telefone_loja}}','{{site_loja}}'] },
 
   // ── 4b. Comandos Manuais (observações internas do Bling) ─────────────
-  { id:'pix_pendente',      label:'PIX Pendente',      grupo:'Pós-venda',     tipo:'bling', icon:CreditCard, cor:'#06b6d4', situacao:'#PIX',    manual:true, desc:'Comando #PIX nas observações internas — pagamento via PIX aguardando confirmação', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{link_pedido}}'] },
-  { id:'estorno_realizado', label:'Estorno Realizado',  grupo:'Pós-venda',     tipo:'bling', icon:RefreshCw,  cor:'#f97316', situacao:'#ESTORNO', manual:true, desc:'Comando #ESTORNO nas observações internas — reembolso processado', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}'] },
+  { id:'pix_pendente',      label:'PIX Pendente',      grupo:'Pós-venda',     tipo:'bling', icon:CreditCard, cor:'#06b6d4', situacao:'#PIX',    manual:true, desc:'Comando #PIX nas observações internas — pagamento via PIX aguardando confirmação', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{link_pedido}}'] },
+  { id:'estorno_realizado', label:'Estorno Realizado',  grupo:'Pós-venda',     tipo:'bling', icon:RefreshCw,  cor:'#f97316', situacao:'#ESTORNO', manual:true, desc:'Comando #ESTORNO nas observações internas — reembolso processado', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}'] },
 
   // ── 5. Inteligência (Bia) — inline, sem aprovação Meta ─────────────────
-  { id:'avise_me',            label:'Produto Disponível',    grupo:'Inteligência',  tipo:'bling', icon:Bell,        cor:'#fb923c', situacao:'#AVISE',  manual:true, desc:'Produto voltou ao estoque (#AVISE)', variaveis:['{{nome_cliente}}','{{nome_produto}}','{{preco_produto}}','{{link_produto}}'] },
-  { id:'catalogo_produto',    label:'Produto do Catálogo',   grupo:'Inteligência',  tipo:'bling', icon:ShoppingBag, cor:'#10b981', situacao:'manual',  manual:true, desc:'Produto enviado via catálogo', variaveis:['{{nome_produto}}','{{preco_cartao}}','{{preco_pix}}','{{foto_produto}}','{{descricao_produto}}'] },
+  { id:'avise_me',            label:'Produto Disponível',    grupo:'Inteligência',  tipo:'bling', icon:Bell,        cor:'#fb923c', situacao:'#AVISE',  manual:true, desc:'Produto voltou ao estoque (#AVISE)', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{nome_produto}}','{{preco_produto}}','{{preco_pix}}','{{preco_cartao}}','{{foto_produto}}','{{link_produto}}','{{nome_loja}}'] },
+  { id:'catalogo_produto',    label:'Produto do Catálogo',   grupo:'Inteligência',  tipo:'bling', icon:ShoppingBag, cor:'#10b981', situacao:'manual',  manual:true, desc:'Produto enviado via catálogo', variaveis:['{{nome_produto}}','{{preco_cartao}}','{{preco_pix}}','{{preco_produto}}','{{foto_produto}}','{{link_produto}}','{{descricao_produto}}','{{nome_loja}}'] },
   { id:'reengajamento',       label:'Reengajamento',         grupo:'Inteligência',  tipo:'ia',    icon:Brain,       cor:'#7c6af7', situacao:'auto-ia', desc:'Cliente inativo detectado pela Bia', variaveis:['{{nome_cliente}}','{{dias_inativo}}','{{ultimo_produto}}'] },
   { id:'recompra_vip',        label:'Ciclo VIP',             grupo:'Inteligência',  tipo:'ia',    icon:Brain,       cor:'#7c6af7', situacao:'auto-ia', desc:'VIP no ciclo de recompra', variaveis:['{{nome_cliente}}','{{ciclo_dias}}'] },
   { id:'primeira_recompra',   label:'1ª Recompra',           grupo:'Inteligência',  tipo:'ia',    icon:Brain,       cor:'#7c6af7', situacao:'auto-ia', desc:'1ª compra sem retorno', variaveis:['{{nome_cliente}}','{{ultimo_produto}}'] },
-  { id:'pos_entrega',         label:'Pós-entrega IA',        grupo:'Inteligência',  tipo:'ia',    icon:Brain,       cor:'#7c6af7', situacao:'auto-ia', desc:'Follow-up automático pós-entrega', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  { id:'pos_entrega',         label:'Pós-entrega IA',        grupo:'Inteligência',  tipo:'ia',    icon:Brain,       cor:'#7c6af7', situacao:'auto-ia', desc:'Follow-up automático pós-entrega', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{link_acompanhamento}}'] },
 ]
 
 const GRUPOS_ORDEM = ['Compra & Pagamento','Preparação & Nota','Envio & Rastreio','Pós-venda','Inteligência']
@@ -2667,56 +2667,105 @@ function MetaAnalyticsCard({ stats }) {
 }
 
 // ─── EDITOR DE BLOCOS ─────────────────────────────────────────────────────────
-const EMOJIS_WA = [
-  // Celebração / positivo
-  '🎉','✅','🏆','⭐','🌟','💫','🔥','❤️','💚','💙',
-  // Pedido / entrega
-  '📦','🚚','🛵','✈️','📍','🏠','🏪','📋','🧾','🔖',
-  // Dinheiro / pagamento
-  '💰','💳','💵','🏦','🤑','💸','🎁','🛒','🛍️','🏷️',
-  // Comunicação / suporte
-  '📱','📞','💬','📣','📢','🔔','✉️','📩','💌','👋',
-  // Status / avisos
-  '⏳','⚡','🔧','⚠️','❌','🔴','🟡','🟢','ℹ️','❓',
-  // Rostos
-  '😊','🙏','😍','🤝','👍','🫶','😎','🥳','😄','🫡',
+const EMOJI_CATS = [
+  { label:'🚀', title:'Pedido & Entrega',  list:['📦','🚚','🛵','✈️','📍','🏠','🏪','📋','🧾','🔖','🗓️','⏰','📅','🔑','🏷️'] },
+  { label:'💰', title:'Pagamento',         list:['💰','💳','💵','🏦','🤑','💸','🎁','🛒','🛍️','🏷️','📊','💹','✅','🔐','🔓'] },
+  { label:'🔔', title:'Comunicação',       list:['📱','📞','💬','📣','📢','🔔','✉️','📩','💌','👋','🤝','🫱','📲','🗣️','📡'] },
+  { label:'🎉', title:'Celebração',        list:['🎉','🏆','⭐','🌟','💫','🔥','❤️','💚','💙','🥳','🎊','🎯','✨','💎','🥇'] },
+  { label:'😊', title:'Expressões',        list:['😊','🙏','😍','👍','🫶','😎','😄','🫡','🤩','😌','🤗','😇','🥰','💪','👌'] },
+  { label:'⚠️', title:'Status & Aviso',    list:['⏳','⚡','🔧','⚠️','❌','🔴','🟡','🟢','ℹ️','❓','🚨','🛑','⛔','✅','🔄'] },
 ]
 
 function EmojiPicker({ onInsert }) {
   const [aberto, setAberto] = useState(false)
-  const ref = useRef(null)
+  const [cat,    setCat]    = useState(0)
+  const [pos,    setPos]    = useState({top:0,left:0,up:false})
+  const btnRef = useRef(null)
+  const panelRef = useRef(null)
+
+  const toggle = () => {
+    if (!aberto && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - r.bottom
+      setPos({
+        top:  spaceBelow > 220 ? r.bottom + 6 : r.top - 226,
+        left: Math.min(r.left, window.innerWidth - 280),
+        up:   spaceBelow <= 220
+      })
+    }
+    setAberto(v => !v)
+  }
+
   useEffect(() => {
     if (!aberto) return
-    const fn = e => { if (ref.current && !ref.current.contains(e.target)) setAberto(false) }
+    const fn = e => {
+      if (!btnRef.current?.contains(e.target) && !panelRef.current?.contains(e.target))
+        setAberto(false)
+    }
     document.addEventListener('mousedown', fn)
     return () => document.removeEventListener('mousedown', fn)
   }, [aberto])
+
   return (
-    <div style={{ position:'relative', display:'inline-block' }} ref={ref}>
-      <button onClick={() => setAberto(v=>!v)} title="Inserir emoji"
-        style={{ padding:'4px 8px', borderRadius:7, border:`1px solid ${T.sep2}`,
-          background: aberto ? T.bg4 : 'transparent', cursor:'pointer',
-          fontSize:14, lineHeight:1, color:T.ink2 }}>
-        😊
+    <>
+      <button ref={btnRef} onMouseDown={e=>e.preventDefault()} onClick={toggle}
+        title="Inserir emoji"
+        style={{ display:'inline-flex', alignItems:'center', gap:4,
+          padding:'3px 9px', borderRadius:6, cursor:'pointer', fontSize:11,
+          border:`1px solid ${aberto ? T.purpleBor : T.sep2}`,
+          background: aberto ? T.purpleDim : T.bg3,
+          color: aberto ? T.purple : T.ink3,
+          fontWeight: aberto ? 600 : 400, transition:'all .15s' }}>
+        <span style={{fontSize:13}}>😊</span> Emoji
       </button>
+
       {aberto && (
-        <div style={{ position:'absolute', top:'calc(100% + 4px)', left:0, zIndex:100,
-          background:T.bg3, border:`1px solid ${T.sep2}`, borderRadius:10,
-          padding:8, display:'grid', gridTemplateColumns:'repeat(10,1fr)', gap:2,
-          boxShadow:'0 8px 24px rgba(0,0,0,.5)', width:260 }}>
-          {EMOJIS_WA.map(e => (
-            <button key={e} onClick={() => { onInsert(e); setAberto(false) }}
-              style={{ fontSize:16, padding:'4px', borderRadius:5, border:'none',
-                background:'transparent', cursor:'pointer', lineHeight:1,
-                transition:'background .1s' }}
-              onMouseEnter={ev => ev.target.style.background = T.bg4}
-              onMouseLeave={ev => ev.target.style.background = 'transparent'}>
-              {e}
-            </button>
-          ))}
+        <div ref={panelRef}
+          style={{ position:'fixed', top:pos.top, left:pos.left, zIndex:9999,
+            background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:12,
+            boxShadow:'0 12px 40px rgba(0,0,0,.7)', width:276,
+            overflow:'hidden', animation:'gat-fadeUp .15s ease' }}>
+
+          {/* Tabs de categoria */}
+          <div style={{ display:'flex', borderBottom:`1px solid ${T.sep}`,
+            background:T.bg3 }}>
+            {EMOJI_CATS.map((c,i) => (
+              <button key={i} onClick={() => setCat(i)}
+                title={c.title}
+                style={{ flex:1, padding:'7px 4px', border:'none', cursor:'pointer',
+                  background: cat===i ? T.bg2 : 'transparent',
+                  fontSize:15, borderBottom: cat===i ? `2px solid ${T.purple}` : '2px solid transparent',
+                  transition:'background .1s' }}>
+                {c.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Título da categoria */}
+          <div style={{ padding:'5px 10px 3px', fontSize:9, fontWeight:700,
+            color:T.ink4, letterSpacing:'.06em', textTransform:'uppercase' }}>
+            {EMOJI_CATS[cat].title}
+          </div>
+
+          {/* Grid de emojis */}
+          <div style={{ padding:'4px 8px 10px',
+            display:'grid', gridTemplateColumns:'repeat(15,1fr)', gap:1 }}>
+            {EMOJI_CATS[cat].list.map(e => (
+              <button key={e}
+                onMouseDown={ev => { ev.preventDefault(); onInsert(e); setAberto(false) }}
+                style={{ fontSize:17, padding:'5px 2px', border:'none', borderRadius:5,
+                  background:'transparent', cursor:'pointer', lineHeight:1,
+                  transition:'background .08s', display:'flex', alignItems:'center',
+                  justifyContent:'center' }}
+                onMouseEnter={ev => ev.currentTarget.style.background = T.bg4}
+                onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
+                {e}
+              </button>
+            ))}
+          </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
 
@@ -2742,18 +2791,18 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
   const Ic = tipo?.icon || FileText
   const cor = tipo?.cor || T.ink3
 
-  // Inserir no campo de texto — cursor-aware para textarea
+  // Cache da última posição do cursor por campo — sobrevive ao clique no emoji
+  const selCache = useRef({})
+
+  const onFieldSel = (field, e) => {
+    selCache.current[field] = { s: e.target.selectionStart, e: e.target.selectionEnd }
+  }
+
   const insertInto = (field, v) => {
-    const el = document.getElementById(`bloco-field-${b.id}-${field}`)
-    if (el && el.selectionStart !== undefined) {
-      const s = el.selectionStart, e = el.selectionEnd
-      const cur = b[field] || ''
-      onChange({ ...b, [field]: cur.slice(0,s) + v + cur.slice(e) })
-      // Reposiciona cursor após inserção
-      setTimeout(() => { el.selectionStart = el.selectionEnd = s + v.length; el.focus() }, 0)
-    } else {
-      onChange({ ...b, [field]: (b[field]||'') + v })
-    }
+    const cur = b[field] || ''
+    const { s = cur.length, e = cur.length } = selCache.current[field] || {}
+    onChange({ ...b, [field]: cur.slice(0, s) + v + cur.slice(e) })
+    selCache.current[field] = { s: s + v.length, e: s + v.length }
   }
 
   const inputStyle = {
@@ -2765,7 +2814,7 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
   const toolbarStyle = { display:'flex', alignItems:'center', gap:4, marginTop:5 }
 
   return (
-    <div style={{ borderRadius:12, overflow:'hidden', border:`1px solid ${T.sep}`,
+    <div style={{ borderRadius:12, border:`1px solid ${T.sep}`,
       background:T.bg2, marginBottom:8 }}>
 
       {/* Header */}
@@ -2832,9 +2881,11 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
                 Texto do cabeçalho
                 <span style={{color:T.ink4,fontWeight:400}}> ({60-(b.conteudo||'').length} restantes)</span>
               </label>
-              <input id={`bloco-field-${b.id}-conteudo`}
+              <input
                 value={b.conteudo||''} maxLength={60}
                 onChange={e => onChange({...b, conteudo:e.target.value})}
+                onSelect={e => onFieldSel('conteudo', e)}
+                onFocus={e  => onFieldSel('conteudo', e)}
                 placeholder="Ex: 📦 Seu pedido foi enviado!"
                 style={inputStyle}/>
               <div style={toolbarStyle}>
@@ -2848,9 +2899,11 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
           {b.tipo==='texto' && (
             <div>
               <label style={labelStyle}>Texto da mensagem</label>
-              <textarea id={`bloco-field-${b.id}-conteudo`}
+              <textarea
                 value={b.conteudo||''} rows={4}
                 onChange={e => onChange({...b, conteudo:e.target.value})}
+                onSelect={e => onFieldSel('conteudo', e)}
+                onFocus={e  => onFieldSel('conteudo', e)}
                 placeholder="Digite o texto. Use *negrito*, _itálico_, ~tachado~"
                 style={{...inputStyle, resize:'vertical', fontFamily:'inherit', lineHeight:1.5}}/>
               <div style={toolbarStyle}>
@@ -2867,9 +2920,11 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
                 Rodapé
                 <span style={{color:T.ink4,fontWeight:400}}> (aparece em itálico — comportamento padrão do WhatsApp)</span>
               </label>
-              <input id={`bloco-field-${b.id}-conteudo`}
+              <input
                 value={b.conteudo||''} maxLength={60}
                 onChange={e => onChange({...b, conteudo:e.target.value})}
+                onSelect={e => onFieldSel('conteudo', e)}
+                onFocus={e  => onFieldSel('conteudo', e)}
                 placeholder="Ex: Só Strass • sostrass.com.br"
                 style={inputStyle}/>
               <div style={toolbarStyle}>
@@ -2942,7 +2997,7 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
                     placeholder="https://... ou {{link_rastreio}}"
                     style={{...inputStyle, fontFamily:'monospace', fontSize:11}}/>
                   <div style={toolbarStyle}>
-                    <VarChips vars={vars.filter(v=>v.includes('link'))} onInsert={v => onChange({...b, valor:(b.valor||'')+v})}/>
+                    <VarChips vars={vars.filter(v=>v.includes('link')||v.includes('rastreio')||v.includes('numero')||v.includes('codigo')||v.includes('pedido'))} onInsert={v => onChange({...b, valor:(b.valor||'')+v})}/>
                   </div>
                 </div>
               )}
