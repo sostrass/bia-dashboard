@@ -538,7 +538,7 @@ export default function LiveActivityBar({ api, onNavigate }) {
                         {THRESHOLDS[id] && (
                           <span style={{ fontSize:9,color:T.ink4,padding:'1px 6px',
                             borderRadius:99,background:T.gray,border:`1px solid ${T.sep}` }}>
-                            >{THRESHOLDS[id].max}
+                            {'>'}{THRESHOLDS[id].max}
                           </span>
                         )}
                         <button onClick={()=>setHidden(prev=>{
