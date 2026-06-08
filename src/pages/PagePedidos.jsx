@@ -1228,16 +1228,24 @@ function OrderSheet({ pedRow, onClose, api, allPedidos }) {
   ]
   const dispMap = {}
   disps.forEach(d => { dispMap[d.gatilho] = d })
-  const stepAtual = (() => {
-    if ([15].includes(sitId) || String(pedRow.situacao||'').includes('verif')) return 7
-    if (codRas && String(pedRow.situacao||'').toLowerCase().includes('saiu')) return 6
-    if (codRas) return 5
-    if ([27,24].includes(sitId)) return 4
-    if ([14].includes(sitId)) return 3
-    if ([9].includes(sitId))  return 2
-    if ([15].includes(sitId)) return 1
-    return 0
-  })()
+  // Avaliação independente — cada step tem sua própria condição
+  const sitStr = String(pedRow.situacao||'').toLowerCase()
+  const temNFePed = !!(nfe?.numero || ped?.notaFiscal?.id)
+  const dispMap2 = {}; disps.forEach(d => { dispMap2[d.gatilho] = d })
+
+  const PAGO_SITS2 = [9, 15, 24, 27, 30, 14]
+  const pedStepFeito = [
+    true,                                                               // 0 criado
+    PAGO_SITS2.includes(sitId),                                        // 1 pago
+    [9, 24, 27, 30].includes(sitId),                                   // 2 separação
+    temNFePed || sitId === 24,                                         // 3 nf-e — só se existe
+    !!codRas || [27, 30].includes(sitId),                              // 4 enviado
+    !!codRas,                                                          // 5 trânsito
+    !!codRas && (sitStr.includes('saiu')||!!dispMap2['saiu_entrega']), // 6 saiu
+    sitId === 30 || sitStr.includes('entregue') || !!dispMap2['pedido_entregue'], // 7 entregue
+  ]
+  let stepAtual = 0
+  pedStepFeito.forEach((f, i) => { if (f) stepAtual = i })
 
   // ── RENDER ─────────────────────────────────────────────────────────────────
   return (
@@ -1309,7 +1317,7 @@ function OrderSheet({ pedRow, onClose, api, allPedidos }) {
           <div style={{ overflowX:'auto', paddingBottom:2 }}>
             <div style={{ display:'flex', alignItems:'flex-start', minWidth:'max-content', gap:0 }}>
               {STEPS_H.map((step, i) => {
-                const feito = i <= stepAtual, atual = i === stepAtual
+                const feito = pedStepFeito[i] ?? false, atual = i === stepAtual
                 const d = dispMap[step.g]
                 const Ic = step.Icon
                 return (
@@ -1348,8 +1356,8 @@ function OrderSheet({ pedRow, onClose, api, allPedidos }) {
               { g:'pedido_criado',        l:'📦 Resumo',         show:true              },
               { g:'nfe_emitida',          l:'📄 NF-e',           show:!!nfe?.linkDanfe  },
               { g:'rastreio_em_transito', l:'🚚 Rastreio',       show:!!codRas          },
-              { g:'pedido_entregue',      l:'✅ Entregue',       show:stepAtual>=7      },
-              { g:'avaliar_pedido',       l:'⭐ Avaliação',      show:stepAtual>=7      },
+              { g:'pedido_entregue',      l:'✅ Entregue',       show: sitId===30 || sitStr.includes('entregue') },
+              { g:'avaliar_pedido',       l:'⭐ Avaliação',      show: sitId===30 || sitStr.includes('entregue') },
               { g:'pagamento_pendente',   l:'💳 Lembrar pag.',   show:sitId===6         },
             ].filter(b=>b.show).map(({g,l}) => {
               const res=envRes[g], sending=enviando===g
