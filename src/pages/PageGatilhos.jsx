@@ -2951,7 +2951,7 @@ export default function PageGatilhos({ api }) {
     let vivo = true
     fetch(`${api}/api/dashboard/monitoramento`)
       .then(r => r.json())
-      .then(d => { if (vivo && d && !d.erro) { setMonitor(d); setMonLoad(false) } })
+      .then(d => { if (vivo) { if (d && !d.erro) setMonitor(d); setMonLoad(false) } })
       .catch(() => { if (vivo) setMonLoad(false) })
     fetch(`${api}/api/operacao/pulso`)
       .then(r => r.json())
