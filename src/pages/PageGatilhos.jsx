@@ -87,6 +87,21 @@ const GATILHOS = [
 
 const GRUPOS_ORDEM = ['Compra & Pagamento','Preparação & Nota','Envio & Rastreio','Pós-venda','Inteligência']
 
+// ── Variáveis centralizadas ────────────────────────────────────────────────────
+// Fonte única de verdade. Adicionar aqui faz aparecer automaticamente em todos
+// os editores de bloco, sem precisar atualizar cada gatilho individualmente.
+const TODAS_VARIAVEIS = {
+  Cliente:      ['{{nome_cliente}}','{{primeiro_nome}}','{{telefone_cliente}}','{{email_cliente}}'],
+  Pedido:       ['{{numero_pedido}}','{{data_pedido}}','{{valor_total}}','{{forma_pagamento}}','{{link_pedido}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'],
+  Endereço:     ['{{endereco_entrega}}','{{endereco_faturamento}}'],
+  Entrega:      ['{{transportadora}}','{{codigo_rastreio}}','{{previsao_entrega}}','{{link_rastreio}}','{{link_acompanhamento}}','{{status_rastreio}}','{{historico_rastreio}}','{{historico_rastreio_citar}}'],
+  'Nota Fiscal':['{{numero_nfe}}','{{link_nfe}}'],
+  Produto:      ['{{nome_produto}}','{{preco_produto}}','{{preco_pix}}','{{preco_cartao}}','{{foto_produto}}','{{link_produto}}','{{descricao_produto}}'],
+  Loja:         ['{{nome_loja}}','{{telefone_loja}}','{{site_loja}}'],
+}
+// Flat list para campos de URL (só variáveis que fazem sentido como parte de URL)
+const VARS_URL = ['{{link_pedido}}','{{link_rastreio}}','{{link_acompanhamento}}','{{link_nfe}}','{{link_produto}}','{{numero_pedido}}','{{codigo_rastreio}}']
+
 const TIPOS_BLOCO = [
   { tipo:'cabecalho', label:'Cabeçalho', icon:Hash,        cor:'#00d4aa', desc:'Negrito no topo' },
   { tipo:'texto',     label:'Texto',     icon:FileText,     cor:'#4a9fff', desc:'Corpo da mensagem' },
@@ -2770,14 +2785,49 @@ function EmojiPicker({ onInsert }) {
 }
 
 function VarChips({ vars, onInsert }) {
-  if (!vars?.length) return null
+  // Aceita array simples OU objeto { Categoria: [vars] }
+  if (!vars) return null
+  const isObj = !Array.isArray(vars)
+  const entries = isObj ? Object.entries(vars) : null
+  const flat    = isObj ? null : vars
+
+  if (isObj) {
+    return (
+      <div style={{ marginTop:6, display:'flex', flexDirection:'column', gap:4 }}>
+        {entries.map(([cat, list]) => (
+          <div key={cat} style={{ display:'flex', alignItems:'flex-start', gap:6 }}>
+            <span style={{ fontSize:9, color:T.ink4, fontWeight:600, minWidth:72,
+              paddingTop:3, letterSpacing:'.02em', textTransform:'uppercase' }}>
+              {cat}
+            </span>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:3 }}>
+              {list.map(v => (
+                <button key={v} onMouseDown={e=>{e.preventDefault();onInsert(v)}}
+                  style={{ fontSize:9, padding:'2px 7px', borderRadius:99, cursor:'pointer',
+                    background:T.bg4, border:`1px solid ${T.sep2}`, color:T.cyan,
+                    fontFamily:'monospace', fontWeight:600, transition:'border-color .1s' }}
+                  onMouseEnter={e=>e.currentTarget.style.borderColor=T.cyan}
+                  onMouseLeave={e=>e.currentTarget.style.borderColor=T.sep2}>
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (!flat?.length) return null
   return (
-    <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginTop:6 }}>
-      {vars.map(v => (
-        <button key={v} onClick={() => onInsert(v)}
+    <div style={{ display:'flex', flexWrap:'wrap', gap:3, marginTop:6 }}>
+      {flat.map(v => (
+        <button key={v} onMouseDown={e=>{e.preventDefault();onInsert(v)}}
           style={{ fontSize:9, padding:'2px 7px', borderRadius:99, cursor:'pointer',
             background:T.bg4, border:`1px solid ${T.sep2}`, color:T.cyan,
-            fontFamily:'monospace', fontWeight:600 }}>
+            fontFamily:'monospace', fontWeight:600, transition:'border-color .1s' }}
+          onMouseEnter={e=>e.currentTarget.style.borderColor=T.cyan}
+          onMouseLeave={e=>e.currentTarget.style.borderColor=T.sep2}>
           {v}
         </button>
       ))}
@@ -2812,6 +2862,15 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
   }
   const labelStyle = { fontSize:10, color:T.ink3, marginBottom:3, display:'block', fontWeight:600 }
   const toolbarStyle = { display:'flex', alignItems:'center', gap:4, marginTop:5 }
+
+  // Vars do gatilho organizadas por categoria (apenas as ativas neste gatilho)
+  const varsPorCat = Object.fromEntries(
+    Object.entries(TODAS_VARIAVEIS)
+      .map(([cat, all]) => [cat, all.filter(v => vars.includes(v))])
+      .filter(([, list]) => list.length > 0)
+  )
+  // Vars de URL disponíveis neste gatilho
+  const varsUrlAtivas = VARS_URL.filter(v => vars.includes(v))
 
   return (
     <div style={{ borderRadius:12, border:`1px solid ${T.sep}`,
@@ -2890,8 +2949,8 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
                 style={inputStyle}/>
               <div style={toolbarStyle}>
                 <EmojiPicker onInsert={v => insertInto('conteudo', v)}/>
-                <VarChips vars={vars} onInsert={v => insertInto('conteudo', v)}/>
               </div>
+              <VarChips vars={varsPorCat} onInsert={v => insertInto('conteudo', v)}/>
             </div>
           )}
 
@@ -2908,8 +2967,8 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
                 style={{...inputStyle, resize:'vertical', fontFamily:'inherit', lineHeight:1.5}}/>
               <div style={toolbarStyle}>
                 <EmojiPicker onInsert={v => insertInto('conteudo', v)}/>
-                <VarChips vars={vars} onInsert={v => insertInto('conteudo', v)}/>
               </div>
+              <VarChips vars={varsPorCat} onInsert={v => insertInto('conteudo', v)}/>
             </div>
           )}
 
@@ -2930,6 +2989,7 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
               <div style={toolbarStyle}>
                 <EmojiPicker onInsert={v => insertInto('conteudo', v)}/>
               </div>
+              <VarChips vars={varsPorCat} onInsert={v => insertInto('conteudo', v)}/>
             </div>
           )}
 
@@ -2944,9 +3004,7 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
               <input value={b.legenda||''} onChange={e => onChange({...b, legenda:e.target.value})}
                 placeholder="Legenda da imagem"
                 style={inputStyle}/>
-              <div style={toolbarStyle}>
-                <VarChips vars={vars.filter(v=>v.includes('foto')||v.includes('link'))} onInsert={v => insertInto('url', v)}/>
-              </div>
+              <VarChips vars={VARS_URL.filter(v=>v.includes('foto')||v.includes('link')||v.includes('produto'))} onInsert={v => insertInto('url', v)}/>
             </div>
           )}
 
@@ -2996,9 +3054,7 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
                   <input value={b.valor||''} onChange={e => onChange({...b, valor:e.target.value})}
                     placeholder="https://... ou {{link_rastreio}}"
                     style={{...inputStyle, fontFamily:'monospace', fontSize:11}}/>
-                  <div style={toolbarStyle}>
-                    <VarChips vars={vars.filter(v=>v.includes('link')||v.includes('rastreio')||v.includes('numero')||v.includes('codigo')||v.includes('pedido'))} onInsert={v => onChange({...b, valor:(b.valor||'')+v})}/>
-                  </div>
+                  <VarChips vars={varsUrlAtivas} onInsert={v => onChange({...b, valor:(b.valor||'')+v})}/>
                 </div>
               )}
               {/* Telefone: armazenado em b.valor */}
@@ -3037,9 +3093,7 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
                 <input value={b.url||''} onChange={e => onChange({...b, url:e.target.value})}
                   placeholder="https://... ou {{link_acompanhamento}}"
                   style={{...inputStyle, fontFamily:'monospace', fontSize:11}}/>
-                <div style={toolbarStyle}>
-                  <VarChips vars={vars.filter(v=>v.includes('link'))} onInsert={v => onChange({...b, url:(b.url||'')+v})}/>
-                </div>
+                <VarChips vars={varsUrlAtivas} onInsert={v => onChange({...b, url:(b.url||'')+v})}/>
               </div>
             </div>
           )}
@@ -3080,6 +3134,135 @@ function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate })
 }
 
 // ─── PLANO DE DISPAROS ────────────────────────────────────────────────────────
+// ─── GERENCIAR VARIÁVEIS DO GATILHO ──────────────────────────────────────────
+function GerenciarVars({ gatilhoId, varsList, onSave, api }) {
+  const [aberto,  setAberto]  = useState(false)
+  const [adicionando, setAdd] = useState(false)
+  const [salvando, setSalv]   = useState(false)
+
+  // Variáveis disponíveis para adicionar (não estão na lista atual)
+  const todasFlat = Object.values(TODAS_VARIAVEIS).flat()
+  const disponiveis = todasFlat.filter(v => !varsList.includes(v))
+
+  const salvar = async (novaLista) => {
+    setSalv(true)
+    await fetch(`${api}/api/ia/config`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ chave:`variaveis_${gatilhoId}`, valor:JSON.stringify(novaLista) })
+    }).catch(() => {})
+    onSave(novaLista)
+    setSalv(false)
+  }
+
+  const remover = (v) => salvar(varsList.filter(x => x !== v))
+  const adicionar = (v) => { salvar([...varsList, v]); setAdd(false) }
+  const resetar = () => {
+    const padrao = GATILHOS.find(g => g.id === gatilhoId)?.variaveis || []
+    salvar(padrao)
+  }
+
+  // Organiza varsList por categoria para exibição
+  const porCat = Object.entries(TODAS_VARIAVEIS).map(([cat, all]) => ({
+    cat, vars: all.filter(v => varsList.includes(v))
+  })).filter(e => e.vars.length > 0)
+
+  return (
+    <div style={{ borderRadius:10, border:`1px solid ${T.sep}`, background:T.bg2, overflow:'hidden' }}>
+      {/* Header clicável */}
+      <button onClick={() => setAberto(v=>!v)}
+        style={{ width:'100%', display:'flex', alignItems:'center', gap:8, padding:'10px 14px',
+          background:'transparent', border:'none', cursor:'pointer',
+          borderBottom: aberto ? `1px solid ${T.sep}` : 'none' }}>
+        <Hash size={13} style={{ color:T.purple }}/>
+        <span style={{ flex:1, fontSize:12, fontWeight:600, color:T.ink1, textAlign:'left' }}>
+          Variáveis deste gatilho
+        </span>
+        <span style={{ fontSize:10, color:T.ink4 }}>{varsList.length} ativas</span>
+        {aberto ? <ChevronUp size={12} style={{ color:T.ink4 }}/> : <ChevronDown size={12} style={{ color:T.ink4 }}/>}
+      </button>
+
+      {aberto && (
+        <div style={{ padding:'12px 14px' }}>
+          <p style={{ fontSize:10, color:T.ink4, margin:'0 0 10px', lineHeight:1.5 }}>
+            Variáveis ativas aparecem nos chips do editor de blocos deste gatilho. Remova as que não fazem sentido para manter o editor limpo.
+          </p>
+
+          {/* Lista por categoria */}
+          {porCat.map(({ cat, vars }) => (
+            <div key={cat} style={{ marginBottom:8 }}>
+              <div style={{ fontSize:9, fontWeight:700, color:T.ink4, letterSpacing:'.05em',
+                textTransform:'uppercase', marginBottom:4 }}>{cat}</div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                {vars.map(v => (
+                  <div key={v} style={{ display:'inline-flex', alignItems:'center', gap:4,
+                    padding:'3px 8px 3px 10px', borderRadius:99,
+                    background:T.bg4, border:`1px solid ${T.sep2}` }}>
+                    <span style={{ fontSize:10, color:T.cyan, fontFamily:'monospace', fontWeight:600 }}>{v}</span>
+                    <button onClick={() => remover(v)} disabled={salvando}
+                      style={{ width:14, height:14, borderRadius:'50%', border:'none',
+                        background:T.redDim, cursor:'pointer', display:'flex',
+                        alignItems:'center', justifyContent:'center', padding:0,
+                        color:T.red, flexShrink:0 }}>
+                      <X size={9}/>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {varsList.length === 0 && (
+            <p style={{ fontSize:11, color:T.ink4, fontStyle:'italic', margin:'0 0 10px' }}>
+              Nenhuma variável ativa. Clique em + Adicionar para incluir.
+            </p>
+          )}
+
+          {/* Painel de adição */}
+          {adicionando && disponiveis.length > 0 && (
+            <div style={{ borderRadius:8, border:`1px solid ${T.sep2}`, background:T.bg3,
+              padding:'8px 10px', marginBottom:8 }}>
+              <p style={{ fontSize:10, color:T.ink4, margin:'0 0 6px', fontWeight:600 }}>
+                Clique para adicionar:
+              </p>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                {disponiveis.map(v => (
+                  <button key={v} onClick={() => adicionar(v)}
+                    style={{ fontSize:10, padding:'3px 8px', borderRadius:99, cursor:'pointer',
+                      background:T.bg1, border:`1px solid ${T.purpleBor}`, color:T.purple,
+                      fontFamily:'monospace', fontWeight:600, transition:'all .12s' }}
+                    onMouseEnter={e => { e.currentTarget.style.background=T.purpleDim }}
+                    onMouseLeave={e => { e.currentTarget.style.background=T.bg1 }}>
+                    + {v}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Ações */}
+          <div style={{ display:'flex', gap:6, marginTop:8 }}>
+            <button onClick={() => setAdd(v=>!v)}
+              style={{ display:'inline-flex', alignItems:'center', gap:5,
+                padding:'5px 12px', borderRadius:7, cursor:'pointer', fontSize:11,
+                background: adicionando ? T.purpleDim : T.bg3,
+                border:`1px solid ${adicionando ? T.purpleBor : T.sep}`,
+                color: adicionando ? T.purple : T.ink2, fontWeight:600 }}>
+              <Plus size={11}/> Adicionar
+            </button>
+            <button onClick={resetar} disabled={salvando}
+              style={{ display:'inline-flex', alignItems:'center', gap:5,
+                padding:'5px 12px', borderRadius:7, cursor:'pointer', fontSize:11,
+                background:'transparent', border:`1px solid ${T.sep}`, color:T.ink4 }}>
+              <RefreshCw size={10}/> Restaurar padrão
+            </button>
+            {salvando && <span style={{ fontSize:10, color:T.ink4, alignSelf:'center' }}>Salvando…</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PlanodeDisparos({ gatilhos, configs, atividade, onSelect, api }) {
   const [delays,  setDelays]  = useState({})
   const [ordemGrupo, setOrdemGrupo] = useState({}) // { [grupo]: [ids em ordem] }
@@ -3311,6 +3494,7 @@ export default function PageGatilhos({ api }) {
   const [gerando,     setGerando]   = useState(false)
   const [erroIA,      setErroIA]    = useState('')
   const [delays,      setDelays]    = useState({})
+  const [varsCustom,  setVarsCustom] = useState({})  // { gatilhoId: string[] } — null = usa padrão do GATILHOS
   const [telTeste,    setTelTeste]  = useState('')
   const [enviandoT,   setEnviandoT] = useState(false)
   const [resTeste,    setResTeste]  = useState(null)
@@ -3552,16 +3736,18 @@ export default function PageGatilhos({ api }) {
       const r = await fetch(`${api}/api/ia/config`)
       if (r.ok) {
         const d = await r.json()
-        const dl = {}
-        const nm = {}
+        const dl = {}, nm = {}, vc = {}
         for (const g of GATILHOS) {
           const chave = `delay_${g.id}`
           if (d[chave] !== undefined) dl[g.id] = Number(d[chave])
           const chaveNome = `nome_${g.id}`
           if (d[chaveNome]) nm[g.id] = d[chaveNome]
+          const chaveVars = `variaveis_${g.id}`
+          if (d[chaveVars]) { try { vc[g.id] = JSON.parse(d[chaveVars]) } catch {} }
         }
         setDelays(dl)
         setNomesCustom(nm)
+        setVarsCustom(vc)
       }
     } catch {}
   }, [api])
@@ -4118,12 +4304,14 @@ export default function PageGatilhos({ api }) {
 
                     {/* Blocos */}
                     <div>
-                      {blocos.map((b,i) => (
-                        <Bloco key={b.id||i} b={b} idx={i} total={blocos.length}
-                          vars={gatilho?.variaveis||[]}
+                      {blocos.map((b,i) => {
+                        const _gDef = GATILHOS.find(g => g.id === selId)
+                        const _varsEf = varsCustom[selId] ?? (_gDef?.variaveis || [])
+                        return <Bloco key={b.id||i} b={b} idx={i} total={blocos.length}
+                          vars={_varsEf}
                           onChange={nb=>updBloco(i,nb)} onDelete={()=>delBloco(i)}
                           onMove={moveBloco} onDuplicate={()=>dupBloco(i)}/>
-                      ))}
+                      }})}
                     </div>
 
                     {/* Paleta de blocos */}
@@ -4234,6 +4422,20 @@ export default function PageGatilhos({ api }) {
                         ))}
                       </div>
                     </div>
+
+                    {/* ── Variáveis do gatilho ── */}
+                    {selId && (() => {
+                      const gDef = GATILHOS.find(g => g.id === selId)
+                      const varsEf = varsCustom[selId] ?? (gDef?.variaveis || [])
+                      return (
+                        <GerenciarVars
+                          gatilhoId={selId}
+                          varsList={varsEf}
+                          api={api}
+                          onSave={novaLista => setVarsCustom(p => ({...p, [selId]: novaLista}))}
+                        />
+                      )
+                    })()}
 
                     {/* ── Fluxo completo de disparos (timeline) ── */}
                     {(() => {
