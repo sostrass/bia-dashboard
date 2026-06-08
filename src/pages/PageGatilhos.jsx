@@ -54,15 +54,15 @@ const GATILHOS = [
   { id:'nfe_emitida',         label:'NF-e Emitida',          grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#06b6d4', situacao:'nfe=5',   desc:'Nota autorizada pela SEFAZ — DANFE disponível', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{numero_nfe}}','{{link_nfe}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
 
   // ── 3. Envio & Rastreio (jornada física do pacote) ─────────────────────
-  { id:'pedido_enviado',      label:'Pedido Enviado',        grupo:'Envio & Rastreio', tipo:'bling', icon:Truck,       cor:'#a78bfa', situacao:'sit=27',  desc:'Despachado com código de rastreio', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{previsao_entrega}}','{{link_rastreio}}','{{link_acompanhamento}}','{{endereco_entrega}}'] },
+  { id:'pedido_enviado',      label:'Pedido Enviado',        grupo:'Envio & Rastreio', tipo:'bling', icon:Truck,       cor:'#a78bfa', situacao:'sit=27',  desc:'Despachado com código de rastreio', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{status_rastreio}}','{{previsao_entrega}}','{{link_rastreio}}','{{link_acompanhamento}}','{{endereco_entrega}}'] },
   { id:'pedido_coletado',     label:'Pedido Coletado',       grupo:'Envio & Rastreio', tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'auto',    desc:'Transportadora coletou o pacote', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{previsao_entrega}}','{{historico_rastreio}}','{{link_acompanhamento}}'] },
   { id:'rastreio_em_transito',label:'Em Trânsito',           grupo:'Envio & Rastreio', tipo:'bling', icon:Radio,       cor:'#4a9fff', situacao:'auto',    desc:'Pacote em movimentação entre bases', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{status_rastreio}}','{{previsao_entrega}}','{{historico_rastreio}}','{{historico_rastreio_citar}}','{{link_acompanhamento}}'] },
-  { id:'saiu_entrega',        label:'Saiu para Entrega',     grupo:'Envio & Rastreio', tipo:'bling', icon:Truck,       cor:'#f59e0b', situacao:'auto / #SAIU', hibrido:true, desc:'Detectado pelo rastreio ou comando #SAIU', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}','{{previsao_entrega}}','{{endereco_entrega}}','{{historico_rastreio}}','{{link_acompanhamento}}'] },
+  { id:'saiu_entrega',        label:'Saiu para Entrega',     grupo:'Envio & Rastreio', tipo:'bling', icon:Truck,       cor:'#f59e0b', situacao:'auto / #SAIU', hibrido:true, desc:'Detectado pelo rastreio ou comando #SAIU', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{status_rastreio}}','{{link_rastreio}}','{{previsao_entrega}}','{{endereco_entrega}}','{{historico_rastreio}}','{{link_acompanhamento}}'] },
   { id:'tentativa_entrega',   label:'Tentativa de Entrega',  grupo:'Envio & Rastreio', tipo:'bling', icon:AlertTriangle,cor:'#f59e0b', situacao:'auto',   desc:'Destinatário ausente — vai tentar de novo', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{previsao_entrega}}','{{link_acompanhamento}}'] },
-  { id:'aguardando_retirada', label:'Aguardando Retirada',   grupo:'Envio & Rastreio', tipo:'bling', icon:Clock,       cor:'#0ea5e9', situacao:'auto / #AGUARDANDO', hibrido:true, desc:'Detectado pelo rastreio ou comando #AGUARDANDO', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{link_acompanhamento}}','{{endereco_entrega}}'] },
+  { id:'aguardando_retirada', label:'Aguardando Retirada',   grupo:'Envio & Rastreio', tipo:'bling', icon:Clock,       cor:'#0ea5e9', situacao:'auto / #AGUARDANDO', hibrido:true, desc:'Detectado pelo rastreio ou comando #AGUARDANDO', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{status_rastreio}}','{{link_acompanhamento}}','{{endereco_entrega}}'] },
   { id:'endereco_incorreto',  label:'Endereço Incorreto',    grupo:'Envio & Rastreio', tipo:'bling', icon:AlertCircle, cor:'#ef4444', situacao:'auto',    desc:'Endereço com problema — precisa revisar', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{endereco_entrega}}','{{link_acompanhamento}}'] },
   { id:'nao_entrou_unidade',  label:'Não Entrou na Unidade', grupo:'Envio & Rastreio', tipo:'bling', icon:AlertTriangle,cor:'#dc2626', situacao:'auto',   desc:'Objeto não chegou na unidade de destino (Jadlog)', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{transportadora}}','{{status_rastreio}}','{{link_acompanhamento}}'] },
-  { id:'pedido_entregue',     label:'Pedido Entregue',       grupo:'Envio & Rastreio', tipo:'bling', icon:Package,     cor:'#22c55e', situacao:'sit=30 / auto',  desc:'Entrega confirmada', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{transportadora}}','{{historico_rastreio}}','{{historico_rastreio_citar}}','{{link_acompanhamento}}'] },
+  { id:'pedido_entregue',     label:'Pedido Entregue',       grupo:'Envio & Rastreio', tipo:'bling', icon:Package,     cor:'#22c55e', situacao:'sit=30 / auto',  desc:'Entrega confirmada', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{transportadora}}','{{codigo_rastreio}}','{{status_rastreio}}','{{historico_rastreio}}','{{historico_rastreio_citar}}','{{link_acompanhamento}}'] },
   { id:'nao_entregue',        label:'Não Entregue',          grupo:'Envio & Rastreio', tipo:'bling', icon:AlertCircle, cor:'#ef4444', situacao:'sit=33',  desc:'Tentativa de entrega falhou', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}','{{link_acompanhamento}}'] },
   { id:'pacote_devolvido',    label:'Pacote Devolvido',      grupo:'Envio & Rastreio', tipo:'bling', icon:RefreshCw,   cor:'#f87171', situacao:'auto',    desc:'Pacote retornou ao remetente', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{link_acompanhamento}}'] },
 
@@ -4439,13 +4439,24 @@ export default function PageGatilhos({ api }) {
     setSubmetendo(true); setMetaErro('')
     try {
       const r = await fetch(`${api}/api/meta-templates/submeter/${c.id}`, { method:'POST' })
+
+      // Verifica se a resposta é JSON antes de tentar parsear
+      // (Railway pode devolver HTML em caso de timeout/502)
+      const ct = r.headers.get('content-type') || ''
+      if (!ct.includes('application/json')) {
+        setMetaErro(`Erro HTTP ${r.status} — o servidor retornou uma resposta inesperada. Tente novamente.`)
+        setSubmetendo(false); return
+      }
+
       const d = await r.json()
       if (d.ok) {
         setMetaStatus(d.status || 'PENDING')
       } else {
-        setMetaErro(`${d.erro || 'Erro desconhecido'}${d.dica ? ' — ' + d.dica : ''}${d.payload_debug ? ' | ' + d.payload_debug : ''}`)
+        setMetaErro([d.erro, d.dica, d.payload_debug].filter(Boolean).join(' — '))
       }
-    } catch { setMetaErro('Erro de conexão') }
+    } catch(e) {
+      setMetaErro(`Erro de conexão: ${e?.message || 'verifique se o servidor está online e tente novamente'}`)
+    }
     setSubmetendo(false)
   }
 
