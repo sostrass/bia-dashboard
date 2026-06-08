@@ -1833,8 +1833,8 @@ function SecaoVariaveis({ api }) {
       <div style={{padding:'10px 14px',borderRadius:9,background:'rgba(74,159,255,.06)',
         border:'0.5px solid rgba(74,159,255,.2)',marginBottom:16,marginTop:10}}>
         <p style={{fontSize:11,color:'#4a9fff',margin:0,lineHeight:1.6}}>
-          <b>Variáveis estáticas</b> são textos fixos que a Bia substitui antes de enviar (ex: {{'{{'}}nome_loja{'}}'}} → "Só Strass"). 
-          Variáveis dinâmicas como {{'{{'}}codigo_rastreio{{'}}'}} e {{'{{'}}valor_total{{'}}'}} são calculadas pelo sistema e não podem ser criadas aqui.
+          <b>Variáveis estáticas</b> são textos fixos que a Bia substitui antes de enviar (ex: {'{{nome_loja}}'} → "Só Strass"). 
+          Variáveis dinâmicas como {'{{codigo_rastreio}}'} e {'{{valor_total}}'} são calculadas pelo sistema e não podem ser criadas aqui.
         </p>
       </div>
 
