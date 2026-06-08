@@ -1757,6 +1757,200 @@ function SecaoExportacao({ api }) {
 // ═══════════════════════════════════════════════════
 // NAVEGAÇÃO LATERAL
 // ═══════════════════════════════════════════════════
+// ═══ Seção: Variáveis Estáticas Customizadas ══════════════════════════════════
+// Variáveis de texto fixo salvas em ia_config.
+// São substituídas automaticamente em qualquer mensagem antes do envio.
+// Exemplos: {{instagram_loja}}, {{link_whatsapp}}, {{horario_atendimento}}
+function SecaoVariaveis({ api }) {
+  const [vars,    setVars]    = useState({})  // { "{{nome}}": "valor" }
+  const [loading, setLoading] = useState(true)
+  const [novaChave, setNovCh] = useState('')
+  const [novaValor, setNovVl] = useState('')
+  const [salvando,  setSalv]  = useState(null)
+  const [editando,  setEdit]  = useState(null) // chave sendo editada
+  const [editVal,   setEditV] = useState('')
+  const [erro,      setErro]  = useState('')
+
+  useEffect(() => {
+    fetch(`${api}/api/ia/config`)
+      .then(r => r.json())
+      .then(d => {
+        const cv = d['custom_vars']
+        if (cv) { try { setVars(JSON.parse(cv)) } catch {} }
+        setLoading(false)
+      }).catch(() => setLoading(false))
+  }, [api])
+
+  const salvarTudo = async (novasVars) => {
+    await fetch(`${api}/api/ia/config`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ chave:'custom_vars', valor:JSON.stringify(novasVars) })
+    }).catch(() => {})
+  }
+
+  const adicionar = async () => {
+    const chave = novaChave.trim()
+    const valor = novaValor.trim()
+    if (!chave || !valor) { setErro('Preencha o nome e o valor'); return }
+    const fmtChave = chave.startsWith('{{') ? chave : `{{${chave.replace(/[{}]/g,'')}}}`
+    if (vars[fmtChave]) { setErro('Variável já existe'); return }
+    const novas = { ...vars, [fmtChave]: valor }
+    setSalv('add')
+    setVars(novas)
+    await salvarTudo(novas)
+    setNovCh(''); setNovVl(''); setErro(''); setSalv(null)
+  }
+
+  const remover = async (chave) => {
+    const novas = {...vars}; delete novas[chave]
+    setSalv(chave); setVars(novas)
+    await salvarTudo(novas); setSalv(null)
+  }
+
+  const salvarEdicao = async (chave) => {
+    const novas = {...vars, [chave]: editVal}
+    setSalv(chave); setVars(novas)
+    await salvarTudo(novas)
+    setSalv(null); setEdit(null); setEditV('')
+  }
+
+  const entries = Object.entries(vars)
+
+  return (
+    <GlowCard cor={T.purple} style={{animation:'cfg-fadeIn .3s ease'}}>
+      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:4}}>
+        <Hash size={18} style={{color:T.purple}}/>
+        <div style={{flex:1}}>
+          <div style={{fontSize:16,fontWeight:700,color:T.ink1}}>Variáveis Customizadas</div>
+          <div style={{fontSize:11,color:T.ink4,marginTop:1}}>
+            Texto estático substituído automaticamente em todas as mensagens da Bia
+          </div>
+        </div>
+        <Chip label={`${entries.length} vars`} cor={T.purple} icon={Hash}/>
+      </div>
+
+      {/* Aviso sobre variáveis dinâmicas */}
+      <div style={{padding:'10px 14px',borderRadius:9,background:'rgba(74,159,255,.06)',
+        border:'0.5px solid rgba(74,159,255,.2)',marginBottom:16,marginTop:10}}>
+        <p style={{fontSize:11,color:'#4a9fff',margin:0,lineHeight:1.6}}>
+          <b>Variáveis estáticas</b> são textos fixos que a Bia substitui antes de enviar (ex: {{'{{'}}nome_loja{'}}'}} → "Só Strass"). 
+          Variáveis dinâmicas como {{'{{'}}codigo_rastreio{{'}}'}} e {{'{{'}}valor_total{{'}}'}} são calculadas pelo sistema e não podem ser criadas aqui.
+        </p>
+      </div>
+
+      {loading ? (
+        <div style={{textAlign:'center',padding:'20px 0',color:T.ink4,fontSize:12}}>Carregando…</div>
+      ) : (
+        <>
+          {/* Tabela de variáveis */}
+          {entries.length > 0 && (
+            <div style={{borderRadius:10,border:`1px solid ${T.sep}`,overflow:'hidden',marginBottom:14}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',
+                padding:'7px 14px',background:T.bg3,borderBottom:`1px solid ${T.sep}`,gap:8}}>
+                <span style={{fontSize:10,fontWeight:700,color:T.ink4,textTransform:'uppercase',letterSpacing:'.05em'}}>Variável</span>
+                <span style={{fontSize:10,fontWeight:700,color:T.ink4,textTransform:'uppercase',letterSpacing:'.05em'}}>Valor</span>
+                <span/>
+              </div>
+              {entries.map(([ch, vl], i) => (
+                <div key={ch} style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',
+                  padding:'9px 14px',gap:8,alignItems:'center',
+                  borderBottom: i < entries.length-1 ? `1px solid ${T.sep}` : 'none',
+                  background:'transparent'}}>
+                  <span style={{fontSize:11,color:T.cyan,fontFamily:'monospace',fontWeight:600}}>{ch}</span>
+                  {editando === ch ? (
+                    <input value={editVal} onChange={e=>setEditV(e.target.value)}
+                      autoFocus
+                      style={{fontSize:11,padding:'4px 8px',borderRadius:6,
+                        border:`1px solid ${T.purpleBor}`,background:T.bg1,
+                        color:T.ink1,outline:'none'}}
+                      onKeyDown={e=>{if(e.key==='Enter')salvarEdicao(ch); if(e.key==='Escape'){setEdit(null);setEditV('')}}}
+                    />
+                  ) : (
+                    <span style={{fontSize:11,color:T.ink2}}>{vl}</span>
+                  )}
+                  <div style={{display:'flex',gap:4}}>
+                    {editando === ch ? (
+                      <>
+                        <button onClick={()=>salvarEdicao(ch)}
+                          disabled={salvando===ch}
+                          style={{padding:'3px 8px',borderRadius:6,border:'none',
+                            background:T.greenDim,color:T.green,cursor:'pointer',fontSize:11,fontWeight:600}}>
+                          {salvando===ch?'…':'✓'}
+                        </button>
+                        <button onClick={()=>{setEdit(null);setEditV('')}}
+                          style={{padding:'3px 8px',borderRadius:6,border:`1px solid ${T.sep}`,
+                            background:'transparent',color:T.ink4,cursor:'pointer',fontSize:11}}>
+                          ✕
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button onClick={()=>{setEdit(ch);setEditV(vl)}}
+                          style={{padding:'3px 8px',borderRadius:6,border:`1px solid ${T.sep}`,
+                            background:'transparent',color:T.ink3,cursor:'pointer',fontSize:11}}>
+                          Editar
+                        </button>
+                        <button onClick={()=>remover(ch)} disabled={salvando===ch}
+                          style={{padding:'3px 8px',borderRadius:6,border:`1px solid ${T.redBor}`,
+                            background:T.redDim,color:T.red,cursor:'pointer',fontSize:11}}>
+                          {salvando===ch?'…':'−'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {entries.length === 0 && (
+            <div style={{textAlign:'center',padding:'20px',color:T.ink4,fontSize:12,
+              borderRadius:10,border:`1px dashed ${T.sep}`,marginBottom:14}}>
+              Nenhuma variável customizada ainda. Adicione abaixo.
+            </div>
+          )}
+
+          {/* Formulário de adição */}
+          <div style={{borderRadius:10,border:`1px solid ${T.sep}`,padding:'12px 14px',background:T.bg2}}>
+            <p style={{fontSize:11,fontWeight:600,color:T.ink2,margin:'0 0 10px'}}>Nova variável</p>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+              <div>
+                <label style={{fontSize:10,color:T.ink4,display:'block',marginBottom:3}}>Nome da variável</label>
+                <input value={novaChave}
+                  onChange={e=>{setNovCh(e.target.value);setErro('')}}
+                  placeholder="link_instagram ou {{link_instagram}}"
+                  style={{width:'100%',padding:'7px 10px',borderRadius:7,fontSize:11,
+                    background:T.bg1,border:`1px solid ${T.sep2}`,color:T.ink1,
+                    outline:'none',boxSizing:'border-box',fontFamily:'monospace'}}
+                />
+              </div>
+              <div>
+                <label style={{fontSize:10,color:T.ink4,display:'block',marginBottom:3}}>Valor (texto fixo)</label>
+                <input value={novaValor}
+                  onChange={e=>{setNovVl(e.target.value);setErro('')}}
+                  placeholder="https://instagram.com/sostrass"
+                  style={{width:'100%',padding:'7px 10px',borderRadius:7,fontSize:11,
+                    background:T.bg1,border:`1px solid ${T.sep2}`,color:T.ink1,
+                    outline:'none',boxSizing:'border-box'}}
+                  onKeyDown={e=>e.key==='Enter'&&adicionar()}
+                />
+              </div>
+            </div>
+            {erro && <p style={{fontSize:11,color:T.red,margin:'0 0 8px'}}>{erro}</p>}
+            <button onClick={adicionar} disabled={salvando==='add'}
+              style={{display:'inline-flex',alignItems:'center',gap:6,
+                padding:'7px 16px',borderRadius:8,border:'none',cursor:'pointer',
+                background:`linear-gradient(135deg,${T.purple},#7c3aed)`,
+                color:'#fff',fontSize:12,fontWeight:700}}>
+              {salvando==='add' ? 'Salvando…' : '+ Adicionar variável'}
+            </button>
+          </div>
+        </>
+      )}
+    </GlowCard>
+  )
+}
+
 const SECOES=[
   { id:'monitor',   label:'Monitoramento',      icon:Activity,       cor:T.green,  desc:'Cockpit do sistema'     },
   { id:'integracoes',label:'Integrações',        icon:Globe,          cor:T.blue,   desc:'WhatsApp, Bling, Meta'  },
@@ -1766,6 +1960,7 @@ const SECOES=[
   { id:'contatos',  label:'Contatos & Blacklist', icon:Users,          cor:T.red,    desc:'Gestão de contatos'     },
   { id:'export',    label:'Exportação',           icon:Download,       cor:T.ink3,   desc:'CSV / JSON'             },
   { id:'auditoria', label:'Auditoria',            icon:History,        cor:T.purple, desc:'Timeline de mudanças'   },
+  { id:'variaveis',  label:'Variáveis Custom',    icon:Hash,           cor:T.purple, desc:'Substituições estáticas' },
 ]
 
 // ═══════════════════════════════════════════════════
@@ -1788,6 +1983,7 @@ export default function PageCentralConfig({ api=API }) {
       case 'contatos':   return <SecaoContatos api={api}/>
       case 'export':     return <SecaoExportacao api={api}/>
       case 'auditoria':  return <SecaoAuditoria api={api}/>
+      case 'variaveis':  return <SecaoVariaveis api={api}/>
       default: return null
     }
   }
