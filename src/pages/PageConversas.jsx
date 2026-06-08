@@ -214,7 +214,7 @@ function WaPreview({ content='', gatilhoLabel='' }) {
           <div style={{ fontSize:11.5,fontWeight:700,color:T.ink1 }}>Só Strass</div>
           <div style={{ fontSize:9.5,color:T.green }}>● Conta Business verificada</div>
         </div>
-        <span style={{ marginLeft:'auto',fontSize:9,color:T.ink4,
+        <span style={{ marginLeft:'auto',fontSize:9,
           padding:'1px 7px',borderRadius:99,background:T.amberDim,
           border:`1px solid ${T.amberBor}`,color:T.amber,fontWeight:700 }}>
           ⚡ {gatilhoLabel}
