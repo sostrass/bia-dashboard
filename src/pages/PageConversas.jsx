@@ -2210,8 +2210,8 @@ function ModalPedido({ pedido, tel, api, onClose, pixKey }) {
     temNFeModal || sitId === 24,                                       // 3 nf-e — só se existe
     temRastreio || [27, 30].includes(sitId),                           // 4 enviado
     temRastreio,                                                       // 5 trânsito
-    temRastreio && (sitStr.includes('saiu')||dispMap['saiu_entrega']), // 6 saiu
-    sitId === 30 || sitStr.includes('entregue') || !!dispMap['pedido_entregue'], // 7 entregue
+    temRastreio && (sitStr.includes('saiu') || !!disparoMap['saiu_entrega']),   // 6 saiu
+    sitId === 30 || sitStr.includes('entregue') || !!disparoMap['pedido_entregue'], // 7 entregue
   ]
 
   let stepAtual = 0
@@ -2607,7 +2607,7 @@ function InputBar({ api, tel, onEnviar, onEnviarMidia, enviando, disabled, rapid
             <button key={i} onClick={()=>{ setTxt(r); setRp(false); setSug([]); ref.current?.focus() }}
               style={{ display:'block',width:'100%',padding:'9px 14px',textAlign:'left',border:'none',
                 cursor:'pointer',background:'transparent',color:T.ink2,fontSize:12,
-                borderBottom:i<RAPIDAS.length-1?`1px solid ${T.sep}`:'none',transition:'background .1s' }}
+                borderBottom:i<(rapidasProp||RAPIDAS_DEFAULT||[]).length-1?`1px solid ${T.sep}`:'none',transition:'background .1s' }}
               onMouseEnter={e=>e.currentTarget.style.background=T.gray}
               onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
               {r}
