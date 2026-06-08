@@ -2389,7 +2389,7 @@ function ModalPedido({ pedido, tel, api, onClose, pixKey }) {
               {copied==='link'?'Copiado!':'Link do pedido'}
             </button>
             {temRastreio && (
-              <button onClick={() => window.open(`https://rastreio.sostrass.com.br/p/${pedido.rastreio}`,'_blank')}
+              <button onClick={() => window.open(`https://rastreio.net/${pedido.rastreio}`,'_blank')}
                 style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 11px',
                   borderRadius:9, border:`1px solid ${T.purpleBor}`, background:T.purpleDim,
                   color:T.purple, cursor:'pointer', fontSize:11, fontWeight:700 }}>
@@ -2440,10 +2440,11 @@ function ModalPedido({ pedido, tel, api, onClose, pixKey }) {
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
                 {[
-                  ['Transportadora', pedido.transportadora],
-                  ['Status',         pedido.ultimo_status || pedido.situacao],
-                  ['Data postagem',  pedido.data_postagem],
-                  ['Data entrega',   pedido.data_entrega],
+                  ['Transportadora',    pedido.transportadora],
+                  ['Último status',     pedido.ultimo_status],
+                  ['Data postagem',     pedido.data_postagem],
+                  ['Data entrega',      pedido.data_entrega],
+                  ['Notificações WA',   pedido.notificacoes_wa > 0 ? `${pedido.notificacoes_wa} enviadas` : null],
                 ].filter(([,v]) => v && v!=='—').map(([l,v]) => (
                   <div key={l}>
                     <div style={{ fontSize:9, color:T.ink4, marginBottom:2 }}>{l}</div>
