@@ -1752,7 +1752,14 @@ export default function PageConversas({ api='' }) {
   const [resetConf, setResetConf] = useState(false)
   const [pedidosAtivos, setPedidosAtivos] = useState([])  // pedidos do cliente selecionado
   const [cmdK, setCmdK] = useState(false)  // Command Palette ⌘K
-  const [rapidas, setRapidas] = useState(RAPIDAS_DEFAULT)  // carregadas do backend
+  const [rapidas, setRapidas] = useState([
+    'Olá! Como posso ajudar? 😊',
+    'Vou verificar isso agora para você.',
+    'Pode me informar o número do seu pedido?',
+    'O prazo de entrega é de 3 a 7 dias úteis.',
+    'Pagando via PIX você tem 10% de desconto automático! 💰',
+    'Vou transferir para nossa equipe. Um momento!',
+  ])  // carregadas do backend
   const [intencaoEdit, setIntencaoEdit] = useState(null)  // { tipo, pedido, campo, valor }
   const [editPedidoOpen, setEditPedidoOpen] = useState(false)
   const [heatmapOpen,    setHeatmapOpen]   = useState(false)
