@@ -14,9 +14,7 @@ import {
   Info, DollarSign, Box, Layers, Timer, Award, Map,
   ShieldCheck, Building, Globe, Percent, Target,
   ShoppingBag, MessageCircle, GripVertical, Settings,
-  ChevronLeft as CLeft, Flame, Shield, Award, Sparkles,
-  MapPin as MapPinIcon, TrendingUp as TUp, TrendingDown as TDown,
-  Cpu, Heart, Command, RotateCcw, ArrowRight,
+  Flame, Shield, Sparkles, Cpu, Heart, RotateCcw, ArrowRight,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
