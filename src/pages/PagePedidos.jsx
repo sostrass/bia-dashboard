@@ -118,13 +118,6 @@ function Pill({label,cor,bg,bdr,sz=10}) {
   return <span style={{fontSize:sz,fontWeight:700,padding:'2px 8px',borderRadius:99,
     color:cor,background:bg,border:`1px solid ${bdr||cor+'33'}`,whiteSpace:'nowrap',flexShrink:0}}>{label}</span>
 }
-function SitBadge({sitId}) {
-  const s = SIT[sitId]||{label:'—',cor:'#888',bg:'var(--fill)',bdr:'var(--sep)'}
-  return <span style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:99,
-    color:s.cor,background:s.bg,border:`1px solid ${s.bdr}`,whiteSpace:'nowrap',flexShrink:0}}>
-    {s.label}
-  </span>
-}
 function CanalBadge({canal,small}) {
   const c   = CANAL_CFG[canal]||CANAL_CFG.bling
   const Logo= CANAL_LOGO[canal]||LogoBling
@@ -322,7 +315,7 @@ function AnalyticsView({pedidos, api}) {
   const DIAS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
 
   const TT={contentStyle:{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:8,fontSize:11,color:'var(--label)'}}
-  const card={background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:14,padding:'14px 16px'}
+  const card={background:'rgba(255,255,255,.03)',backdropFilter:'blur(10px)',WebkitBackdropFilter:'blur(10px)',border:'0.5px solid rgba(255,255,255,.08)',borderRadius:14,padding:'14px 16px'}
   const maxProd=Math.max(...prodTodos.map(p=>p.valor),1)
   const maxHoje=Math.max(...prodHoje.map(p=>p.valor),1)
   const maxPend=Math.max(...prodPendentes.map(p=>p.qtd),1)
@@ -537,12 +530,12 @@ function AnalyticsView({pedidos, api}) {
                   })}
                 </div>
                 <div style={{display:'flex',gap:8,borderTop:'0.5px solid var(--sep)',paddingTop:8}}>
-                  {cols.map(s=>{
+                <div style={{display:'flex',gap:4,borderTop:'0.5px solid rgba(255,255,255,.08)',paddingTop:8}}>
                     const d=ops.por_sit[s.sid]||{n:0,valor:0}
                     return(
                       <div key={s.sid} style={{flex:1,textAlign:'center'}}>
-                        <div style={{fontSize:9,color:s.cor,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.label}</div>
-                        <div style={{fontSize:8,color:'var(--label-4)'}}>{total>0?((d.n/total)*100).toFixed(0):0}%</div>
+                        <div style={{fontSize:8,fontWeight:600,color:s.cor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.label}</div>
+                        <div style={{fontSize:9,fontWeight:700,color:s.cor}}>{total>0?((d.n/total)*100).toFixed(0):0}%</div>
                       </div>
                     )
                   })}
@@ -578,26 +571,22 @@ function AnalyticsView({pedidos, api}) {
                     return(
                       <div key={k} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
                         <span style={{fontSize:9,fontWeight:600,color:cfg.cor,whiteSpace:'nowrap'}}>{d.v>=1000?`R$${(d.v/1000).toFixed(0)}k`:fmt(d.v)}</span>
-                        <div style={{width:'100%',borderRadius:'4px 4px 0 0',height:h,position:'relative',
-                          background:`linear-gradient(180deg,${cfg.cor},${cfg.cor}88)`,
-                          boxShadow:`0 0 8px ${cfg.cor}40`,transition:'height .5s ease'}}>
-                          <div style={{position:'absolute',top:-16,left:'50%',transform:'translateX(-50%)'}}>
-                            <Logo size={12}/>
-                          </div>
-                        </div>
+                        <div style={{width:'100%',borderRadius:'4px 4px 0 0',height:h,
+                          background:`linear-gradient(180deg,${cfg.cor},${cfg.cor}66)`,
+                          boxShadow:`0 0 6px ${cfg.cor}40`,transition:'height .5s ease'}}/>
                       </div>
                     )
                   })}
                 </div>
-                <div style={{display:'flex',gap:8,borderTop:'0.5px solid var(--sep)',paddingTop:8}}>
+                <div style={{display:'flex',gap:4,borderTop:'0.5px solid rgba(255,255,255,.08)',paddingTop:8}}>
                   {canais.map(([k,d])=>{
                     const cfg=CANAL_CFG[k]||CANAL_CFG.bling
+                    const Logo=CANAL_LOGO[k]||LogoBling
                     return(
-                      <div key={k} style={{flex:1,textAlign:'center'}}>
-                        <div style={{fontSize:9,color:cfg.cor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{cfg.label.split(' ')[0]}</div>
-                        <div style={{fontSize:8,color:'var(--label-4)'}}>{d.n} ped.</div>
-                      </div>
-                    )
+                      <div key={k} style={{flex:1,textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
+                        <Logo size={11}/>
+                        <div style={{fontSize:7,fontWeight:600,color:cfg.cor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:40}}>{cfg.label.split(' ')[0]}</div>
+                        <div style={{fontSize:8,color:'rgba(255,255,255,.4)'}}>{d.n}</div>
                   })}
                 </div>
               </div>
@@ -907,8 +896,8 @@ function BrasilMapHeat({ data = {}, onClick, activeUf, size = 300 }) {
   return (
     <div style={{ position: 'relative' }}>
       <svg width={size} height={size * 1.08} viewBox="0 0 310 330">
-        {/* Sombra/fundo */}
-        <path d={BRASIL_OUTLINE} fill="var(--fill)" stroke="var(--sep)" strokeWidth="1"/>
+        {/* fundo do país */}
+        <path d={BRASIL_OUTLINE} fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.15)" strokeWidth="1.2"/>
         {/* Dots por estado */}
         {ESTADOS.map(e => {
           const d = data[e.uf] || { valor: 0, n: 0 }
@@ -921,12 +910,16 @@ function BrasilMapHeat({ data = {}, onClick, activeUf, size = 300 }) {
               onMouseEnter={() => setHover(e.uf)} onMouseLeave={() => setHover(null)}>
               {intensity > 0 && (
                 <>
-                  <circle cx={e.cx} cy={e.cy} r={r * 1.8}
-                    fill={`rgba(34,197,94,${intensity * 0.15})`} />
+                  <circle cx={e.cx} cy={e.cy} r={r * 2}
+                    fill={`rgba(124,106,247,${intensity * 0.2})`} />
                   <circle cx={e.cx} cy={e.cy} r={r}
-                    fill={`rgba(34,197,94,${0.3 + intensity * 0.7})`}
-                    stroke="rgba(34,197,94,.5)" strokeWidth="0.5"/>
+                    fill={`rgba(124,106,247,${0.5 + intensity * 0.5})`}
+                    stroke="rgba(167,139,250,.8)" strokeWidth="0.8"/>
                 </>
+              )}
+              {intensity === 0 && (
+                <circle cx={e.cx} cy={e.cy} r={2}
+                  fill="rgba(255,255,255,.12)"/>
               )}
               {(isHover || isActive || intensity > 0.3) && (
                 <text x={e.cx} y={e.cy - r - 4} textAnchor="middle"
@@ -948,12 +941,12 @@ function BrasilMapHeat({ data = {}, onClick, activeUf, size = 300 }) {
         )}
       </svg>
       {/* legenda */}
-      <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:9, color:'var(--label-4)', marginTop:4 }}>
-        <div style={{ width:8, height:8, borderRadius:'50%', background:'rgba(34,197,94,.2)' }}/>
+      <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:9, color:'rgba(255,255,255,.4)', marginTop:4 }}>
+        <div style={{ width:8, height:8, borderRadius:'50%', background:'rgba(124,106,247,.3)' }}/>
         <span>baixo</span>
-        <div style={{ flex:1, height:3, borderRadius:99, background:'linear-gradient(90deg,rgba(34,197,94,.2),rgba(34,197,94,.9))' }}/>
+        <div style={{ flex:1, height:3, borderRadius:99, background:'linear-gradient(90deg,rgba(124,106,247,.2),rgba(167,139,250,.9))' }}/>
         <span>alto</span>
-        <div style={{ width:8, height:8, borderRadius:'50%', background:'rgba(34,197,94,.9)' }}/>
+        <div style={{ width:8, height:8, borderRadius:'50%', background:'rgba(167,139,250,.9)' }}/>
       </div>
     </div>
   )
@@ -1113,8 +1106,8 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
   }
 
   const S={
-    sec:{background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:12,padding:'12px 14px'},
-    sub:{background:'var(--fill)',borderRadius:8,padding:'8px 10px'},
+    sec:{background:'rgba(255,255,255,.04)',backdropFilter:'blur(10px)',WebkitBackdropFilter:'blur(10px)',border:'0.5px solid rgba(255,255,255,.08)',borderRadius:12,padding:'12px 14px'},
+    sub:{background:'rgba(255,255,255,.05)',borderRadius:8,padding:'8px 10px',border:'0.5px solid rgba(255,255,255,.07)'},
     lbl:{fontSize:9,color:'var(--label-4)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.07em',marginBottom:3},
     val:{fontSize:11,color:'var(--label)'},
     row:{display:'flex',alignItems:'center',gap:8},
@@ -1984,7 +1977,17 @@ export default function PagePedidos({api}) {
           </div>
         ) : view==='analytics' ? <AnalyticsView pedidos={filtrados} api={api}/>
           : view==='kanban'    ? <KanbanView filtrados={filtrados} onSel={setSel}/>
-          : <>
+          : view==='lista' ? (()=>{
+            const now=Date.now()
+            const topProds=(()=>{const m={};filtrados.forEach(p=>{(p.itens||[]).forEach(it=>{const k=it.codigo||it.descricao||'?';if(!m[k])m[k]={nome:it.descricao||it.nome||k,cod:it.codigo||'',qtd:0,valor:0};m[k].qtd+=(it.quantidade||1);m[k].valor+=parseFloat(it.valor||0)*(it.quantidade||1)})});return Object.values(m).sort((a,b)=>b.qtd-a.qtd).slice(0,6)})()
+            const maxQtd=Math.max(...topProds.map(p=>p.qtd),1)
+            const semEnvioList=filtrados.filter(p=>[9,15].includes(getSitId(p))&&(now-new Date(p.data||0))/86400000>3&&!p.codigoRastreio)
+            const extraList=filtrados.filter(p=>getSitId(p)===27&&(now-new Date(p.data||0))/86400000>15)
+            const entreguesSemMsg=filtrados.filter(p=>[30,33].includes(getSitId(p)))
+            const glass='rgba(255,255,255,.04)',glB='0.5px solid rgba(255,255,255,.08)'
+            return <div style={{display:'flex',flex:1,overflow:'hidden',gap:0}}>
+              <div style={{flex:1,overflow:'hidden',display:'flex',flexDirection:'column'}}>
+          <>
             {showCols&&<div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:12,padding:'14px 16px',marginBottom:12}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
                 <div style={{fontSize:13,fontWeight:700,color:'var(--label)'}}>Colunas customizadas</div>
@@ -2157,8 +2160,52 @@ export default function PagePedidos({api}) {
               )}
             </div>}
           </>
-        }
-      </div>
+            </div>
+            {/* PAINEL DIREITO DA LISTA */}
+            <div style={{width:260,flexShrink:0,borderLeft:glBorder,background:'rgba(0,0,0,.2)',overflowY:'auto',padding:'14px 12px',display:'flex',flexDirection:'column',gap:12}}>
+              {/* Top Produtos em Pedidos */}
+              <div style={{background:glass,border:glBorder,borderRadius:12,padding:'12px 14px',backdropFilter:'blur(10px)'}}>
+                <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10}}>
+                  <Package size={13} style={{color:'#7c6af7'}}/>
+                  <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>Produtos em Pedidos</span>
+                </div>
+                {topProds.length===0?<div style={{fontSize:10,color:'rgba(255,255,255,.3)',textAlign:'center',padding:'8px 0'}}>Nenhum produto</div>:
+                  topProds.map((p,i)=>(
+                    <div key={p.cod||p.nome} style={{marginBottom:8}}>
+                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                        <span style={{fontSize:10,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1,marginRight:6}}>{p.nome}</span>
+                        <span style={{fontSize:10,fontWeight:700,color:i===0?'#7c6af7':i===1?'#06b6d4':'#22c55e',flexShrink:0}}>{p.qtd} pct</span>
+                      </div>
+                      <div style={{height:3,background:'rgba(255,255,255,.08)',borderRadius:99,overflow:'hidden'}}>
+                        <div style={{height:'100%',borderRadius:99,width:`${(p.qtd/maxQtd*100).toFixed(0)}%`,background:i===0?'#7c6af7':i===1?'#06b6d4':'#22c55e',boxShadow:i===0?'0 0 5px #7c6af780':'none'}}/>
+                      </div>
+                      {p.cod&&<div style={{fontSize:8,color:'rgba(255,255,255,.25)',marginTop:1}}>{fmt(p.valor)} · cod {p.cod}</div>}
+                    </div>
+                  ))
+                }
+              </div>
+              {/* Ações Necessárias */}
+              <div style={{background:glass,border:glBorder,borderRadius:12,padding:'12px 14px',backdropFilter:'blur(10px)'}}>
+                <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10}}>
+                  <AlertTriangle size={13} style={{color:'#f59e0b'}}/>
+                  <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>Ações Necessárias</span>
+                </div>
+                {[
+                  semEnvioList.length>0&&{cor:'#ef4444',bg:'rgba(239,68,68,.08)',titulo:`${semEnvioList.length} sem envio +3 dias`,acao:'gerar etiqueta urgente'},
+                  extraList.length>0&&{cor:'#f59e0b',bg:'rgba(245,158,11,.08)',titulo:`${extraList.length} em trânsito +15d`,acao:'verificar extravio'},
+                  entreguesSemMsg.length>0&&{cor:'#7c6af7',bg:'rgba(124,106,247,.08)',titulo:`${entreguesSemMsg.length} entregues sem retorno`,acao:'disparar confirmação'},
+                ].filter(Boolean).map((a,i)=>(
+                  <div key={i} style={{marginBottom:8,padding:'8px 10px',borderRadius:8,background:a.bg,border:`0.5px solid ${a.cor}30`}}>
+                    <div style={{fontSize:11,fontWeight:600,color:a.cor}}>{a.titulo}</div>
+                    <div style={{fontSize:10,color:'rgba(255,255,255,.4)',marginTop:1}}>{a.acao}</div>
+                  </div>
+                ))}
+                {semEnvioList.length===0&&extraList.length===0&&<div style={{fontSize:10,color:'rgba(255,255,255,.3)',textAlign:'center',padding:'8px 0'}}>✓ Sem ações urgentes</div>}
+              </div>
+            </div>
+          </div>
+          )
+        })() :
     </div>
 
     {sel&&<SmartOrderCard pedRow={sel} onClose={()=>setSel(null)} api={api} allPedidos={pedidos}/>}
