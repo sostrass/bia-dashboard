@@ -119,12 +119,12 @@ function Pill({label,cor,bg,bdr,sz=10}) {
     color:cor,background:bg,border:`1px solid ${bdr||cor+'33'}`,whiteSpace:'nowrap',flexShrink:0}}>{label}</span>
 }
 function CanalBadge({canal,small}) {
-  const c = CANAL_CFG[canal]||CANAL_CFG.bling
-  const Ic = c.icon
+  const c   = CANAL_CFG[canal]||CANAL_CFG.bling
+  const Logo= CANAL_LOGO[canal]||LogoBling
   return <span style={{fontSize:small?9:10,fontWeight:700,padding:small?'1px 5px':'2px 8px',
     borderRadius:99,color:c.cor,background:c.cor+'18',whiteSpace:'nowrap',flexShrink:0,
     display:'inline-flex',alignItems:'center',gap:3}}>
-    <Ic size={small?8:10}/>{c.label}</span>
+    <Logo size={small?8:10}/>{c.label}</span>
 }
 function Cp({val,label}) {
   const [ok,setOk]=useState(false)
@@ -1112,7 +1112,7 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
     val:{fontSize:11,color:'var(--label)'},
     row:{display:'flex',alignItems:'center',gap:8},
   }
-  const cc=CANAL_CFG[canal]||CANAL_CFG.bling; const CIc=cc.Logo||cc.icon
+  const cc=CANAL_CFG[canal]||CANAL_CFG.bling; const CIc=CANAL_LOGO[canal]||LogoBling
 
   return (
     <div style={{
