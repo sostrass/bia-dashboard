@@ -48,6 +48,8 @@ const GATILHOS = [
   // ── 2. Preparação & Nota ───────────────────────────────────────────────
   { id:'em_separacao',        label:'Em Separação',          grupo:'Preparação & Nota', tipo:'bling', icon:Layers,      cor:'#8b5cf6', situacao:'sit=9', desc:'Pedido em Atendido (separação/embalagem) — automático', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
   { id:'produto_embalado',    label:'Produto Embalado',      grupo:'Preparação & Nota', tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'#EMBALADO',  desc:'Disparo via comando #EMBALADO nas observações internas do pedido no Bling', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{qtde_item_pedido}}','{{itens_linha_unica}}'] },
+  { id:'aguardando_retirada', label:'Aguardando Retirada',   grupo:'Preparação & Nota', tipo:'bling', icon:MapPin,      cor:'#f59e0b', situacao:'sit=9', desc:'Dispara automaticamente quando o pedido entra em Atendido (sit=9) e o campo transporte é "Cliente Retira" — pedido pronto para retirada na loja', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  { id:'moto_expressa',       label:'Moto Expressa',         grupo:'Preparação & Nota', tipo:'bling', icon:Truck,       cor:'#f97316', situacao:'sit=9', desc:'Dispara automaticamente quando o pedido entra em Atendido (sit=9) e o campo transporte é "Moto Expressa" — entrega local por motoboy', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{endereco_entrega}}'] },
   { id:'em_andamento',        label:'Em Andamento (info)',    grupo:'Preparação & Nota', tipo:'bling', icon:RefreshCw,   cor:'#8b5cf6', situacao:'manual',  manual:true, desc:'Gatilho informativo — sit=15 (Em Andamento) já dispara Pagamento Aprovado automaticamente. Use este apenas para comunicados extras.', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
   { id:'nfe_pendente',        label:'NF-e Pendente',         grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#f59e0b', situacao:'nfe=1',   desc:'Nota emitida, aguardando autorização da SEFAZ', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{numero_nfe}}'] },
   { id:'nfe_rejeitada',       label:'NF-e Rejeitada',        grupo:'Preparação & Nota', tipo:'bling', icon:AlertTriangle, cor:'#ef4444', situacao:'nfe=4',   desc:'Nota rejeitada pela SEFAZ (uso interno/aviso)', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{numero_nfe}}'] },
@@ -353,6 +355,13 @@ const rv = t=>(t||'').replace(/\{\{([^}]+)\}\}/g,(_,k)=>AMOSTRAS[`{{${k}}}`]||`{
 // gatilho dispara. Usado no manual da aba Configuração.
 function manualGatilho(g) {
   const s = g?.situacao || ''
+  // Gatilhos de entrega local — descrição específica
+  if (g?.id === 'aguardando_retirada') {
+    return { tipo:'Automático (Bling)', quando:'Dispara quando o pedido entra em *Atendido* e o campo de transporte é *"Cliente Retira"* — sem código de rastreio, cliente busca na loja.' }
+  }
+  if (g?.id === 'moto_expressa') {
+    return { tipo:'Automático (Bling)', quando:'Dispara quando o pedido entra em *Atendido* e o campo de transporte é *"Moto Expressa"* — entrega local por motoboy, sem código postal.' }
+  }
   // Situações do Bling (sit=N) → nome amigável
   const SIT_NOME = {
     '6':'o pedido entra como *Em Aberto* no Bling (novo pedido)',
