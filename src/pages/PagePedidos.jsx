@@ -2206,7 +2206,8 @@ export default function PagePedidos({api}) {
               </div>
             </div>
           </div>
-        })() :
+        })()
+        }
     </div>
 
     {sel&&<SmartOrderCard pedRow={sel} onClose={()=>setSel(null)} api={api} allPedidos={pedidos}/>}
