@@ -11,7 +11,7 @@ import {
   ArrowRight, SlidersHorizontal, Tag, Repeat, Activity,
   GripVertical, Timer, Edit3, Send as SendIcon,
   Search, Users, Download, Minus, CheckCircle as CheckCircleIc,
-  Navigation, ArrowUpRight, History, TrendingUp, ChevronLeft,
+  Navigation, ArrowUpRight, History, TrendingUp, ChevronLeft, MapPin,
 } from 'lucide-react'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -48,8 +48,6 @@ const GATILHOS = [
   // ── 2. Preparação & Nota ───────────────────────────────────────────────
   { id:'em_separacao',        label:'Em Separação',          grupo:'Preparação & Nota', tipo:'bling', icon:Layers,      cor:'#8b5cf6', situacao:'sit=9', desc:'Pedido em Atendido (separação/embalagem) — automático', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
   { id:'produto_embalado',    label:'Produto Embalado',      grupo:'Preparação & Nota', tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'#EMBALADO',  desc:'Disparo via comando #EMBALADO nas observações internas do pedido no Bling', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{qtde_item_pedido}}','{{itens_linha_unica}}'] },
-  { id:'aguardando_retirada', label:'Aguardando Retirada',   grupo:'Preparação & Nota', tipo:'bling', icon:MapPin,      cor:'#f59e0b', situacao:'sit=9', desc:'Dispara automaticamente quando o pedido entra em Atendido (sit=9) e o campo transporte é "Cliente Retira" — pedido pronto para retirada na loja', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
-  { id:'moto_expressa',       label:'Moto Expressa',         grupo:'Preparação & Nota', tipo:'bling', icon:Truck,       cor:'#f97316', situacao:'sit=9', desc:'Dispara automaticamente quando o pedido entra em Atendido (sit=9) e o campo transporte é "Moto Expressa" — entrega local por motoboy', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{endereco_entrega}}'] },
   { id:'em_andamento',        label:'Em Andamento (info)',    grupo:'Preparação & Nota', tipo:'bling', icon:RefreshCw,   cor:'#8b5cf6', situacao:'manual',  manual:true, desc:'Gatilho informativo — sit=15 (Em Andamento) já dispara Pagamento Aprovado automaticamente. Use este apenas para comunicados extras.', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
   { id:'nfe_pendente',        label:'NF-e Pendente',         grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#f59e0b', situacao:'nfe=1',   desc:'Nota emitida, aguardando autorização da SEFAZ', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{numero_nfe}}'] },
   { id:'nfe_rejeitada',       label:'NF-e Rejeitada',        grupo:'Preparação & Nota', tipo:'bling', icon:AlertTriangle, cor:'#ef4444', situacao:'nfe=4',   desc:'Nota rejeitada pela SEFAZ (uso interno/aviso)', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{numero_nfe}}'] },
@@ -61,7 +59,8 @@ const GATILHOS = [
   { id:'rastreio_em_transito',label:'Em Trânsito',           grupo:'Envio & Rastreio', tipo:'bling', icon:Radio,       cor:'#4a9fff', situacao:'auto',    desc:'Pacote em movimentação entre bases', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{status_rastreio}}','{{previsao_entrega}}','{{historico_rastreio}}','{{historico_rastreio_citar}}','{{link_acompanhamento}}'] },
   { id:'saiu_entrega',        label:'Saiu para Entrega',     grupo:'Envio & Rastreio', tipo:'bling', icon:Truck,       cor:'#f59e0b', situacao:'auto / #SAIU', hibrido:true, desc:'Detectado pelo rastreio ou comando #SAIU', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{status_rastreio}}','{{link_rastreio}}','{{previsao_entrega}}','{{endereco_entrega}}','{{historico_rastreio}}','{{link_acompanhamento}}'] },
   { id:'tentativa_entrega',   label:'Tentativa de Entrega',  grupo:'Envio & Rastreio', tipo:'bling', icon:AlertTriangle,cor:'#f59e0b', situacao:'auto',   desc:'Destinatário ausente — vai tentar de novo', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{previsao_entrega}}','{{link_acompanhamento}}'] },
-  { id:'aguardando_retirada', label:'Aguardando Retirada',   grupo:'Envio & Rastreio', tipo:'bling', icon:Clock,       cor:'#0ea5e9', situacao:'auto / #AGUARDANDO', hibrido:true, desc:'Detectado pelo rastreio ou comando #AGUARDANDO', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{status_rastreio}}','{{link_acompanhamento}}','{{endereco_entrega}}'] },
+  { id:'aguardando_retirada', label:'Aguardando Retirada',   grupo:'Envio & Rastreio', tipo:'bling', icon:MapPin,      cor:'#0ea5e9', situacao:'auto / #AGUARDANDO', hibrido:true, desc:'Detectado pelo rastreio ou comando #AGUARDANDO', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{status_rastreio}}','{{link_acompanhamento}}','{{endereco_entrega}}'] },
+  { id:'moto_expressa',       label:'Moto Expressa',         grupo:'Envio & Rastreio', tipo:'bling', icon:Truck,       cor:'#f97316', situacao:'sit=9',              desc:'Dispara automaticamente quando o transporte é "Moto Expressa" no Bling — entrega local por motoboy', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{endereco_entrega}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
   { id:'endereco_incorreto',  label:'Endereço Incorreto',    grupo:'Envio & Rastreio', tipo:'bling', icon:AlertCircle, cor:'#ef4444', situacao:'auto',    desc:'Endereço com problema — precisa revisar', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{endereco_entrega}}','{{link_acompanhamento}}'] },
   { id:'nao_entrou_unidade',  label:'Não Entrou na Unidade', grupo:'Envio & Rastreio', tipo:'bling', icon:AlertTriangle,cor:'#dc2626', situacao:'auto',   desc:'Objeto não chegou na unidade de destino (Jadlog)', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{transportadora}}','{{status_rastreio}}','{{link_acompanhamento}}'] },
   { id:'pedido_entregue',     label:'Pedido Entregue',       grupo:'Envio & Rastreio', tipo:'bling', icon:Package,     cor:'#22c55e', situacao:'sit=30 / auto',  desc:'Entrega confirmada', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{transportadora}}','{{codigo_rastreio}}','{{status_rastreio}}','{{historico_rastreio}}','{{historico_rastreio_citar}}','{{link_acompanhamento}}'] },
@@ -355,13 +354,6 @@ const rv = t=>(t||'').replace(/\{\{([^}]+)\}\}/g,(_,k)=>AMOSTRAS[`{{${k}}}`]||`{
 // gatilho dispara. Usado no manual da aba Configuração.
 function manualGatilho(g) {
   const s = g?.situacao || ''
-  // Gatilhos de entrega local — descrição específica
-  if (g?.id === 'aguardando_retirada') {
-    return { tipo:'Automático (Bling)', quando:'Dispara quando o pedido entra em *Atendido* e o campo de transporte é *"Cliente Retira"* — sem código de rastreio, cliente busca na loja.' }
-  }
-  if (g?.id === 'moto_expressa') {
-    return { tipo:'Automático (Bling)', quando:'Dispara quando o pedido entra em *Atendido* e o campo de transporte é *"Moto Expressa"* — entrega local por motoboy, sem código postal.' }
-  }
   // Situações do Bling (sit=N) → nome amigável
   const SIT_NOME = {
     '6':'o pedido entra como *Em Aberto* no Bling (novo pedido)',
