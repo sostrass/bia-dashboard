@@ -587,6 +587,8 @@ function AnalyticsView({pedidos, api}) {
                         <Logo size={11}/>
                         <div style={{fontSize:7,fontWeight:600,color:cfg.cor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:40}}>{cfg.label.split(' ')[0]}</div>
                         <div style={{fontSize:8,color:'rgba(255,255,255,.4)'}}>{d.n}</div>
+                      </div>
+                    )
                   })}
                 </div>
               </div>
