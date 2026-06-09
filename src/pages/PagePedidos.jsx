@@ -218,348 +218,420 @@ function AlertBar({pedidos}) {
 }
 
 // ─── ANALYTICS VIEW ───────────────────────────────────────────────────────────
+
+// ─── ANALYTICS VIEW — Business Dense ─────────────────────────────────────────
 function AnalyticsView({pedidos, api}) {
   const [geo, setGeo] = useState(null)
-  const [geoLoad, setGL] = useState(false)
 
   useEffect(()=>{
-    setGL(true)
     fetch(`${api}/api/dashboard/stats-geo`)
-      .then(r=>r.ok?r.json():null).then(d=>{setGeo(d);setGL(false)}).catch(()=>setGL(false))
+      .then(r=>r.ok?r.json():null).then(setGeo).catch(()=>{})
   },[api])
 
-  const fatDias = useMemo(()=>{
-    const m={}; pedidos.forEach(p=>{const d=fmtD(p.data); m[d]=(m[d]||0)+parseFloat(p.total||0)})
-    return Object.entries(m).slice(-30).map(([d,v])=>({d,v:Math.round(v)}))
-  },[pedidos])
+  const hoje = useMemo(()=> new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}),[])
 
-  const porCanal = useMemo(()=>{
-    const m={}; pedidos.forEach(p=>{const c=getCanal(p);if(!m[c])m[c]={n:0,v:0};m[c].n++;m[c].v+=parseFloat(p.total||0)})
-    return Object.entries(m).map(([k,v])=>({name:CANAL_CFG[k]?.label||k,value:v.n,valor:Math.round(v.v),cor:CANAL_CFG[k]?.cor||'#888'}))
-  },[pedidos])
-
-  const calor = useMemo(()=>{
-    const g=Array(7).fill(null).map(()=>Array(24).fill(0))
-    pedidos.forEach(p=>{const dt=new Date(p.data||0);g[dt.getDay()][dt.getHours()]++})
-    return g
-  },[pedidos])
-  const maxC = Math.max(...calor.flat(),1)
-  const DIAS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
-
-  // ── V-BARS: top produtos, receita canal, pipeline ──────────────────────────
-  const topProdutos = useMemo(()=>{
-    const hoje = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})
+  // ── TOP PRODUTOS HOJE ────────────────────────────────────────────────
+  const prodHoje = useMemo(()=>{
     const m={}
     pedidos.filter(p=>fmtD(p.data)===hoje).forEach(p=>{
       ;(p.itens||[]).forEach(it=>{
         const k=it.descricao||it.nome||'Produto'
-        if(!m[k])m[k]={nome:k,qtd:0,valor:0,foto:it.foto||null}
+        if(!m[k])m[k]={nome:k,qtd:0,valor:0,foto:it.foto||null,codigo:it.codigo||''}
         m[k].qtd+=(it.quantidade||1); m[k].valor+=parseFloat(it.valor||0)*(it.quantidade||1)
       })
     })
     return Object.values(m).sort((a,b)=>b.valor-a.valor).slice(0,8)
-  },[pedidos])
+  },[pedidos,hoje])
 
-  const receitaCanal = useMemo(()=>{
+  // ── TODOS OS PRODUTOS (período filtrado) ────────────────────────────
+  const prodTodos = useMemo(()=>{
     const m={}
-    pedidos.forEach(p=>{const k=getCanal(p);if(!m[k])m[k]={canal:k,valor:0,n:0};m[k].valor+=parseFloat(p.total||0);m[k].n++})
-    return Object.values(m).sort((a,b)=>b.valor-a.valor)
+    pedidos.forEach(p=>{
+      ;(p.itens||[]).forEach(it=>{
+        const k=it.descricao||it.nome||'Produto'
+        if(!m[k])m[k]={nome:k,qtd:0,valor:0,pedidos:0,foto:it.foto||null}
+        m[k].qtd+=(it.quantidade||1); m[k].valor+=parseFloat(it.valor||0)*(it.quantidade||1); m[k].pedidos++
+      })
+    })
+    return Object.values(m).sort((a,b)=>b.valor-a.valor).slice(0,10)
   },[pedidos])
 
-  const pipeline = useMemo(()=>{
-    const sitLabel={6:'Em Aberto',9:'Atendido',27:'Enviado',30:'Entregue',12:'Cancelado'}
-    const sitCor  ={6:'#f59e0b', 9:'#4a9fff', 27:'#06b6d4', 30:'#22c55e', 12:'#ef4444'}
+  // ── PRODUTOS EM PEDIDOS PENDENTES (alerta de estoque) ───────────────
+  const prodPendentes = useMemo(()=>{
     const m={}
-    ;[6,9,27,30,12].forEach(id=>{m[id]={id,label:sitLabel[id]||`${id}`,cor:sitCor[id]||'#888',n:0,valor:0}})
-    pedidos.forEach(p=>{const sid=getSitId(p); if(m[sid]){m[sid].n++;m[sid].valor+=parseFloat(p.total||0)}})
-    return Object.values(m)
+    pedidos.filter(p=>[6,9,15].includes(getSitId(p))).forEach(p=>{
+      ;(p.itens||[]).forEach(it=>{
+        const k=it.descricao||it.nome||'Produto'
+        if(!m[k])m[k]={nome:k,qtd:0,pedidos:0,foto:it.foto||null}
+        m[k].qtd+=(it.quantidade||1); m[k].pedidos++
+      })
+    })
+    return Object.values(m).sort((a,b)=>b.qtd-a.qtd).slice(0,6)
   },[pedidos])
 
-  return <div style={{display:'flex',flexDirection:'column',gap:16}}>
+  // ── MÉTRICAS DE OPERAÇÃO ─────────────────────────────────────────────
+  const ops = useMemo(()=>{
+    const now=Date.now()
+    const por_sit={}
+    ;[6,9,12,15,24,27,30,33].forEach(id=>{por_sit[id]={n:0,valor:0}})
+    pedidos.forEach(p=>{const s=getSitId(p);if(por_sit[s]){por_sit[s].n++;por_sit[s].valor+=parseFloat(p.total||0)}})
 
-    {/* ── V-BARS ROW ── */}
-    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+    const abertos    = pedidos.filter(p=>getSitId(p)===6)
+    const atendidos  = pedidos.filter(p=>getSitId(p)===9)
+    const enviados   = pedidos.filter(p=>getSitId(p)===27)
+    const entregues  = pedidos.filter(p=>[30,33].includes(getSitId(p)))
+    const cancelados = pedidos.filter(p=>getSitId(p)===12)
 
-      {/* TOP PRODUTOS DO DIA */}
-      <div style={{background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:14,padding:'16px 18px'}}>
-        <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:4,display:'flex',alignItems:'center',gap:7}}>
-          <Package size={13} style={{color:'#7c6af7'}}/>Top produtos hoje
-        </div>
-        <div style={{fontSize:10,color:'var(--label-4)',marginBottom:14}}>
-          {new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long'})}
-        </div>
-        {topProdutos.length===0 ? (
-          <div style={{textAlign:'center',padding:'24px 0',fontSize:11,color:'var(--label-4)'}}>Nenhuma venda hoje ainda</div>
-        ) : (()=>{
-          const maxV=Math.max(...topProdutos.map(p=>p.valor),1)
-          return (
-            <div style={{display:'flex',flexDirection:'column',gap:8}}>
-              {topProdutos.map((prod,i)=>(
-                <div key={prod.nome}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
-                    <span style={{fontSize:10,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1,marginRight:8}}>{prod.nome}</span>
-                    <div style={{display:'flex',gap:8,flexShrink:0}}>
-                      <span style={{fontSize:9,color:'var(--label-4)'}}>{prod.qtd}×</span>
-                      <span style={{fontSize:10,fontWeight:600,color:'var(--label)'}}>{fmt(prod.valor)}</span>
-                    </div>
+    const semEnvio   = atendidos.filter(p=>(now-new Date(p.data||0))/86400000>3&&!p.codigoRastreio)
+    const extraviados= enviados.filter(p=>(now-new Date(p.data||0))/86400000>15)
+    const atrasados  = abertos.filter(p=>(now-new Date(p.data||0))/86400000>2)
+
+    const totalItens = pedidos.reduce((s,p)=>s+(p.itens||[]).reduce((a,it)=>a+(it.quantidade||1),0),0)
+    const avgItens   = pedidos.length>0?(totalItens/pedidos.length).toFixed(1):0
+    const totalFatura= pedidos.reduce((s,p)=>s+parseFloat(p.total||0),0)
+    const fulfillRate= pedidos.length>0?Math.round((entregues.length/pedidos.length)*100):0
+    const cancelRate = pedidos.length>0?Math.round((cancelados.length/pedidos.length)*100):0
+
+    const porCanal={}
+    pedidos.forEach(p=>{const c=getCanal(p);if(!porCanal[c])porCanal[c]={n:0,v:0};porCanal[c].n++;porCanal[c].v+=parseFloat(p.total||0)})
+
+    return{por_sit,abertos,atendidos,enviados,entregues,cancelados,semEnvio,extraviados,atrasados,avgItens,totalItens,totalFatura,fulfillRate,cancelRate,porCanal}
+  },[pedidos])
+
+  // ── FATURAMENTO 30 DIAS ──────────────────────────────────────────────
+  const fatDias = useMemo(()=>{
+    const m={}
+    pedidos.forEach(p=>{const d=fmtD(p.data);m[d]=(m[d]||0)+parseFloat(p.total||0)})
+    return Object.entries(m).slice(-30).map(([d,v])=>({d,v:Math.round(v)}))
+  },[pedidos])
+
+  // ── HEATMAP ──────────────────────────────────────────────────────────
+  const calor=useMemo(()=>{
+    const g=Array(7).fill(null).map(()=>Array(24).fill(0))
+    pedidos.forEach(p=>{const dt=new Date(p.data||0);g[dt.getDay()][dt.getHours()]++})
+    return g
+  },[pedidos])
+  const maxC=Math.max(...calor.flat(),1)
+  const DIAS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
+
+  const TT={contentStyle:{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:8,fontSize:11,color:'var(--label)'}}
+  const card={background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:14,padding:'14px 16px'}
+  const maxProd=Math.max(...prodTodos.map(p=>p.valor),1)
+  const maxHoje=Math.max(...prodHoje.map(p=>p.valor),1)
+  const maxPend=Math.max(...prodPendentes.map(p=>p.qtd),1)
+
+  return(
+    <div style={{display:'flex',flexDirection:'column',gap:12}}>
+
+      {/* ── LINHA 1: Produtos hoje + Operações ao vivo ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+
+        {/* TOP PRODUTOS HOJE */}
+        <div style={card}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+            <div style={{display:'flex',alignItems:'center',gap:7}}>
+              <Package size={13} style={{color:'#7c6af7'}}/>
+              <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>Top produtos hoje</span>
+            </div>
+            <span style={{fontSize:10,color:'var(--label-4)'}}>
+              {prodHoje.reduce((s,p)=>s+p.qtd,0)} itens · {fmt(prodHoje.reduce((s,p)=>s+p.valor,0))}
+            </span>
+          </div>
+          {prodHoje.length===0
+            ?<div style={{textAlign:'center',padding:'24px 0',fontSize:11,color:'var(--label-4)'}}>Nenhuma venda hoje ainda</div>
+            :<div style={{display:'flex',flexDirection:'column',gap:7}}>
+              {prodHoje.map((p,i)=>(
+                <div key={p.nome}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}>
+                    {p.foto&&<img src={p.foto} alt="" style={{width:20,height:20,borderRadius:4,objectFit:'cover',flexShrink:0,border:'0.5px solid var(--sep)'}} onError={e=>{e.target.style.display='none'}}/>}
+                    <span style={{fontSize:10,color:'var(--label)',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontWeight:i<3?600:400}}>{p.nome}</span>
+                    <span style={{fontSize:9,color:'var(--label-4)',flexShrink:0,marginRight:4}}>{p.qtd}×</span>
+                    <span style={{fontSize:10,fontWeight:600,color:'var(--label)',flexShrink:0,minWidth:60,textAlign:'right'}}>{fmt(p.valor)}</span>
                   </div>
-                  <div style={{height:5,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
+                  <div style={{height:3,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
                     <div style={{height:'100%',borderRadius:99,
-                      width:`${(prod.valor/maxV*100).toFixed(0)}%`,
-                      background:i===0?'linear-gradient(90deg,#7c6af7,#a78bfa)':'linear-gradient(90deg,#7c6af790,#a78bfa70)',
-                      boxShadow:i===0?'0 0 6px rgba(124,106,247,.5)':'none',
-                      transition:'width .5s ease'}}/>
+                      width:`${(p.valor/maxHoje*100).toFixed(0)}%`,
+                      background:i===0?'linear-gradient(90deg,#7c6af7,#a78bfa)':'#7c6af750',
+                      boxShadow:i===0?'0 0 6px rgba(124,106,247,.5)':'none'}}/>
                   </div>
                 </div>
               ))}
             </div>
-          )
-        })()}
-      </div>
-
-      {/* RECEITA POR CANAL — V-BARS VERTICAIS */}
-      <div style={{background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:14,padding:'16px 18px'}}>
-        <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:4,display:'flex',alignItems:'center',gap:7}}>
-          <BarChart3 size={13} style={{color:'#f97316'}}/>Receita por canal
-        </div>
-        <div style={{fontSize:10,color:'var(--label-4)',marginBottom:14}}>Faturamento total filtrado</div>
-        {receitaCanal.length===0 ? (
-          <div style={{textAlign:'center',padding:'24px 0',fontSize:11,color:'var(--label-4)'}}>Sem dados</div>
-        ) : (()=>{
-          const maxV=Math.max(...receitaCanal.map(c=>c.valor),1)
-          return (
-            <div>
-              {/* barras verticais */}
-              <div style={{display:'flex',alignItems:'flex-end',gap:8,height:100,marginBottom:10}}>
-                {receitaCanal.map(ch=>{
-                  const cfg=CANAL_CFG[ch.canal]||CANAL_CFG.bling
-                  const Logo=CANAL_LOGO[ch.canal]||LogoBling
-                  const h=Math.max(8,(ch.valor/maxV)*100)
-                  return(
-                    <div key={ch.canal} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
-                      <div style={{fontSize:9,fontWeight:600,color:cfg.cor}}>{fmt(ch.valor).replace('R$ ','R$')}</div>
-                      <div style={{width:'100%',height:h,borderRadius:'4px 4px 0 0',
-                        background:`linear-gradient(180deg,${cfg.cor},${cfg.cor}88)`,
-                        boxShadow:`0 0 8px ${cfg.cor}50`,
-                        transition:'height .5s ease',position:'relative'}}>
-                        <div style={{position:'absolute',top:-2,left:'50%',transform:'translateX(-50%)',
-                          background:'var(--bg-2)',borderRadius:'50%',padding:1}}>
-                          <Logo size={12}/>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-              {/* labels */}
-              <div style={{display:'flex',gap:8,borderTop:'0.5px solid var(--sep)',paddingTop:8}}>
-                {receitaCanal.map(ch=>{
-                  const cfg=CANAL_CFG[ch.canal]||CANAL_CFG.bling
-                  return(
-                    <div key={ch.canal} style={{flex:1,textAlign:'center'}}>
-                      <div style={{fontSize:9,color:cfg.cor,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{cfg.label.split(' ')[0]}</div>
-                      <div style={{fontSize:9,color:'var(--label-4)'}}>{ch.n} ped.</div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )
-        })()}
-      </div>
-
-      {/* PIPELINE DE PEDIDOS */}
-      <div style={{background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:14,padding:'16px 18px'}}>
-        <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:4,display:'flex',alignItems:'center',gap:7}}>
-          <Layers size={13} style={{color:'#06b6d4'}}/>Pipeline de pedidos
-        </div>
-        <div style={{fontSize:10,color:'var(--label-4)',marginBottom:14}}>Distribuição por situação</div>
-        {(()=>{
-          const total=Math.max(pipeline.reduce((s,p)=>s+p.n,0),1)
-          const maxV=Math.max(...pipeline.map(p=>p.n),1)
-          return(
-            <div>
-              {/* barras verticais */}
-              <div style={{display:'flex',alignItems:'flex-end',gap:6,height:100,marginBottom:10}}>
-                {pipeline.map(sit=>{
-                  const h=Math.max(4,(sit.n/maxV)*100)
-                  return(
-                    <div key={sit.id} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
-                      <span style={{fontSize:11,fontWeight:700,color:sit.cor,textShadow:`0 0 6px ${sit.cor}60`}}>{sit.n}</span>
-                      <div style={{width:'100%',height:h,borderRadius:'4px 4px 0 0',
-                        background:sit.cor,opacity:0.85,
-                        boxShadow:`0 0 6px ${sit.cor}50`,
-                        transition:'height .5s ease'}}/>
-                    </div>
-                  )
-                })}
-              </div>
-              {/* labels + % */}
-              <div style={{display:'flex',gap:6,borderTop:'0.5px solid var(--sep)',paddingTop:8}}>
-                {pipeline.map(sit=>(
-                  <div key={sit.id} style={{flex:1,textAlign:'center'}}>
-                    <div style={{fontSize:9,color:sit.cor,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{sit.label.split(' ')[0]}</div>
-                    <div style={{fontSize:9,color:'var(--label-4)'}}>{((sit.n/total)*100).toFixed(0)}%</div>
-                  </div>
-                ))}
-              </div>
-              {/* barra consolidada */}
-              <div style={{display:'flex',height:6,borderRadius:99,overflow:'hidden',marginTop:10,gap:1}}>
-                {pipeline.filter(s=>s.n>0).map(sit=>(
-                  <div key={sit.id} style={{flex:sit.n,background:sit.cor,
-                    boxShadow:`0 0 4px ${sit.cor}60`,transition:'flex .5s ease'}}/>
-                ))}
-              </div>
-              <div style={{display:'flex',justifyContent:'space-between',marginTop:5}}>
-                <span style={{fontSize:9,color:'var(--label-4)'}}>Total: {total} pedidos</span>
-                <span style={{fontSize:9,color:'var(--label)'}}>{fmt(pipeline.reduce((s,p)=>s+p.valor,0))}</span>
-              </div>
-            </div>
-          )
-        })()}
-      </div>
-    </div>
-    {/* Faturamento 30 dias */}
-    <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px'}}>
-      <div style={{fontSize:13,fontWeight:600,color:'var(--label)',marginBottom:14,display:'flex',alignItems:'center',gap:8}}>
-        <TrendingUp size={14} style={{color:'#7c6af7'}}/>Faturamento — últimos 30 dias
-      </div>
-      <ResponsiveContainer width="100%" height={180}>
-        <AreaChart data={fatDias}>
-          <defs><linearGradient id="gFat" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#7c6af7" stopOpacity={0.3}/>
-            <stop offset="95%" stopColor="#7c6af7" stopOpacity={0}/>
-          </linearGradient></defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--sep)" vertical={false}/>
-          <XAxis dataKey="d" tick={{fontSize:9,fill:'var(--label-4)'}} tickLine={false} axisLine={false}/>
-          <YAxis tick={{fontSize:9,fill:'var(--label-4)'}} tickLine={false} axisLine={false}
-            tickFormatter={v=>v>=1000?`R$${(v/1000).toFixed(0)}k`:`R$${v}`}/>
-          <Tooltip {...TT} formatter={v=>[fmt(v),'Faturamento']}/>
-          <Area type="monotone" dataKey="v" stroke="#7c6af7" strokeWidth={2} fill="url(#gFat)" dot={false}/>
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-
-    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
-      {/* Por canal */}
-      <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px'}}>
-        <div style={{fontSize:13,fontWeight:600,color:'var(--label)',marginBottom:14,display:'flex',alignItems:'center',gap:8}}>
-          <ShoppingCart size={14} style={{color:'#f97316'}}/>Pedidos por canal
-        </div>
-        <ResponsiveContainer width="100%" height={160}>
-          <PieChart>
-            <Pie data={porCanal} cx="50%" cy="50%" innerRadius={45} outerRadius={70}
-              dataKey="value" paddingAngle={3}>
-              {porCanal.map((e,i)=><Cell key={i} fill={e.cor}/>)}
-            </Pie>
-            <Tooltip {...TT} formatter={(v,n,p)=>[`${v} · ${fmt(p.payload.valor)}`,n]}/>
-          </PieChart>
-        </ResponsiveContainer>
-        {porCanal.map(c=><div key={c.name} style={{display:'flex',alignItems:'center',gap:8,fontSize:11,marginBottom:4}}>
-          <div style={{width:8,height:8,borderRadius:'50%',background:c.cor,flexShrink:0}}/>
-          <span style={{flex:1,color:'var(--label-3)'}}>{c.name}</span>
-          <span style={{color:'var(--label)',fontWeight:600}}>{c.value}</span>
-          <span style={{color:'var(--label-4)'}}>{fmt(c.valor)}</span>
-        </div>)}
-      </div>
-
-      {/* Mapa de calor */}
-      <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px'}}>
-        <div style={{fontSize:13,fontWeight:600,color:'var(--label)',marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
-          <Activity size={14} style={{color:'#06b6d4'}}/>Horários de pico
-        </div>
-        <div style={{overflowX:'auto'}}>
-          <div style={{display:'grid',gridTemplateColumns:'24px repeat(24,1fr)',gap:2,minWidth:400}}>
-            <div/>{Array(24).fill(0).map((_,h)=><div key={h} style={{fontSize:7,color:'var(--label-4)',textAlign:'center'}}>{h}</div>)}
-            {calor.map((row,d)=>[
-              <div key={`l${d}`} style={{fontSize:9,color:'var(--label-4)',display:'flex',alignItems:'center',justifyContent:'flex-end',paddingRight:3}}>{DIAS[d]}</div>,
-              ...row.map((v,h)=><div key={h} title={`${DIAS[d]} ${h}h: ${v}`} style={{
-                aspectRatio:'1',borderRadius:2,
-                background:v===0?'var(--fill)':`rgba(6,182,212,${0.15+0.85*(v/maxC)})`,
-              }}/>)
-            ])}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    {/* Stats Geo + Transportadoras */}
-    {geoLoad ? (
-      <div style={{textAlign:'center',padding:32,color:'var(--label-4)',fontSize:12}}>
-        <RefreshCw size={16} style={{animation:'spin 1s linear infinite',marginBottom:8}}/><br/>
-        Carregando dados geográficos...
-      </div>
-    ) : geo && <>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14}}>
-        {/* Mapa heatmap Brasil */}
-        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 18px'}}>{(()=>{
-          const geoData={}
-          ;(geo?.topEstados||[]).forEach(e=>{geoData[e.uf]={valor:e.valor,n:e.pedidos||1}})
-          return <>
-            <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:8,display:'flex',alignItems:'center',gap:7}}>
-              <MapPin size={13} style={{color:'#22c55e'}}/>Heatmap de vendas
-            </div>
-            <BrasilMapHeat data={geoData} size={220}/>
-          </>
-        })()}</div>
-
-        {/* Top estados */}
-        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 18px'}}>
-          <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:12,display:'flex',alignItems:'center',gap:7}}>
-            <Map size={13} style={{color:'#22c55e'}}/>Top estados por faturamento
-          </div>
-          {(geo.topEstados||[]).map((e,i)=><div key={e.uf} style={{display:'flex',alignItems:'center',gap:8,marginBottom:7}}>
-            <span style={{fontSize:10,fontWeight:700,color:'var(--label-4)',width:16}}>{i+1}</span>
-            <span style={{fontSize:11,fontWeight:700,color:'var(--label)',width:28}}>{e.uf}</span>
-            <div style={{flex:1,height:4,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
-              <div style={{height:'100%',borderRadius:99,background:'#22c55e',
-                width:`${(e.valor/(geo.topEstados[0]?.valor||1)*100).toFixed(0)}%`}}/>
-            </div>
-            <span style={{fontSize:10,color:'var(--label-4)'}}>{fmt(e.valor)}</span>
-          </div>)}
-        </div>
-
-        {/* Top cidades */}
-        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 18px'}}>
-          <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:12,display:'flex',alignItems:'center',gap:7}}>
-            <MapPin size={13} style={{color:'#a78bfa'}}/>Top cidades por faturamento
-          </div>
-          {(geo.topCidades||[]).map((c,i)=><div key={c.cidade} style={{display:'flex',alignItems:'center',gap:8,marginBottom:7}}>
-            <span style={{fontSize:10,fontWeight:700,color:'var(--label-4)',width:16}}>{i+1}</span>
-            <span style={{fontSize:11,color:'var(--label)',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.cidade}</span>
-            <span style={{fontSize:10,color:'var(--label-4)',flexShrink:0}}>{fmt(c.valor)}</span>
-          </div>)}
-        </div>
-
-        {/* Transportadoras — tempo médio */}
-        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 18px'}}>
-          <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:12,display:'flex',alignItems:'center',gap:7}}>
-            <Timer size={13} style={{color:'#f59e0b'}}/>Tempo médio por transportadora
-          </div>
-          {(geo.transpStats||[]).length===0
-            ? <p style={{fontSize:11,color:'var(--label-4)',margin:0}}>Dados insuficientes</p>
-            : (geo.transpStats||[]).map(t=><div key={t.nome} style={{marginBottom:10}}>
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
-                <span style={{fontSize:11,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:140}}>{t.nome}</span>
-                <span style={{fontSize:11,fontWeight:700,color:t.tempoMedio<=3?'#22c55e':t.tempoMedio<=7?'#f59e0b':'#ef4444',flexShrink:0}}>
-                  {t.tempoMedio}d
-                </span>
-              </div>
-              <div style={{display:'flex',alignItems:'center',gap:6}}>
-                <div style={{flex:1,height:5,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
-                  <div style={{height:'100%',borderRadius:99,
-                    background:t.tempoMedio<=3?'#22c55e':t.tempoMedio<=7?'#f59e0b':'#ef4444',
-                    width:`${Math.min(100,(t.tempoMedio/14)*100)}%`}}/>
-                </div>
-                <span style={{fontSize:9,color:'var(--label-4)',flexShrink:0}}>{t.pedidos} pedidos</span>
-              </div>
-            </div>)
           }
         </div>
+
+        {/* OPERAÇÕES AO VIVO */}
+        <div style={card}>
+          <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:12}}>
+            <Activity size={13} style={{color:'#06b6d4'}}/>
+            <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>Operações ao vivo</span>
+            <span style={{marginLeft:'auto',fontSize:10,color:'var(--label-4)'}}>{pedidos.length} pedidos</span>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:10}}>
+            {[
+              {sid:6, label:'Em Aberto',  cor:'#f59e0b', alerta:ops.atrasados.length},
+              {sid:9, label:'Atendido',   cor:'#4a9fff', alerta:ops.semEnvio.length},
+              {sid:27,label:'Enviado',    cor:'#06b6d4', alerta:ops.extraviados.length},
+              {sid:30,label:'Entregue',   cor:'#22c55e', alerta:0},
+            ].map(s=>{
+              const d=ops.por_sit[s.sid]||{n:0,valor:0}
+              return(
+                <div key={s.sid} style={{background:'var(--fill)',borderRadius:8,padding:'8px 10px',borderLeft:`2px solid ${s.cor}`}}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:2}}>
+                    <span style={{fontSize:9,color:'var(--label-4)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em'}}>{s.label}</span>
+                    {s.alerta>0&&<span style={{fontSize:8,color:'#ef4444',fontWeight:700}}>⚠ {s.alerta}</span>}
+                  </div>
+                  <div style={{fontSize:18,fontWeight:700,color:s.cor,lineHeight:1}}>{d.n}</div>
+                  <div style={{fontSize:9,color:'var(--label-4)',marginTop:2}}>{fmt(d.valor)}</div>
+                </div>
+              )
+            })}
+          </div>
+          {/* Métricas de operação */}
+          <div style={{borderTop:'0.5px solid var(--sep)',paddingTop:8,display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6}}>
+            {[
+              {label:'Fulfillment',  value:`${ops.fulfillRate}%`,   cor:ops.fulfillRate>70?'#22c55e':'#f59e0b'},
+              {label:'Cancelamento', value:`${ops.cancelRate}%`,    cor:ops.cancelRate>10?'#ef4444':'#22c55e'},
+              {label:'Itens/pedido', value:ops.avgItens,            cor:'var(--label)'},
+              {label:'Sem envio',    value:ops.semEnvio.length,     cor:ops.semEnvio.length>0?'#ef4444':'#22c55e'},
+              {label:'Possível extrav.',value:ops.extraviados.length,cor:ops.extraviados.length>0?'#f59e0b':'#22c55e'},
+              {label:'Atrasados',    value:ops.atrasados.length,    cor:ops.atrasados.length>0?'#f59e0b':'#22c55e'},
+            ].map(m=>(
+              <div key={m.label} style={{background:'var(--fill)',borderRadius:6,padding:'5px 7px'}}>
+                <div style={{fontSize:8,color:'var(--label-4)',marginBottom:1}}>{m.label}</div>
+                <div style={{fontSize:13,fontWeight:700,color:m.cor}}>{m.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
-    </>}
-  </div>
+
+      {/* ── LINHA 2: Análise completa de produtos ── */}
+      <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:12}}>
+
+        {/* TOP PRODUTOS (período) — V-bars horizontais densas */}
+        <div style={card}>
+          <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:12}}>
+            <TrendingUp size={13} style={{color:'#22c55e'}}/>
+            <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>Produtos — período filtrado</span>
+            <span style={{marginLeft:'auto',fontSize:10,color:'var(--label-4)'}}>{prodTodos.length} SKUs</span>
+          </div>
+          {prodTodos.length===0
+            ?<div style={{textAlign:'center',padding:'16px 0',fontSize:11,color:'var(--label-4)'}}>Sem itens nos pedidos deste período</div>
+            :<div style={{display:'flex',flexDirection:'column',gap:0}}>
+              {/* cabeçalho */}
+              <div style={{display:'grid',gridTemplateColumns:'24px 1fr 60px 40px 70px',gap:6,padding:'4px 0',borderBottom:'0.5px solid var(--sep)',marginBottom:4}}>
+                {['#','Produto','Receita','Qtd','Pedidos'].map(h=>(
+                  <span key={h} style={{fontSize:8,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.06em'}}>{h}</span>
+                ))}
+              </div>
+              {prodTodos.map((p,i)=>(
+                <div key={p.nome} style={{display:'grid',gridTemplateColumns:'24px 1fr 60px 40px 70px',gap:6,alignItems:'center',padding:'5px 0',borderBottom:'0.5px solid var(--sep)',opacity:1}}>
+                  <span style={{fontSize:10,fontWeight:700,color:'var(--label-4)'}}>{i+1}</span>
+                  <div style={{minWidth:0}}>
+                    <div style={{fontSize:10,fontWeight:i<3?600:400,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.nome}</div>
+                    <div style={{height:3,background:'var(--fill)',borderRadius:99,overflow:'hidden',marginTop:3}}>
+                      <div style={{height:'100%',borderRadius:99,width:`${(p.valor/maxProd*100).toFixed(0)}%`,
+                        background:i<3?`linear-gradient(90deg,${'#22c55e'},#22c55e88)`:'#22c55e30'}}/>
+                    </div>
+                  </div>
+                  <span style={{fontSize:10,fontWeight:600,color:'var(--label)'}}>{fmt(p.valor)}</span>
+                  <span style={{fontSize:10,color:'var(--label-3)'}}>{p.qtd}</span>
+                  <div style={{display:'flex',alignItems:'center',gap:3}}>
+                    <div style={{flex:1,height:4,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
+                      <div style={{height:'100%',borderRadius:99,background:'#a78bfa',
+                        width:`${(p.pedidos/Math.max(...prodTodos.map(x=>x.pedidos),1)*100).toFixed(0)}%`}}/>
+                    </div>
+                    <span style={{fontSize:9,color:'var(--label-4)',flexShrink:0}}>{p.pedidos}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          }
+        </div>
+
+        {/* PRODUTOS EM PEDIDOS PENDENTES */}
+        <div style={card}>
+          <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:12}}>
+            <AlertCircle size={13} style={{color:'#f59e0b'}}/>
+            <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>Estoque em risco</span>
+          </div>
+          <div style={{fontSize:10,color:'var(--label-4)',marginBottom:10}}>
+            Produtos em pedidos ainda abertos/atendidos
+          </div>
+          {prodPendentes.length===0
+            ?<div style={{textAlign:'center',padding:'16px 0',fontSize:11,color:'var(--label-4)'}}>Sem pedidos pendentes</div>
+            :<div style={{display:'flex',flexDirection:'column',gap:7}}>
+              {prodPendentes.map((p,i)=>(
+                <div key={p.nome}>
+                  <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
+                    {p.foto&&<img src={p.foto} alt="" style={{width:18,height:18,borderRadius:3,objectFit:'cover',flexShrink:0,border:'0.5px solid var(--sep)'}} onError={e=>{e.target.style.display='none'}}/>}
+                    <span style={{fontSize:10,color:'var(--label)',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.nome}</span>
+                    <span style={{fontSize:10,fontWeight:700,color:p.qtd>=10?'#ef4444':p.qtd>=5?'#f59e0b':'var(--label)',flexShrink:0}}>{p.qtd} un</span>
+                  </div>
+                  <div style={{height:4,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
+                    <div style={{height:'100%',borderRadius:99,
+                      width:`${(p.qtd/maxPend*100).toFixed(0)}%`,
+                      background:p.qtd>=10?'#ef4444':p.qtd>=5?'#f59e0b':'#4a9fff'}}/>
+                  </div>
+                  <div style={{fontSize:8,color:'var(--label-4)',marginTop:1}}>{p.pedidos} pedido{p.pedidos>1?'s':''} aguardando</div>
+                </div>
+              ))}
+            </div>
+          }
+          {/* Ticket médio + total itens */}
+          <div style={{marginTop:12,borderTop:'0.5px solid var(--sep)',paddingTop:10,display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+            <div style={{background:'var(--fill)',borderRadius:7,padding:'7px 9px'}}>
+              <div style={{fontSize:8,color:'var(--label-4)',marginBottom:2}}>ITENS/PEDIDO</div>
+              <div style={{fontSize:18,fontWeight:700,color:'var(--label)'}}>{ops.avgItens}</div>
+            </div>
+            <div style={{background:'var(--fill)',borderRadius:7,padding:'7px 9px'}}>
+              <div style={{fontSize:8,color:'var(--label-4)',marginBottom:2}}>TOTAL ITENS</div>
+              <div style={{fontSize:18,fontWeight:700,color:'var(--label)'}}>{ops.totalItens}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── LINHA 3: Faturamento + Por canal ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1.4fr 1fr',gap:12}}>
+
+        <div style={card}>
+          <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:10,display:'flex',alignItems:'center',gap:7}}>
+            <TrendingUp size={13} style={{color:'#7c6af7'}}/>Faturamento — 30 dias
+          </div>
+          <ResponsiveContainer width="100%" height={140}>
+            <AreaChart data={fatDias} margin={{top:4,right:0,bottom:0,left:0}}>
+              <defs><linearGradient id="gFat" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#7c6af7" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#7c6af7" stopOpacity={0}/>
+              </linearGradient></defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--sep)" vertical={false}/>
+              <XAxis dataKey="d" tick={{fontSize:8,fill:'var(--label-4)'}} tickLine={false} axisLine={false} interval={4}/>
+              <YAxis tick={{fontSize:8,fill:'var(--label-4)'}} tickLine={false} axisLine={false} tickFormatter={v=>v>=1000?`R$${(v/1000).toFixed(0)}k`:`R$${v}`}/>
+              <Tooltip {...TT} formatter={v=>[fmt(v),'Faturamento']}/>
+              <Area type="monotone" dataKey="v" stroke="#7c6af7" strokeWidth={2} fill="url(#gFat)" dot={false}/>
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Por canal — tabela densa */}
+        <div style={card}>
+          <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:10,display:'flex',alignItems:'center',gap:7}}>
+            <BarChart3 size={13} style={{color:'#f97316'}}/>Receita por canal
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:0}}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 50px 50px 55px',gap:4,padding:'3px 0',borderBottom:'0.5px solid var(--sep)',marginBottom:4}}>
+              {['Canal','Pedidos','Itens','Receita'].map(h=>(
+                <span key={h} style={{fontSize:8,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase'}}>{h}</span>
+              ))}
+            </div>
+            {Object.entries(ops.porCanal).sort((a,b)=>b[1].v-a[1].v).map(([canal,d])=>{
+              const cfg=CANAL_CFG[canal]||CANAL_CFG.bling
+              const Logo=CANAL_LOGO[canal]||LogoBling
+              const itensCanal=pedidos.filter(p=>getCanal(p)===canal).reduce((s,p)=>s+(p.itens||[]).reduce((a,it)=>a+(it.quantidade||1),0),0)
+              return(
+                <div key={canal} style={{display:'grid',gridTemplateColumns:'1fr 50px 50px 55px',gap:4,alignItems:'center',padding:'5px 0',borderBottom:'0.5px solid var(--sep)'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:5}}>
+                    <Logo size={12}/>
+                    <span style={{fontSize:10,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{cfg.label}</span>
+                  </div>
+                  <span style={{fontSize:10,color:'var(--label-3)'}}>{d.n}</span>
+                  <span style={{fontSize:10,color:'var(--label-3)'}}>{itensCanal}</span>
+                  <span style={{fontSize:10,fontWeight:600,color:'var(--label)'}}>{fmt(d.v)}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── LINHA 4: Heatmap + Geo ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <div style={card}>
+          <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:10,display:'flex',alignItems:'center',gap:7}}>
+            <Clock size={13} style={{color:'#06b6d4'}}/>Horários de pico
+          </div>
+          <div style={{overflowX:'auto'}}>
+            <div style={{display:'grid',gridTemplateColumns:'24px repeat(24,1fr)',gap:2,minWidth:400}}>
+              <div/>{Array(24).fill(0).map((_,h)=><div key={h} style={{fontSize:7,color:'var(--label-4)',textAlign:'center'}}>{h}</div>)}
+              {calor.map((row,d)=>[
+                <div key={`l${d}`} style={{fontSize:9,color:'var(--label-4)',display:'flex',alignItems:'center',justifyContent:'flex-end',paddingRight:3}}>{DIAS[d]}</div>,
+                ...row.map((v,h)=><div key={h} title={`${DIAS[d]} ${h}h: ${v}`} style={{aspectRatio:'1',borderRadius:2,background:v===0?'var(--fill)':`rgba(6,182,212,${0.1+0.9*(v/maxC)})`}}/>)
+              ])}
+            </div>
+          </div>
+        </div>
+
+        {/* Geo — tabela densa + transportadoras */}
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {geo&&(
+            <>
+              <div style={{...card,flex:1}}>
+                <div style={{display:'flex',gap:12}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:11,fontWeight:600,color:'var(--label)',marginBottom:6,display:'flex',alignItems:'center',gap:5}}>
+                      <MapPin size={11} style={{color:'#22c55e'}}/>Top estados
+                    </div>
+                    {(geo.topEstados||[]).slice(0,5).map((e,i)=>(
+                      <div key={e.uf} style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
+                        <span style={{fontSize:9,fontWeight:700,color:'var(--label-4)',width:12}}>{i+1}</span>
+                        <span style={{fontSize:10,fontWeight:700,color:'var(--label)',width:24}}>{e.uf}</span>
+                        <div style={{flex:1,height:4,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
+                          <div style={{height:'100%',borderRadius:99,background:'#22c55e',width:`${(e.valor/((geo.topEstados||[])[0]?.valor||1)*100).toFixed(0)}%`}}/>
+                        </div>
+                        <span style={{fontSize:9,color:'var(--label-4)',flexShrink:0,minWidth:50,textAlign:'right'}}>{fmt(e.valor)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:11,fontWeight:600,color:'var(--label)',marginBottom:6,display:'flex',alignItems:'center',gap:5}}>
+                      <Navigation size={11} style={{color:'#a78bfa'}}/>Top cidades
+                    </div>
+                    {(geo.topCidades||[]).slice(0,5).map((c,i)=>(
+                      <div key={c.cidade} style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
+                        <span style={{fontSize:9,fontWeight:700,color:'var(--label-4)',width:12}}>{i+1}</span>
+                        <span style={{fontSize:10,color:'var(--label)',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.cidade}</span>
+                        <span style={{fontSize:9,color:'var(--label-4)',flexShrink:0}}>{fmt(c.valor)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Transportadoras — tempo + custo + risco */}
+              {(geo.transpStats||[]).length>0&&(
+                <div style={card}>
+                  <div style={{fontSize:11,fontWeight:600,color:'var(--label)',marginBottom:8,display:'flex',alignItems:'center',gap:5}}>
+                    <Truck size={11} style={{color:'#f59e0b'}}/>Transportadoras
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 32px 45px 45px',gap:4,padding:'2px 0',borderBottom:'0.5px solid var(--sep)',marginBottom:4}}>
+                    {['Transportadora','Ped.','T.Médio','Prazo'].map(h=>(
+                      <span key={h} style={{fontSize:8,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase'}}>{h}</span>
+                    ))}
+                  </div>
+                  {(geo.transpStats||[]).map(t=>(
+                    <div key={t.nome} style={{display:'grid',gridTemplateColumns:'1fr 32px 45px 45px',gap:4,alignItems:'center',padding:'4px 0',borderBottom:'0.5px solid var(--sep)'}}>
+                      <span style={{fontSize:10,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.nome}</span>
+                      <span style={{fontSize:10,color:'var(--label-3)'}}>{t.pedidos||'—'}</span>
+                      <span style={{fontSize:10,fontWeight:600,color:t.tempoMedio<=3?'#22c55e':t.tempoMedio<=7?'#f59e0b':'#ef4444'}}>{t.tempoMedio}d</span>
+                      <div style={{height:4,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
+                        <div style={{height:'100%',borderRadius:99,width:`${Math.min(100,(t.tempoMedio/14)*100)}%`,background:t.tempoMedio<=3?'#22c55e':t.tempoMedio<=7?'#f59e0b':'#ef4444'}}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+          {!geo&&<div style={{...card,textAlign:'center',padding:'32px',color:'var(--label-4)',fontSize:11}}>Carregando dados geográficos...</div>}
+        </div>
+      </div>
+
+    </div>
+  )
 }
+
 
 // ─── KANBAN NivelMax ─────────────────────────────────────────────────────────
 const SIT_KANBAN_IDS = [6, 9, 27, 30, 12]
