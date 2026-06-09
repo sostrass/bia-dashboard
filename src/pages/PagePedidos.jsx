@@ -529,8 +529,8 @@ function AnalyticsView({pedidos, api}) {
                     )
                   })}
                 </div>
-                <div style={{display:'flex',gap:8,borderTop:'0.5px solid var(--sep)',paddingTop:8}}>
                 <div style={{display:'flex',gap:4,borderTop:'0.5px solid rgba(255,255,255,.08)',paddingTop:8}}>
+                  {cols.map(s=>{
                     const d=ops.por_sit[s.sid]||{n:0,valor:0}
                     return(
                       <div key={s.sid} style={{flex:1,textAlign:'center'}}>
