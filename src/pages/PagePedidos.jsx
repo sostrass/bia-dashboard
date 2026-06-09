@@ -493,6 +493,112 @@ function AnalyticsView({pedidos, api}) {
         </div>
       </div>
 
+      {/* ── LINHA V-BARS: Pipeline por situação + Receita por canal ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+
+        {/* PIPELINE — V-bars verticais por situação */}
+        <div style={card}>
+          <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:12}}>
+            <Layers size={13} style={{color:'#06b6d4'}}/>
+            <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>Pipeline de pedidos</span>
+            <span style={{marginLeft:'auto',fontSize:10,color:'var(--label-4)'}}>{pedidos.length} total</span>
+          </div>
+          {(()=>{
+            const cols=[
+              {sid:6, label:'Aberto',  cor:'#f59e0b'},
+              {sid:9, label:'Atendido',cor:'#4a9fff'},
+              {sid:27,label:'Enviado', cor:'#06b6d4'},
+              {sid:30,label:'Entregue',cor:'#22c55e'},
+              {sid:12,label:'Cancelado',cor:'#ef4444'},
+            ]
+            const maxN=Math.max(...cols.map(s=>ops.por_sit[s.sid]?.n||0),1)
+            const total=Math.max(pedidos.length,1)
+            return(
+              <div>
+                <div style={{display:'flex',alignItems:'flex-end',gap:8,height:90,marginBottom:10}}>
+                  {cols.map(s=>{
+                    const d=ops.por_sit[s.sid]||{n:0,valor:0}
+                    const h=Math.max(4,(d.n/maxN)*90)
+                    return(
+                      <div key={s.sid} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+                        <span style={{fontSize:11,fontWeight:700,color:s.cor,textShadow:`0 0 8px ${s.cor}60`}}>{d.n}</span>
+                        <div style={{width:'100%',borderRadius:'4px 4px 0 0',height:h,
+                          background:`linear-gradient(180deg,${s.cor},${s.cor}99)`,
+                          boxShadow:`0 0 8px ${s.cor}40`,transition:'height .5s ease'}}/>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div style={{display:'flex',gap:8,borderTop:'0.5px solid var(--sep)',paddingTop:8}}>
+                  {cols.map(s=>{
+                    const d=ops.por_sit[s.sid]||{n:0,valor:0}
+                    return(
+                      <div key={s.sid} style={{flex:1,textAlign:'center'}}>
+                        <div style={{fontSize:9,color:s.cor,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.label}</div>
+                        <div style={{fontSize:8,color:'var(--label-4)'}}>{total>0?((d.n/total)*100).toFixed(0):0}%</div>
+                      </div>
+                    )
+                  })}
+                </div>
+                {/* barra de proporção */}
+                <div style={{display:'flex',height:5,borderRadius:99,overflow:'hidden',marginTop:8,gap:1}}>
+                  {cols.filter(s=>(ops.por_sit[s.sid]?.n||0)>0).map(s=>(
+                    <div key={s.sid} style={{flex:ops.por_sit[s.sid]?.n||1,background:s.cor,transition:'flex .5s ease'}}/>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+
+        {/* RECEITA POR CANAL — V-bars verticais */}
+        <div style={card}>
+          <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:12}}>
+            <BarChart3 size={13} style={{color:'#f97316'}}/>
+            <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>Receita por canal</span>
+            <span style={{marginLeft:'auto',fontSize:10,color:'var(--label-4)'}}>{fmt(Object.values(ops.porCanal).reduce((s,d)=>s+d.v,0))}</span>
+          </div>
+          {(()=>{
+            const canais=Object.entries(ops.porCanal).sort((a,b)=>b[1].v-a[1].v)
+            const maxV=Math.max(...canais.map(([,d])=>d.v),1)
+            return(
+              <div>
+                <div style={{display:'flex',alignItems:'flex-end',gap:8,height:90,marginBottom:10}}>
+                  {canais.map(([k,d])=>{
+                    const cfg=CANAL_CFG[k]||CANAL_CFG.bling
+                    const Logo=CANAL_LOGO[k]||LogoBling
+                    const h=Math.max(4,(d.v/maxV)*90)
+                    return(
+                      <div key={k} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+                        <span style={{fontSize:9,fontWeight:600,color:cfg.cor,whiteSpace:'nowrap'}}>{d.v>=1000?`R$${(d.v/1000).toFixed(0)}k`:fmt(d.v)}</span>
+                        <div style={{width:'100%',borderRadius:'4px 4px 0 0',height:h,position:'relative',
+                          background:`linear-gradient(180deg,${cfg.cor},${cfg.cor}88)`,
+                          boxShadow:`0 0 8px ${cfg.cor}40`,transition:'height .5s ease'}}>
+                          <div style={{position:'absolute',top:-16,left:'50%',transform:'translateX(-50%)'}}>
+                            <Logo size={12}/>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div style={{display:'flex',gap:8,borderTop:'0.5px solid var(--sep)',paddingTop:8}}>
+                  {canais.map(([k,d])=>{
+                    const cfg=CANAL_CFG[k]||CANAL_CFG.bling
+                    return(
+                      <div key={k} style={{flex:1,textAlign:'center'}}>
+                        <div style={{fontSize:9,color:cfg.cor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{cfg.label.split(' ')[0]}</div>
+                        <div style={{fontSize:8,color:'var(--label-4)'}}>{d.n} ped.</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+      </div>
+
       {/* ── LINHA 3: Faturamento + Por canal ── */}
       <div style={{display:'grid',gridTemplateColumns:'1.4fr 1fr',gap:12}}>
 
@@ -546,8 +652,56 @@ function AnalyticsView({pedidos, api}) {
         </div>
       </div>
 
-      {/* ── LINHA 4: Heatmap + Geo ── */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+      {/* ── LINHA FRETE: Análise por transportadora ── */}
+      {geo&&(geo.transpStats||[]).length>0&&(
+        <div style={card}>
+          <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:12}}>
+            <Truck size={13} style={{color:'#f59e0b'}}/>
+            <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>Análise de frete por transportadora</span>
+            <span style={{marginLeft:'auto',fontSize:10,color:'var(--label-4)'}}>{(geo.transpStats||[]).length} transportadoras</span>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:10}}>
+            {(geo.transpStats||[]).map(t=>{
+              const cor=t.tempoMedio<=3?'#22c55e':t.tempoMedio<=7?'#f59e0b':'#ef4444'
+              const prazoBar=Math.min(100,(t.tempoMedio/14)*100)
+              return(
+                <div key={t.nome} style={{background:'var(--fill)',borderRadius:10,padding:'10px 12px',border:`0.5px solid ${cor}30`}}>
+                  <div style={{fontSize:11,fontWeight:600,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:8}}>{t.nome}</div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5,marginBottom:8}}>
+                    <div>
+                      <div style={{fontSize:8,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:2}}>Tempo médio</div>
+                      <div style={{fontSize:15,fontWeight:700,color:cor}}>{t.tempoMedio}<span style={{fontSize:10,fontWeight:400}}> dias</span></div>
+                    </div>
+                    <div>
+                      <div style={{fontSize:8,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:2}}>Pedidos</div>
+                      <div style={{fontSize:15,fontWeight:700,color:'var(--label)'}}>{t.pedidos||'—'}</div>
+                    </div>
+                    {t.custoMedio>0&&<div>
+                      <div style={{fontSize:8,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:2}}>Custo médio</div>
+                      <div style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>{fmt(t.custoMedio)}</div>
+                    </div>}
+                    {t.taxaExtravio>0&&<div>
+                      <div style={{fontSize:8,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:2}}>Extravio</div>
+                      <div style={{fontSize:12,fontWeight:700,color:'#ef4444'}}>{t.taxaExtravio}%</div>
+                    </div>}
+                  </div>
+                  <div style={{height:5,background:'var(--bg-2)',borderRadius:99,overflow:'hidden'}}>
+                    <div style={{height:'100%',borderRadius:99,width:`${prazoBar}%`,background:cor,boxShadow:`0 0 5px ${cor}60`,transition:'width .5s ease'}}/>
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between',marginTop:3}}>
+                    <span style={{fontSize:8,color:'var(--label-4)'}}>0d</span>
+                    <span style={{fontSize:8,color:cor,fontWeight:600}}>meta: 7d</span>
+                    <span style={{fontSize:8,color:'var(--label-4)'}}>14d</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── LINHA 4: Heatmap + Mapa Brasil + Geo ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr .7fr 1.3fr',gap:12}}>
         <div style={card}>
           <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:10,display:'flex',alignItems:'center',gap:7}}>
             <Clock size={13} style={{color:'#06b6d4'}}/>Horários de pico
@@ -561,6 +715,20 @@ function AnalyticsView({pedidos, api}) {
               ])}
             </div>
           </div>
+        </div>
+
+        {/* Mapa heatmap vendas Brasil */}
+        <div style={card}>
+          <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:8,display:'flex',alignItems:'center',gap:7}}>
+            <MapPin size={13} style={{color:'#22c55e'}}/>Vendas por estado
+          </div>
+          {(()=>{
+            const geoData={}
+            ;(geo?.topEstados||[]).forEach(e=>{geoData[e.uf]={valor:e.valor,n:e.pedidos||1}})
+            return pedidos.length>0
+              ?<BrasilMapHeat data={geoData} size={200}/>
+              :<div style={{textAlign:'center',padding:'32px 0',fontSize:11,color:'var(--label-4)'}}>Sem dados de vendas</div>
+          })()}
         </div>
 
         {/* Geo — tabela densa + transportadoras */}
@@ -1593,6 +1761,13 @@ export default function PagePedidos({api}) {
       taxaEnt:filtrados.length>0?Math.round(atendidos/filtrados.length*100):0}
   },[filtrados])
 
+  const sitCounts = useMemo(()=>{
+    const m={}; pedidos.forEach(p=>{const s=String(getSitId(p));m[s]=(m[s]||0)+1}); return m
+  },[pedidos])
+  const canalCounts = useMemo(()=>{
+    const m={}; pedidos.forEach(p=>{const c=getCanal(p);m[c]=(m[c]||0)+1}); return m
+  },[pedidos])
+
   const srt=(col)=>{ if(sortCol===col)setSDir(d=>d==='desc'?'asc':'desc');else{setSort(col);setSDir('desc')} }
   const SI=({col})=>sortCol!==col?<ChevronDown size={11} style={{opacity:.3}}/>:sortDir==='desc'?<ChevronDown size={11}/>:<ChevronUp size={11}/>
   const pg=filtrados.slice((pgUI-1)*POR_PAG,pgUI*POR_PAG)
@@ -1696,6 +1871,20 @@ export default function PagePedidos({api}) {
           {(filtroC!=='todos'||filtroSit!=='0'||valMin||valMax||date.from)&&
             <div style={{width:6,height:6,borderRadius:'50%',background:'var(--accent)'}}/>}
         </button>
+        {/* Canal pills com logos SVG + contagem */}
+        <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0,flexWrap:'nowrap'}}>
+          <button onClick={()=>setFC('todos')} style={{display:'flex',alignItems:'center',gap:3,padding:'4px 9px',borderRadius:99,border:`1px solid ${filtroC==='todos'?'var(--accent)':'var(--sep)'}`,background:filtroC==='todos'?'var(--fill)':'none',cursor:'pointer',fontSize:10,fontWeight:filtroC==='todos'?600:400,color:filtroC==='todos'?'var(--label)':'var(--label-4)',whiteSpace:'nowrap'}}>
+            Todos{pedidos.length>0&&<span style={{fontSize:9,color:'var(--label-4)',marginLeft:3}}>{pedidos.length}</span>}
+          </button>
+          {Object.entries(CANAL_CFG).filter(([k])=>canalCounts[k]>0).map(([k,cfg])=>{
+            const Logo=CANAL_LOGO[k]||LogoBling; const ativo=filtroC===k
+            return(
+              <button key={k} onClick={()=>setFC(ativo?'todos':k)} style={{display:'flex',alignItems:'center',gap:4,padding:'4px 9px',borderRadius:99,border:`1px solid ${ativo?cfg.cor:'var(--sep)'}`,background:ativo?`${cfg.cor}18`:'none',cursor:'pointer',fontSize:10,fontWeight:ativo?600:400,color:ativo?cfg.cor:'var(--label-4)',whiteSpace:'nowrap',transition:'all .15s'}}>
+                <Logo size={12}/>{cfg.label.split(' ')[0]}<span style={{fontSize:9,color:ativo?cfg.cor:'var(--label-4)',marginLeft:1}}>{canalCounts[k]}</span>
+              </button>
+            )
+          })}
+        </div>
         {/* Busca */}
         <div style={{position:'relative',flex:'1 1 200px',maxWidth:300}}>
           <Search size={13} style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',
@@ -1717,13 +1906,23 @@ export default function PagePedidos({api}) {
         </div>
         {/* Filtro status rápido */}
         <div style={{display:'flex',gap:3}}>
-          {[['0','Todos'],['6','Aberto'],['9','Atendido'],['12','Cancelado'],['15','Verificado']].map(([v,l])=>(
-            <button key={v} onClick={()=>{setFS(v);setPgUI(1)}} style={{
-              padding:'5px 9px',borderRadius:99,border:'1px solid var(--sep)',
-              background:filtroSit===v?(SIT[Number(v)]?.bg||'var(--fill)'):'none',
-              color:filtroSit===v?(SIT[Number(v)]?.cor||'var(--accent)'):'var(--label-4)',
-              cursor:'pointer',fontSize:11,fontWeight:filtroSit===v?700:400}}>{l}</button>
-          ))}
+          {[['0','Todos',null],['6','Aberto','#f59e0b'],['9','Atendido','#4a9fff'],['27','Enviado','#06b6d4'],['30','Entregue','#22c55e'],['12','Cancelado','#ef4444']].map(([v,l,cor])=>{
+            const n=v==='0'?pedidos.length:(sitCounts[v]||0)
+            const ativo=filtroSit===v
+            return(
+              <button key={v} onClick={()=>{setFS(v);setPgUI(1)}} style={{
+                display:'flex',alignItems:'center',gap:4,
+                padding:'4px 9px',borderRadius:99,
+                border:`1px solid ${ativo?(cor||'var(--accent)'):'var(--sep)'}`,
+                background:ativo?(cor?`${cor}18`:'var(--fill)'):'none',
+                color:ativo?(cor||'var(--accent)'):'var(--label-4)',
+                cursor:'pointer',fontSize:11,fontWeight:ativo?700:400,
+                transition:'all .15s',whiteSpace:'nowrap'}}>
+                {l}
+                {n>0&&<span style={{fontSize:9,fontWeight:700,color:ativo?(cor||'var(--accent)'):'var(--label-4)',background:ativo?`${cor||'#888'}20`:'var(--fill)',borderRadius:99,padding:'0 4px',minWidth:16,textAlign:'center'}}>{n}</span>}
+              </button>
+            )
+          })}
         </div>
         <div style={{marginLeft:'auto',display:'flex',gap:6,alignItems:'center'}}>
           {live>0&&<div style={{display:'flex',alignItems:'center',gap:5,padding:'4px 10px',
