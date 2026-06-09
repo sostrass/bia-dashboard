@@ -2206,7 +2206,6 @@ export default function PagePedidos({api}) {
               </div>
             </div>
           </div>
-          )
         })() :
     </div>
 
