@@ -13,8 +13,7 @@ import {
   ArrowDownRight, Eye, Circle, Navigation, Hash, Calendar,
   Info, DollarSign, Box, Layers, Timer, Award, Map,
   ShieldCheck, Building, Globe, Percent, Target,
-  ShoppingBag, MessageCircle, GripVertical, Settings,
-  Flame, Shield, Sparkles, Cpu, Heart, RotateCcw, ArrowRight,
+  ShoppingBag, MessageCircle, GripVertical, Settings, History, Route, Brain,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -22,19 +21,29 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis,
 } from 'recharts'
 
+// ─── LOGOS SVG REAIS DOS MARKETPLACES ─────────────────────────────────────────
+const LogoShopee=({size=14})=><svg width={size} height={size} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#EE4D2D"/><path d="M8.5 10.5c0-1.933 1.567-3.5 3.5-3.5s3.5 1.567 3.5 3.5" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" fill="none"/><rect x="6.5" y="10.5" width="11" height="7" rx="1.5" fill="#fff" opacity=".95"/><circle cx="9.5" cy="14" r="1" fill="#EE4D2D"/><circle cx="14.5" cy="14" r="1" fill="#EE4D2D"/></svg>
+const LogoML=({size=14})=><svg width={size} height={size} viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="10" fill="#FFE600"/><path d="M7 12.5c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="#333" strokeWidth="1.6" strokeLinecap="round" fill="none"/><circle cx="12" cy="14.5" r="2" fill="#333"/></svg>
+const LogoShein=({size=14})=><svg width={size} height={size} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#000"/><text x="12" y="9.5" textAnchor="middle" fontSize="4.5" fill="#fff" fontWeight="bold">SHEIN</text><path d="M7 13.5c.5-2 2-3.5 4-3.5s3.2 1.2 3 3c-.2 1.5-1.5 2.5-3 2.5-1 0-1.8-.5-2-1.5" stroke="#e91e8c" strokeWidth="1.4" strokeLinecap="round" fill="none"/></svg>
+const LogoTikTok=({size=14})=><svg width={size} height={size} viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#010101"/><path d="M14.5 7.5c.9.7 2 1.1 3.2 1.1V6.4c-.7 0-1.3-.2-1.8-.5v6.5c0 2.5-2 4.6-4.4 4.6S7.1 14.9 7.1 12.4s2-4.6 4.4-4.6V4.6C8.2 4.6 5.5 7.3 5.5 11.7s2.7 6.1 6 6.1 6-2.7 6-6.1V7.5z" fill="#25F4EE"/><path d="M13.5 6.5c.9.7 2 1.1 3.2 1.1V5.4c-.7 0-1.3-.2-1.8-.5v6.5c0 2.5-2 4.6-4.4 4.6S6.1 13.9 6.1 11.4s2-4.6 4.4-4.6V4.6C7.2 4.6 4.5 7.3 4.5 10.7s2.7 6.1 6 6.1 6-2.7 6-6.1V6.5z" fill="#FE2C55" opacity=".7"/></svg>
+const LogoNuvemshop=({size=14})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#9B51E0"/><path d="M7.5 14.5c0-2.485 2.015-4.5 4.5-4.5s4.5 2.015 4.5 4.5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round"/><circle cx="12" cy="14.5" r="1.5" fill="#fff"/></svg>
+const LogoLoja=({size=14})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="#22c55e" strokeWidth="1.5" fill="rgba(34,197,94,.2)" strokeLinejoin="round"/><path d="M9 22V12h6v10" stroke="#22c55e" strokeWidth="1.5" strokeLinejoin="round"/></svg>
+const LogoBling=({size=14})=><svg width={size} height={size} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#1176AE"/><text x="12" y="16" textAnchor="middle" fontSize="9" fill="#fff" fontWeight="bold">B</text></svg>
+const CANAL_LOGO = {shopee:LogoShopee,mercadolivre:LogoML,shein:LogoShein,tiktokshop:LogoTikTok,nuvemshop:LogoNuvemshop,loja:LogoLoja,bling:LogoBling}
+
 // ─── MAPAS ────────────────────────────────────────────────────────────────────
 const LOJA_ID = {
   205946980:'shopee', 203414926:'mercadolivre', 204884434:'shein',
   205916963:'tiktokshop', 205693668:'nuvemshop', 0:'loja',
 }
 const CANAL_CFG = {
-  shopee:       {label:'Shopee',       cor:'#ee4d2d', icon:ShoppingBag},
-  mercadolivre: {label:'Mercado Livre',cor:'#ffe600', icon:ShoppingCart},
-  shein:        {label:'Shein',        cor:'#000000', icon:ShoppingBag},
-  tiktokshop:   {label:'TikTok',       cor:'#25f4ee', icon:ShoppingBag},
-  nuvemshop:    {label:'Nuvemshop',    cor:'#a78bfa', icon:Globe},
-  loja:         {label:'Loja Própria', cor:'#22c55e', icon:Building},
-  bling:        {label:'Bling/Manual', cor:'#60a5fa', icon:Hash},
+  shopee:       {label:'Shopee',       cor:'#ee4d2d', Logo:LogoShopee},
+  mercadolivre: {label:'Mercado Livre',cor:'#ffe600', Logo:LogoML},
+  shein:        {label:'Shein',        cor:'#e91e8c', Logo:LogoShein},
+  tiktokshop:   {label:'TikTok',       cor:'#25f4ee', Logo:LogoTikTok},
+  nuvemshop:    {label:'Nuvemshop',    cor:'#9b51e0', Logo:LogoNuvemshop},
+  loja:         {label:'Loja Própria', cor:'#22c55e', Logo:LogoLoja},
+  bling:        {label:'Bling/Manual', cor:'#60a5fa', Logo:LogoBling},
 }
 const SIT = {
   6:  {label:'Em Aberto',  cor:'#f59e0b', bg:'rgba(245,158,11,.12)', bdr:'rgba(245,158,11,.3)'},
@@ -48,6 +57,7 @@ const COLUNAS_DISP = [
   {id:'serie',     label:'Série',           largura:'60px'},
   {id:'data',      label:'Data de emissão', largura:'90px'},
   {id:'dataSaida', label:'Data de saída',   largura:'90px'},
+  {id:'produto',   label:'Produtos',        largura:'100px'},
   {id:'contato',   label:'Nome',            largura:'1fr'},
   {id:'documento', label:'CPF/CNPJ',        largura:'120px'},
   {id:'natureza',  label:'Natureza op.',    largura:'110px'},
@@ -57,13 +67,11 @@ const COLUNAS_DISP = [
   {id:'transp',    label:'Transportadora',  largura:'110px'},
   {id:'rastreio',  label:'Nº Rastreio',     largura:'130px'},
   {id:'total',     label:'Valor (R$)',      largura:'90px'},
-  {id:'fulfillment', label:'Fulfillment',   largura:'75px'},
-  {id:'risco',       label:'Risco',         largura:'70px'},
 ]
 // Config padrão (caso não haja nada salvo no backend)
 const COLUNAS_PADRAO = {
-  ordem: ['numero','data','contato','canal','status','fulfillment','total','rastreio'],
-  ativas: {numero:true,data:true,contato:true,canal:true,status:true,fulfillment:true,total:true,rastreio:true,risco:false},
+  ordem: ['numero','data','produto','contato','canal','status','total','rastreio'],
+  ativas: {numero:true,data:true,produto:true,contato:true,canal:true,status:true,total:true,rastreio:true},
 }
 const RFM = {
   vip:      {label:'VIP',      icon:Crown,      cor:'#f59e0b', bg:'rgba(245,158,11,.15)'},
@@ -105,208 +113,6 @@ function calcRFM(hist) {
   return 'novo'
 }
 
-
-// ─── HELPERS NIVELMAX ─────────────────────────────────────────────────────────
-
-// Fulfillment Score 0-100
-function calcFulfillmentScore(p, disps=[], nfe=null, rastreio=null) {
-  let s = 0
-  const sitId = getSitId(p)
-  if (nfe?.numero || p.notaFiscal?.id) s += 25
-  if (disps.some(d => d.status === 'enviado')) s += 25
-  if (rastreio?.codigo || p.codigoRastreio) s += 25
-  if ([15,30].includes(sitId) || String(p.situacao||'').toLowerCase().includes('verif')) s += 25
-  return s
-}
-
-// Delivery Risk Score 0-100 (heurístico por transportadora + UF)
-function calcDeliveryRisk(p) {
-  let r = 10
-  const uf    = (p.ufEntrega || p.transporte?.etiqueta?.uf || p.uf || '').toUpperCase()
-  const transp = (p.transportadora || '').toLowerCase()
-  const dias   = p.dataSaida ? Math.floor((Date.now()-new Date(p.dataSaida))/86400000) : 0
-  // Regiões com maior índice histórico de atraso
-  if (['AM','PA','AC','RR','AP','RO','TO'].includes(uf)) r += 30
-  else if (['MA','PI','CE','RN','PB','PE','AL','SE','BA'].includes(uf)) r += 15
-  if (transp.includes('correios')||transp.includes('pac')||transp.includes('sedex')) r += 12
-  if (dias > 7) r += 20
-  if (dias > 12) r += 15
-  return Math.min(98, r)
-}
-
-// Complaint Risk Score 0-100
-function calcComplaintRisk(p) {
-  let r = 5
-  const sitId = getSitId(p)
-  const dias  = p.dataSaida ? Math.floor((Date.now()-new Date(p.dataSaida))/86400000) : 0
-  if (sitId === 6 && dias > 3) r += 25     // em aberto há muito tempo
-  if (!p.codigoRastreio && dias > 2) r += 20  // sem rastreio
-  if (dias > 10 && sitId !== 15) r += 30   // muito tempo sem entregar
-  if (sitId === 12) r = 90                 // cancelado
-  return Math.min(95, r)
-}
-
-// Churn Risk (baseado no ciclo de compra)
-function calcChurnRisk(hist=[]) {
-  if (!hist.length) return 0
-  const datas = hist.map(p => new Date(p.data||0)).filter(d=>!isNaN(d)).sort((a,b)=>b-a)
-  if (datas.length < 2) return 0
-  const ints = datas.slice(0,-1).map((d,i) => (d-datas[i+1])/86400000)
-  const med  = ints.reduce((a,b)=>a+b,0)/ints.length
-  const dias = (Date.now()-datas[0])/86400000
-  if (dias > med * 2) return 85
-  if (dias > med * 1.5) return 60
-  if (dias > med * 1.2) return 35
-  return 10
-}
-
-// Smart Alerts automáticos
-function getSmartAlerts(pedidos=[]) {
-  const alerts = []
-  const semRastreio = pedidos.filter(p => {
-    const sitId = getSitId(p)
-    const dias = p.dataSaida ? Math.floor((Date.now()-new Date(p.dataSaida))/86400000) : 0
-    return !p.codigoRastreio && dias > 48/24 && ![12,15].includes(sitId)
-  })
-  if (semRastreio.length) alerts.push({
-    id:'sem_rastreio', tipo:'warning', icon:Navigation,
-    titulo:`${semRastreio.length} pedido${semRastreio.length>1?'s':''} sem rastreio`,
-    desc:`Enviados há mais de 2 dias sem código de rastreamento`,
-    cor:'#f59e0b', filtro:{campo:'semRastreio',valor:true},
-    count: semRastreio.length,
-  })
-
-  const pagPendente = pedidos.filter(p => getSitId(p) === 6)
-  if (pagPendente.length) {
-    const tot = pagPendente.reduce((s,p)=>s+parseFloat(p.total||0),0)
-    alerts.push({
-      id:'pag_pendente', tipo:'alert', icon:CreditCard,
-      titulo:`${pagPendente.length} pagamento${pagPendente.length>1?'s':''} pendente${pagPendente.length>1?'s':''}`,
-      desc:`R$ ${tot.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,'.')} aguardando confirmação`,
-      cor:'#ef4444', filtro:{campo:'situacao',valor:'6'}, count: pagPendente.length,
-    })
-  }
-
-  const semNFe = pedidos.filter(p => {
-    const sitId = getSitId(p)
-    return [9,15].includes(sitId) && !p.notaFiscal?.id && !p.nfeNumero
-  })
-  if (semNFe.length) alerts.push({
-    id:'sem_nfe', tipo:'info', icon:FileText,
-    titulo:`${semNFe.length} pedido${semNFe.length>1?'s':''} sem NF-e`,
-    desc:'Atendidos/Verificados mas sem nota fiscal emitida',
-    cor:'#06b6d4', filtro:{campo:'semNFe',valor:true}, count: semNFe.length,
-  })
-
-  const atrasados = pedidos.filter(p => {
-    const sitId = getSitId(p)
-    const dias = p.dataSaida ? Math.floor((Date.now()-new Date(p.dataSaida))/86400000) : 0
-    return p.codigoRastreio && dias > 8 && ![15,12].includes(sitId)
-  })
-  if (atrasados.length) alerts.push({
-    id:'atrasados', tipo:'critical', icon:Clock,
-    titulo:`${atrasados.length} pedido${atrasados.length>1?'s':''} em atraso`,
-    desc:'Com rastreio, enviados há mais de 8 dias sem confirmar entrega',
-    cor:'#f97316', filtro:{campo:'atrasado',valor:true}, count: atrasados.length,
-  })
-
-  return alerts.sort((a,b) => {
-    const ord = {critical:0, alert:1, warning:2, info:3}
-    return (ord[a.tipo]||3) - (ord[b.tipo]||3)
-  })
-}
-
-// Carrier Scorecard a partir dos pedidos
-function calcCarrierStats(pedidos=[]) {
-  const map = {}
-  pedidos.forEach(p => {
-    const t = p.transportadora || 'Não informada'
-    if (!map[t]) map[t] = { nome:t, total:0, entregues:0, totalVal:0 }
-    map[t].total++
-    map[t].totalVal += parseFloat(p.total||0)
-    if (getSitId(p) === 15) map[t].entregues++
-  })
-  return Object.values(map)
-    .map(c => ({ ...c, taxa: c.total>0?Math.round(c.entregues/c.total*100):0,
-      ticket: c.total>0?c.totalVal/c.total:0 }))
-    .sort((a,b) => b.total-a.total)
-    .slice(0,8)
-}
-
-// Análise geográfica por UF
-function calcGeoStats(pedidos=[]) {
-  const map = {}
-  pedidos.forEach(p => {
-    const uf = (p.ufEntrega || p.transporte?.etiqueta?.uf || p.uf || '?').toUpperCase()
-    if (!map[uf]) map[uf] = { uf, total:0, val:0 }
-    map[uf].total++
-    map[uf].val += parseFloat(p.total||0)
-  })
-  return Object.values(map).sort((a,b)=>b.total-a.total)
-}
-
-// Revenue Forecast (projeção linear 30d)
-function calcRevenueForecast(pedidos=[]) {
-  const today = Date.now()
-  const dias90 = pedidos.filter(p => p.data && (today-new Date(p.data))/(86400000) <= 90)
-  if (!dias90.length) return { dias30:0, tendencia:'estável' }
-  const fat90 = dias90.reduce((s,p)=>s+parseFloat(p.total||0),0)
-  const mediaD = fat90 / 90
-  const fat30  = dias90.filter(p=>(today-new Date(p.data))/(86400000)<=30)
-    .reduce((s,p)=>s+parseFloat(p.total||0),0)
-  const mediaM = fat30 / 30
-  const delta  = mediaM > 0 ? ((mediaM - mediaD) / mediaD * 100) : 0
-  return {
-    dias30: Math.round(mediaM * 30),
-    dias7:  Math.round(mediaM * 7),
-    tendencia: delta > 5 ? 'crescendo' : delta < -5 ? 'caindo' : 'estável',
-    variacao: Math.round(Math.abs(delta)),
-  }
-}
-
-// Market Basket (produtos comprados juntos)
-function calcMarketBasket(pedidos=[]) {
-  const pares = {}
-  pedidos.forEach(p => {
-    const itens = p.itens || []
-    if (itens.length < 2) return
-    for (let i=0; i<itens.length; i++) {
-      for (let j=i+1; j<itens.length; j++) {
-        const key = [itens[i].codigo||itens[i].descricao, itens[j].codigo||itens[j].descricao]
-          .sort().join(' + ')
-        pares[key] = (pares[key]||0) + 1
-      }
-    }
-  })
-  return Object.entries(pares)
-    .map(([par, freq]) => ({ par, freq }))
-    .sort((a,b)=>b.freq-a.freq)
-    .slice(0,10)
-}
-
-// Channel Quality
-function calcChannelQuality(pedidos=[]) {
-  const map = {}
-  pedidos.forEach(p => {
-    const c = getCanal(p)
-    if (!map[c]) map[c] = { canal:c, total:0, val:0, clientes:new Set(), repete:0 }
-    map[c].total++
-    map[c].val += parseFloat(p.total||0)
-    const tel = p.telefone||p.contato
-    if (tel) {
-      if (map[c].clientes.has(tel)) map[c].repete++
-      map[c].clientes.add(tel)
-    }
-  })
-  return Object.values(map).map(c => ({
-    ...c,
-    clientes: c.clientes.size,
-    ticket: c.total>0?c.val/c.total:0,
-    ltv: c.clientes.size>0?c.val/c.clientes.size:0,
-    taxaRepete: c.clientes.size>0?Math.round(c.repete/c.clientes.size*100):0,
-  })).sort((a,b)=>b.val-a.val)
-}
-
 // ─── ATOMS ────────────────────────────────────────────────────────────────────
 function Pill({label,cor,bg,bdr,sz=10}) {
   return <span style={{fontSize:sz,fontWeight:700,padding:'2px 8px',borderRadius:99,
@@ -331,258 +137,31 @@ function Cp({val,label}) {
 function Spark({data=[],cor='#7c6af7'}) {
   const max=Math.max(...data,1)
   return <div style={{display:'flex',alignItems:'flex-end',gap:2,height:28}}>
-    {data.map((v,i)=><div key={i} style={{width:4,borderRadius:2,
-      height:`${Math.max(4,(v/max)*28)}px`,background:i===data.length-1?cor:`${cor}55`}}/>)}
+    {data.map((v,i)=>{
+      const isLast=i===data.length-1
+      return <div key={i} style={{width:4,borderRadius:2,
+        height:`${Math.max(4,(v/max)*28)}px`,
+        background:isLast?cor:`${cor}55`,
+        boxShadow:isLast?`0 0 7px ${cor}90`:'none',
+        transition:'height .3s'}}/>
+    })}
   </div>
 }
+
+// ─── PRODUCT THUMB ──────────────────────────────────────────────────────────
+function ProductThumb({item,size=28}) {
+  const name=(item?.descricao||item?.nome||'').slice(0,4).toUpperCase()
+  const colors=['#7c6af7','#06b6d4','#22c55e','#f59e0b','#f97316','#a78bfa']
+  const cor=colors[(name.charCodeAt(0)||0)%colors.length]
+  const [err,setErr]=useState(false)
+  if(item?.foto&&!err)return <img src={item.foto} alt={name} onError={()=>setErr(true)}
+    style={{width:size,height:size,borderRadius:5,objectFit:'cover',flexShrink:0,border:'0.5px solid var(--sep)'}}/>
+  return <div style={{width:size,height:size,borderRadius:5,flexShrink:0,
+    background:`${cor}18`,border:`0.5px solid ${cor}35`,
+    display:'flex',alignItems:'center',justifyContent:'center',
+    fontSize:size>26?8:7,fontWeight:700,color:cor}}>{name.slice(0,4)||'?'}</div>
+}
 const TT = {contentStyle:{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:8,fontSize:11,color:'var(--label)'}}
-
-
-// ─── NIVELMAX COMPONENTS ──────────────────────────────────────────────────────
-
-// Fulfillment Score Ring
-function FulfillmentRing({ score=0, size=48 }) {
-  const r = (size-6)/2, circ = 2*Math.PI*r, fill = circ*(score/100)
-  const cor = score===100?'#00e676':score>=75?'#4a9fff':score>=50?'#f59e0b':'#ef4444'
-  return (
-    <div style={{ position:'relative', width:size, height:size, flexShrink:0 }}>
-      <svg width={size} height={size} style={{ transform:'rotate(-90deg)' }}>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,.06)" strokeWidth={5}/>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={cor} strokeWidth={5}
-          strokeLinecap="round" strokeDasharray={`${fill} ${circ}`}
-          style={{ filter:`drop-shadow(0 0 4px ${cor}80)`, transition:'stroke-dasharray .6s ease' }}/>
-      </svg>
-      <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center',
-        justifyContent:'center', fontSize:size>40?11:9, fontWeight:800, color:cor }}>
-        {score}
-      </div>
-    </div>
-  )
-}
-
-// Risk Badge
-function RiskBadge({ risk=0, label='Risco', small=false }) {
-  const cor = risk>=70?'#ef4444':risk>=40?'#f97316':'#22c55e'
-  const lbl = risk>=70?'Alto':risk>=40?'Médio':'Baixo'
-  if (small) return (
-    <span style={{ fontSize:8, padding:'1px 5px', borderRadius:99,
-      background:`${cor}18`, color:cor, border:`1px solid ${cor}30`, fontWeight:700 }}>
-      {lbl}
-    </span>
-  )
-  return (
-    <div style={{ display:'flex', alignItems:'center', gap:5, padding:'4px 8px',
-      borderRadius:8, background:`${cor}12`, border:`1px solid ${cor}25` }}>
-      <div style={{ width:5, height:5, borderRadius:'50%', background:cor,
-        boxShadow:`0 0 6px ${cor}` }}/>
-      <span style={{ fontSize:10.5, fontWeight:700, color:cor }}>{label}: {lbl}</span>
-      <span style={{ fontSize:10, color:`${cor}99` }}>{risk}%</span>
-    </div>
-  )
-}
-
-// Live Counter animado
-function LiveCounter({ value=0, prefix='R$ ', decimals=0 }) {
-  const [display, setDisplay] = useState(0)
-  useEffect(() => {
-    const target = value
-    const step = Math.max(1, Math.floor(target / 60))
-    let cur = 0
-    const timer = setInterval(() => {
-      cur = Math.min(cur + step, target)
-      setDisplay(cur)
-      if (cur >= target) clearInterval(timer)
-    }, 16)
-    return () => clearInterval(timer)
-  }, [value])
-  return (
-    <span>
-      {prefix}
-      {decimals > 0
-        ? display.toLocaleString('pt-BR', { minimumFractionDigits:decimals })
-        : display.toLocaleString('pt-BR')}
-    </span>
-  )
-}
-
-// Command Center Header — Mission Control
-function CommandCenter({ pedidos=[], filtrados=[], kpis={}, onAlertClick, api }) {
-  const [fat7, setFat7] = useState(0)
-  const [liveRev, setLiveRev] = useState(0)
-  const alerts = useMemo(() => getSmartAlerts(pedidos), [pedidos])
-  const forecast = useMemo(() => calcRevenueForecast(pedidos), [pedidos])
-
-  useEffect(() => {
-    const hoje = new Date()
-    const fat = filtrados
-      .filter(p => p.data && (Date.now()-new Date(p.data))/(86400000) <= 1)
-      .reduce((s,p) => s+parseFloat(p.total||0), 0)
-    setLiveRev(Math.round(fat))
-    const fat7d = filtrados
-      .filter(p => p.data && (Date.now()-new Date(p.data))/(86400000) <= 7)
-      .reduce((s,p) => s+parseFloat(p.total||0), 0)
-    setFat7(Math.round(fat7d))
-  }, [filtrados])
-
-  return (
-    <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--sep)',
-      background:'linear-gradient(180deg,var(--bg-2),var(--bg))',
-      flexShrink:0 }}>
-      {/* Linha 1: KPIs principais */}
-      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom: alerts.length>0?8:0,
-        flexWrap:'wrap' }}>
-        {/* Revenue do dia */}
-        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 12px',
-          borderRadius:10, background:'rgba(0,230,118,.08)',
-          border:'1px solid rgba(0,230,118,.2)' }}>
-          <DollarSign size={13} style={{ color:'#00e676' }}/>
-          <div>
-            <div style={{ fontSize:9, color:'rgba(0,230,118,.6)', fontWeight:700,
-              textTransform:'uppercase', letterSpacing:'.05em' }}>Hoje</div>
-            <div style={{ fontSize:15, fontWeight:900, color:'#00e676', lineHeight:1.2 }}>
-              R$ {liveRev.toLocaleString('pt-BR')}
-            </div>
-          </div>
-        </div>
-
-        {/* Revenue 7d */}
-        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 12px',
-          borderRadius:10, background:'rgba(79,142,247,.08)', border:'1px solid rgba(79,142,247,.2)' }}>
-          <TrendingUp size={13} style={{ color:'#4f8ef7' }}/>
-          <div>
-            <div style={{ fontSize:9, color:'rgba(79,142,247,.6)', fontWeight:700,
-              textTransform:'uppercase', letterSpacing:'.05em' }}>7 dias</div>
-            <div style={{ fontSize:15, fontWeight:900, color:'#4f8ef7', lineHeight:1.2 }}>
-              R$ {fat7.toLocaleString('pt-BR')}
-            </div>
-          </div>
-        </div>
-
-        {/* Forecast */}
-        {forecast.dias30 > 0 && (
-          <div style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 12px',
-            borderRadius:10, background:'rgba(167,139,250,.08)', border:'1px solid rgba(167,139,250,.2)' }}>
-            <Target size={13} style={{ color:'#a78bfa' }}/>
-            <div>
-              <div style={{ fontSize:9, color:'rgba(167,139,250,.6)', fontWeight:700,
-                textTransform:'uppercase', letterSpacing:'.05em' }}>Previsão 30d</div>
-              <div style={{ display:'flex', alignItems:'center', gap:4 }}>
-                <span style={{ fontSize:13, fontWeight:800, color:'#a78bfa' }}>
-                  R$ {forecast.dias30.toLocaleString('pt-BR')}
-                </span>
-                {forecast.tendencia !== 'estável' && (
-                  <span style={{ fontSize:9, padding:'1px 5px', borderRadius:99,
-                    background: forecast.tendencia==='crescendo'?'rgba(0,230,118,.15)':'rgba(239,68,68,.15)',
-                    color: forecast.tendencia==='crescendo'?'#00e676':'#ef4444', fontWeight:700 }}>
-                    {forecast.tendencia==='crescendo'?'↑':'↓'} {forecast.variacao}%
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:6 }}>
-          <span style={{ fontSize:11, color:'var(--label-4)' }}>
-            {filtrados.length.toLocaleString()} pedidos
-          </span>
-          {alerts.length > 0 && (
-            <span style={{ width:18, height:18, borderRadius:'50%', background:'#ef4444',
-              fontSize:10, fontWeight:800, color:'#fff',
-              display:'flex', alignItems:'center', justifyContent:'center',
-              animation:'pedido-ping 2s ease infinite' }}>
-              {alerts.length}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Linha 2: Smart Alerts */}
-      {alerts.length > 0 && (
-        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-          {alerts.map(a => {
-            const AIc = a.icon
-            return (
-              <button key={a.id} onClick={() => onAlertClick && onAlertClick(a)}
-                style={{ display:'inline-flex', alignItems:'center', gap:5,
-                  padding:'4px 10px', borderRadius:99, cursor:'pointer',
-                  border:`1px solid ${a.cor}40`, background:`${a.cor}10`,
-                  color:a.cor, fontSize:10.5, fontWeight:700,
-                  transition:'all .15s' }}>
-                <AIc size={10}/>
-                {a.titulo}
-                <span style={{ fontSize:9, opacity:.7 }}>→</span>
-              </button>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// Bulk Action Bar
-function BulkActionBar({ selecionados=[], pedidos=[], onClear, api }) {
-  const [enviando, setEnviando] = useState(null)
-  if (!selecionados.length) return null
-
-  const totalSel = pedidos.filter(p => selecionados.includes(p.numero))
-    .reduce((s,p) => s+parseFloat(p.total||0), 0)
-
-  const enviarLote = async (gatilho) => {
-    setEnviando(gatilho)
-    const pSel = pedidos.filter(p => selecionados.includes(p.numero) && p.telefone)
-    await Promise.allSettled(pSel.map(p =>
-      fetch(`${api}/api/templates/disparar-gatilho`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ gatilho, telefone:p.telefone,
-          variaveis: { '{{numero_pedido}}':p.numero, '{{nome_cliente}}':p.contato||'',
-            '{{valor_total}}':fmt(p.total) }
-        })
-      })
-    ))
-    setEnviando(null); onClear()
-  }
-
-  return (
-    <div style={{ position:'fixed', bottom:20, left:'50%', transform:'translateX(-50%)',
-      zIndex:500, display:'flex', alignItems:'center', gap:10,
-      padding:'10px 16px', borderRadius:16,
-      background:'linear-gradient(135deg,#1c2238,#161b2c)',
-      border:'1px solid rgba(167,139,250,.4)',
-      boxShadow:'0 8px 32px rgba(0,0,0,.7), 0 0 0 1px rgba(167,139,250,.2)',
-      animation:'pedido-slideUp .2s ease' }}>
-      <div style={{ fontSize:12, fontWeight:700, color:'#a78bfa' }}>
-        {selecionados.length} selecionado{selecionados.length>1?'s':''}
-      </div>
-      <div style={{ fontSize:11, color:'rgba(255,255,255,.5)' }}>·</div>
-      <div style={{ fontSize:12, color:'rgba(255,255,255,.6)' }}>
-        {fmt(totalSel)}
-      </div>
-      <div style={{ width:1, height:20, background:'rgba(255,255,255,.1)' }}/>
-      {[
-        { g:'pedido_criado',       l:'📦 Enviar resumo',  cor:'#06b6d4' },
-        { g:'rastreio_em_transito', l:'🚚 Enviar rastreio', cor:'#a78bfa' },
-        { g:'avaliar_pedido',       l:'⭐ Pedir avaliação', cor:'#f59e0b' },
-      ].map(({ g, l, cor }) => (
-        <button key={g} onClick={() => enviarLote(g)}
-          disabled={!!enviando}
-          style={{ padding:'5px 11px', borderRadius:9, cursor:'pointer',
-            border:`1px solid ${cor}40`, background:`${cor}15`,
-            color:cor, fontSize:11, fontWeight:700,
-            opacity:enviando===g?0.6:1 }}>
-          {enviando===g ? <RefreshCw size={10} style={{ animation:'spin 1s linear infinite' }}/> : l}
-        </button>
-      ))}
-      <button onClick={onClear}
-        style={{ padding:'5px 10px', borderRadius:9, cursor:'pointer',
-          border:'1px solid rgba(255,255,255,.15)', background:'transparent',
-          color:'rgba(255,255,255,.5)', fontSize:11 }}>
-        Cancelar
-      </button>
-    </div>
-  )
-}
 
 // ─── KPI CARD ─────────────────────────────────────────────────────────────────
 function KCard({icon:Ic,label,value,sub,cor='#7c6af7',trend,spark,alert}) {
@@ -638,203 +217,1143 @@ function AlertBar({pedidos}) {
   </div>
 }
 
-// ─── ANALYTICS VIEW ──────────────────────────────────────────────────────────
-function AnalyticsView({ pedidos, api }) {
+// ─── ANALYTICS VIEW ───────────────────────────────────────────────────────────
+function AnalyticsView({pedidos, api}) {
   const [geo, setGeo] = useState(null)
   const [geoLoad, setGL] = useState(false)
-  const [abaAn, setAbaAn] = useState('overview')
 
-  const TABS_AN = [
-    { id:'overview',  label:'Visão Geral' },
-    { id:'carriers',  label:'Transportadoras' },
-    { id:'channels',  label:'Canais' },
-    { id:'geo',       label:'Geografia' },
-    { id:'products',  label:'Produtos' },
-    { id:'forecast',  label:'Previsão' },
-  ]
+  useEffect(()=>{
+    setGL(true)
+    fetch(`${api}/api/dashboard/stats-geo`)
+      .then(r=>r.ok?r.json():null).then(d=>{setGeo(d);setGL(false)}).catch(()=>setGL(false))
+  },[api])
 
-  const forecast = useMemo(() => calcRevenueForecast(pedidos), [pedidos])
+  const fatDias = useMemo(()=>{
+    const m={}; pedidos.forEach(p=>{const d=fmtD(p.data); m[d]=(m[d]||0)+parseFloat(p.total||0)})
+    return Object.entries(m).slice(-30).map(([d,v])=>({d,v:Math.round(v)}))
+  },[pedidos])
 
-  // ── Visão geral: mantém os gráficos existentes ──────────────────────────
-  const byStatus = useMemo(() => {
-    const m = {}
-    pedidos.forEach(p => {
-      const s = SIT[getSitId(p)]?.label || 'Outros'
-      m[s] = (m[s]||0) + 1
+  const porCanal = useMemo(()=>{
+    const m={}; pedidos.forEach(p=>{const c=getCanal(p);if(!m[c])m[c]={n:0,v:0};m[c].n++;m[c].v+=parseFloat(p.total||0)})
+    return Object.entries(m).map(([k,v])=>({name:CANAL_CFG[k]?.label||k,value:v.n,valor:Math.round(v.v),cor:CANAL_CFG[k]?.cor||'#888'}))
+  },[pedidos])
+
+  const calor = useMemo(()=>{
+    const g=Array(7).fill(null).map(()=>Array(24).fill(0))
+    pedidos.forEach(p=>{const dt=new Date(p.data||0);g[dt.getDay()][dt.getHours()]++})
+    return g
+  },[pedidos])
+  const maxC = Math.max(...calor.flat(),1)
+  const DIAS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
+
+  // ── V-BARS: top produtos, receita canal, pipeline ──────────────────────────
+  const topProdutos = useMemo(()=>{
+    const hoje = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})
+    const m={}
+    pedidos.filter(p=>fmtD(p.data)===hoje).forEach(p=>{
+      ;(p.itens||[]).forEach(it=>{
+        const k=it.descricao||it.nome||'Produto'
+        if(!m[k])m[k]={nome:k,qtd:0,valor:0,foto:it.foto||null}
+        m[k].qtd+=(it.quantidade||1); m[k].valor+=parseFloat(it.valor||0)*(it.quantidade||1)
+      })
     })
-    return Object.entries(m).map(([name,value]) => ({ name, value }))
-  }, [pedidos])
+    return Object.values(m).sort((a,b)=>b.valor-a.valor).slice(0,8)
+  },[pedidos])
 
-  const byCanal = useMemo(() => {
-    const m = {}
-    pedidos.forEach(p => {
-      const c = CANAL_CFG[getCanal(p)]?.label || 'Outros'
-      m[c] = (m[c]||0) + parseFloat(p.total||0)
-    })
-    return Object.entries(m).map(([name, value]) => ({ name, value:Math.round(value) }))
-      .sort((a,b)=>b.value-a.value)
-  }, [pedidos])
+  const receitaCanal = useMemo(()=>{
+    const m={}
+    pedidos.forEach(p=>{const k=getCanal(p);if(!m[k])m[k]={canal:k,valor:0,n:0};m[k].valor+=parseFloat(p.total||0);m[k].n++})
+    return Object.values(m).sort((a,b)=>b.valor-a.valor)
+  },[pedidos])
 
-  const byDia = useMemo(() => {
-    const m = {}
-    pedidos.forEach(p => {
-      if (!p.data) return
-      const d = fmtD(p.data)
-      m[d] = (m[d]||0) + parseFloat(p.total||0)
-    })
-    return Object.entries(m).slice(-30)
-      .map(([d,v]) => ({ d, v:Math.round(v) }))
-  }, [pedidos])
+  const pipeline = useMemo(()=>{
+    const sitLabel={6:'Em Aberto',9:'Atendido',27:'Enviado',30:'Entregue',12:'Cancelado'}
+    const sitCor  ={6:'#f59e0b', 9:'#4a9fff', 27:'#06b6d4', 30:'#22c55e', 12:'#ef4444'}
+    const m={}
+    ;[6,9,27,30,12].forEach(id=>{m[id]={id,label:sitLabel[id]||`${id}`,cor:sitCor[id]||'#888',n:0,valor:0}})
+    pedidos.forEach(p=>{const sid=getSitId(p); if(m[sid]){m[sid].n++;m[sid].valor+=parseFloat(p.total||0)}})
+    return Object.values(m)
+  },[pedidos])
 
-  const PIE_COLORS = ['#4a9fff','#f59e0b','#22c55e','#ef4444','#a78bfa','#06b6d4','#f97316']
-  const TT2 = { contentStyle:{ background:'var(--bg-2)', border:'1px solid var(--sep)',
-    borderRadius:8, fontSize:11, color:'var(--label)' }}
+  return <div style={{display:'flex',flexDirection:'column',gap:16}}>
 
-  return (
-    <div style={{ flex:1, overflowY:'auto', padding:'16px', display:'flex', flexDirection:'column', gap:16 }}>
-      {/* Tabs Analytics */}
-      <div style={{ display:'flex', gap:4, borderBottom:'1px solid var(--sep)', paddingBottom:8,
-        overflowX:'auto', flexShrink:0 }}>
-        {TABS_AN.map(t => (
-          <button key={t.id} onClick={() => setAbaAn(t.id)}
-            style={{ padding:'5px 12px', borderRadius:99, border:'none', cursor:'pointer',
-              fontSize:11, fontWeight:abaAn===t.id?700:500, flexShrink:0,
-              background:abaAn===t.id?'var(--accent-dim)':'transparent',
-              color:abaAn===t.id?'var(--accent)':'var(--label-4)',
-              outline:abaAn===t.id?'1px solid var(--accent-bor)':'none' }}>
-            {t.label}
-          </button>
-        ))}
+    {/* ── V-BARS ROW ── */}
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+
+      {/* TOP PRODUTOS DO DIA */}
+      <div style={{background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:14,padding:'16px 18px'}}>
+        <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:4,display:'flex',alignItems:'center',gap:7}}>
+          <Package size={13} style={{color:'#7c6af7'}}/>Top produtos hoje
+        </div>
+        <div style={{fontSize:10,color:'var(--label-4)',marginBottom:14}}>
+          {new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long'})}
+        </div>
+        {topProdutos.length===0 ? (
+          <div style={{textAlign:'center',padding:'24px 0',fontSize:11,color:'var(--label-4)'}}>Nenhuma venda hoje ainda</div>
+        ) : (()=>{
+          const maxV=Math.max(...topProdutos.map(p=>p.valor),1)
+          return (
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              {topProdutos.map((prod,i)=>(
+                <div key={prod.nome}>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                    <span style={{fontSize:10,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1,marginRight:8}}>{prod.nome}</span>
+                    <div style={{display:'flex',gap:8,flexShrink:0}}>
+                      <span style={{fontSize:9,color:'var(--label-4)'}}>{prod.qtd}×</span>
+                      <span style={{fontSize:10,fontWeight:600,color:'var(--label)'}}>{fmt(prod.valor)}</span>
+                    </div>
+                  </div>
+                  <div style={{height:5,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
+                    <div style={{height:'100%',borderRadius:99,
+                      width:`${(prod.valor/maxV*100).toFixed(0)}%`,
+                      background:i===0?'linear-gradient(90deg,#7c6af7,#a78bfa)':'linear-gradient(90deg,#7c6af790,#a78bfa70)',
+                      boxShadow:i===0?'0 0 6px rgba(124,106,247,.5)':'none',
+                      transition:'width .5s ease'}}/>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        })()}
       </div>
 
-      {/* Overview */}
-      {abaAn === 'overview' && (<>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-          {/* Revenue por dia */}
-          <div style={{ background:'var(--bg-2)', border:'1px solid var(--sep)',
-            borderRadius:12, padding:'14px 16px', gridColumn:'span 2' }}>
-            <div style={{ fontSize:11, fontWeight:600, color:'var(--label-4)', marginBottom:10,
-              display:'flex', alignItems:'center', gap:5 }}>
-              <Activity size={11}/>Receita dos últimos 30 dias
+      {/* RECEITA POR CANAL — V-BARS VERTICAIS */}
+      <div style={{background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:14,padding:'16px 18px'}}>
+        <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:4,display:'flex',alignItems:'center',gap:7}}>
+          <BarChart3 size={13} style={{color:'#f97316'}}/>Receita por canal
+        </div>
+        <div style={{fontSize:10,color:'var(--label-4)',marginBottom:14}}>Faturamento total filtrado</div>
+        {receitaCanal.length===0 ? (
+          <div style={{textAlign:'center',padding:'24px 0',fontSize:11,color:'var(--label-4)'}}>Sem dados</div>
+        ) : (()=>{
+          const maxV=Math.max(...receitaCanal.map(c=>c.valor),1)
+          return (
+            <div>
+              {/* barras verticais */}
+              <div style={{display:'flex',alignItems:'flex-end',gap:8,height:100,marginBottom:10}}>
+                {receitaCanal.map(ch=>{
+                  const cfg=CANAL_CFG[ch.canal]||CANAL_CFG.bling
+                  const Logo=CANAL_LOGO[ch.canal]||LogoBling
+                  const h=Math.max(8,(ch.valor/maxV)*100)
+                  return(
+                    <div key={ch.canal} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+                      <div style={{fontSize:9,fontWeight:600,color:cfg.cor}}>{fmt(ch.valor).replace('R$ ','R$')}</div>
+                      <div style={{width:'100%',height:h,borderRadius:'4px 4px 0 0',
+                        background:`linear-gradient(180deg,${cfg.cor},${cfg.cor}88)`,
+                        boxShadow:`0 0 8px ${cfg.cor}50`,
+                        transition:'height .5s ease',position:'relative'}}>
+                        <div style={{position:'absolute',top:-2,left:'50%',transform:'translateX(-50%)',
+                          background:'var(--bg-2)',borderRadius:'50%',padding:1}}>
+                          <Logo size={12}/>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              {/* labels */}
+              <div style={{display:'flex',gap:8,borderTop:'0.5px solid var(--sep)',paddingTop:8}}>
+                {receitaCanal.map(ch=>{
+                  const cfg=CANAL_CFG[ch.canal]||CANAL_CFG.bling
+                  return(
+                    <div key={ch.canal} style={{flex:1,textAlign:'center'}}>
+                      <div style={{fontSize:9,color:cfg.cor,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{cfg.label.split(' ')[0]}</div>
+                      <div style={{fontSize:9,color:'var(--label-4)'}}>{ch.n} ped.</div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-            <ResponsiveContainer width="100%" height={150}>
-              <AreaChart data={byDia}>
-                <defs>
-                  <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="var(--accent)" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--sep)" vertical={false}/>
-                <XAxis dataKey="d" tick={{ fontSize:8, fill:'var(--label-4)' }} tickLine={false} axisLine={false}/>
-                <YAxis tick={{ fontSize:8, fill:'var(--label-4)' }} tickLine={false} axisLine={false}
-                  tickFormatter={v=>`R$${v>999?`${(v/1000).toFixed(0)}k`:v}`}/>
-                <Tooltip {...TT2} formatter={v=>[fmt(v),'Receita']}/>
-                <Area type="monotone" dataKey="v" stroke="var(--accent)" fill="url(#gRev)" strokeWidth={2}/>
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          )
+        })()}
+      </div>
 
-          {/* Status */}
-          <div style={{ background:'var(--bg-2)', border:'1px solid var(--sep)', borderRadius:12, padding:'14px 16px' }}>
-            <div style={{ fontSize:11, fontWeight:600, color:'var(--label-4)', marginBottom:10,
-              display:'flex', alignItems:'center', gap:5 }}>
-              <BarChart3 size={11}/>Por Status
+      {/* PIPELINE DE PEDIDOS */}
+      <div style={{background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:14,padding:'16px 18px'}}>
+        <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:4,display:'flex',alignItems:'center',gap:7}}>
+          <Layers size={13} style={{color:'#06b6d4'}}/>Pipeline de pedidos
+        </div>
+        <div style={{fontSize:10,color:'var(--label-4)',marginBottom:14}}>Distribuição por situação</div>
+        {(()=>{
+          const total=Math.max(pipeline.reduce((s,p)=>s+p.n,0),1)
+          const maxV=Math.max(...pipeline.map(p=>p.n),1)
+          return(
+            <div>
+              {/* barras verticais */}
+              <div style={{display:'flex',alignItems:'flex-end',gap:6,height:100,marginBottom:10}}>
+                {pipeline.map(sit=>{
+                  const h=Math.max(4,(sit.n/maxV)*100)
+                  return(
+                    <div key={sit.id} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+                      <span style={{fontSize:11,fontWeight:700,color:sit.cor,textShadow:`0 0 6px ${sit.cor}60`}}>{sit.n}</span>
+                      <div style={{width:'100%',height:h,borderRadius:'4px 4px 0 0',
+                        background:sit.cor,opacity:0.85,
+                        boxShadow:`0 0 6px ${sit.cor}50`,
+                        transition:'height .5s ease'}}/>
+                    </div>
+                  )
+                })}
+              </div>
+              {/* labels + % */}
+              <div style={{display:'flex',gap:6,borderTop:'0.5px solid var(--sep)',paddingTop:8}}>
+                {pipeline.map(sit=>(
+                  <div key={sit.id} style={{flex:1,textAlign:'center'}}>
+                    <div style={{fontSize:9,color:sit.cor,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{sit.label.split(' ')[0]}</div>
+                    <div style={{fontSize:9,color:'var(--label-4)'}}>{((sit.n/total)*100).toFixed(0)}%</div>
+                  </div>
+                ))}
+              </div>
+              {/* barra consolidada */}
+              <div style={{display:'flex',height:6,borderRadius:99,overflow:'hidden',marginTop:10,gap:1}}>
+                {pipeline.filter(s=>s.n>0).map(sit=>(
+                  <div key={sit.id} style={{flex:sit.n,background:sit.cor,
+                    boxShadow:`0 0 4px ${sit.cor}60`,transition:'flex .5s ease'}}/>
+                ))}
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between',marginTop:5}}>
+                <span style={{fontSize:9,color:'var(--label-4)'}}>Total: {total} pedidos</span>
+                <span style={{fontSize:9,color:'var(--label)'}}>{fmt(pipeline.reduce((s,p)=>s+p.valor,0))}</span>
+              </div>
             </div>
-            <ResponsiveContainer width="100%" height={150}>
-              <PieChart>
-                <Pie data={byStatus} cx="50%" cy="50%" outerRadius={60} dataKey="value" label={({name,percent})=>`${name} ${Math.round(percent*100)}%`}
-                  labelLine={false} fontSize={9}>
-                  {byStatus.map((_,i)=><Cell key={i} fill={PIE_COLORS[i%PIE_COLORS.length]}/>)}
-                </Pie>
-                <Tooltip {...TT2}/>
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+          )
+        })()}
+      </div>
+    </div>
+    {/* Faturamento 30 dias */}
+    <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px'}}>
+      <div style={{fontSize:13,fontWeight:600,color:'var(--label)',marginBottom:14,display:'flex',alignItems:'center',gap:8}}>
+        <TrendingUp size={14} style={{color:'#7c6af7'}}/>Faturamento — últimos 30 dias
+      </div>
+      <ResponsiveContainer width="100%" height={180}>
+        <AreaChart data={fatDias}>
+          <defs><linearGradient id="gFat" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#7c6af7" stopOpacity={0.3}/>
+            <stop offset="95%" stopColor="#7c6af7" stopOpacity={0}/>
+          </linearGradient></defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--sep)" vertical={false}/>
+          <XAxis dataKey="d" tick={{fontSize:9,fill:'var(--label-4)'}} tickLine={false} axisLine={false}/>
+          <YAxis tick={{fontSize:9,fill:'var(--label-4)'}} tickLine={false} axisLine={false}
+            tickFormatter={v=>v>=1000?`R$${(v/1000).toFixed(0)}k`:`R$${v}`}/>
+          <Tooltip {...TT} formatter={v=>[fmt(v),'Faturamento']}/>
+          <Area type="monotone" dataKey="v" stroke="#7c6af7" strokeWidth={2} fill="url(#gFat)" dot={false}/>
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
 
-          {/* Por canal */}
-          <div style={{ background:'var(--bg-2)', border:'1px solid var(--sep)', borderRadius:12, padding:'14px 16px' }}>
-            <div style={{ fontSize:11, fontWeight:600, color:'var(--label-4)', marginBottom:10,
-              display:'flex', alignItems:'center', gap:5 }}>
-              <Globe size={11}/>Receita por Canal
-            </div>
-            <ResponsiveContainer width="100%" height={150}>
-              <BarChart data={byCanal} layout="vertical">
-                <XAxis type="number" tick={{ fontSize:8, fill:'var(--label-4)' }} tickLine={false} axisLine={false}
-                  tickFormatter={v=>`R$${(v/1000).toFixed(0)}k`}/>
-                <YAxis type="category" dataKey="name" tick={{ fontSize:9, fill:'var(--label-4)' }} width={70}
-                  tickLine={false} axisLine={false}/>
-                <Tooltip {...TT2} formatter={v=>[fmt(v),'Receita']}/>
-                <Bar dataKey="value" radius={[0,4,4,0]}>
-                  {byCanal.map((_,i)=><Cell key={i} fill={PIE_COLORS[i%PIE_COLORS.length]}/>)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+      {/* Por canal */}
+      <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px'}}>
+        <div style={{fontSize:13,fontWeight:600,color:'var(--label)',marginBottom:14,display:'flex',alignItems:'center',gap:8}}>
+          <ShoppingCart size={14} style={{color:'#f97316'}}/>Pedidos por canal
+        </div>
+        <ResponsiveContainer width="100%" height={160}>
+          <PieChart>
+            <Pie data={porCanal} cx="50%" cy="50%" innerRadius={45} outerRadius={70}
+              dataKey="value" paddingAngle={3}>
+              {porCanal.map((e,i)=><Cell key={i} fill={e.cor}/>)}
+            </Pie>
+            <Tooltip {...TT} formatter={(v,n,p)=>[`${v} · ${fmt(p.payload.valor)}`,n]}/>
+          </PieChart>
+        </ResponsiveContainer>
+        {porCanal.map(c=><div key={c.name} style={{display:'flex',alignItems:'center',gap:8,fontSize:11,marginBottom:4}}>
+          <div style={{width:8,height:8,borderRadius:'50%',background:c.cor,flexShrink:0}}/>
+          <span style={{flex:1,color:'var(--label-3)'}}>{c.name}</span>
+          <span style={{color:'var(--label)',fontWeight:600}}>{c.value}</span>
+          <span style={{color:'var(--label-4)'}}>{fmt(c.valor)}</span>
+        </div>)}
+      </div>
+
+      {/* Mapa de calor */}
+      <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 20px'}}>
+        <div style={{fontSize:13,fontWeight:600,color:'var(--label)',marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
+          <Activity size={14} style={{color:'#06b6d4'}}/>Horários de pico
+        </div>
+        <div style={{overflowX:'auto'}}>
+          <div style={{display:'grid',gridTemplateColumns:'24px repeat(24,1fr)',gap:2,minWidth:400}}>
+            <div/>{Array(24).fill(0).map((_,h)=><div key={h} style={{fontSize:7,color:'var(--label-4)',textAlign:'center'}}>{h}</div>)}
+            {calor.map((row,d)=>[
+              <div key={`l${d}`} style={{fontSize:9,color:'var(--label-4)',display:'flex',alignItems:'center',justifyContent:'flex-end',paddingRight:3}}>{DIAS[d]}</div>,
+              ...row.map((v,h)=><div key={h} title={`${DIAS[d]} ${h}h: ${v}`} style={{
+                aspectRatio:'1',borderRadius:2,
+                background:v===0?'var(--fill)':`rgba(6,182,212,${0.15+0.85*(v/maxC)})`,
+              }}/>)
+            ])}
           </div>
         </div>
-      </>)}
+      </div>
+    </div>
 
-      {/* Carriers */}
-      {abaAn === 'carriers' && <CarrierScorecard pedidos={pedidos}/>}
+    {/* Stats Geo + Transportadoras */}
+    {geoLoad ? (
+      <div style={{textAlign:'center',padding:32,color:'var(--label-4)',fontSize:12}}>
+        <RefreshCw size={16} style={{animation:'spin 1s linear infinite',marginBottom:8}}/><br/>
+        Carregando dados geográficos...
+      </div>
+    ) : geo && <>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14}}>
+        {/* Mapa heatmap Brasil */}
+        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 18px'}}>{(()=>{
+          const geoData={}
+          ;(geo?.topEstados||[]).forEach(e=>{geoData[e.uf]={valor:e.valor,n:e.pedidos||1}})
+          return <>
+            <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:8,display:'flex',alignItems:'center',gap:7}}>
+              <MapPin size={13} style={{color:'#22c55e'}}/>Heatmap de vendas
+            </div>
+            <BrasilMapHeat data={geoData} size={220}/>
+          </>
+        })()}</div>
 
-      {/* Channels */}
-      {abaAn === 'channels' && <ChannelQuality pedidos={pedidos}/>}
-
-      {/* Geo */}
-      {abaAn === 'geo' && <GeoView pedidos={pedidos}/>}
-
-      {/* Products */}
-      {abaAn === 'products' && <MarketBasketView pedidos={pedidos}/>}
-
-      {/* Forecast */}
-      {abaAn === 'forecast' && (
-        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-          <div style={{ fontSize:11, fontWeight:700, color:'var(--label-4)',
-            textTransform:'uppercase', letterSpacing:'.06em' }}>
-            Previsão de Receita
+        {/* Top estados */}
+        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 18px'}}>
+          <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:12,display:'flex',alignItems:'center',gap:7}}>
+            <Map size={13} style={{color:'#22c55e'}}/>Top estados por faturamento
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
-            {[
-              { l:'Próximos 7 dias', v:forecast.dias7,  c:'#4f8ef7' },
-              { l:'Próximos 30 dias',v:forecast.dias30, c:'#a78bfa' },
-              { l:'Tendência',       v:forecast.tendencia==='crescendo'?`↑ +${forecast.variacao}%`:
-                                       forecast.tendencia==='caindo'?`↓ -${forecast.variacao}%`:'→ Estável',
-                c:forecast.tendencia==='crescendo'?'#00e676':forecast.tendencia==='caindo'?'#ef4444':'#f59e0b' },
-            ].map(({l,v,c}) => (
-              <div key={l} style={{ padding:'16px', borderRadius:12,
-                background:'var(--bg-2)', border:`1px solid ${c}20`, textAlign:'center' }}>
-                <div style={{ fontSize:22, fontWeight:900, color:c, marginBottom:4 }}>
-                  {l==='Tendência' ? v : `R$ ${Number(v).toLocaleString('pt-BR')}`}
+          {(geo.topEstados||[]).map((e,i)=><div key={e.uf} style={{display:'flex',alignItems:'center',gap:8,marginBottom:7}}>
+            <span style={{fontSize:10,fontWeight:700,color:'var(--label-4)',width:16}}>{i+1}</span>
+            <span style={{fontSize:11,fontWeight:700,color:'var(--label)',width:28}}>{e.uf}</span>
+            <div style={{flex:1,height:4,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
+              <div style={{height:'100%',borderRadius:99,background:'#22c55e',
+                width:`${(e.valor/(geo.topEstados[0]?.valor||1)*100).toFixed(0)}%`}}/>
+            </div>
+            <span style={{fontSize:10,color:'var(--label-4)'}}>{fmt(e.valor)}</span>
+          </div>)}
+        </div>
+
+        {/* Top cidades */}
+        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 18px'}}>
+          <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:12,display:'flex',alignItems:'center',gap:7}}>
+            <MapPin size={13} style={{color:'#a78bfa'}}/>Top cidades por faturamento
+          </div>
+          {(geo.topCidades||[]).map((c,i)=><div key={c.cidade} style={{display:'flex',alignItems:'center',gap:8,marginBottom:7}}>
+            <span style={{fontSize:10,fontWeight:700,color:'var(--label-4)',width:16}}>{i+1}</span>
+            <span style={{fontSize:11,color:'var(--label)',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.cidade}</span>
+            <span style={{fontSize:10,color:'var(--label-4)',flexShrink:0}}>{fmt(c.valor)}</span>
+          </div>)}
+        </div>
+
+        {/* Transportadoras — tempo médio */}
+        <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'16px 18px'}}>
+          <div style={{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:12,display:'flex',alignItems:'center',gap:7}}>
+            <Timer size={13} style={{color:'#f59e0b'}}/>Tempo médio por transportadora
+          </div>
+          {(geo.transpStats||[]).length===0
+            ? <p style={{fontSize:11,color:'var(--label-4)',margin:0}}>Dados insuficientes</p>
+            : (geo.transpStats||[]).map(t=><div key={t.nome} style={{marginBottom:10}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                <span style={{fontSize:11,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:140}}>{t.nome}</span>
+                <span style={{fontSize:11,fontWeight:700,color:t.tempoMedio<=3?'#22c55e':t.tempoMedio<=7?'#f59e0b':'#ef4444',flexShrink:0}}>
+                  {t.tempoMedio}d
+                </span>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                <div style={{flex:1,height:5,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
+                  <div style={{height:'100%',borderRadius:99,
+                    background:t.tempoMedio<=3?'#22c55e':t.tempoMedio<=7?'#f59e0b':'#ef4444',
+                    width:`${Math.min(100,(t.tempoMedio/14)*100)}%`}}/>
                 </div>
-                <div style={{ fontSize:11, color:'var(--label-4)' }}>{l}</div>
-                <div style={{ fontSize:9.5, color:'var(--label-4)', marginTop:4 }}>
-                  Baseado nos últimos 90 dias
+                <span style={{fontSize:9,color:'var(--label-4)',flexShrink:0}}>{t.pedidos} pedidos</span>
+              </div>
+            </div>)
+          }
+        </div>
+      </div>
+    </>}
+  </div>
+}
+
+// ─── KANBAN NivelMax ─────────────────────────────────────────────────────────
+const SIT_KANBAN_IDS = [6, 9, 27, 30, 12]
+
+function KanbanCard({p, sit, onSel}) {
+  const canal = getCanal(p)
+  const Logo  = CANAL_LOGO[canal] || LogoBling
+  const itens = p.itens || []
+  const rs    = p.rastreioStatus || ''
+  const pct   = [30,33].includes(getSitId(p)) ? 100 : rs==='saiu_entrega' ? 85 : rs.includes('transito') ? 55 : rs==='pedido_coletado' ? 35 : p.codigoRastreio ? 20 : 0
+  const isAlt = [9,15].includes(getSitId(p)) && (Date.now()-new Date(p.data||0))/86400000>3 && !p.codigoRastreio
+  return (
+    <div onClick={()=>onSel(p)}
+      onMouseEnter={e=>{e.currentTarget.style.borderColor=`${sit.cor}60`;e.currentTarget.style.transform='translateY(-2px)'}}
+      onMouseLeave={e=>{e.currentTarget.style.borderColor=isAlt?'rgba(239,68,68,.3)':'rgba(255,255,255,.09)';e.currentTarget.style.transform='translateY(0)'}}
+      style={{background:isAlt?'rgba(239,68,68,.05)':'rgba(255,255,255,.04)',
+        border:`0.5px solid ${isAlt?'rgba(239,68,68,.3)':'rgba(255,255,255,.09)'}`,
+        borderRadius:12,padding:'10px 12px',cursor:'pointer',transition:'border-color .15s,transform .12s'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:5}}>
+        <div>
+          <span style={{fontSize:11,fontWeight:600,color:isAlt?'#ef4444':sit.cor}}>#{p.numero}</span>
+          {isAlt&&<div style={{fontSize:8,color:'#ef4444',marginTop:1}}>⚠ +3d sem envio</div>}
+        </div>
+        <Logo size={13}/>
+      </div>
+      <div style={{fontSize:10,color:'rgba(255,255,255,.65)',marginBottom:itens.length?6:8,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+        {p.contato||'—'}
+      </div>
+      {itens.length>0&&(
+        <div style={{display:'flex',gap:3,marginBottom:7}}>
+          {itens.slice(0,3).map((it,i)=><ProductThumb key={i} item={it} size={26}/>)}
+          {itens.length>3&&<div style={{width:26,height:26,borderRadius:5,background:'rgba(255,255,255,.07)',border:'0.5px solid rgba(255,255,255,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,color:'rgba(255,255,255,.4)'}}>+{itens.length-3}</div>}
+        </div>
+      )}
+      {pct>0&&(
+        <div style={{height:3,background:'rgba(255,255,255,.08)',borderRadius:99,overflow:'hidden',marginBottom:7}}>
+          <div style={{height:'100%',borderRadius:99,width:`${pct}%`,
+            background:pct===100?'#22c55e':'linear-gradient(90deg,#4a9fff,#06b6d4)',
+            boxShadow:pct===100?'0 0 4px rgba(34,197,94,.6)':'0 0 4px rgba(6,182,212,.5)',
+            transition:'width .5s ease'}}/>
+        </div>
+      )}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <span style={{fontSize:12,fontWeight:600,color:'rgba(255,255,255,.9)'}}>{fmt(p.total)}</span>
+        <span style={{fontSize:9,color:'rgba(255,255,255,.28)'}}>{fmtD(p.data)}</span>
+      </div>
+    </div>
+  )
+}
+
+function KanbanView({filtrados, onSel}) {
+  const cols = useMemo(()=>{
+    const c = {}
+    SIT_KANBAN_IDS.forEach(id=>{c[id]={sit:SIT[id]||{label:`${id}`,cor:'#888',bg:'#8882',bdr:'#888'},items:[],total:0}})
+    filtrados.forEach(p=>{const sid=getSitId(p); if(c[sid]){c[sid].items.push(p);c[sid].total+=parseFloat(p.total||0)}})
+    return c
+  },[filtrados])
+  return <div style={{display:'grid',gridTemplateColumns:`repeat(${SIT_KANBAN_IDS.length},1fr)`,gap:10,alignItems:'start'}}>
+    {SIT_KANBAN_IDS.map(sid=>{
+      const col=cols[sid]
+      return <div key={sid} style={{display:'flex',flexDirection:'column',gap:6}}>
+        <div style={{padding:'8px 12px',borderRadius:10,background:`${col.sit.cor}12`,border:`0.5px solid ${col.sit.cor}35`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:600,color:col.sit.cor}}>{col.sit.label}</div>
+            <div style={{fontSize:9,color:`${col.sit.cor}90`}}>{fmt(col.total)}</div>
+          </div>
+          <span style={{fontSize:18,fontWeight:700,color:col.sit.cor,textShadow:`0 0 10px ${col.sit.cor}60`}}>{col.items.length}</span>
+        </div>
+        {col.items.slice(0,14).map(p=><KanbanCard key={p.numero} p={p} sit={col.sit} onSel={onSel}/>)}
+        {col.items.length>14&&<div style={{textAlign:'center',fontSize:10,color:'var(--label-4)',padding:'3px 0'}}>+{col.items.length-14} mais</div>}
+        {col.items.length===0&&<div style={{padding:'16px',borderRadius:10,border:`0.5px dashed ${col.sit.cor}25`,textAlign:'center',fontSize:10,color:'rgba(255,255,255,.2)'}}>Nenhum pedido</div>}
+      </div>
+    })}
+  </div>
+}
+
+
+// ─── ORDER SHEET ───────────────────────────────────────────────────────────────
+
+// ─── BRASIL MAP HEAT ─────────────────────────────────────────────────────────
+// Mapa SVG simplificado do Brasil com heatmap de vendas por estado
+const BRASIL_OUTLINE = "M185,5 L210,8 L240,18 L260,35 L275,55 L282,80 L285,95 L278,120 L268,140 L258,160 L255,180 L250,198 L245,212 L235,225 L222,242 L210,255 L200,270 L193,286 L186,300 L178,308 L168,304 L155,298 L145,290 L132,285 L118,278 L108,272 L98,262 L88,248 L76,232 L62,215 L50,200 L42,182 L36,165 L30,148 L28,132 L28,116 L32,100 L38,86 L45,73 L54,62 L64,52 L76,44 L92,36 L112,26 L132,18 L152,10 L170,6 Z"
+
+const ESTADOS = [
+  {uf:'SP',cx:208,cy:218},{uf:'RJ',cx:242,cy:210},{uf:'MG',cx:218,cy:192},{uf:'PR',cx:188,cy:242},
+  {uf:'RS',cx:175,cy:282},{uf:'SC',cx:182,cy:258},{uf:'BA',cx:228,cy:162},{uf:'GO',cx:190,cy:178},
+  {uf:'MS',cx:162,cy:225},{uf:'MT',cx:145,cy:162},{uf:'PA',cx:152,cy:100},{uf:'AM',cx:90,cy:128},
+  {uf:'MA',cx:212,cy:110},{uf:'PE',cx:260,cy:128},{uf:'CE',cx:250,cy:115},{uf:'PI',cx:228,cy:130},
+  {uf:'TO',cx:183,cy:148},{uf:'RN',cx:272,cy:108},{uf:'PB',cx:270,cy:118},{uf:'AL',cx:270,cy:138},
+  {uf:'SE',cx:265,cy:148},{uf:'ES',cx:248,cy:192},{uf:'RO',cx:82,cy:180},{uf:'AC',cx:38,cy:175},
+  {uf:'RR',cx:85,cy:72},{uf:'AP',cx:188,cy:52},{uf:'DF',cx:200,cy:182},
+]
+
+function BrasilMapHeat({ data = {}, onClick, activeUf, size = 300 }) {
+  const [hover, setHover] = useState(null)
+  const maxVal = Math.max(...Object.values(data).map(d => d.valor || 0), 1)
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <svg width={size} height={size * 1.08} viewBox="0 0 310 330">
+        {/* Sombra/fundo */}
+        <path d={BRASIL_OUTLINE} fill="var(--fill)" stroke="var(--sep)" strokeWidth="1"/>
+        {/* Dots por estado */}
+        {ESTADOS.map(e => {
+          const d = data[e.uf] || { valor: 0, n: 0 }
+          const intensity = d.valor / maxVal
+          const r = Math.max(3, intensity * 18)
+          const isHover = hover === e.uf
+          const isActive = activeUf === e.uf
+          return (
+            <g key={e.uf} style={{ cursor: 'pointer' }} onClick={() => onClick?.(e.uf)}
+              onMouseEnter={() => setHover(e.uf)} onMouseLeave={() => setHover(null)}>
+              {intensity > 0 && (
+                <>
+                  <circle cx={e.cx} cy={e.cy} r={r * 1.8}
+                    fill={`rgba(34,197,94,${intensity * 0.15})`} />
+                  <circle cx={e.cx} cy={e.cy} r={r}
+                    fill={`rgba(34,197,94,${0.3 + intensity * 0.7})`}
+                    stroke="rgba(34,197,94,.5)" strokeWidth="0.5"/>
+                </>
+              )}
+              {(isHover || isActive || intensity > 0.3) && (
+                <text x={e.cx} y={e.cy - r - 4} textAnchor="middle"
+                  fontSize={isHover ? 10 : 8} fontWeight={isHover ? 600 : 400}
+                  fill="var(--label)">
+                  {e.uf}
+                </text>
+              )}
+            </g>
+          )
+        })}
+        {/* Tooltip hover */}
+        {hover && data[hover] && (
+          <g>
+            <rect x={Math.min(250, (ESTADOS.find(e=>e.uf===hover)?.cx||150) + 8)} y={(ESTADOS.find(e=>e.uf===hover)?.cy||150) - 22} width="80" height="28" rx="4" fill="var(--bg-2)" stroke="var(--sep)" strokeWidth="0.5"/>
+            <text x={Math.min(290, (ESTADOS.find(e=>e.uf===hover)?.cx||150) + 48)} y={(ESTADOS.find(e=>e.uf===hover)?.cy||150) - 13} textAnchor="middle" fontSize={9} fill="var(--label)" fontWeight={600}>{hover}</text>
+            <text x={Math.min(290, (ESTADOS.find(e=>e.uf===hover)?.cx||150) + 48)} y={(ESTADOS.find(e=>e.uf===hover)?.cy||150) - 3} textAnchor="middle" fontSize={8} fill="var(--label-3)">{fmt(data[hover].valor||0)}</text>
+          </g>
+        )}
+      </svg>
+      {/* legenda */}
+      <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:9, color:'var(--label-4)', marginTop:4 }}>
+        <div style={{ width:8, height:8, borderRadius:'50%', background:'rgba(34,197,94,.2)' }}/>
+        <span>baixo</span>
+        <div style={{ flex:1, height:3, borderRadius:99, background:'linear-gradient(90deg,rgba(34,197,94,.2),rgba(34,197,94,.9))' }}/>
+        <span>alto</span>
+        <div style={{ width:8, height:8, borderRadius:'50%', background:'rgba(34,197,94,.9)' }}/>
+      </div>
+    </div>
+  )
+}
+
+// ─── PACKAGE MINI MAP ────────────────────────────────────────────────────────
+// Mini mapa de rota do pacote com posição atual animada
+const UF_COORDS = {
+  SP:{cx:208,cy:218},RJ:{cx:242,cy:210},MG:{cx:218,cy:192},PR:{cx:188,cy:242},
+  RS:{cx:175,cy:282},SC:{cx:182,cy:258},BA:{cx:228,cy:162},GO:{cx:190,cy:178},
+  MS:{cx:162,cy:225},MT:{cx:145,cy:162},PA:{cx:152,cy:100},AM:{cx:90,cy:128},
+  MA:{cx:212,cy:110},PE:{cx:260,cy:128},CE:{cx:250,cy:115},PI:{cx:228,cy:130},
+  TO:{cx:183,cy:148},RN:{cx:272,cy:108},PB:{cx:270,cy:118},AL:{cx:270,cy:138},
+  SE:{cx:265,cy:148},ES:{cx:248,cy:192},RO:{cx:82,cy:180},AC:{cx:38,cy:175},
+  DF:{cx:200,cy:182},RR:{cx:85,cy:72},AP:{cx:188,cy:52},
+}
+
+function PackageMiniMap({ origem = 'SP', destino, atual, pct = 0 }) {
+  const o  = UF_COORDS[origem]  || { cx:208, cy:218 }
+  const d  = UF_COORDS[destino] || null
+  const a  = UF_COORDS[atual]   || null
+
+  // ponto atual interpolado na rota
+  const pos = d && pct > 0 ? {
+    cx: o.cx + (d.cx - o.cx) * (pct / 100),
+    cy: o.cy + (d.cy - o.cy) * (pct / 100),
+  } : (a || o)
+
+  return (
+    <svg width="100%" viewBox="0 0 310 330" style={{ maxHeight:160, display:'block' }}>
+      <path d={BRASIL_OUTLINE} fill="rgba(255,255,255,.03)" stroke="rgba(255,255,255,.2)" strokeWidth="0.8"/>
+      {/* rota */}
+      {d && (
+        <line x1={o.cx} y1={o.cy} x2={d.cx} y2={d.cy}
+          stroke="#06b6d4" strokeWidth="1.5" strokeDasharray="4 3" opacity=".6"/>
+      )}
+      {/* origem */}
+      <circle cx={o.cx} cy={o.cy} r="4" fill="#7c6af7"/>
+      <text x={o.cx} y={o.cy - 8} textAnchor="middle" fontSize="8" fill="#a78bfa">{origem}</text>
+      {/* destino */}
+      {d && <>
+        <circle cx={d.cx} cy={d.cy} r="4" fill="#22c55e"/>
+        <text x={d.cx} y={d.cy - 8} textAnchor="middle" fontSize="8" fill="#22c55e">{destino}</text>
+      </>}
+      {/* posição atual */}
+      <circle cx={pos.cx} cy={pos.cy} r="7" fill="rgba(6,182,212,.2)" stroke="#06b6d4" strokeWidth="1">
+        <animate attributeName="r" values="5;9;5" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.8;0.3;0.8" dur="2s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx={pos.cx} cy={pos.cy} r="4" fill="#06b6d4"/>
+    </svg>
+  )
+}
+
+// ─── SMART ORDER CARD — MODO IMERSIVO ────────────────────────────────────────
+function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
+  const [det,      setDet   ] = useState(null)
+  const [load,     setLoad  ] = useState(true)
+  const [nfe,      setNfe   ] = useState(null)
+  const [disps,    setDisps ] = useState([])
+  const [foto,     setFoto  ] = useState(null)
+  const [msgs,     setMsgs  ] = useState([])
+  const [hist,     setHist  ] = useState([])
+  const [copied,   setCpOk  ] = useState('')
+  const [expanded, setExp   ] = useState(false)
+  const [sending,  setSend  ] = useState(false)
+  const [sentNF,   setStNF  ] = useState(false)
+  const [msgTxt,   setMsgT  ] = useState('')
+
+  useEffect(()=>{
+    setLoad(true); setDet(null); setNfe(null); setFoto(null); setDisps([]); setMsgs([]); setHist([])
+    fetch(`${api}/api/dashboard/pedido-completo/${pedRow.numero}`)
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{
+        setDet(d); setLoad(false)
+        setMsgs(d?.mensagens?.lista||[])
+        setHist(d?.historico?.pedidos||[])
+        const tel=d?.mensagens?.lista?.[0]?.telefone||pedRow.telefone||''
+        if(tel) fetch(`${api}/api/dashboard/foto-perfil/${tel.replace(/\D/g,'')}`)
+          .then(r=>r.ok?r.json():null).then(f=>f?.url&&setFoto(f.url)).catch(()=>{})
+        const nfId=Number(d?.pedido?.notaFiscal?.id||0)
+        if(nfId>0) fetch(`${api}/api/dashboard/nfe-link/${nfId}`)
+          .then(r=>r.ok?r.json():null).then(setNfe).catch(()=>{})
+      }).catch(()=>setLoad(false))
+    fetch(`${api}/api/dashboard/disparos-pedido/${pedRow.numero}`)
+      .then(r=>r.ok?r.json():null).then(d=>{if(d?.disparos)setDisps(d.disparos)}).catch(()=>{})
+  },[pedRow.numero,api])
+
+  const ped       = det?.pedido||pedRow
+  const contato   = det?.contato
+  const rastreio  = det?.rastreio
+  const transporte= det?.transporte
+  const sitId     = getSitId(ped)
+  const sit       = SIT[sitId]||{label:'—',cor:'#888',bg:'var(--fill)',bdr:'var(--sep)'}
+  const canal     = getCanal(pedRow)
+  const itens     = ped?.itens||[]
+  const codRas    = rastreio?.codigo||transporte?.volumes?.[0]?.codigo||pedRow?.codigoRastreio||''
+  const linkRas   = rastreio?.link||rastreio?.linkCorreios||''
+  const evts      = rastreio?.eventos||[]
+  const rfmScore  = calcRFM(hist)
+  const rfmCfg    = RFM[rfmScore]||RFM.novo
+  const RFMIcon   = rfmCfg.icon
+  const ltvTotal  = hist.reduce((s,p)=>s+parseFloat(p.total||0),0)+parseFloat(ped.total||0)
+  const ticketMed = hist.length>0 ? (hist.reduce((s,p)=>s+parseFloat(p.total||0),0)/hist.length) : parseFloat(ped.total||0)
+  const pedTotal  = parseFloat(ped.total||pedRow.total||0)
+  const vsMedia   = ticketMed>0 ? ((pedTotal/ticketMed-1)*100).toFixed(0) : 0
+
+  // risco: pagamento não confirmado + sem rastreio + prazo excedido
+  const diasPedido = (Date.now()-new Date(ped.data||0))/86400000
+  const riskScore = (([9,15].includes(sitId)&&!codRas&&diasPedido>3)?40:0)
+    + (sitId===27&&diasPedido>15?35:0)
+    + (sitId===6&&diasPedido>2?25:0)
+  const riskLabel = riskScore>=60?'Alto':riskScore>=25?'Médio':'Baixo'
+  const riskCor   = riskScore>=60?'#ef4444':riskScore>=25?'#f59e0b':'#22c55e'
+
+  // previsão entrega
+  const rastreioPct=()=>{
+    if([30,33].includes(sitId))return 100
+    const rs=rastreio?.ultimoStatus||pedRow?.rastreioStatus||''
+    if(rs==='saiu_entrega')return 90
+    if(rs.includes('transito'))return 55
+    if(rs==='pedido_coletado')return 35
+    if(codRas)return 20
+    return 0
+  }
+  const pct      = rastreioPct()
+  const originUF = rastreio?.origemUF||'SP'
+  const destUF   = contato?.uf||rastreio?.destinoUF||''
+  const curUF    = rastreio?.estadoAtual||destUF
+
+  // steps rastreio visuais
+  const STEPS = [
+    {key:'postado',   label:'Postado',    icon:Package,  sids:[9,15,24,27,30,33]},
+    {key:'coletado',  label:'Coletado',   icon:Truck,    sids:[27,30,33], rs:['pedido_coletado','em_transito','saiu_entrega','entregue']},
+    {key:'transito',  label:'Em Trânsito',icon:Navigation,sids:[27,30,33], rs:['em_transito','saiu_entrega','entregue']},
+    {key:'rota',      label:'Em Rota',    icon:MapPin,   sids:[30,33], rs:['saiu_entrega','entregue']},
+    {key:'entregue',  label:'Entregue',   icon:CheckCircle,sids:[30,33], rs:['entregue']},
+  ]
+  const rs = rastreio?.ultimoStatus||pedRow?.rastreioStatus||''
+  const stepDone = (s)=> s.sids.includes(sitId)||(s.rs&&s.rs.some(r=>rs===r||rs.includes(r.split('_')[0])))
+  const stepAtivo = STEPS.findIndex((s,i)=>!stepDone(s)&&(i===0||stepDone(STEPS[i-1])))
+  const stepAtivoIdx = stepAtivo===-1?STEPS.length-1:stepAtivo
+
+  const cp=(v,k)=>{navigator.clipboard?.writeText(String(v||''));setCpOk(k);setTimeout(()=>setCpOk(''),1500)}
+  const enviarNF=async()=>{
+    const link=nfe?.linkDanfe||nfe?.linkPDF||''; if(!link||!pedRow.telefone)return
+    setSend(true)
+    const msg=`*Nota Fiscal — Pedido #${pedRow.numero}*\n\nSua NF-e foi emitida:\n${link}`
+    await fetch(`${api}/api/dashboard/manual/${pedRow.telefone.replace(/\D/g,'')}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:msg})}).catch(()=>{})
+    setSend(false);setStNF(true);setTimeout(()=>setStNF(false),2000)
+  }
+  const enviarMsg=async()=>{
+    if(!msgTxt.trim()||!pedRow.telefone)return
+    setSend(true)
+    await fetch(`${api}/api/dashboard/manual/${pedRow.telefone.replace(/\D/g,'')}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:msgTxt})}).catch(()=>{})
+    setSend(false);setMsgT('')
+  }
+
+  const S={
+    sec:{background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:12,padding:'12px 14px'},
+    sub:{background:'var(--fill)',borderRadius:8,padding:'8px 10px'},
+    lbl:{fontSize:9,color:'var(--label-4)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.07em',marginBottom:3},
+    val:{fontSize:11,color:'var(--label)'},
+    row:{display:'flex',alignItems:'center',gap:8},
+  }
+  const cc=CANAL_CFG[canal]||CANAL_CFG.bling; const CIc=cc.Logo||cc.icon
+
+  return (
+    <div style={{
+      width:expanded?'100%':'920px', flexShrink:0,
+      borderLeft:'0.5px solid var(--sep)',
+      background:'var(--bg-2)',
+      display:'flex',flexDirection:'column',
+      overflowY:'auto',
+      transition:'width .25s ease',
+    }}>
+      {/* HEADER */}
+      <div style={{padding:'14px 20px',borderBottom:'0.5px solid var(--sep)',
+        display:'flex',alignItems:'center',gap:10,flexShrink:0,
+        background:`linear-gradient(135deg,${sit.cor}0c,transparent)`}}>
+        <div style={{flex:1}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:20,fontWeight:700,color:sit.cor}}>#{ped.numero||pedRow.numero}</span>
+            <SitBadge sitId={sitId}/>
+            <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:9,fontWeight:600,padding:'2px 7px',borderRadius:99,color:cc.cor,background:`${cc.cor}18`,border:`0.5px solid ${cc.cor}40`}}>
+              {CIc&&<CIc size={10}/>}{cc.label}
+            </span>
+            {riskScore>0&&<span style={{fontSize:9,fontWeight:600,padding:'1px 7px',borderRadius:99,color:riskCor,background:`${riskCor}18`,border:`0.5px solid ${riskCor}40`}}>
+              Risco {riskLabel}
+            </span>}
+          </div>
+          <div style={{fontSize:10,color:'var(--label-4)',marginTop:2}}>
+            {fmtD(ped.data||pedRow.data)} · {ped.formaPagamento||ped.forma_pagamento||'—'} · {ped.nomeLoja||'Só Strass'}
+          </div>
+        </div>
+        {codRas&&(
+          <button onClick={()=>cp(codRas,'ras')} style={{padding:'5px 10px',borderRadius:7,border:'0.5px solid var(--sep)',background:'var(--fill)',cursor:'pointer',color:'var(--label-3)',fontSize:10,display:'flex',alignItems:'center',gap:4}}>
+            {copied==='ras'?<Check size={11} style={{color:'#22c55e'}}/>:<Copy size={11}/>}
+            {codRas.slice(0,20)}
+          </button>
+        )}
+        <button onClick={()=>setExp(v=>!v)} title={expanded?"Compactar":"Expandir"} style={{padding:6,borderRadius:7,border:'0.5px solid var(--sep)',background:'var(--fill)',cursor:'pointer',color:'var(--label-3)',display:'flex'}}>
+          <ArrowUpRight size={14} style={{transform:expanded?'rotate(180deg)':'none'}}/>
+        </button>
+        <button onClick={onClose} style={{background:'var(--fill)',border:'0.5px solid var(--sep)',borderRadius:8,padding:6,cursor:'pointer',color:'var(--label-3)',display:'flex'}}><X size={14}/></button>
+      </div>
+
+      {load?(
+        <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--label-4)',gap:8}}>
+          <RefreshCw size={16} style={{animation:'spin 1s linear infinite'}}/>Carregando...
+        </div>
+      ):(
+        <div style={{padding:'16px 20px',display:'flex',flexDirection:'column',gap:14}}>
+
+          {/* JORNADA + RASTREIO STEPS */}
+          <div style={S.sec}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+              <span style={{fontSize:11,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:6}}>
+                <Route size={12} style={{color:'#06b6d4'}}/>Jornada do Pedido
+              </span>
+              {codRas&&<span style={{fontSize:9,fontFamily:'monospace',color:'var(--label-3)'}}>{codRas}</span>}
+            </div>
+            {/* Steps visuais de rastreio */}
+            <div style={{display:'flex',alignItems:'flex-start',gap:0}}>
+              {STEPS.map((s,i)=>{
+                const done=stepDone(s); const ativo=i===stepAtivoIdx; const Ic=s.icon
+                return(
+                  <div key={s.key} style={{display:'flex',alignItems:'center',flex:i<STEPS.length-1?1:'0 0 auto'}}>
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+                      <div style={{width:32,height:32,borderRadius:'50%',
+                        background:done?`${sit.cor}18`:ativo?`${sit.cor}10`:'var(--fill)',
+                        border:`2px solid ${done||ativo?sit.cor:'var(--sep)'}`,
+                        display:'flex',alignItems:'center',justifyContent:'center',
+                        boxShadow:ativo?`0 0 0 4px ${sit.cor}18`:'none',
+                        transition:'all .3s',flexShrink:0}}>
+                        <Ic size={14} style={{color:done||ativo?sit.cor:'var(--label-4)'}}/>
+                      </div>
+                      <div style={{textAlign:'center'}}>
+                        <div style={{fontSize:9,fontWeight:ativo?700:done?500:400,color:done||ativo?sit.cor:'var(--label-4)',whiteSpace:'nowrap'}}>{s.label}</div>
+                        {evts[STEPS.length-1-i]&&<div style={{fontSize:8,color:'var(--label-4)',whiteSpace:'nowrap'}}>{fmtD(evts[STEPS.length-1-i]?.data)}</div>}
+                      </div>
+                    </div>
+                    {i<STEPS.length-1&&(
+                      <div style={{flex:1,height:2,margin:'0 4px',marginBottom:20,background:done?sit.cor:'var(--sep)',transition:'background .3s'}}/>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            {/* Barra de progresso */}
+            <div style={{marginTop:8}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                <span style={{fontSize:9,color:'var(--label-4)'}}>Progresso da entrega</span>
+                <span style={{fontSize:10,fontWeight:700,color:pct===100?'#22c55e':'#06b6d4'}}>{pct}%</span>
+              </div>
+              <div style={{height:5,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
+                <div style={{height:'100%',borderRadius:99,width:`${pct}%`,
+                  background:pct===100?'#22c55e':'linear-gradient(90deg,#7c6af7,#4a9fff,#06b6d4)',
+                  boxShadow:pct===100?'0 0 6px rgba(34,197,94,.5)':'0 0 6px rgba(6,182,212,.4)',
+                  transition:'width .6s ease'}}/>
+              </div>
+            </div>
+          </div>
+
+          {/* MAPA DE ROTA (se tiver código de rastreio) */}
+          {codRas&&(
+            <div style={{...S.sec,padding:'10px 14px',background:'var(--bg)',border:'0.5px solid var(--sep)'}}>
+              <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+                <Navigation size={12} style={{color:'#06b6d4'}}/>
+                <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Rota do pacote</span>
+                {destUF&&<span style={{fontSize:9,color:'var(--label-4)',marginLeft:'auto'}}>{originUF} → {destUF}</span>}
+              </div>
+              <PackageMiniMap origem={originUF} destino={destUF||undefined} atual={curUF} pct={pct}/>
+            </div>
+          )}
+
+          {/* 3 COLUNAS */}
+          <div style={{display:'grid',gridTemplateColumns:expanded?'1fr 1fr 1fr 1fr':'1fr 1fr 1fr',gap:12}}>
+
+            {/* COL 1 — DNA do Cliente */}
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+
+              {/* KPIs do pedido + análise financeira */}
+              <div style={{...S.sec,background:`linear-gradient(135deg,${sit.cor}09,transparent)`,borderColor:`${sit.cor}28`}}>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+                  <div style={S.sub}>
+                    <div style={S.lbl}>Total</div>
+                    <div style={{fontSize:15,fontWeight:700,color:sit.cor}}>{fmt(ped.total||pedRow.total)}</div>
+                    {ticketMed>0&&<div style={{fontSize:9,color:Number(vsMedia)>=0?'#22c55e':'#ef4444',marginTop:1}}>
+                      {Number(vsMedia)>=0?'↑':'↓'}{Math.abs(Number(vsMedia))}% vs média
+                    </div>}
+                  </div>
+                  <div style={S.sub}>
+                    <div style={S.lbl}>Itens</div>
+                    <div style={{fontSize:15,fontWeight:700,color:'var(--label)'}}>{itens.length||'—'}</div>
+                  </div>
+                  <div style={S.sub}>
+                    <div style={S.lbl}>Frete</div>
+                    <div style={{fontSize:13,color:'#22c55e'}}>{ped.frete>0?fmt(ped.frete):'Grátis'}</div>
+                  </div>
+                  <div style={S.sub}>
+                    <div style={S.lbl}>Pagamento</div>
+                    <div style={{fontSize:11,color:'#06b6d4',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ped.formaPagamento||ped.forma_pagamento||'—'}</div>
+                  </div>
+                </div>
+                {/* Risk indicator */}
+                {riskScore>0&&(
+                  <div style={{marginTop:8,padding:'5px 8px',borderRadius:7,background:`${riskCor}12`,border:`0.5px solid ${riskCor}30`,display:'flex',alignItems:'center',gap:6}}>
+                    <AlertTriangle size={11} style={{color:riskCor,flexShrink:0}}/>
+                    <span style={{fontSize:10,color:riskCor}}>Risco {riskLabel}</span>
+                    <div style={{flex:1,height:3,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
+                      <div style={{height:'100%',borderRadius:99,width:`${Math.min(100,riskScore)}%`,background:riskCor}}/>
+                    </div>
+                    <span style={{fontSize:9,color:riskCor,flexShrink:0}}>{riskScore}%</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Cliente DNA */}
+              <div style={S.sec}>
+                <div style={{...S.row,marginBottom:10}}>
+                  <div style={{width:44,height:44,borderRadius:'50%',flexShrink:0,padding:3,
+                    background:`conic-gradient(${rfmCfg.cor} ${Math.min(100,(hist.length+1)*12.5)}%, var(--sep) 0%)`}}>
+                    <div style={{width:'100%',height:'100%',borderRadius:'50%',overflow:'hidden',
+                      background:'linear-gradient(135deg,#7c6af7,#06b6d4)',
+                      display:'flex',alignItems:'center',justifyContent:'center',
+                      border:'2px solid var(--bg-2)'}}>
+                      {foto
+                        ?<img src={foto} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                        :<span style={{fontSize:13,fontWeight:700,color:'#fff'}}>{(contato?.nome||pedRow.contato||'?').split(' ').map(w=>w[0]).slice(0,2).join('')}</span>}
+                    </div>
+                  </div>
+                  <div style={{flex:1,overflow:'hidden'}}>
+                    <div style={{fontSize:13,fontWeight:600,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                      {contato?.nome||pedRow.contato||'—'}
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',gap:5,marginTop:3}}>
+                      <span style={{fontSize:9,fontWeight:600,padding:'1px 6px',borderRadius:99,color:rfmCfg.cor,background:`${rfmCfg.cor}18`,border:`0.5px solid ${rfmCfg.cor}40`,display:'inline-flex',alignItems:'center',gap:2}}>
+                        <RFMIcon size={8}/>{rfmCfg.label}
+                      </span>
+                      <span style={{fontSize:9,color:'var(--label-4)'}}>{hist.length+1} pedidos</span>
+                    </div>
+                  </div>
+                </div>
+                {/* Análise financeira do cliente */}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
+                  <div style={S.sub}><div style={S.lbl}>LTV Total</div><div style={{fontSize:12,fontWeight:600,color:'#22c55e'}}>{fmt(ltvTotal)}</div></div>
+                  <div style={S.sub}><div style={S.lbl}>Ticket Médio</div><div style={{fontSize:12,fontWeight:600,color:'#7c6af7'}}>{fmt(ticketMed)}</div></div>
+                  {(contato?.telefone||pedRow.telefone)&&<div style={{...S.sub,gridColumn:'span 2'}}>
+                    <div style={S.lbl}>Telefone</div>
+                    <div style={{...S.row,justifyContent:'space-between'}}>
+                      <span style={S.val}>{contato?.telefone||pedRow.telefone}</span>
+                      <button onClick={()=>cp(contato?.telefone||pedRow.telefone,'tel')} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0}}>
+                        {copied==='tel'?<Check size={10} style={{color:'#22c55e'}}/>:<Copy size={10}/>}
+                      </button>
+                    </div>
+                  </div>}
+                  {(ped.enderecoEntrega||contato?.endereco)&&<div style={{...S.sub,gridColumn:'span 2'}}>
+                    <div style={S.lbl}>Endereço</div>
+                    <div style={{fontSize:10,color:'var(--label)',lineHeight:1.4}}>{ped.enderecoEntrega||contato?.endereco}</div>
+                  </div>}
                 </div>
               </div>
-            ))}
-          </div>
-          <div style={{ padding:'14px', borderRadius:12, background:'var(--bg-2)',
-            border:'1px solid var(--sep)' }}>
-            <ResponsiveContainer width="100%" height={160}>
-              <AreaChart data={Array.from({length:30},(_,i)=>({
-                d:`+${i+1}d`,
-                v: Math.round(forecast.dias30/30 * (1 + (Math.random()-.5)*.2))
-              }))}>
-                <defs>
-                  <linearGradient id="gFc" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#a78bfa" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#a78bfa" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--sep)" vertical={false}/>
-                <XAxis dataKey="d" tick={{ fontSize:8, fill:'var(--label-4)' }} tickLine={false} axisLine={false}/>
-                <YAxis tick={{ fontSize:8, fill:'var(--label-4)' }} tickLine={false} axisLine={false}
-                  tickFormatter={v=>`R$${v}`}/>
-                <Tooltip {...TT2} formatter={v=>[fmt(v),'Projeção']}/>
-                <Area type="monotone" dataKey="v" stroke="#a78bfa" fill="url(#gFc)" strokeWidth={2}
-                  strokeDasharray="5 3"/>
-              </AreaChart>
-            </ResponsiveContainer>
+
+              {/* Produtos */}
+              {itens.length>0&&(
+                <div style={S.sec}>
+                  <div style={{...S.row,marginBottom:8}}><Package size={12} style={{color:'#7c6af7'}}/><span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Produtos</span></div>
+                  <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                    {itens.slice(0,4).map((it,i)=>(
+                      <div key={i} style={{...S.sub,display:'flex',alignItems:'center',gap:8}}>
+                        {it.foto&&<img src={it.foto} alt="" style={{width:32,height:32,borderRadius:6,objectFit:'cover',flexShrink:0,border:'0.5px solid var(--sep)'}} onError={e=>{e.target.style.display='none'}}/>}
+                        <div style={{flex:1,overflow:'hidden'}}>
+                          <div style={{fontSize:10,fontWeight:500,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{it.descricao||it.nome}</div>
+                          <div style={{fontSize:9,color:'var(--label-4)'}}>{it.quantidade}× · {fmt(it.valor||0)}</div>
+                        </div>
+                        <span style={{fontSize:11,fontWeight:600,color:'var(--label)',flexShrink:0}}>{fmt((it.valor||0)*(it.quantidade||1))}</span>
+                      </div>
+                    ))}
+                    {itens.length>4&&<div style={{fontSize:10,color:'var(--label-4)',textAlign:'center'}}>+{itens.length-4} mais</div>}
+                  </div>
+                  <div style={{borderTop:'0.5px solid var(--sep)',marginTop:8,paddingTop:8,display:'flex',justifyContent:'space-between',fontSize:12,fontWeight:700,color:'var(--label)'}}>
+                    <span>Total</span><span style={{color:sit.cor}}>{fmt(ped.total||pedRow.total)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* COL 2 — Rastreio ao Vivo + NF-e Expandida */}
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+
+              {/* Rastreio ao vivo — todos os eventos */}
+              <div style={S.sec}>
+                <div style={{...S.row,marginBottom:10}}>
+                  <Truck size={12} style={{color:'#06b6d4'}}/>
+                  <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Rastreio ao Vivo</span>
+                  {rastreio?.transportadora&&<span style={{marginLeft:'auto',fontSize:9,color:'var(--label-3)',background:'var(--fill)',padding:'2px 7px',borderRadius:99}}>{rastreio.transportadora}</span>}
+                </div>
+                {codRas?(
+                  <div>
+                    <div style={{...S.sub,display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                      <span style={{fontSize:9,color:'var(--label-3)',fontFamily:'monospace'}}>{codRas}</span>
+                      <button onClick={()=>cp(codRas,'cod')} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0}}>
+                        {copied==='cod'?<Check size={10} style={{color:'#22c55e'}}/>:<Copy size={10}/>}
+                      </button>
+                    </div>
+                    {linkRas&&<a href={linkRas} target="_blank" rel="noopener noreferrer" style={{display:'flex',alignItems:'center',gap:5,fontSize:10,color:'#7c6af7',marginBottom:8,textDecoration:'none'}}>
+                      <ExternalLink size={10}/>Acompanhar rastreio externo
+                    </a>}
+                    {evts.length>0?(
+                      <div style={{display:'flex',flexDirection:'column',gap:0,maxHeight:240,overflowY:'auto'}}>
+                        {evts.map((ev,i)=>(
+                          <div key={i} style={{display:'flex',gap:8,padding:'6px 0',borderBottom:i<evts.length-1?'0.5px solid var(--sep)':'none'}}>
+                            <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0,marginTop:2}}>
+                              <div style={{width:8,height:8,borderRadius:'50%',
+                                background:i===0?'#06b6d4':'var(--sep)',
+                                boxShadow:i===0?'0 0 5px #06b6d490':'none'}}/>
+                              {i<evts.length-1&&<div style={{width:1,height:16,background:'var(--sep)',margin:'2px 0'}}/>}
+                            </div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontSize:10,fontWeight:i===0?600:400,color:i===0?'#06b6d4':'var(--label-3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                                {ev.descricao||ev.evento}
+                              </div>
+                              <div style={{fontSize:9,color:'var(--label-4)'}}>{fmtDH(ev.data)} · {ev.local||ev.origem||''}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ):(rastreio?.ultimoEvento&&(
+                      <div style={S.sub}>
+                        <div style={{fontSize:9,color:'#06b6d4',fontWeight:600,marginBottom:2}}>Último evento</div>
+                        <div style={{fontSize:10,color:'var(--label)'}}>{rastreio.ultimoEvento}</div>
+                        {rastreio.dataUltimoEvento&&<div style={{fontSize:9,color:'var(--label-4)',marginTop:1}}>{fmtDH(rastreio.dataUltimoEvento)}</div>}
+                      </div>
+                    ))}
+                  </div>
+                ):(
+                  <div style={{padding:'16px 0',textAlign:'center',fontSize:10,color:'var(--label-4)'}}>Sem código de rastreio</div>
+                )}
+              </div>
+
+              {/* NF-e EXPANDIDA — todos os dados inline, sem botão */}
+              <div style={{...S.sec,borderColor:nfe?.linkDanfe?'rgba(34,197,94,.25)':'rgba(245,158,11,.2)',background:nfe?.linkDanfe?'rgba(34,197,94,.03)':'rgba(245,158,11,.02)'}}>
+                <div style={{...S.row,marginBottom:10}}>
+                  <FileText size={12} style={{color:nfe?.linkDanfe?'#22c55e':'#f59e0b'}}/>
+                  <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Nota Fiscal</span>
+                  {nfe?.linkDanfe
+                    ?<span style={{marginLeft:'auto',fontSize:9,color:'#22c55e',background:'rgba(34,197,94,.12)',border:'0.5px solid rgba(34,197,94,.3)',padding:'1px 7px',borderRadius:99}}>Emitida</span>
+                    :<span style={{marginLeft:'auto',fontSize:9,color:'#f59e0b',background:'rgba(245,158,11,.1)',border:'0.5px solid rgba(245,158,11,.3)',padding:'1px 7px',borderRadius:99}}>Pendente</span>}
+                </div>
+                {nfe?.linkDanfe?(
+                  <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
+                      <div style={S.sub}><div style={S.lbl}>Número</div><div style={S.val}>#{nfe.numero}</div></div>
+                      <div style={S.sub}><div style={S.lbl}>Série</div><div style={S.val}>{nfe.serie||'1'}</div></div>
+                    </div>
+                    {nfe.chave&&(
+                      <div style={S.sub}>
+                        <div style={S.lbl}>Chave de Acesso</div>
+                        <div style={{display:'flex',alignItems:'center',gap:6}}>
+                          <span style={{fontSize:9,color:'var(--label-3)',fontFamily:'monospace',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{nfe.chave}</span>
+                          <button onClick={()=>cp(nfe.chave,'nfe')} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0,flexShrink:0}}>
+                            {copied==='nfe'?<Check size={10} style={{color:'#22c55e'}}/>:<Copy size={10}/>}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    <div style={{display:'flex',gap:6}}>
+                      <a href={nfe.linkDanfe} target="_blank" rel="noopener noreferrer" style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,fontSize:10,color:'#7c6af7',padding:'6px',borderRadius:7,background:'rgba(124,106,247,.08)',border:'0.5px solid rgba(124,106,247,.2)',textDecoration:'none'}}>
+                        <ExternalLink size={10}/>Ver DANFE
+                      </a>
+                      {(contato?.telefone||pedRow.telefone)&&(
+                        <button onClick={enviarNF} disabled={sending||sentNF} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,fontSize:10,padding:'6px',borderRadius:7,cursor:'pointer',background:sentNF?'rgba(34,197,94,.1)':'rgba(34,197,94,.08)',border:`0.5px solid ${sentNF?'rgba(34,197,94,.3)':'rgba(34,197,94,.2)'}`,color:sentNF?'#22c55e':'#22c55e'}}>
+                          {sentNF?<><Check size={10}/>Enviada!</>:<><Send size={10}/>Enviar WA</>}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ):(
+                  <div>
+                    <div style={{fontSize:10,color:'var(--label-4)',marginBottom:8}}>Situação: <span style={{color:sit.cor}}>{sit.label}</span></div>
+                    {ped.enderecoEntrega&&<div style={S.sub}><div style={S.lbl}>Endereço de entrega</div><div style={{fontSize:10,color:'var(--label)',lineHeight:1.4}}>{ped.enderecoEntrega}</div></div>}
+                  </div>
+                )}
+              </div>
+
+              {/* Histórico financeiro */}
+              {hist.length>0&&(
+                <div style={S.sec}>
+                  <div style={{...S.row,marginBottom:8}}><History size={12} style={{color:'#f59e0b'}}/><span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Histórico</span><span style={{marginLeft:'auto',fontSize:9,color:'var(--label-4)'}}>{hist.length+1} pedidos</span></div>
+                  <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                    <div style={{...S.sub,display:'flex',justifyContent:'space-between',alignItems:'center',background:`${sit.cor}12`,borderColor:`${sit.cor}35`,border:`0.5px solid ${sit.cor}35`}}>
+                      <div><span style={{fontSize:10,fontWeight:600,color:sit.cor}}>#{pedRow.numero}</span><span style={{fontSize:9,color:'var(--label-4)',marginLeft:6}}>atual</span></div>
+                      <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>{fmt(pedRow.total)}</span>
+                    </div>
+                    {hist.slice(0,4).map((h,i)=>(
+                      <div key={i} style={{...S.sub,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                        <div><span style={{fontSize:10,color:'var(--label)'}}>{h.numero}</span><span style={{fontSize:9,color:'var(--label-4)',marginLeft:6}}>{fmtD(h.data)}</span></div>
+                        <div style={{display:'flex',alignItems:'center',gap:6}}>
+                          <div style={{width:40,height:3,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
+                            <div style={{height:'100%',background:'#7c6af7',borderRadius:99,width:`${Math.min(100,(parseFloat(h.total||0)/Math.max(pedTotal,parseFloat(h.total||0),1)*100)).toFixed(0)}%`}}/>
+                          </div>
+                          <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>{fmt(h.total)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* COL 3 — WhatsApp inline + Disparos + AI */}
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+
+              {/* Conversa WhatsApp completa */}
+              <div style={{...S.sec,padding:'12px'}}>
+                <div style={{...S.row,justifyContent:'space-between',marginBottom:10}}>
+                  <div style={S.row}><MessageSquare size={12} style={{color:'#22c55e'}}/><span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>WhatsApp</span></div>
+                  {pedRow.statusAtendimento&&<span style={{fontSize:9,padding:'1px 7px',borderRadius:99,color:pedRow.statusAtendimento==='resolvido'?'#22c55e':'#f59e0b',background:pedRow.statusAtendimento==='resolvido'?'rgba(34,197,94,.12)':'rgba(245,158,11,.12)',border:`0.5px solid ${pedRow.statusAtendimento==='resolvido'?'rgba(34,197,94,.3)':'rgba(245,158,11,.3)'}`}}>{pedRow.statusAtendimento}</span>}
+                </div>
+                {msgs.length>0?(
+                  <div style={{display:'flex',flexDirection:'column',gap:5,maxHeight:180,overflowY:'auto'}}>
+                    {msgs.slice(-6).map((m,i)=>{
+                      const isBot=m.role==='assistant'||m.direcao==='saida'
+                      const isSys=m.tipo==='gatilho'||m.tipo==='sistema'
+                      if(isSys)return <div key={i} style={{fontSize:9,color:'#06b6d4',background:'rgba(6,182,212,.06)',border:'0.5px solid rgba(6,182,212,.2)',borderRadius:6,padding:'3px 7px',textAlign:'center'}}>⚡ {m.conteudo||m.content}</div>
+                      return(
+                        <div key={i} style={{display:'flex',justifyContent:isBot?'flex-end':'flex-start'}}>
+                          <div style={{maxWidth:'85%',padding:'5px 9px',borderRadius:isBot?'8px 8px 2px 8px':'8px 8px 8px 2px',background:isBot?'rgba(124,106,247,.12)':'var(--fill)',border:`0.5px solid ${isBot?'rgba(124,106,247,.25)':'var(--sep)'}`}}>
+                            <div style={{fontSize:10,color:isBot?'#a78bfa':'var(--label)',lineHeight:1.4}}>{(m.conteudo||m.content||'').slice(0,120)}{(m.conteudo||m.content||'').length>120?'…':''}</div>
+                            <div style={{fontSize:8,color:'var(--label-4)',textAlign:'right',marginTop:2}}>{isBot?'Bia · ':''}{fmtDH(m.createdAt||m.created_at||m.data)}</div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ):(
+                  <div style={{fontSize:10,color:'var(--label-4)',textAlign:'center',padding:'10px 0'}}>{pedRow.telefone?'Sem mensagens':'Telefone não cadastrado'}</div>
+                )}
+                {pedRow.telefone&&(
+                  <div style={{marginTop:8,display:'flex',gap:5}}>
+                    <input value={msgTxt} onChange={e=>setMsgT(e.target.value)} onKeyDown={e=>e.key==='Enter'&&enviarMsg()} placeholder="Responder..." style={{flex:1,background:'var(--fill)',border:'0.5px solid var(--sep)',borderRadius:7,padding:'5px 8px',fontSize:10,color:'var(--label)',outline:'none'}}/>
+                    <button onClick={enviarMsg} disabled={!msgTxt.trim()||sending} style={{padding:'5px 10px',borderRadius:7,border:'0.5px solid rgba(124,106,247,.4)',background:'rgba(124,106,247,.1)',color:'#7c6af7',cursor:'pointer',fontSize:10,display:'flex',alignItems:'center',gap:4}}>
+                      <Send size={10}/>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Disparos */}
+              {disps.length>0&&(
+                <div style={S.sec}>
+                  <div style={{...S.row,marginBottom:8}}><Send size={12} style={{color:'#a78bfa'}}/><span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Gatilhos</span><span style={{marginLeft:'auto',fontSize:9,color:'var(--label-4)'}}>{disps.length}</span></div>
+                  <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                    {disps.slice(0,5).map((d,i)=>(
+                      <div key={i} style={{...S.sub,display:'flex',alignItems:'center',gap:7}}>
+                        <div style={{width:6,height:6,borderRadius:'50%',flexShrink:0,background:d.status==='enviado'?'#22c55e':'#ef4444',boxShadow:d.status==='enviado'?'0 0 4px #22c55e80':'none'}}/>
+                        <span style={{fontSize:10,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'var(--label)'}}>{d.gatilho||d.tipo_gatilho}</span>
+                        <span style={{fontSize:9,color:'var(--label-4)',flexShrink:0}}>{fmtD(d.created_at||d.criado_em)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recomendações IA */}
+              <div style={{...S.sec,borderColor:'rgba(124,106,247,.3)',background:'rgba(124,106,247,.03)'}}>
+                <div style={{...S.row,marginBottom:8}}>
+                  <Brain size={12} style={{color:'#7c6af7'}}/>
+                  <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Análise IA</span>
+                </div>
+                <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                  {[
+                    riskScore>=40&&{cor:'#ef4444',msg:`Pedido há ${Math.floor(diasPedido)}d sem movimentação — verificar transportadora`},
+                    hist.length>=3&&{cor:'#22c55e',msg:`Cliente fiel (${hist.length+1}× compras) — candidato a programa VIP`},
+                    Number(vsMedia)>50&&{cor:'#f59e0b',msg:`Pedido ${vsMedia}% acima do ticket médio — validar se intencional`},
+                    !codRas&&[9,15].includes(sitId)&&{cor:'#f97316',msg:`Pedido pago sem rastreio — adicionar código Correios`},
+                    sitId===27&&diasPedido>10&&{cor:'#f59e0b',msg:`Em trânsito há ${Math.floor(diasPedido)}d — verificar entrega`},
+                  ].filter(Boolean).slice(0,3).map((r,i)=>(
+                    <div key={i} style={{fontSize:10,color:r.cor,background:`${r.cor}0c`,border:`0.5px solid ${r.cor}30`,borderRadius:7,padding:'6px 9px',lineHeight:1.4}}>
+                      {r.msg}
+                    </div>
+                  ))}
+                  {riskScore===0&&hist.length<3&&!codRas&&<div style={{fontSize:10,color:'var(--label-4)',textAlign:'center',padding:'8px 0'}}>Nenhuma recomendação no momento</div>}
+                </div>
+              </div>
+
+              {/* Ações rápidas */}
+              <div style={S.sec}>
+                <div style={{...S.lbl,marginBottom:8}}>Ações rápidas</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+                  {[
+                    {Ic:MessageSquare,label:'Conversa',cor:'#22c55e',href:pedRow.telefone?`https://wa.me/${pedRow.telefone}`:null},
+                    {Ic:Send,label:'Disparar',cor:'#7c6af7'},
+                    {Ic:ExternalLink,label:'Bling',cor:'#60a5fa',href:`https://app.bling.com.br/vendas.php#id=${pedRow.numero}`},
+                    {Ic:Copy,label:'Copiar nº',cor:'var(--label-3)',onClick:()=>cp(pedRow.numero,'num')},
+                  ].map(({Ic,label,cor,href,onClick})=>
+                    href
+                      ?<a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'7px',borderRadius:8,fontSize:11,color:cor,background:`${cor}18`,border:`0.5px solid ${cor}40`,cursor:'pointer',textDecoration:'none'}}><Ic size={12}/>{label}</a>
+                      :<button key={label} onClick={onClick} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'7px',borderRadius:8,fontSize:11,color:cor,background:`${cor}18`,border:`0.5px solid ${cor}40`,cursor:'pointer'}}>
+                        {label==='Copiar nº'&&copied==='num'?<Check size={12} style={{color:'#22c55e'}}/>:<Ic size={12}/>}{label}
+                      </button>
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* COL 4 — só no modo expandido: análise de frete + mapa regiões */}
+            {expanded&&(
+              <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                <div style={S.sec}>
+                  <div style={{...S.row,marginBottom:10}}>
+                    <Timer size={12} style={{color:'#f59e0b'}}/>
+                    <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Análise de Frete</span>
+                  </div>
+                  {det?.transpStats?.length>0?(
+                    det.transpStats.map(t=>(
+                      <div key={t.nome} style={{marginBottom:10}}>
+                        <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                          <span style={{fontSize:10,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:130}}>{t.nome}</span>
+                          <div style={{display:'flex',gap:8,flexShrink:0}}>
+                            <span style={{fontSize:10,fontWeight:700,color:t.tempoMedio<=3?'#22c55e':t.tempoMedio<=7?'#f59e0b':'#ef4444'}}>{t.tempoMedio}d</span>
+                            <span style={{fontSize:10,color:'var(--label-4)'}}>{fmt(t.custoMedio||0)}</span>
+                          </div>
+                        </div>
+                        <div style={{height:5,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
+                          <div style={{height:'100%',borderRadius:99,width:`${Math.min(100,(t.tempoMedio/14)*100)}%`,background:t.tempoMedio<=3?'#22c55e':t.tempoMedio<=7?'#f59e0b':'#ef4444'}}/>
+                        </div>
+                        {t.taxaExtravio>0&&<div style={{fontSize:9,color:'#ef4444',marginTop:2}}>{t.taxaExtravio}% taxa de extravio</div>}
+                      </div>
+                    ))
+                  ):(
+                    <div style={{fontSize:10,color:'var(--label-4)',textAlign:'center',padding:'12px 0'}}>Dados de frete não disponíveis</div>
+                  )}
+                </div>
+                {/* Mini mapa cliente */}
+                <div style={S.sec}>
+                  <div style={{...S.row,marginBottom:8}}><MapPin size={12} style={{color:'#22c55e'}}/><span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Localização</span></div>
+                  <PackageMiniMap origem={originUF} destino={destUF||undefined} atual={curUF} pct={pct}/>
+                  <div style={{marginTop:8,display:'flex',gap:8,fontSize:9,color:'var(--label-4)'}}>
+                    <span style={{display:'flex',alignItems:'center',gap:3}}><span style={{width:6,height:6,borderRadius:'50%',background:'#7c6af7',display:'inline-block'}}/> Origem: {originUF}</span>
+                    {destUF&&<span style={{display:'flex',alignItems:'center',gap:3}}><span style={{width:6,height:6,borderRadius:'50%',background:'#22c55e',display:'inline-block'}}/> Destino: {destUF}</span>}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -842,1014 +1361,6 @@ function AnalyticsView({ pedidos, api }) {
   )
 }
 
-
-// ─── CARRIER SCORECARD ────────────────────────────────────────────────────────
-function CarrierScorecard({ pedidos=[] }) {
-  const stats = useMemo(() => calcCarrierStats(pedidos), [pedidos])
-  if (!stats.length) return (
-    <div style={{ textAlign:'center', padding:32, color:'var(--label-4)', fontSize:12 }}>
-      <Truck size={28} style={{ opacity:.1, display:'block', margin:'0 auto 10px' }}/>
-      Dados insuficientes para análise de transportadoras.
-    </div>
-  )
-  const maxTotal = Math.max(...stats.map(s=>s.total), 1)
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-      <div style={{ fontSize:11, fontWeight:700, color:'var(--label-4)',
-        textTransform:'uppercase', letterSpacing:'.06em', marginBottom:4 }}>
-        Performance por Transportadora
-      </div>
-      {stats.map((s, i) => (
-        <div key={s.nome} style={{ padding:'12px 14px', borderRadius:12,
-          background:'var(--bg-2)', border:'1px solid var(--sep)' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
-            <div style={{ width:28, height:28, borderRadius:8, flexShrink:0,
-              background:'rgba(79,142,247,.12)', border:'1px solid rgba(79,142,247,.2)',
-              display:'flex', alignItems:'center', justifyContent:'center' }}>
-              <Truck size={13} style={{ color:'#4f8ef7' }}/>
-            </div>
-            <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:12.5, fontWeight:700, color:'var(--label)',
-                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                {s.nome}
-              </div>
-              <div style={{ fontSize:10, color:'var(--label-4)', marginTop:1 }}>
-                {s.total} pedidos · Ticket: {fmt(s.ticket)}
-              </div>
-            </div>
-            <div style={{ textAlign:'right', flexShrink:0 }}>
-              <div style={{ fontSize:18, fontWeight:900,
-                color: s.taxa>=90?'#00e676':s.taxa>=70?'#f59e0b':'#ef4444' }}>
-                {s.taxa}%
-              </div>
-              <div style={{ fontSize:9, color:'var(--label-4)' }}>no prazo</div>
-            </div>
-          </div>
-          {/* Barra de volume */}
-          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <div style={{ flex:1, height:6, borderRadius:99, background:'var(--fill)',
-              overflow:'hidden' }}>
-              <div style={{ height:'100%', borderRadius:99,
-                width:`${(s.total/maxTotal)*100}%`,
-                background: s.taxa>=90 ? 'linear-gradient(90deg,#00e676,#06b6d4)' :
-                            s.taxa>=70 ? 'linear-gradient(90deg,#f59e0b,#f97316)' :
-                            'linear-gradient(90deg,#ef4444,#f97316)',
-                transition:'width .6s ease' }}/>
-            </div>
-            <span style={{ fontSize:10, color:'var(--label-4)', minWidth:40 }}>
-              R$ {(s.totalVal/1000).toFixed(0)}k
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// ─── CHANNEL QUALITY ──────────────────────────────────────────────────────────
-function ChannelQuality({ pedidos=[] }) {
-  const stats = useMemo(() => calcChannelQuality(pedidos), [pedidos])
-  if (!stats.length) return null
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-      <div style={{ fontSize:11, fontWeight:700, color:'var(--label-4)',
-        textTransform:'uppercase', letterSpacing:'.06em', marginBottom:4 }}>
-        Qualidade por Canal
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))', gap:10 }}>
-        {stats.map(s => {
-          const cfg = CANAL_CFG[s.canal] || { label:s.canal, cor:'#888', icon:Globe }
-          const CIc = cfg.icon
-          return (
-            <div key={s.canal} style={{ padding:'12px 14px', borderRadius:12,
-              background:'var(--bg-2)', border:`1px solid ${cfg.cor}20` }}>
-              <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:10 }}>
-                <CIc size={14} style={{ color:cfg.cor }}/>
-                <span style={{ fontSize:12, fontWeight:700, color:'var(--label)' }}>{cfg.label}</span>
-              </div>
-              {[
-                ['Pedidos',      s.total],
-                ['Clientes',     s.clientes],
-                ['LTV médio',    fmt(s.ltv)],
-                ['Ticket médio', fmt(s.ticket)],
-                ['Recompra',     `${s.taxaRepete}%`],
-              ].map(([k,v]) => (
-                <div key={k} style={{ display:'flex', justifyContent:'space-between',
-                  fontSize:11, marginBottom:4 }}>
-                  <span style={{ color:'var(--label-4)' }}>{k}</span>
-                  <span style={{ color:'var(--label)', fontWeight:600 }}>{v}</span>
-                </div>
-              ))}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ─── GEO VIEW ────────────────────────────────────────────────────────────────
-function GeoView({ pedidos=[] }) {
-  const stats = useMemo(() => calcGeoStats(pedidos).slice(0,15), [pedidos])
-  const max = Math.max(...stats.map(s=>s.total), 1)
-  if (!stats.length) return null
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-      <div style={{ fontSize:11, fontWeight:700, color:'var(--label-4)',
-        textTransform:'uppercase', letterSpacing:'.06em', marginBottom:4 }}>
-        Distribuição Geográfica (Top 15 estados)
-      </div>
-      {stats.map(s => (
-        <div key={s.uf} style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <div style={{ width:28, fontSize:11, fontWeight:700,
-            color:'var(--label)', textAlign:'center', flexShrink:0 }}>
-            {s.uf}
-          </div>
-          <div style={{ flex:1, height:20, borderRadius:99, background:'var(--fill)',
-            overflow:'hidden', position:'relative' }}>
-            <div style={{ height:'100%', width:`${(s.total/max)*100}%`, borderRadius:99,
-              background:'linear-gradient(90deg,#4a9fff,#7c6af7)',
-              transition:'width .6s ease', display:'flex', alignItems:'center',
-              paddingLeft:8 }}>
-              <span style={{ fontSize:9, color:'rgba(0,0,0,.7)', fontWeight:700,
-                whiteSpace:'nowrap' }}>
-                {s.total}
-              </span>
-            </div>
-          </div>
-          <div style={{ width:80, textAlign:'right', flexShrink:0,
-            fontSize:11, color:'var(--label-4)' }}>
-            {fmt(s.val)}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// ─── MARKET BASKET ───────────────────────────────────────────────────────────
-function MarketBasketView({ pedidos=[] }) {
-  const basket = useMemo(() => calcMarketBasket(pedidos), [pedidos])
-  if (!basket.length) return (
-    <div style={{ textAlign:'center', padding:24, color:'var(--label-4)', fontSize:12 }}>
-      Dados insuficientes (mín. 10 pedidos com 2+ itens)
-    </div>
-  )
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-      <div style={{ fontSize:11, fontWeight:700, color:'var(--label-4)',
-        textTransform:'uppercase', letterSpacing:'.06em', marginBottom:4 }}>
-        Produtos Comprados Juntos (Top 10)
-      </div>
-      {basket.map((b,i) => (
-        <div key={b.par} style={{ display:'flex', alignItems:'center', gap:10,
-          padding:'9px 12px', borderRadius:10, background:'var(--bg-2)',
-          border:'1px solid var(--sep)' }}>
-          <span style={{ fontSize:13, fontWeight:800, color:'var(--label-4)',
-            minWidth:20, textAlign:'center' }}>#{i+1}</span>
-          <span style={{ flex:1, fontSize:11.5, color:'var(--label)', lineHeight:1.4 }}>{b.par}</span>
-          <div style={{ display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
-            <span style={{ fontSize:14, fontWeight:800, color:'#a78bfa' }}>{b.freq}</span>
-            <span style={{ fontSize:9, color:'var(--label-4)' }}>pedidos</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// ─── KANBAN ────────────────────────────────────────────────────────────────────
-function KanbanView({filtrados, onSel}) {
-  const cols = useMemo(()=>{
-    const c={}
-    Object.entries(SIT).forEach(([id,s])=>{c[id]={sit:s,items:[],total:0}})
-    filtrados.forEach(p=>{const sid=String(getSitId(p));if(c[sid]){c[sid].items.push(p);c[sid].total+=parseFloat(p.total||0)}})
-    return c
-  },[filtrados])
-  return <div style={{display:'grid',gridTemplateColumns:`repeat(${Object.keys(cols).length},1fr)`,gap:12,alignItems:'start'}}>
-    {Object.entries(cols).map(([sid,col])=><div key={sid} style={{display:'flex',flexDirection:'column',gap:8}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 12px',
-        borderRadius:10,background:col.sit.bg,border:`1px solid ${col.sit.bdr}`}}>
-        <div>
-          <div style={{fontSize:12,fontWeight:700,color:col.sit.cor}}>{col.sit.label}</div>
-          <div style={{fontSize:10,color:col.sit.cor+'aa'}}>{fmt(col.total)}</div>
-        </div>
-        <span style={{fontSize:18,fontWeight:800,color:col.sit.cor}}>{col.items.length}</span>
-      </div>
-      {col.items.slice(0,15).map(p=>{
-        const cc=CANAL_CFG[getCanal(p)]||CANAL_CFG.bling; const Ic=cc.icon
-        return <div key={p.numero} onClick={()=>onSel(p)}
-          style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:10,
-            padding:'10px 12px',cursor:'pointer'}}
-          onMouseEnter={e=>e.currentTarget.style.borderColor=col.sit.cor}
-          onMouseLeave={e=>e.currentTarget.style.borderColor='var(--sep)'}>
-          <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
-            <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>#{p.numero}</span>
-            <Ic size={12} style={{color:cc.cor}}/>
-          </div>
-          <div style={{fontSize:11,color:'var(--label-3)',marginBottom:4,
-            overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.contato||'—'}</div>
-          <div style={{display:'flex',justifyContent:'space-between'}}>
-            <span style={{fontSize:11,fontWeight:700,color:'var(--label)'}}>{fmt(p.total)}</span>
-            <span style={{fontSize:10,color:'var(--label-4)'}}>{fmtD(p.data)}</span>
-          </div>
-        </div>
-      })}
-      {col.items.length>15&&<div style={{textAlign:'center',fontSize:11,color:'var(--label-4)',padding:4}}>
-        +{col.items.length-15} mais
-      </div>}
-    </div>)}
-  </div>
-}
-
-// ─── ORDER SHEET NIVELMAX ────────────────────────────────────────────────────
-// Scroll contínuo sem abas — Linear/Salesforce style
-function OrderSheet({ pedRow, onClose, api, allPedidos }) {
-  const [det,      setDet]     = useState(null)
-  const [load,     setLoad]    = useState(true)
-  const [nfe,      setNfe]     = useState(null)
-  const [foto,     setFoto]    = useState(null)
-  const [ocors,    setOcors]   = useState([])
-  const [disps,    setDisps]   = useState([])
-  const [novaOc,   setNOc]     = useState('')
-  const [savOc,    setSavOc]   = useState(false)
-  const [msgTxt,   setMsgT]    = useState('')
-  const [snd2,     setSnd2]    = useState(false)
-  const [sentNF,   setSetNF]   = useState(false)
-  const [sentRas,  setSentRas] = useState(false)
-  const [cpOk,     setCpOk]    = useState('')
-  const [enviando, setEnv]     = useState(null)
-  const [envRes,   setEnvRes]  = useState({})
-
-  const canal  = getCanal(pedRow)
-  const sitId  = getSitId(pedRow)
-  const sit    = SIT[sitId] || { label:'—', cor:'#888', bg:'var(--fill)', bdr:'var(--sep)' }
-
-  useEffect(() => {
-    setLoad(true)
-    fetch(`${api}/api/dashboard/pedido-completo/${pedRow.numero}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        setDet(d); setLoad(false)
-        const tel = d?.mensagens?.lista?.[0]?.telefone || pedRow.telefone || ''
-        if (tel) {
-          fetch(`${api}/api/dashboard/foto-perfil/${tel.replace(/\D/g,'')}`)
-            .then(r=>r.ok?r.json():null).then(f=>f?.url&&setFoto(f.url)).catch(()=>{})
-        }
-        const nfId = d?.pedido?.notaFiscal?.id && Number(d.pedido.notaFiscal.id)>0 ? d.pedido.notaFiscal.id : null
-        if (nfId) {
-          fetch(`${api}/api/dashboard/nfe-link/${nfId}`)
-            .then(r=>r.ok?r.json():null).then(n=>setNfe(n)).catch(()=>{})
-        }
-      }).catch(() => setLoad(false))
-    const tel = (pedRow.telefone||'').replace(/\D/g,'')
-    if (tel) {
-      fetch(`${api}/api/dashboard/ocorrencias?telefone=${tel}`)
-        .then(r=>r.ok?r.json():null).then(d=>setOcors(d?.ocorrencias||[])).catch(()=>{})
-    }
-    fetch(`${api}/api/dashboard/disparos-pedido/${pedRow.numero}`)
-      .then(r=>r.ok?r.json():null).then(d=>setDisps(d?.disparos||[])).catch(()=>{})
-  }, [pedRow.numero, api])
-
-  const ped        = det?.pedido
-  const contato    = det?.contato
-  const rastreio   = det?.rastreio
-  const hist       = det?.historico?.pedidos || []
-  const mensagens  = det?.mensagens?.lista   || []
-  const transporte = det?.transporte
-  const rfmScore   = calcRFM([pedRow,...hist])
-  const rfmCfg     = RFM[rfmScore] || RFM.novo
-  const RFMIcon    = rfmCfg.icon
-  const ltvTotal   = [pedRow,...hist].reduce((s,p)=>s+parseFloat(p.total||0),0)
-  const codRas     = rastreio?.codigo || transporte?.volumes?.[0]?.codigo
-                  || transporte?.volumes?.[0]?.codigoRastreamento || pedRow?.codigoRastreio || ''
-  const linkRas    = rastreio?.link || rastreio?.linkCorreios || rastreio?.linkMelhorRastreio || ''
-  const transpNome = rastreio?.transportadora || transporte?.transportadora?.nome || ''
-  const fulfScore  = calcFulfillmentScore(pedRow, disps, nfe, rastreio)
-  const riskDel    = calcDeliveryRisk(pedRow)
-  const ocAbertos  = ocors.filter(o=>o.status!=='resolvido').length
-
-  const cp = (v,k) => { navigator.clipboard?.writeText(String(v||'')); setCpOk(k); setTimeout(()=>setCpOk(''),1500) }
-
-  const enviarNF = async () => {
-    const link = nfe?.linkDanfe || nfe?.linkPDF || ''
-    if (!link || !pedRow.telefone) return
-    setSnd2(true)
-    const msg = `*Nota Fiscal — Pedido #${pedRow.numero}*\n\nSua NF-e foi emitida:\n${link}`
-    await fetch(`${api}/api/dashboard/manual/${pedRow.telefone.replace(/\D/g,'')}`, {
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mensagem:msg})
-    }).catch(()=>{})
-    setSnd2(false); setSetNF(true); setTimeout(()=>setSetNF(false),2500)
-  }
-
-  const enviarMsg = async () => {
-    if (!msgTxt.trim() || !pedRow.telefone) return
-    setSnd2(true)
-    await fetch(`${api}/api/dashboard/manual/${pedRow.telefone.replace(/\D/g,'')}`, {
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mensagem:msgTxt})
-    }).catch(()=>{})
-    setSnd2(false); setMsgT('')
-  }
-
-  const criarOc = async () => {
-    if (!novaOc.trim()) return
-    setSavOc(true)
-    await fetch(`${api}/api/dashboard/ocorrencias`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ telefone:pedRow.telefone, tipo:'suporte',
-        descricao:novaOc, numero_pedido:String(pedRow.numero) })
-    }).catch(()=>{})
-    setNOc(''); setSavOc(false)
-    const tel = (pedRow.telefone||'').replace(/\D/g,'')
-    fetch(`${api}/api/dashboard/ocorrencias?telefone=${tel}`)
-      .then(r=>r.ok?r.json():null).then(d=>setOcors(d?.ocorrencias||[])).catch(()=>{})
-  }
-
-  const enviarTemplate = async (gatilho) => {
-    if (!pedRow.telefone) return
-    setEnv(gatilho)
-    try {
-      const r = await fetch(`${api}/api/templates/disparar-gatilho`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ gatilho, telefone:pedRow.telefone,
-          variaveis: { '{{numero_pedido}}':pedRow.numero, '{{nome_cliente}}':pedRow.contato||contato?.nome||'',
-            '{{primeiro_nome}}':(pedRow.contato||contato?.nome||'').split(' ')[0],
-            '{{valor_total}}':fmt(pedRow.total), '{{codigo_rastreio}}':codRas,
-            '{{transportadora}}':transpNome,
-            '{{link_acompanhamento}}':codRas?`https://rastreio.sostrass.com.br/p/${codRas}`:'',
-            '{{link_nfe}}':nfe?.linkDanfe||'', '{{numero_nfe}}':nfe?.numero||'' }
-        })
-      })
-      const d = await r.json()
-      setEnvRes(p=>({...p,[gatilho]:d.ok?'ok':'erro'}))
-    } catch { setEnvRes(p=>({...p,[gatilho]:'erro'})) }
-    setTimeout(()=>setEnvRes(p=>{const n={...p};delete n[gatilho];return n}),3500)
-    setEnv(null)
-  }
-
-  // ── Seção colapsável ──────────────────────────────────────────────────────
-  function Sec({ title, icon:Ic, cor='var(--label-4)', children, open:defOpen=true, badge=null }) {
-    const [open, setOpen] = useState(defOpen)
-    return (
-      <div style={{ borderBottom:'1px solid var(--sep)' }}>
-        <button onClick={()=>setOpen(v=>!v)}
-          style={{ width:'100%', display:'flex', alignItems:'center', gap:7,
-            padding:'10px 20px', background:'transparent', border:'none', cursor:'pointer' }}
-          onMouseEnter={e=>e.currentTarget.style.background='var(--fill)'}
-          onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-          <Ic size={11} style={{ color:cor }}/>
-          <span style={{ flex:1, fontSize:10, fontWeight:700, color:'var(--label-4)',
-            textTransform:'uppercase', letterSpacing:'.06em', textAlign:'left' }}>
-            {title}
-          </span>
-          {badge!==null && badge>0 && (
-            <span style={{ fontSize:9, fontWeight:800, padding:'1px 5px', borderRadius:99,
-              background:`${cor}18`, color:cor }}>{badge}</span>
-          )}
-          {open ? <ChevronUp size={10} style={{color:'var(--label-4)'}}/> : <ChevronDown size={10} style={{color:'var(--label-4)'}}/>}
-        </button>
-        {open && (
-          <div style={{ padding:'0 20px 14px' }}>{children}</div>
-        )}
-      </div>
-    )
-  }
-
-  // ── Jornada horizontal ─────────────────────────────────────────────────────
-  const STEPS_H = [
-    { g:'pedido_criado',       lbl:'Criado',    cor:'#00d4aa', Icon:ShoppingCart  },
-    { g:'pagamento_aprovado',  lbl:'Pago',      cor:'#4a9fff', Icon:CreditCard    },
-    { g:'em_separacao',        lbl:'Separação', cor:'#8b5cf6', Icon:Package       },
-    { g:'nfe_emitida',         lbl:'NF-e',      cor:'#06b6d4', Icon:FileText      },
-    { g:'pedido_enviado',      lbl:'Enviado',   cor:'#a78bfa', Icon:Truck         },
-    { g:'rastreio_em_transito',lbl:'Trânsito',  cor:'#4a9fff', Icon:Navigation    },
-    { g:'saiu_entrega',        lbl:'Saiu',      cor:'#f59e0b', Icon:Truck         },
-    { g:'pedido_entregue',     lbl:'Entregue',  cor:'#22c55e', Icon:CheckCircle   },
-  ]
-  const dispMap = {}
-  disps.forEach(d => { dispMap[d.gatilho] = d })
-  // Avaliação independente — cada step tem sua própria condição
-  const sitStr = String(pedRow.situacao||'').toLowerCase()
-  const temNFePed = !!(nfe?.numero || ped?.notaFiscal?.id)
-  const dispMap2 = {}; disps.forEach(d => { dispMap2[d.gatilho] = d })
-
-  const PAGO_SITS2 = [9, 15, 24, 27, 30, 14]
-  const pedStepFeito = [
-    true,                                                               // 0 criado
-    PAGO_SITS2.includes(sitId),                                        // 1 pago
-    [9, 24, 27, 30].includes(sitId),                                   // 2 separação
-    temNFePed || sitId === 24,                                         // 3 nf-e — só se existe
-    !!codRas || [27, 30].includes(sitId),                              // 4 enviado
-    !!codRas,                                                          // 5 trânsito
-    !!codRas && (sitStr.includes('saiu')||!!dispMap2['saiu_entrega']), // 6 saiu
-    sitId === 30 || sitStr.includes('entregue') || !!dispMap2['pedido_entregue'], // 7 entregue
-  ]
-  let stepAtual = 0
-  pedStepFeito.forEach((f, i) => { if (f) stepAtual = i })
-
-  // ── RENDER ─────────────────────────────────────────────────────────────────
-  return (
-    <div style={{ position:'fixed', inset:0, zIndex:1000, display:'flex',
-      background:'rgba(0,0,0,.65)', backdropFilter:'blur(6px)' }}
-      onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
-      <div style={{ marginLeft:'auto', width:820, maxWidth:'100%', height:'100%',
-        background:'var(--bg)', borderLeft:'1px solid var(--sep)',
-        display:'flex', flexDirection:'column', overflow:'hidden' }}>
-
-        {/* ── HEADER ────────────────────────────────────────────── */}
-        <div style={{ padding:'14px 20px', borderBottom:'1px solid var(--sep)',
-          flexShrink:0, background:'linear-gradient(180deg,var(--bg-2),var(--bg))' }}>
-          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:10 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-              {/* Avatar */}
-              <div style={{ position:'relative', flexShrink:0 }}>
-                {foto
-                  ? <img src={foto} style={{ width:48,height:48,borderRadius:12,objectFit:'cover' }}/>
-                  : <div style={{ width:48,height:48,borderRadius:12,background:'var(--fill)',
-                      display:'flex',alignItems:'center',justifyContent:'center' }}>
-                      <Users size={20} style={{color:'var(--label-4)'}}/>
-                    </div>}
-                <div style={{ position:'absolute',bottom:-4,right:-4,width:18,height:18,
-                  borderRadius:'50%',background:sit.cor,border:'2px solid var(--bg)',
-                  display:'flex',alignItems:'center',justifyContent:'center' }}>
-                  <div style={{ width:6,height:6,borderRadius:'50%',background:'#fff' }}/>
-                </div>
-              </div>
-              <div>
-                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3 }}>
-                  <span style={{ fontSize:20, fontWeight:900, color:'var(--label)', letterSpacing:'-.03em' }}>
-                    #{pedRow.numero}
-                  </span>
-                  <Pill label={sit.label} cor={sit.cor} bg={sit.bg} bdr={sit.bdr}/>
-                  <CanalBadge canal={canal}/>
-                </div>
-                <div style={{ fontSize:13, fontWeight:500, color:'var(--label-3)' }}>
-                  {contato?.nome || pedRow.contato || '—'}
-                </div>
-                <div style={{ fontSize:11, color:'var(--label-4)', marginTop:2 }}>
-                  {fmtDH(pedRow.data)}
-                  {ped?.numeroLoja && ` · Loja #${ped.numeroLoja}`}
-                </div>
-              </div>
-            </div>
-            <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:8 }}>
-              <button onClick={onClose} style={{ background:'none',border:'none',cursor:'pointer',
-                color:'var(--label-4)',padding:4 }}><X size={18}/></button>
-              {/* RFM + Fulfillment */}
-              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:5, padding:'4px 9px',
-                  borderRadius:99, background:rfmCfg.bg, border:`1px solid ${rfmCfg.cor}30`,
-                  fontSize:11, fontWeight:700, color:rfmCfg.cor }}>
-                  <RFMIcon size={10}/>{rfmCfg.label}
-                  <span style={{ fontWeight:400, fontSize:10 }}>
-                    · {hist.length+1} ped · {fmt(ltvTotal)}
-                  </span>
-                </div>
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'center' }}>
-                  <FulfillmentRing score={fulfScore} size={42}/>
-                  <span style={{ fontSize:8, color:'var(--label-4)', marginTop:1 }}>fulfillment</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Horizontal Timeline ─────────────────────── */}
-          <div style={{ overflowX:'auto', paddingBottom:2 }}>
-            <div style={{ display:'flex', alignItems:'flex-start', minWidth:'max-content', gap:0 }}>
-              {STEPS_H.map((step, i) => {
-                const feito = pedStepFeito[i] ?? false, atual = i === stepAtual
-                const d = dispMap[step.g]
-                const Ic = step.Icon
-                return (
-                  <div key={i} style={{ display:'flex', alignItems:'center' }}>
-                    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, minWidth:60 }}>
-                      <div style={{ width:28, height:28, borderRadius:'50%',
-                        background:feito?`${step.cor}20`:'var(--fill)',
-                        border:`2px solid ${feito?step.cor:'var(--sep)'}`,
-                        display:'flex', alignItems:'center', justifyContent:'center',
-                        boxShadow:atual?`0 0 12px ${step.cor}70`:'none', transition:'all .3s' }}>
-                        <Ic size={11} style={{ color:feito?step.cor:'var(--label-4)' }}/>
-                      </div>
-                      <span style={{ fontSize:8, color:feito?step.cor:'var(--label-4)',
-                        fontWeight:atual?700:400, whiteSpace:'nowrap', textAlign:'center' }}>
-                        {step.lbl}
-                      </span>
-                      {d && <span style={{ fontSize:7, color:d.status==='enviado'?'#22c55e':'#ef4444',
-                        fontWeight:700 }}>
-                        {d.status==='enviado'?'✓':'✗'} WA
-                      </span>}
-                    </div>
-                    {i < STEPS_H.length-1 && (
-                      <div style={{ width:16, height:2, margin:'0 1px', marginBottom:20, flexShrink:0,
-                        background:i<stepAtual?`linear-gradient(90deg,${step.cor},${STEPS_H[i+1].cor})`:'var(--sep)',
-                        borderRadius:99, transition:'background .3s' }}/>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* ── Badges de envio de template ─────────────── */}
-          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:10 }}>
-            {[
-              { g:'pedido_criado',        l:'📦 Resumo',         show:true              },
-              { g:'nfe_emitida',          l:'📄 NF-e',           show:!!nfe?.linkDanfe  },
-              { g:'rastreio_em_transito', l:'🚚 Rastreio',       show:!!codRas          },
-              { g:'pedido_entregue',      l:'✅ Entregue',       show: sitId===30 || sitStr.includes('entregue') },
-              { g:'avaliar_pedido',       l:'⭐ Avaliação',      show: sitId===30 || sitStr.includes('entregue') },
-              { g:'pagamento_pendente',   l:'💳 Lembrar pag.',   show:sitId===6         },
-            ].filter(b=>b.show).map(({g,l}) => {
-              const res=envRes[g], sending=enviando===g
-              const cor = res==='ok'?'#22c55e':res==='erro'?'#ef4444':'#7c6af7'
-              return (
-                <button key={g} onClick={()=>!sending&&!res&&enviarTemplate(g)}
-                  disabled={sending||!!res}
-                  style={{ display:'flex', alignItems:'center', gap:5,
-                    padding:'5px 11px', borderRadius:8, cursor:'pointer',
-                    border:`1px solid ${cor}40`, background:`${cor}10`,
-                    color:cor, fontSize:11, fontWeight:700, transition:'all .15s' }}>
-                  {sending ? <RefreshCw size={10} style={{animation:'spin 1s linear infinite'}}/> :
-                   res==='ok'?<Check size={10}/>:res==='erro'?<X size={10}/>:<Send size={10}/>}
-                  {sending?'Enviando...':res==='ok'?'Enviado!':res==='erro'?'Falhou':l}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* ── SCROLL CONTÍNUO ─────────────────────────────────────── */}
-        <div style={{ flex:1, overflowY:'auto' }}>
-          {load ? (
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'center',
-              height:200, color:'var(--label-4)', gap:10, fontSize:13 }}>
-              <RefreshCw size={16} style={{animation:'spin 1s linear infinite'}}/>Carregando...
-            </div>
-          ) : <>
-
-            {/* 1. Fulfillment + Riscos */}
-            <Sec title="Saúde do Pedido" icon={Award} cor="#a78bfa">
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-                {[
-                  { l:'NF-e emitida',      ok:!!(nfe?.numero||ped?.notaFiscal?.id) },
-                  { l:'Cliente notificado', ok:disps.some(d=>d.status==='enviado')  },
-                  { l:'Rastreio ativo',     ok:!!codRas                             },
-                  { l:'Entregue',           ok:[15].includes(sitId)                 },
-                ].map(({l,ok}) => (
-                  <div key={l} style={{ display:'flex', alignItems:'center', gap:7,
-                    padding:'8px 10px', borderRadius:8,
-                    background:ok?'rgba(34,197,94,.08)':'var(--fill)',
-                    border:`1px solid ${ok?'rgba(34,197,94,.2)':'var(--sep)'}` }}>
-                    {ok
-                      ? <CheckCircle size={12} style={{color:'#22c55e',flexShrink:0}}/>
-                      : <Circle size={12} style={{color:'var(--label-4)',flexShrink:0}}/>}
-                    <span style={{ fontSize:11, color:ok?'var(--label)':'var(--label-4)' }}>{l}</span>
-                  </div>
-                ))}
-              </div>
-              {riskDel > 40 && (
-                <div style={{ marginTop:8, padding:'8px 10px', borderRadius:9,
-                  background:'rgba(249,115,22,.08)', border:'1px solid rgba(249,115,22,.2)' }}>
-                  <div style={{ fontSize:11, color:'#f97316', fontWeight:600,
-                    display:'flex', alignItems:'center', gap:5 }}>
-                    <AlertTriangle size={11}/>
-                    Risco de atraso: {riskDel}% — {riskDel>=70?'Alto':'Médio'}
-                  </div>
-                </div>
-              )}
-            </Sec>
-
-            {/* 2. Cliente */}
-            <Sec title="Dados do Cliente" icon={Users} cor="#4a9fff" open={false}>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                <div>
-                  {[
-                    ['Nome',      contato?.nome],
-                    ['Telefone',  contato?.celular||contato?.telefone||pedRow.telefone],
-                    ['Documento', contato?.cpfCnpj],
-                    ['Email',     contato?.email],
-                  ].filter(([,v])=>v).map(([k,v])=>(
-                    <div key={k} style={{ display:'flex', justifyContent:'space-between',
-                      marginBottom:5, fontSize:12 }}>
-                      <span style={{ color:'var(--label-4)' }}>{k}</span>
-                      <div style={{ display:'flex', alignItems:'center', gap:4 }}>
-                        {k==='Documento'&&<Cp val={v} label=""/>}
-                        <span style={{ color:'var(--label)', fontWeight:500 }}>{v}</span>
-                      </div>
-                    </div>
-                  ))}
-                  {contato?.linkBling&&(
-                    <a href={contato.linkBling} target="_blank" rel="noreferrer"
-                      style={{ fontSize:10, color:'var(--accent)', textDecoration:'none',
-                        display:'flex', alignItems:'center', gap:4, marginTop:4 }}>
-                      <ExternalLink size={9}/>Ver no Bling
-                    </a>
-                  )}
-                </div>
-                <div>
-                  {(()=>{
-                    const e = transporte?.etiqueta||ped?.transporte?.etiqueta||contato?.enderecos?.[0]
-                    if(!e) return <p style={{fontSize:11,color:'var(--label-4)',margin:0}}>Endereço não disponível</p>
-                    return (
-                      <div style={{ fontSize:12, color:'var(--label)', lineHeight:1.7 }}>
-                        <div>{e.endereco}{e.numero?`, ${e.numero}`:''}{e.complemento?` · ${e.complemento}`:''}</div>
-                        <div style={{color:'var(--label-3)'}}>{e.bairro&&`${e.bairro} · `}{e.municipio}/{e.uf}</div>
-                        <div style={{color:'var(--label-4)',fontSize:11}}>CEP: {e.cep}</div>
-                        {transporte?.transportadora&&(
-                          <div style={{marginTop:6,display:'flex',alignItems:'center',gap:5,fontSize:11,color:'var(--label-3)'}}>
-                            <Truck size={10}/>{transporte.transportadora}
-                            {transporte?.frete>0&&<span style={{color:'var(--label-4)'}}>· {fmt(transporte.frete)}</span>}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })()}
-                </div>
-              </div>
-            </Sec>
-
-            {/* 3. Financeiro */}
-            <Sec title="Resumo Financeiro" icon={DollarSign} cor="#22c55e" open={false}>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:10 }}>
-                {[
-                  ['Produtos', ped?.totalProdutos||pedRow.total],
-                  ['Frete',    transporte?.frete],
-                  ['Desconto', ped?.totalDesconto],
-                  ['Total',    ped?.total||pedRow.total],
-                ].map(([k,v])=>(
-                  <div key={k} style={{ textAlign:'center', padding:'8px',
-                    borderRadius:9, background:'var(--fill)' }}>
-                    <div style={{ fontSize:10, color:'var(--label-4)', marginBottom:3 }}>{k}</div>
-                    <div style={{ fontSize:14, fontWeight:700, color:k==='Total'?'#22c55e':'var(--label)' }}>
-                      {fmt(v)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {ped?.formaPagamento && (
-                <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:12,
-                  color:'var(--label-4)', paddingTop:8, borderTop:'1px solid var(--sep)' }}>
-                  <CreditCard size={11}/>{ped.formaPagamento}
-                </div>
-              )}
-            </Sec>
-
-            {/* 4. Itens */}
-            <Sec title="Produtos" icon={Package} cor="#06b6d4"
-              badge={ped?.itens?.length||0}>
-              {(!ped?.itens||!ped.itens.length) ? (
-                <p style={{color:'var(--label-4)',fontSize:12,margin:0,textAlign:'center',padding:'12px 0'}}>
-                  Itens não disponíveis
-                </p>
-              ) : (
-                <>
-                  {ped.itens.map((item,i)=>(
-                    <div key={i} style={{ display:'flex', alignItems:'center', gap:10,
-                      padding:'8px 10px', borderRadius:9, marginBottom:6,
-                      background:'var(--fill)', border:'1px solid var(--sep)' }}>
-                      <div style={{ width:40, height:40, borderRadius:8, flexShrink:0,
-                        background:'var(--bg-2)', overflow:'hidden',
-                        display:'flex', alignItems:'center', justifyContent:'center' }}>
-                        {(item._img||item.imagem||item.imagemURL)
-                          ? <img src={item._img||item.imagem||item.imagemURL} alt=""
-                              style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                          : <Box size={15} style={{color:'var(--label-4)'}}/>}
-                      </div>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:12.5, fontWeight:600, color:'var(--label)',
-                          overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                          {item.descricao||item.nome||'—'}
-                        </div>
-                        <div style={{ fontSize:10, color:'var(--label-4)', marginTop:2 }}>
-                          {item.codigo&&`SKU: ${item.codigo} · `}
-                          {item.quantidade}× {fmt(item.valor)}
-                        </div>
-                      </div>
-                      <div style={{ textAlign:'right', flexShrink:0 }}>
-                        <div style={{ fontSize:14, fontWeight:700, color:'var(--label)' }}>
-                          {fmt(item.valorTotal||(parseFloat(item.valor||0)*parseInt(item.quantidade||1)))}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  <div style={{ display:'flex', justifyContent:'flex-end',
-                    paddingTop:6, borderTop:'1px solid var(--sep)' }}>
-                    <span style={{ fontSize:16, fontWeight:900, color:'#22c55e' }}>
-                      {fmt(ped.total||pedRow.total)}
-                    </span>
-                  </div>
-                </>
-              )}
-            </Sec>
-
-            {/* 5. Rastreio */}
-            <Sec title="Rastreio" icon={Navigation} cor="#f59e0b">
-              {codRas ? (
-                <>
-                  <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
-                    <span style={{ fontFamily:'monospace', fontSize:15, fontWeight:800,
-                      color:'#f59e0b' }}>{codRas}</span>
-                    <button onClick={()=>cp(codRas,'codras')}
-                      style={{ background:'none', border:'none', cursor:'pointer',
-                        color:cpOk==='codras'?'#22c55e':'var(--label-4)' }}>
-                      {cpOk==='codras'?<Check size={12}/>:<Copy size={12}/>}
-                    </button>
-                    {linkRas && (
-                      <a href={linkRas} target="_blank" rel="noreferrer"
-                        style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 8px',
-                          borderRadius:7, border:'1px solid rgba(6,182,212,.3)',
-                          background:'rgba(6,182,212,.08)', color:'#06b6d4',
-                          fontSize:10, textDecoration:'none' }}>
-                        <ExternalLink size={10}/>Rastrear
-                      </a>
-                    )}
-                    {pedRow.telefone && (
-                      <button onClick={async()=>{
-                        const msg=`📦 Pedido #${pedRow.numero} — rastreio:\nhttps://rastreio.sostrass.com.br/p/${codRas}`
-                        await fetch(`${api}/api/dashboard/manual/${pedRow.telefone.replace(/\D/g,'')}`,{
-                          method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:msg})
-                        }).catch(()=>{})
-                        setSentRas(true); setTimeout(()=>setSentRas(false),2500)
-                      }} style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 11px',
-                        borderRadius:8, border:`1px solid ${sentRas?'rgba(34,197,94,.4)':'rgba(37,211,102,.3)'}`,
-                        background:sentRas?'rgba(34,197,94,.15)':'rgba(37,211,102,.08)',
-                        color:sentRas?'#22c55e':'#25d366', cursor:'pointer', fontSize:11, fontWeight:600 }}>
-                        {sentRas?<Check size={11}/>:<MessageCircle size={11}/>}
-                        {sentRas?'Enviado!':'Enviar WA'}
-                      </button>
-                    )}
-                  </div>
-                  {transpNome && (
-                    <div style={{ fontSize:11, color:'var(--label-4)', marginBottom:10 }}>
-                      <Truck size={10} style={{marginRight:4}}/>{transpNome}
-                    </div>
-                  )}
-                  {/* Timeline eventos */}
-                  {(rastreio?.eventos||[]).length > 0 && (
-                    <div style={{ position:'relative', paddingLeft:4 }}>
-                      {rastreio.eventos.map((ev,i)=>{
-                        const atual=i===0, ult=i===rastreio.eventos.length-1
-                        return (
-                          <div key={i} style={{ display:'flex', gap:12, position:'relative',
-                            paddingBottom:ult?0:16 }}>
-                            {!ult&&<div style={{ position:'absolute', left:6, top:16, bottom:0,
-                              width:1.5, background:'linear-gradient(var(--accent),var(--sep))',
-                              opacity:.4 }}/>}
-                            <div style={{ width:13, height:13, borderRadius:'50%', flexShrink:0,
-                              marginTop:3, zIndex:1,
-                              background:atual?'var(--accent)':'var(--fill)',
-                              border:`2px solid ${atual?'var(--accent)':'var(--sep)'}`,
-                              boxShadow:atual?'0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent)':'none' }}/>
-                            <div style={{ flex:1, minWidth:0 }}>
-                              <div style={{ fontSize:12.5, fontWeight:atual?600:500,
-                                color:atual?'var(--accent)':'var(--label)', lineHeight:1.35 }}>
-                                {ev.status||ev.descricao||ev.raw||'—'}
-                              </div>
-                              {(ev.local||ev.unidade)&&(
-                                <div style={{ fontSize:11, color:'var(--label-3)', marginTop:2 }}>
-                                  {ev.local||ev.unidade}
-                                </div>
-                              )}
-                              <div style={{ fontSize:10, color:'var(--label-4)', marginTop:2 }}>
-                                <Clock size={9} style={{marginRight:3}}/>{ev.data||ev.dtHrCriado||''}
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div style={{ textAlign:'center', padding:'16px 0', color:'var(--label-4)', fontSize:12 }}>
-                  <Navigation size={24} style={{opacity:.1,display:'block',margin:'0 auto 8px'}}/>
-                  Código de rastreio não disponível
-                </div>
-              )}
-            </Sec>
-
-            {/* 6. NF-e */}
-            {(ped?.notaFiscal?.id || nfe) && (
-              <Sec title="Nota Fiscal" icon={FileText} cor="#22c55e">
-                <div style={{ padding:'12px 14px', borderRadius:10,
-                  background:nfe?.linkDanfe?'rgba(34,197,94,.06)':'var(--fill)',
-                  border:`1px solid ${nfe?.linkDanfe?'rgba(34,197,94,.3)':'var(--sep)'}` }}>
-                  {[
-                    ['Número',      nfe?.numero||ped.notaFiscal.id],
-                    ['Data emissão',nfe?.dataEmissao?fmtD(nfe.dataEmissao):'—'],
-                    ['Chave NF-e',  nfe?.chaveAcesso],
-                  ].filter(([,v])=>v).map(([k,v])=>(
-                    <div key={k} style={{ display:'flex', justifyContent:'space-between',
-                      marginBottom:6, fontSize:12 }}>
-                      <span style={{ color:'var(--label-4)' }}>{k}</span>
-                      <div style={{ display:'flex', alignItems:'center', gap:5 }}>
-                        {['Chave NF-e'].includes(k)&&<Cp val={v} label=""/>}
-                        <span style={{ color:'var(--label)', fontWeight:500,
-                          fontFamily:k==='Chave NF-e'?'monospace':undefined,
-                          fontSize:k==='Chave NF-e'?9.5:12 }}>{v}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {(nfe?.linkDanfe||nfe?.xml) && (
-                  <div style={{ display:'flex', gap:8, marginTop:8, flexWrap:'wrap' }}>
-                    {nfe.linkDanfe&&(
-                      <>
-                        <a href={nfe.linkDanfe} target="_blank" rel="noreferrer"
-                          style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 12px',
-                            borderRadius:8, border:'1px solid rgba(34,197,94,.35)',
-                            background:'rgba(34,197,94,.08)', color:'#22c55e',
-                            fontSize:11, fontWeight:600, textDecoration:'none' }}>
-                          <ExternalLink size={11}/>Abrir PDF / DANFE
-                        </a>
-                        <button onClick={enviarNF} disabled={snd2||sentNF}
-                          style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 12px',
-                            borderRadius:8, border:'1px solid rgba(37,211,102,.35)',
-                            background:sentNF?'rgba(37,211,102,.15)':'rgba(37,211,102,.08)',
-                            color:'#25d366', cursor:'pointer', fontSize:11, fontWeight:600 }}>
-                          <Send size={11}/>{sentNF?'Enviada!':'Enviar ao cliente (WA)'}
-                        </button>
-                      </>
-                    )}
-                    {nfe.xml&&(
-                      <a href={nfe.xml} target="_blank" rel="noreferrer"
-                        style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 12px',
-                          borderRadius:8, border:'1px solid var(--sep)', background:'var(--fill)',
-                          color:'var(--label-3)', fontSize:11, textDecoration:'none' }}>
-                        <Download size={11}/>Baixar XML
-                      </a>
-                    )}
-                  </div>
-                )}
-              </Sec>
-            )}
-
-            {/* 7. Histórico do cliente */}
-            <Sec title="Histórico do Cliente" icon={Layers} cor="#a78bfa" open={false}
-              badge={hist.length}>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10,
-                marginBottom:12, padding:'10px 12px', borderRadius:10, background:'var(--fill)' }}>
-                {[
-                  ['Pedidos',    hist.length+1],
-                  ['LTV',        fmt(ltvTotal)],
-                  ['Ticket méd.',fmt(ltvTotal/Math.max(hist.length+1,1))],
-                  ['Desde',      hist.length>0?fmtD(hist[hist.length-1]?.data):'—'],
-                ].map(([k,v])=>(
-                  <div key={k} style={{ textAlign:'center' }}>
-                    <div style={{ fontSize:10, color:'var(--label-4)', marginBottom:2 }}>{k}</div>
-                    <div style={{ fontSize:14, fontWeight:700, color:'var(--label)' }}>{v}</div>
-                  </div>
-                ))}
-              </div>
-              {hist.length===0
-                ? <p style={{fontSize:12,color:'var(--label-4)',textAlign:'center',padding:'12px 0'}}>Primeiro pedido.</p>
-                : hist.map(p=>{
-                    const sid=getSitId(p); const s=SIT[sid]||{label:'—',cor:'#888'}
-                    return (
-                      <div key={p.numero} style={{ display:'flex', alignItems:'center',
-                        justifyContent:'space-between', padding:'8px 10px', borderRadius:9,
-                        marginBottom:5, background:'var(--fill)', border:'1px solid var(--sep)' }}>
-                        <div>
-                          <div style={{ fontSize:12, fontWeight:600, color:'var(--label)' }}>#{p.numero}</div>
-                          <div style={{ fontSize:10, color:'var(--label-4)' }}>{fmtD(p.data)}</div>
-                        </div>
-                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                          <Pill label={s.label} cor={s.cor} bg={`${s.cor}12`} sz={10}/>
-                          <span style={{ fontSize:13, fontWeight:700, color:'var(--label)' }}>{fmt(p.total)}</span>
-                        </div>
-                      </div>
-                    )
-                  })
-              }
-            </Sec>
-
-            {/* 8. Disparos WA */}
-            <Sec title="Disparos WhatsApp" icon={Zap} cor="#7c6af7"
-              open={false} badge={disps.length}>
-              {disps.length===0
-                ? <p style={{color:'var(--label-4)',fontSize:12,textAlign:'center',padding:'12px 0'}}>
-                    Nenhum disparo registrado.
-                  </p>
-                : disps.map((d,i)=>(
-                    <div key={i} style={{ display:'flex', alignItems:'center', gap:10,
-                      padding:'8px 10px', marginBottom:5, borderRadius:9,
-                      background:'var(--fill)',
-                      border:`1px solid ${d.status==='enviado'?'rgba(34,197,94,.2)':d.status==='erro'?'rgba(239,68,68,.2)':'var(--sep)'}` }}>
-                      <div style={{ width:7,height:7,borderRadius:'50%',flexShrink:0,
-                        background:d.status==='enviado'?'#22c55e':d.status==='erro'?'#ef4444':'#f59e0b' }}/>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:12,fontWeight:600,color:'var(--label)' }}>
-                          {d.template_nome||d.gatilho||'—'}
-                        </div>
-                        <div style={{ fontSize:10,color:'var(--label-4)',marginTop:1 }}>
-                          {fmtDH(d.criado_em)}
-                        </div>
-                      </div>
-                      <Pill label={d.status||'—'}
-                        cor={d.status==='enviado'?'#22c55e':d.status==='erro'?'#ef4444':'#f59e0b'}
-                        bg={d.status==='enviado'?'rgba(34,197,94,.1)':d.status==='erro'?'rgba(239,68,68,.1)':'rgba(245,158,11,.1)'}
-                        sz={10}/>
-                    </div>
-                  ))
-              }
-            </Sec>
-
-            {/* 9. Enviar mensagem */}
-            <Sec title="Enviar Mensagem Direta" icon={MessageSquare} cor="#25d366" open={false}>
-              <div style={{ display:'flex', gap:8 }}>
-                <input value={msgTxt} onChange={e=>setMsgT(e.target.value)}
-                  onKeyDown={e=>e.key==='Enter'&&!e.shiftKey&&enviarMsg()}
-                  placeholder="Digite a mensagem... (Enter para enviar)"
-                  style={{ flex:1,padding:'8px 12px',borderRadius:9,
-                    border:'1px solid var(--sep)',background:'var(--fill)',
-                    color:'var(--label)',fontSize:12 }}/>
-                <button onClick={enviarMsg} disabled={snd2||!msgTxt.trim()}
-                  style={{ padding:'8px 14px',borderRadius:9,border:'none',
-                    background:snd2?'var(--fill)':'#25d366',
-                    color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600,
-                    display:'flex',alignItems:'center',gap:5 }}>
-                  <Send size={12}/>{snd2?'...':'Enviar'}
-                </button>
-              </div>
-            </Sec>
-
-            {/* 10. Ocorrências */}
-            <Sec title="Ocorrências" icon={AlertCircle} cor="#ef4444"
-              open={false} badge={ocAbertos}>
-              <div style={{ display:'flex', gap:8, marginBottom:10 }}>
-                <input value={novaOc} onChange={e=>setNOc(e.target.value)}
-                  placeholder="Descreva o problema..."
-                  style={{ flex:1,padding:'7px 10px',borderRadius:9,
-                    border:'1px solid var(--sep)',background:'var(--fill)',
-                    color:'var(--label)',fontSize:12 }}/>
-                <button onClick={criarOc} disabled={savOc||!novaOc.trim()}
-                  style={{ padding:'7px 14px',borderRadius:9,border:'none',
-                    background:'var(--accent)',color:'#fff',cursor:'pointer',
-                    fontSize:12,fontWeight:600 }}>
-                  {savOc?'...':'Abrir'}
-                </button>
-              </div>
-              {ocors.length===0
-                ? <p style={{color:'var(--label-4)',fontSize:12,textAlign:'center',padding:'12px 0'}}>
-                    Sem ocorrências.
-                  </p>
-                : ocors.map((oc,i)=>(
-                    <div key={i} style={{ padding:'9px 11px', borderRadius:9, marginBottom:5,
-                      background:'var(--fill)',
-                      border:`1px solid ${oc.status==='resolvido'?'rgba(34,197,94,.25)':'var(--sep)'}` }}>
-                      <div style={{ display:'flex',justifyContent:'space-between',marginBottom:4 }}>
-                        <div style={{ display:'flex',alignItems:'center',gap:7 }}>
-                          <span style={{ fontSize:11,fontWeight:600,color:'var(--label)' }}>{oc.tipo||'Suporte'}</span>
-                          <Pill label={oc.status||'aberto'}
-                            cor={oc.status==='resolvido'?'#22c55e':oc.status==='em_atendimento'?'#4a9fff':'#f59e0b'}
-                            bg={oc.status==='resolvido'?'rgba(34,197,94,.1)':oc.status==='em_atendimento'?'rgba(74,159,255,.1)':'rgba(245,158,11,.1)'}
-                            sz={9}/>
-                        </div>
-                        <span style={{ fontSize:10,color:'var(--label-4)' }}>{fmtDH(oc.criado_em)}</span>
-                      </div>
-                      <p style={{ fontSize:12,color:'var(--label-3)',margin:0,lineHeight:1.5 }}>{oc.descricao}</p>
-                    </div>
-                  ))
-              }
-            </Sec>
-
-            {/* Últimas mensagens */}
-            {mensagens.length > 0 && (
-              <Sec title="Últimas mensagens WhatsApp" icon={MessageCircle} cor="#a78bfa" open={false}>
-                <div style={{ display:'flex', flexDirection:'column', gap:5, maxHeight:240, overflowY:'auto' }}>
-                  {mensagens.slice(-10).map((m,i)=>{
-                    const isIn = m.direcao==='entrada'
-                    return (
-                      <div key={i} style={{ display:'flex', gap:7, alignItems:'flex-start',
-                        flexDirection:isIn?'row':'row-reverse' }}>
-                        <div style={{ maxWidth:'80%', padding:'6px 10px',
-                          borderRadius:isIn?'4px 10px 10px 10px':'10px 4px 10px 10px',
-                          background:isIn?'var(--fill)':'rgba(124,106,247,.12)',
-                          border:`1px solid ${isIn?'var(--sep)':'rgba(124,106,247,.2)'}` }}>
-                          <p style={{ fontSize:11.5,color:'var(--label)',margin:0,lineHeight:1.5 }}>
-                            {m.conteudo||m.texto||'—'}
-                          </p>
-                          <div style={{ fontSize:9,color:'var(--label-4)',marginTop:2,textAlign:'right' }}>
-                            {fmtDH(m.criado_em)}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </Sec>
-            )}
-
-            <div style={{ height:20 }}/>
-          </>}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-
-// ─── PÁGINA PRINCIPAL ─────────────────────────────────────────────────────────
 export default function PagePedidos({api}) {
   const [pedidos,   setPed]   = useState([])
   const [loading,   setLoad]  = useState(true)
@@ -1873,9 +1384,8 @@ export default function PagePedidos({api}) {
   const [colCfg,    setColCfg]= useState(COLUNAS_PADRAO)
   const [showCols,  setShowCols]= useState(false)
   const [dragId,    setDragId]= useState(null)
-  const [live,      setLive]   = useState(0)
-  const [selecionados, setSel2] = useState([])  // bulk actions
-  const [viewAN,    setViewAN]  = useState('overview')
+  const [live,      setLive]  = useState(0)
+  const searchRef = useRef(null)
   const POR_PAG = 25
 
   // Busca por número específico direto no backend
@@ -1948,6 +1458,14 @@ export default function PagePedidos({api}) {
   ,[colCfg])
 
   useEffect(()=>{
+    const h=(e)=>{
+      if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();searchRef.current?.focus()}
+      if(e.key==='Escape'&&document.activeElement===searchRef.current){searchRef.current?.blur();setBusca('')}
+    }
+    window.addEventListener('keydown',h); return()=>window.removeEventListener('keydown',h)
+  },[])
+
+  useEffect(()=>{
     const t=setInterval(async()=>{
       try{const r=await fetch(`${api}/api/dashboard/live-activity`);if(r.ok){const d=await r.json();setLive(d.novos_10min||0)}}catch{}
     },30000)
@@ -1972,7 +1490,7 @@ export default function PagePedidos({api}) {
       const tr=(p.transportadora||'').toLowerCase()
       return (filtroC==='todos'||c===filtroC)&&(filtroSit==='0'||sit===filtroSit)
         &&(filtroTr==='todos'||tr.includes(filtroTr.toLowerCase()))
-        &&(!busca||String(p.numero).includes(busca)||(p.contato||'').toLowerCase().includes(txt)||(p.telefone||'').includes(busca))
+        &&(!busca||String(p.numero).includes(busca)||(p.contato||'').toLowerCase().includes(txt)||(p.telefone||'').includes(busca)||(p.codigoRastreio||'').toLowerCase().includes(txt)||((p.itens||[]).some(i=>(i.descricao||i.nome||'').toLowerCase().includes(txt))))
         &&(!valMin||tot>=parseFloat(valMin))&&(!valMax||tot<=parseFloat(valMax))
     }).sort((a,b)=>{
       const m=sortDir==='desc'?-1:1
@@ -2008,7 +1526,9 @@ export default function PagePedidos({api}) {
   const pg=filtrados.slice((pgUI-1)*POR_PAG,pgUI*POR_PAG)
   const totalPgs=Math.ceil(filtrados.length/POR_PAG)
 
-  return <div style={{display:'flex',height:'100%',overflow:'hidden'}}>
+  return <div style={{display:'flex',height:'100%',overflow:'hidden',background:'linear-gradient(160deg,var(--bg) 0%,var(--bg-2) 55%,var(--bg) 100%)',position:'relative'}}>
+    <div style={{position:'absolute',width:500,height:500,borderRadius:'50%',background:'radial-gradient(circle,rgba(124,106,247,.05),transparent 70%)',top:-200,left:-100,pointerEvents:'none',zIndex:0}}/>
+    <div style={{position:'absolute',width:400,height:400,borderRadius:'50%',background:'radial-gradient(circle,rgba(6,182,212,.04),transparent 70%)',bottom:-100,right:0,pointerEvents:'none',zIndex:0}}/>
 
     {/* ── Sidebar filtros ── */}
     <div style={{width:showF?240:0,flexShrink:0,overflow:'hidden',transition:'width .2s',
@@ -2048,12 +1568,12 @@ export default function PagePedidos({api}) {
         <div>
           <div style={{fontSize:10,fontWeight:700,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8,
             display:'flex',alignItems:'center',gap:5}}><Globe size={10}/>Canal</div>
-          {[['todos','Todos',null],...Object.entries(CANAL_CFG).map(([k,v])=>[k,v.label,v.icon])].map(([v,l,Ic])=>(
+          {[['todos','Todos',null],...Object.entries(CANAL_CFG).map(([k,v])=>[k,v.label,v.Logo])].map(([v,l,Ic])=>(
             <button key={v} onClick={()=>setFC(v)} style={{
               display:'flex',alignItems:'center',gap:7,width:'100%',textAlign:'left',
               padding:'5px 8px',borderRadius:7,border:'none',marginBottom:2,cursor:'pointer',fontSize:12,
               background:filtroC===v?'var(--fill)':'none',color:filtroC===v?'var(--label)':'var(--label-3)'}}>
-              {Ic&&<Ic size={11} style={{color:CANAL_CFG[v]?.cor||'var(--label-4)'}}/>}{l}
+              {Ic&&<Ic size={11} style={{flexShrink:0}}/>}{l}
             </button>
           ))}
         </div>
@@ -2108,20 +1628,20 @@ export default function PagePedidos({api}) {
         <div style={{position:'relative',flex:'1 1 200px',maxWidth:300}}>
           <Search size={13} style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',
             color:'var(--label-4)',pointerEvents:'none'}}/>
-          <input value={busca} onChange={e=>{
+          <input ref={searchRef} value={busca} onChange={e=>{
           const v=e.target.value; setBusca(v); setPgUI(1)
           // Se é número, busca direto no backend
           const num=v.replace(/[^\d]/g,'')
           if(num.length>=5) buscarPorNumero(num)
           else if(!v) carregar(1,false)
         }}
-            placeholder="Buscar por número, nome, telefone..."
+            placeholder="Buscar pedido, cliente, produto, rastreio… ⌘K"
             style={{width:'100%',padding:'6px 10px 6px 30px',borderRadius:8,
               border:'1px solid var(--sep)',background:'var(--fill)',
               color:'var(--label)',fontSize:12,boxSizing:'border-box'}}/>
-          {busca&&<button onClick={()=>setBusca('')} style={{position:'absolute',right:8,top:'50%',
-            transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',
-            color:'var(--label-4)',padding:0}}><X size={12}/></button>}
+          {busca
+            ?<button onClick={()=>setBusca('')} style={{position:'absolute',right:8,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0}}><X size={12}/></button>
+            :<kbd style={{position:'absolute',right:8,top:'50%',transform:'translateY(-50%)',fontSize:9,color:'var(--label-4)',background:'var(--fill)',border:'1px solid var(--sep)',borderRadius:4,padding:'1px 5px',pointerEvents:'none'}}>⌘K</kbd>}
         </div>
         {/* Filtro status rápido */}
         <div style={{display:'flex',gap:3}}>
@@ -2139,7 +1659,7 @@ export default function PagePedidos({api}) {
             fontSize:11,color:'#7c6af7'}}>
             <Bell size={11}/>{live} novos
           </div>}
-          {[{id:'lista',I:Layers,t:'Lista'},{id:'kanban',I:BarChart3,t:'Kanban'},{id:'analytics',I:Activity,t:'Analytics'},{id:'timeline',I:Calendar,t:'Timeline'}].map(v=>(
+          {[{id:'lista',I:Layers,t:'Lista'},{id:'kanban',I:BarChart3,t:'Kanban'},{id:'analytics',I:Activity,t:'Analytics'}].map(v=>(
             <button key={v.id} onClick={()=>setView(v.id)} title={v.t} style={{
               width:32,height:32,borderRadius:8,border:'1px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',
               background:view===v.id?'var(--fill)':'none',color:view===v.id?'var(--accent)':'var(--label-4)',cursor:'pointer'}}>
@@ -2186,49 +1706,6 @@ export default function PagePedidos({api}) {
           </div>
         ) : view==='analytics' ? <AnalyticsView pedidos={filtrados} api={api}/>
           : view==='kanban'    ? <KanbanView filtrados={filtrados} onSel={setSel}/>
-          : view==='timeline'  ? (
-            <div style={{flex:1,overflowY:'auto',padding:16}}>
-              {Object.entries(filtrados.reduce((m,p)=>{
-                const d=fmtD(p.data)||'Sem data';if(!m[d])m[d]=[];m[d].push(p);return m
-              },{})).slice(0,60).map(([dia,peds])=>(
-                <div key={dia} style={{marginBottom:12}}>
-                  <div style={{fontSize:11,fontWeight:700,color:'var(--label-4)',
-                    display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                    <Calendar size={10}/>{dia}
-                    <span style={{fontSize:10,padding:'1px 7px',borderRadius:99,
-                      background:'var(--fill)',border:'1px solid var(--sep)'}}>
-                      {peds.length} ped · {fmt(peds.reduce((s,p)=>s+parseFloat(p.total||0),0))}
-                    </span>
-                  </div>
-                  <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                    {peds.map(p=>{
-                      const sid=getSitId(p),s=SIT[sid]||{label:'—',cor:'#888'},r=calcDeliveryRisk(p)
-                      return(
-                        <div key={p.numero} onClick={()=>setSel(p)}
-                          style={{display:'flex',alignItems:'center',gap:10,padding:'7px 12px',
-                            borderRadius:9,cursor:'pointer',background:'var(--bg-2)',
-                            border:'1px solid var(--sep)',transition:'border-color .12s'}}
-                          onMouseEnter={e=>e.currentTarget.style.borderColor=s.cor}
-                          onMouseLeave={e=>e.currentTarget.style.borderColor='var(--sep)'}>
-                          <div style={{width:6,height:6,borderRadius:'50%',flexShrink:0,
-                            background:s.cor,boxShadow:`0 0 4px ${s.cor}`}}/>
-                          <span style={{fontSize:12,fontWeight:700,color:'var(--label)',minWidth:55}}>#{p.numero}</span>
-                          <span style={{fontSize:11,color:'var(--label-3)',flex:1,
-                            overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.contato||'—'}</span>
-                          <CanalBadge canal={getCanal(p)} small/>
-                          <Pill label={s.label} cor={s.cor} bg={`${s.cor}12`} sz={9}/>
-                          {r>50&&<RiskBadge risk={r} small/>}
-                          <span style={{fontSize:13,fontWeight:700,color:'var(--label)',minWidth:65,textAlign:'right'}}>
-                            {fmt(p.total)}
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )
           : <>
             {showCols&&<div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:12,padding:'14px 16px',marginBottom:12}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
@@ -2301,6 +1778,11 @@ export default function PagePedidos({api}) {
                     case 'uf':       return <span style={{fontSize:11,color:'var(--label-3)'}}>{p.uf||p.transporte?.etiqueta?.uf||'—'}</span>
                     case 'canal':    return <CanalBadge canal={canal} small/>
                     case 'status':   return <Pill label={s.label} cor={s.cor} bg={s.bg} sz={10}/>
+                    case 'produto':  return <div style={{display:'flex',gap:2}}>
+                      {(p.itens||[]).slice(0,3).map((it,i)=><ProductThumb key={i} item={it} size={24}/>)}
+                      {(p.itens||[]).length>3&&<div style={{width:24,height:24,borderRadius:4,background:'var(--fill)',border:'0.5px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:7,color:'var(--label-4)'}}>+{(p.itens||[]).length-3}</div>}
+                      {!(p.itens||[]).length&&<span style={{fontSize:10,color:'var(--label-4)'}}>—</span>}
+                    </div>
                     case 'transp':   return <span style={{fontSize:10.5,color:'var(--label-3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'block'}} title={p.transportadora||''}>{p.transportadora||'—'}</span>
                     case 'rastreio': return cod?<div style={{display:'flex',alignItems:'center',gap:4,minWidth:0}}><Truck size={10} style={{color:'#22c55e',flexShrink:0}}/><span style={{fontSize:9.5,fontFamily:'monospace',color:'var(--label-3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:88}} title={cod}>{cod}</span><button onClick={e=>{e.stopPropagation();navigator.clipboard?.writeText(cod)}} title="Copiar" style={{flexShrink:0,background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0,display:'flex',alignItems:'center'}}><Copy size={9}/></button></div>:<span style={{fontSize:10,color:'var(--label-4)'}}>—</span>
                     case 'total':    return <span style={{fontSize:12.5,fontWeight:700,color:'var(--label)'}}>{fmt(p.total)}</span>
@@ -2401,15 +1883,7 @@ export default function PagePedidos({api}) {
       </div>
     </div>
 
-    <BulkActionBar
-        selecionados={selecionados}
-        pedidos={filtrados}
-        onClear={()=>setSel2([])}
-        api={api}
-      />
-      {sel&&<OrderSheet pedRow={sel} onClose={()=>setSel(null)} api={api} allPedidos={pedidos}/>}
-    <style>{`@keyframes spin         { to{transform:rotate(360deg)} }
-    @keyframes pedido-ping  { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.15);opacity:.7} }
-    @keyframes pedido-slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }`}</style>
+    {sel&&<SmartOrderCard pedRow={sel} onClose={()=>setSel(null)} api={api} allPedidos={pedidos}/>}
+    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
   </div>
 }
