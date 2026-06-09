@@ -118,6 +118,13 @@ function Pill({label,cor,bg,bdr,sz=10}) {
   return <span style={{fontSize:sz,fontWeight:700,padding:'2px 8px',borderRadius:99,
     color:cor,background:bg,border:`1px solid ${bdr||cor+'33'}`,whiteSpace:'nowrap',flexShrink:0}}>{label}</span>
 }
+function SitBadge({sitId}) {
+  const s = SIT[sitId]||{label:'—',cor:'#888',bg:'var(--fill)',bdr:'var(--sep)'}
+  return <span style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:99,
+    color:s.cor,background:s.bg,border:`1px solid ${s.bdr}`,whiteSpace:'nowrap',flexShrink:0}}>
+    {s.label}
+  </span>
+}
 function CanalBadge({canal,small}) {
   const c   = CANAL_CFG[canal]||CANAL_CFG.bling
   const Logo= CANAL_LOGO[canal]||LogoBling
@@ -165,8 +172,7 @@ const TT = {contentStyle:{background:'var(--bg-2)',border:'1px solid var(--sep)'
 
 // ─── KPI CARD ─────────────────────────────────────────────────────────────────
 function KCard({icon:Ic,label,value,sub,cor='#7c6af7',trend,spark,alert}) {
-  return <div style={{background:'rgba(255,255,255,.04)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',
-    border:'0.5px solid rgba(255,255,255,.1)',borderRadius:14,
+  return <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,
     padding:'14px 16px',display:'flex',flexDirection:'column',gap:8,position:'relative',overflow:'hidden'}}>
     <div style={{position:'absolute',top:0,right:0,width:80,height:80,
       background:`radial-gradient(circle at 100% 0%, ${cor}15 0%, transparent 70%)`,pointerEvents:'none'}}/>
@@ -316,7 +322,7 @@ function AnalyticsView({pedidos, api}) {
   const DIAS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
 
   const TT={contentStyle:{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:8,fontSize:11,color:'var(--label)'}}
-  const card={background:'rgba(255,255,255,.04)',backdropFilter:'blur(10px)',WebkitBackdropFilter:'blur(10px)',border:'0.5px solid rgba(255,255,255,.1)',borderRadius:14,padding:'14px 16px'}
+  const card={background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:14,padding:'14px 16px'}
   const maxProd=Math.max(...prodTodos.map(p=>p.valor),1)
   const maxHoje=Math.max(...prodHoje.map(p=>p.valor),1)
   const maxPend=Math.max(...prodPendentes.map(p=>p.qtd),1)
@@ -570,24 +576,26 @@ function AnalyticsView({pedidos, api}) {
                     const Logo=CANAL_LOGO[k]||LogoBling
                     const h=Math.max(4,(d.v/maxV)*90)
                     return(
-                      <div key={k} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
-                        <span style={{fontSize:9,fontWeight:700,color:cfg.cor,whiteSpace:'nowrap',marginBottom:2}}>{d.v>=1000?`R$${(d.v/1000).toFixed(1)}k`:fmt(d.v).replace('R$\xa0','R$')}</span>
-                        <div style={{width:'100%',borderRadius:'4px 4px 0 0',height:h,
+                      <div key={k} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+                        <span style={{fontSize:9,fontWeight:600,color:cfg.cor,whiteSpace:'nowrap'}}>{d.v>=1000?`R$${(d.v/1000).toFixed(0)}k`:fmt(d.v)}</span>
+                        <div style={{width:'100%',borderRadius:'4px 4px 0 0',height:h,position:'relative',
                           background:`linear-gradient(180deg,${cfg.cor},${cfg.cor}88)`,
-                          boxShadow:`0 0 8px ${cfg.cor}40`,transition:'height .5s ease'}}/>
+                          boxShadow:`0 0 8px ${cfg.cor}40`,transition:'height .5s ease'}}>
+                          <div style={{position:'absolute',top:-16,left:'50%',transform:'translateX(-50%)'}}>
+                            <Logo size={12}/>
+                          </div>
+                        </div>
                       </div>
                     )
                   })}
                 </div>
-                <div style={{display:'flex',gap:8,borderTop:'0.5px solid var(--sep)',paddingTop:6}}>
+                <div style={{display:'flex',gap:8,borderTop:'0.5px solid var(--sep)',paddingTop:8}}>
                   {canais.map(([k,d])=>{
                     const cfg=CANAL_CFG[k]||CANAL_CFG.bling
-                    const Logo=CANAL_LOGO[k]||LogoBling
                     return(
-                      <div key={k} style={{flex:1,textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
-                        <Logo size={11}/>
-                        <div style={{fontSize:8,color:cfg.cor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'100%'}}>{cfg.label.split(' ')[0]}</div>
-                        <div style={{fontSize:7,color:'var(--label-4)'}}>{d.n}×</div>
+                      <div key={k} style={{flex:1,textAlign:'center'}}>
+                        <div style={{fontSize:9,color:cfg.cor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{cfg.label.split(' ')[0]}</div>
+                        <div style={{fontSize:8,color:'var(--label-4)'}}>{d.n} ped.</div>
                       </div>
                     )
                   })}
@@ -615,7 +623,7 @@ function AnalyticsView({pedidos, api}) {
               <XAxis dataKey="d" tick={{fontSize:8,fill:'var(--label-4)'}} tickLine={false} axisLine={false} interval={4}/>
               <YAxis tick={{fontSize:8,fill:'var(--label-4)'}} tickLine={false} axisLine={false} tickFormatter={v=>v>=1000?`R$${(v/1000).toFixed(0)}k`:`R$${v}`}/>
               <Tooltip {...TT} formatter={v=>[fmt(v),'Faturamento']}/>
-              <Area type="monotone" dataKey="v" stroke="#7c6af7" strokeWidth={2.5} fill="url(#gFat)" dot={false} activeDot={{r:4,fill:'#7c6af7'}}/>
+              <Area type="monotone" dataKey="v" stroke="#7c6af7" strokeWidth={2} fill="url(#gFat)" dot={false}/>
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -814,11 +822,9 @@ function KanbanCard({p, sit, onSel}) {
     <div onClick={()=>onSel(p)}
       onMouseEnter={e=>{e.currentTarget.style.borderColor=`${sit.cor}60`;e.currentTarget.style.transform='translateY(-2px)'}}
       onMouseLeave={e=>{e.currentTarget.style.borderColor=isAlt?'rgba(239,68,68,.3)':'rgba(255,255,255,.09)';e.currentTarget.style.transform='translateY(0)'}}
-      style={{background:isAlt?'rgba(239,68,68,.06)':'rgba(255,255,255,.05)',
-        backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',
-        border:`0.5px solid ${isAlt?'rgba(239,68,68,.35)':'rgba(255,255,255,.12)'}`,
-        borderRadius:12,padding:'10px 12px',cursor:'pointer',transition:'border-color .15s,transform .12s,box-shadow .15s',
-        boxShadow:isAlt?`0 2px 12px rgba(239,68,68,.08)`:'0 2px 8px rgba(0,0,0,.15)'}}>
+      style={{background:isAlt?'rgba(239,68,68,.05)':'rgba(255,255,255,.04)',
+        border:`0.5px solid ${isAlt?'rgba(239,68,68,.3)':'rgba(255,255,255,.09)'}`,
+        borderRadius:12,padding:'10px 12px',cursor:'pointer',transition:'border-color .15s,transform .12s'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:5}}>
         <div>
           <span style={{fontSize:11,fontWeight:600,color:isAlt?'#ef4444':sit.cor}}>#{p.numero}</span>
@@ -829,24 +835,12 @@ function KanbanCard({p, sit, onSel}) {
       <div style={{fontSize:10,color:'rgba(255,255,255,.65)',marginBottom:itens.length?6:8,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
         {p.contato||'—'}
       </div>
-      {(()=>{
-        if(itens.length>0) return(
-          <div style={{display:'flex',gap:3,marginBottom:7}}>
-            {itens.slice(0,3).map((it,i)=><ProductThumb key={i} item={it} size={26}/>)}
-            {itens.length>3&&<div style={{width:26,height:26,borderRadius:5,background:'rgba(255,255,255,.07)',border:'0.5px solid rgba(255,255,255,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,color:'rgba(255,255,255,.4)'}}>+{itens.length-3}</div>}
-          </div>
-        )
-        // Bulk list não traz itens — mostrar badge de quantidade
-        const qtd=parseInt(p.quantidadeItens||p.quantidade_itens||0)
-        if(qtd>0) return(
-          <div style={{display:'flex',gap:3,marginBottom:7,flexWrap:'wrap'}}>
-            <div style={{padding:'2px 7px',borderRadius:5,background:`${sit.cor}18`,border:`0.5px solid ${sit.cor}40`,fontSize:8,fontWeight:700,color:sit.cor}}>
-              {qtd} {qtd===1?'item':'itens'}
-            </div>
-          </div>
-        )
-        return null
-      })()}
+      {itens.length>0&&(
+        <div style={{display:'flex',gap:3,marginBottom:7}}>
+          {itens.slice(0,3).map((it,i)=><ProductThumb key={i} item={it} size={26}/>)}
+          {itens.length>3&&<div style={{width:26,height:26,borderRadius:5,background:'rgba(255,255,255,.07)',border:'0.5px solid rgba(255,255,255,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,color:'rgba(255,255,255,.4)'}}>+{itens.length-3}</div>}
+        </div>
+      )}
       {pct>0&&(
         <div style={{height:3,background:'rgba(255,255,255,.08)',borderRadius:99,overflow:'hidden',marginBottom:7}}>
           <div style={{height:'100%',borderRadius:99,width:`${pct}%`,
@@ -874,7 +868,7 @@ function KanbanView({filtrados, onSel}) {
     {SIT_KANBAN_IDS.map(sid=>{
       const col=cols[sid]
       return <div key={sid} style={{display:'flex',flexDirection:'column',gap:6}}>
-        <div style={{padding:'8px 12px',borderRadius:10,background:`${col.sit.cor}14`,backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',border:`1px solid ${col.sit.cor}45`,display:'flex',justifyContent:'space-between',alignItems:'center',boxShadow:`0 2px 8px ${col.sit.cor}15`}}>
+        <div style={{padding:'8px 12px',borderRadius:10,background:`${col.sit.cor}12`,border:`0.5px solid ${col.sit.cor}35`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <div>
             <div style={{fontSize:11,fontWeight:600,color:col.sit.cor}}>{col.sit.label}</div>
             <div style={{fontSize:9,color:`${col.sit.cor}90`}}>{fmt(col.total)}</div>
@@ -914,7 +908,7 @@ function BrasilMapHeat({ data = {}, onClick, activeUf, size = 300 }) {
     <div style={{ position: 'relative' }}>
       <svg width={size} height={size * 1.08} viewBox="0 0 310 330">
         {/* Sombra/fundo */}
-        <path d={BRASIL_OUTLINE} fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.18)" strokeWidth="1"/>
+        <path d={BRASIL_OUTLINE} fill="var(--fill)" stroke="var(--sep)" strokeWidth="1"/>
         {/* Dots por estado */}
         {ESTADOS.map(e => {
           const d = data[e.uf] || { valor: 0, n: 0 }
@@ -1119,8 +1113,8 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
   }
 
   const S={
-    sec:{background:'rgba(255,255,255,.04)',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',border:'0.5px solid rgba(255,255,255,.1)',borderRadius:12,padding:'12px 14px'},
-    sub:{background:'rgba(255,255,255,.05)',borderRadius:8,padding:'8px 10px'},
+    sec:{background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:12,padding:'12px 14px'},
+    sub:{background:'var(--fill)',borderRadius:8,padding:'8px 10px'},
     lbl:{fontSize:9,color:'var(--label-4)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.07em',marginBottom:3},
     val:{fontSize:11,color:'var(--label)'},
     row:{display:'flex',alignItems:'center',gap:8},
@@ -1130,9 +1124,8 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
   return (
     <div style={{
       width:expanded?'100%':'920px', flexShrink:0,
-      borderLeft:'0.5px solid rgba(255,255,255,.1)',
-      background:'rgba(12,12,16,.85)',
-      backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',
+      borderLeft:'0.5px solid var(--sep)',
+      background:'var(--bg-2)',
       display:'flex',flexDirection:'column',
       overflowY:'auto',
       transition:'width .25s ease',
@@ -2063,14 +2056,11 @@ export default function PagePedidos({api}) {
                     case 'uf':       return <span style={{fontSize:11,color:'var(--label-3)'}}>{p.uf||p.transporte?.etiqueta?.uf||'—'}</span>
                     case 'canal':    return <CanalBadge canal={canal} small/>
                     case 'status':   return <Pill label={s.label} cor={s.cor} bg={s.bg} sz={10}/>
-                    case 'produto':  return <div style={{display:'flex',gap:2,alignItems:'center'}}>{
-                      (p.itens||[]).length>0 ? <>
-                        {(p.itens||[]).slice(0,3).map((it,i)=><ProductThumb key={i} item={it} size={24}/>)}
-                        {(p.itens||[]).length>3&&<div style={{width:24,height:24,borderRadius:4,background:'var(--fill)',border:'0.5px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:7,color:'var(--label-4)'}}>+{(p.itens||[]).length-3}</div>}
-                      </> : parseInt(p.quantidadeItens||0)>0 ?
-                        <span style={{fontSize:10,color:'var(--label-3)',padding:'1px 6px',borderRadius:4,background:'var(--fill)',border:'0.5px solid var(--sep)'}}>{p.quantidadeItens}×</span>
-                      : <span style={{fontSize:10,color:'var(--label-4)'}}>—</span>
-                    }</div>
+                    case 'produto':  return <div style={{display:'flex',gap:2}}>
+                      {(p.itens||[]).slice(0,3).map((it,i)=><ProductThumb key={i} item={it} size={24}/>)}
+                      {(p.itens||[]).length>3&&<div style={{width:24,height:24,borderRadius:4,background:'var(--fill)',border:'0.5px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:7,color:'var(--label-4)'}}>+{(p.itens||[]).length-3}</div>}
+                      {!(p.itens||[]).length&&<span style={{fontSize:10,color:'var(--label-4)'}}>—</span>}
+                    </div>
                     case 'transp':   return <span style={{fontSize:10.5,color:'var(--label-3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'block'}} title={p.transportadora||''}>{p.transportadora||'—'}</span>
                     case 'rastreio': return cod?<div style={{display:'flex',alignItems:'center',gap:4,minWidth:0}}><Truck size={10} style={{color:'#22c55e',flexShrink:0}}/><span style={{fontSize:9.5,fontFamily:'monospace',color:'var(--label-3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:88}} title={cod}>{cod}</span><button onClick={e=>{e.stopPropagation();navigator.clipboard?.writeText(cod)}} title="Copiar" style={{flexShrink:0,background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0,display:'flex',alignItems:'center'}}><Copy size={9}/></button></div>:<span style={{fontSize:10,color:'var(--label-4)'}}>—</span>
                     case 'total':    return <span style={{fontSize:12.5,fontWeight:700,color:'var(--label)'}}>{fmt(p.total)}</span>
