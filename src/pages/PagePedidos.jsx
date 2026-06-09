@@ -118,13 +118,6 @@ function Pill({label,cor,bg,bdr,sz=10}) {
   return <span style={{fontSize:sz,fontWeight:700,padding:'2px 8px',borderRadius:99,
     color:cor,background:bg,border:`1px solid ${bdr||cor+'33'}`,whiteSpace:'nowrap',flexShrink:0}}>{label}</span>
 }
-function SitBadge({sitId}) {
-  const s = SIT[sitId]||{label:'—',cor:'#888',bg:'var(--fill)',bdr:'var(--sep)'}
-  return <span style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:99,
-    color:s.cor,background:s.bg,border:`1px solid ${s.bdr}`,whiteSpace:'nowrap',flexShrink:0}}>
-    {s.label}
-  </span>
-}
 function CanalBadge({canal,small}) {
   const c   = CANAL_CFG[canal]||CANAL_CFG.bling
   const Logo= CANAL_LOGO[canal]||LogoBling
@@ -172,7 +165,8 @@ const TT = {contentStyle:{background:'var(--bg-2)',border:'1px solid var(--sep)'
 
 // ─── KPI CARD ─────────────────────────────────────────────────────────────────
 function KCard({icon:Ic,label,value,sub,cor='#7c6af7',trend,spark,alert}) {
-  return <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,
+  return <div style={{background:'rgba(255,255,255,.04)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',
+    border:'0.5px solid rgba(255,255,255,.1)',borderRadius:14,
     padding:'14px 16px',display:'flex',flexDirection:'column',gap:8,position:'relative',overflow:'hidden'}}>
     <div style={{position:'absolute',top:0,right:0,width:80,height:80,
       background:`radial-gradient(circle at 100% 0%, ${cor}15 0%, transparent 70%)`,pointerEvents:'none'}}/>
@@ -322,7 +316,7 @@ function AnalyticsView({pedidos, api}) {
   const DIAS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
 
   const TT={contentStyle:{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:8,fontSize:11,color:'var(--label)'}}
-  const card={background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:14,padding:'14px 16px'}
+  const card={background:'rgba(255,255,255,.04)',backdropFilter:'blur(10px)',WebkitBackdropFilter:'blur(10px)',border:'0.5px solid rgba(255,255,255,.1)',borderRadius:14,padding:'14px 16px'}
   const maxProd=Math.max(...prodTodos.map(p=>p.valor),1)
   const maxHoje=Math.max(...prodHoje.map(p=>p.valor),1)
   const maxPend=Math.max(...prodPendentes.map(p=>p.qtd),1)
@@ -576,26 +570,24 @@ function AnalyticsView({pedidos, api}) {
                     const Logo=CANAL_LOGO[k]||LogoBling
                     const h=Math.max(4,(d.v/maxV)*90)
                     return(
-                      <div key={k} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
-                        <span style={{fontSize:9,fontWeight:600,color:cfg.cor,whiteSpace:'nowrap'}}>{d.v>=1000?`R$${(d.v/1000).toFixed(0)}k`:fmt(d.v)}</span>
-                        <div style={{width:'100%',borderRadius:'4px 4px 0 0',height:h,position:'relative',
+                      <div key={k} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
+                        <span style={{fontSize:9,fontWeight:700,color:cfg.cor,whiteSpace:'nowrap',marginBottom:2}}>{d.v>=1000?`R$${(d.v/1000).toFixed(1)}k`:fmt(d.v).replace('R$\xa0','R$')}</span>
+                        <div style={{width:'100%',borderRadius:'4px 4px 0 0',height:h,
                           background:`linear-gradient(180deg,${cfg.cor},${cfg.cor}88)`,
-                          boxShadow:`0 0 8px ${cfg.cor}40`,transition:'height .5s ease'}}>
-                          <div style={{position:'absolute',top:-16,left:'50%',transform:'translateX(-50%)'}}>
-                            <Logo size={12}/>
-                          </div>
-                        </div>
+                          boxShadow:`0 0 8px ${cfg.cor}40`,transition:'height .5s ease'}}/>
                       </div>
                     )
                   })}
                 </div>
-                <div style={{display:'flex',gap:8,borderTop:'0.5px solid var(--sep)',paddingTop:8}}>
+                <div style={{display:'flex',gap:8,borderTop:'0.5px solid var(--sep)',paddingTop:6}}>
                   {canais.map(([k,d])=>{
                     const cfg=CANAL_CFG[k]||CANAL_CFG.bling
+                    const Logo=CANAL_LOGO[k]||LogoBling
                     return(
-                      <div key={k} style={{flex:1,textAlign:'center'}}>
-                        <div style={{fontSize:9,color:cfg.cor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{cfg.label.split(' ')[0]}</div>
-                        <div style={{fontSize:8,color:'var(--label-4)'}}>{d.n} ped.</div>
+                      <div key={k} style={{flex:1,textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
+                        <Logo size={11}/>
+                        <div style={{fontSize:8,color:cfg.cor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'100%'}}>{cfg.label.split(' ')[0]}</div>
+                        <div style={{fontSize:7,color:'var(--label-4)'}}>{d.n}×</div>
                       </div>
                     )
                   })}
@@ -623,7 +615,7 @@ function AnalyticsView({pedidos, api}) {
               <XAxis dataKey="d" tick={{fontSize:8,fill:'var(--label-4)'}} tickLine={false} axisLine={false} interval={4}/>
               <YAxis tick={{fontSize:8,fill:'var(--label-4)'}} tickLine={false} axisLine={false} tickFormatter={v=>v>=1000?`R$${(v/1000).toFixed(0)}k`:`R$${v}`}/>
               <Tooltip {...TT} formatter={v=>[fmt(v),'Faturamento']}/>
-              <Area type="monotone" dataKey="v" stroke="#7c6af7" strokeWidth={2} fill="url(#gFat)" dot={false}/>
+              <Area type="monotone" dataKey="v" stroke="#7c6af7" strokeWidth={2.5} fill="url(#gFat)" dot={false} activeDot={{r:4,fill:'#7c6af7'}}/>
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -822,9 +814,11 @@ function KanbanCard({p, sit, onSel}) {
     <div onClick={()=>onSel(p)}
       onMouseEnter={e=>{e.currentTarget.style.borderColor=`${sit.cor}60`;e.currentTarget.style.transform='translateY(-2px)'}}
       onMouseLeave={e=>{e.currentTarget.style.borderColor=isAlt?'rgba(239,68,68,.3)':'rgba(255,255,255,.09)';e.currentTarget.style.transform='translateY(0)'}}
-      style={{background:isAlt?'rgba(239,68,68,.05)':'rgba(255,255,255,.04)',
-        border:`0.5px solid ${isAlt?'rgba(239,68,68,.3)':'rgba(255,255,255,.09)'}`,
-        borderRadius:12,padding:'10px 12px',cursor:'pointer',transition:'border-color .15s,transform .12s'}}>
+      style={{background:isAlt?'rgba(239,68,68,.06)':'rgba(255,255,255,.05)',
+        backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',
+        border:`0.5px solid ${isAlt?'rgba(239,68,68,.35)':'rgba(255,255,255,.12)'}`,
+        borderRadius:12,padding:'10px 12px',cursor:'pointer',transition:'border-color .15s,transform .12s,box-shadow .15s',
+        boxShadow:isAlt?`0 2px 12px rgba(239,68,68,.08)`:'0 2px 8px rgba(0,0,0,.15)'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:5}}>
         <div>
           <span style={{fontSize:11,fontWeight:600,color:isAlt?'#ef4444':sit.cor}}>#{p.numero}</span>
@@ -835,12 +829,24 @@ function KanbanCard({p, sit, onSel}) {
       <div style={{fontSize:10,color:'rgba(255,255,255,.65)',marginBottom:itens.length?6:8,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
         {p.contato||'—'}
       </div>
-      {itens.length>0&&(
-        <div style={{display:'flex',gap:3,marginBottom:7}}>
-          {itens.slice(0,3).map((it,i)=><ProductThumb key={i} item={it} size={26}/>)}
-          {itens.length>3&&<div style={{width:26,height:26,borderRadius:5,background:'rgba(255,255,255,.07)',border:'0.5px solid rgba(255,255,255,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,color:'rgba(255,255,255,.4)'}}>+{itens.length-3}</div>}
-        </div>
-      )}
+      {(()=>{
+        if(itens.length>0) return(
+          <div style={{display:'flex',gap:3,marginBottom:7}}>
+            {itens.slice(0,3).map((it,i)=><ProductThumb key={i} item={it} size={26}/>)}
+            {itens.length>3&&<div style={{width:26,height:26,borderRadius:5,background:'rgba(255,255,255,.07)',border:'0.5px solid rgba(255,255,255,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,color:'rgba(255,255,255,.4)'}}>+{itens.length-3}</div>}
+          </div>
+        )
+        // Bulk list não traz itens — mostrar badge de quantidade
+        const qtd=parseInt(p.quantidadeItens||p.quantidade_itens||0)
+        if(qtd>0) return(
+          <div style={{display:'flex',gap:3,marginBottom:7,flexWrap:'wrap'}}>
+            <div style={{padding:'2px 7px',borderRadius:5,background:`${sit.cor}18`,border:`0.5px solid ${sit.cor}40`,fontSize:8,fontWeight:700,color:sit.cor}}>
+              {qtd} {qtd===1?'item':'itens'}
+            </div>
+          </div>
+        )
+        return null
+      })()}
       {pct>0&&(
         <div style={{height:3,background:'rgba(255,255,255,.08)',borderRadius:99,overflow:'hidden',marginBottom:7}}>
           <div style={{height:'100%',borderRadius:99,width:`${pct}%`,
@@ -868,7 +874,7 @@ function KanbanView({filtrados, onSel}) {
     {SIT_KANBAN_IDS.map(sid=>{
       const col=cols[sid]
       return <div key={sid} style={{display:'flex',flexDirection:'column',gap:6}}>
-        <div style={{padding:'8px 12px',borderRadius:10,background:`${col.sit.cor}12`,border:`0.5px solid ${col.sit.cor}35`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div style={{padding:'8px 12px',borderRadius:10,background:`${col.sit.cor}14`,backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',border:`1px solid ${col.sit.cor}45`,display:'flex',justifyContent:'space-between',alignItems:'center',boxShadow:`0 2px 8px ${col.sit.cor}15`}}>
           <div>
             <div style={{fontSize:11,fontWeight:600,color:col.sit.cor}}>{col.sit.label}</div>
             <div style={{fontSize:9,color:`${col.sit.cor}90`}}>{fmt(col.total)}</div>
@@ -908,7 +914,7 @@ function BrasilMapHeat({ data = {}, onClick, activeUf, size = 300 }) {
     <div style={{ position: 'relative' }}>
       <svg width={size} height={size * 1.08} viewBox="0 0 310 330">
         {/* Sombra/fundo */}
-        <path d={BRASIL_OUTLINE} fill="var(--fill)" stroke="var(--sep)" strokeWidth="1"/>
+        <path d={BRASIL_OUTLINE} fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.18)" strokeWidth="1"/>
         {/* Dots por estado */}
         {ESTADOS.map(e => {
           const d = data[e.uf] || { valor: 0, n: 0 }
@@ -1084,26 +1090,6 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
   const destUF   = contato?.uf||rastreio?.destinoUF||''
   const curUF    = rastreio?.estadoAtual||destUF
 
-  // Cidades para display de rota
-  const cidadeOrig = rastreio?.cidadeOrigem||(evts.length>0?(evts[evts.length-1]?.local||evts[evts.length-1]?.origem||'').split('/')[0]?.trim():'')||''
-  const cidadeDest = rastreio?.cidadeDestino||contato?.municipio||(ped.enderecoEntrega||'').split(',').slice(-2,-1)[0]?.trim()||''
-  const prevFmt = ped.dataPrevista&&ped.dataPrevista!=='0000-00-00'?(()=>{const d=new Date(ped.dataPrevista+'T12:00:00');return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`})():''
-  const probPrazo = rastreio?.probabilidadePrazo||(pct>85?94:pct>65?82:pct>40?68:null)
-  // Métricas IA calculadas
-  const satisfacaoPrev = Math.min(98,Math.max(55, 70+(hist.length>5?15:hist.length>2?8:0)+(pct>80?8:pct>50?4:0)+(riskScore===0?5:-Math.round(riskScore/10))))
-  const probRecompra   = Math.min(97,Math.max(20, 38+(hist.length>8?42:hist.length>5?32:hist.length>2?22:hist.length>0?12:0)+(ltvTotal>1000?8:ltvTotal>300?4:0)))
-  const riscoAtraso    = Math.min(95, riskScore>60?80:riskScore>30?45:riskScore>0?20:5)
-  const sugestaoIA     = [30,33].includes(sitId)?`Enviar avaliação — alta prob. de ${probRecompra>70?'5':'4'} estrelas`
-    : sitId===27&&diasPedido>8?'Verificar prazo — pedido em trânsito há muito tempo'
-    : hist.length>=3?`Cliente fiel ${hist.length+1}× — candidato a desconto de retenção`
-    : !codRas&&[9,15].includes(sitId)?'Gerar etiqueta — pedido pago sem código de rastreio'
-    : 'Aguardar próxima movimentação do pedido'
-  // Frequência de compra
-  const freqDias = hist.length>=2?Math.round(Math.abs(new Date(hist[0]?.data||0)-new Date(hist[hist.length-1]?.data||0))/(86400000*Math.max(1,hist.length-1))):null
-  const ultimoPedData = hist.length>0?fmtD(hist[0]?.data):null
-  // Etiqueta gerada (vem dos disparos)
-  const etiquetaDisp = disps.find(d=>d.gatilho==='pedido_enviado'||d.gatilho==='pedido_coletado'||d.gatilho==='pedido_aguardando_pagamento')
-
   // steps rastreio visuais
   const STEPS = [
     {key:'postado',   label:'Postado',    icon:Package,  sids:[9,15,24,27,30,33]},
@@ -1133,8 +1119,8 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
   }
 
   const S={
-    sec:{background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:12,padding:'12px 14px'},
-    sub:{background:'var(--fill)',borderRadius:8,padding:'8px 10px'},
+    sec:{background:'rgba(255,255,255,.04)',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',border:'0.5px solid rgba(255,255,255,.1)',borderRadius:12,padding:'12px 14px'},
+    sub:{background:'rgba(255,255,255,.05)',borderRadius:8,padding:'8px 10px'},
     lbl:{fontSize:9,color:'var(--label-4)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.07em',marginBottom:3},
     val:{fontSize:11,color:'var(--label)'},
     row:{display:'flex',alignItems:'center',gap:8},
@@ -1144,8 +1130,9 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
   return (
     <div style={{
       width:expanded?'100%':'920px', flexShrink:0,
-      borderLeft:'0.5px solid var(--sep)',
-      background:'var(--bg-2)',
+      borderLeft:'0.5px solid rgba(255,255,255,.1)',
+      background:'rgba(12,12,16,.85)',
+      backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',
       display:'flex',flexDirection:'column',
       overflowY:'auto',
       transition:'width .25s ease',
@@ -1238,39 +1225,15 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
             </div>
           </div>
 
-          {/* ROTA DO PEDIDO — indicador cidade origem → cidade destino */}
+          {/* MAPA DE ROTA (se tiver código de rastreio) */}
           {codRas&&(
-            <div style={{...S.sec,padding:'12px 16px',background:`linear-gradient(135deg,rgba(6,182,212,.05),transparent)`}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
-                <div style={{display:'flex',alignItems:'center',gap:6}}>
-                  <Navigation size={12} style={{color:'#06b6d4'}}/>
-                  <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Rota do pacote</span>
-                  {rastreio?.transportadora&&<span style={{fontSize:9,color:'var(--label-3)',background:'var(--fill)',padding:'1px 7px',borderRadius:99}}>{rastreio.transportadora}</span>}
-                </div>
-                <span style={{fontSize:10,fontWeight:700,color:'#06b6d4'}}>{pct}% do caminho</span>
+            <div style={{...S.sec,padding:'10px 14px',background:'var(--bg)',border:'0.5px solid var(--sep)'}}>
+              <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+                <Navigation size={12} style={{color:'#06b6d4'}}/>
+                <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Rota do pacote</span>
+                {destUF&&<span style={{fontSize:9,color:'var(--label-4)',marginLeft:'auto'}}>{originUF} → {destUF}</span>}
               </div>
-              {/* Cidade origem → progresso → cidade destino */}
-              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                <span style={{fontSize:10,color:'var(--label)',fontWeight:500,flexShrink:0,minWidth:60,textAlign:'right'}}>{cidadeOrig||originUF}</span>
-                <div style={{flex:1,position:'relative'}}>
-                  <div style={{height:4,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
-                    <div style={{height:'100%',borderRadius:99,width:`${pct}%`,
-                      background:'linear-gradient(90deg,#7c6af7,#4a9fff,#06b6d4)',
-                      boxShadow:'0 0 6px rgba(6,182,212,.5)',transition:'width .6s ease'}}/>
-                  </div>
-                  <div style={{position:'absolute',top:'50%',left:`${pct}%`,transform:'translate(-50%,-50%)',
-                    width:10,height:10,borderRadius:'50%',background:'#06b6d4',
-                    border:'2px solid var(--bg-2)',boxShadow:'0 0 6px #06b6d4'}}/>
-                </div>
-                <span style={{fontSize:10,color:'var(--label)',fontWeight:500,flexShrink:0,minWidth:60}}>{cidadeDest||destUF}</span>
-              </div>
-              {/* Previsão + probabilidade */}
-              {(prevFmt||probPrazo)&&(
-                <div style={{display:'flex',alignItems:'center',gap:8,fontSize:10}}>
-                  {prevFmt&&<span style={{color:'var(--label-3)'}}><span style={{color:'var(--label-4)'}}>Prev. </span><span style={{fontWeight:600,color:'var(--label)'}}>{prevFmt}</span></span>}
-                  {probPrazo&&<span style={{color:'#22c55e',fontWeight:600}}>· {probPrazo}% chance no prazo</span>}
-                </div>
-              )}
+              <PackageMiniMap origem={originUF} destino={destUF||undefined} atual={curUF} pct={pct}/>
             </div>
           )}
 
@@ -1342,42 +1305,11 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
                     </div>
                   </div>
                 </div>
-                {/* Sparkline histórico de compras */}
-                {hist.length>0&&(
-                  <div style={{display:'flex',alignItems:'flex-end',gap:2,height:28,marginBottom:8,marginTop:2}}>
-                    {(()=>{
-                      const todos=[...hist].reverse().slice(-9)
-                      const maxV=Math.max(...todos.map(h=>parseFloat(h.total||0)),pedTotal,1)
-                      return[
-                        ...todos.map((h,i)=>(
-                          <div key={i} style={{flex:1,borderRadius:2,
-                            height:`${Math.max(4,(parseFloat(h.total||0)/maxV)*28)}px`,
-                            background:'rgba(124,106,247,.35)'}}/>
-                        )),
-                        <div key="cur" style={{flex:1,borderRadius:2,
-                          height:`${Math.max(4,(pedTotal/maxV)*28)}px`,
-                          background:'#7c6af7',
-                          boxShadow:'0 0 5px rgba(124,106,247,.6)'}}/>
-                      ]
-                    })()}
-                    <span style={{fontSize:8,color:'var(--label-4)',marginLeft:4,flexShrink:0,alignSelf:'flex-end'}}>hoje</span>
-                  </div>
-                )}
-                {/* Métricas do cliente */}
-                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:4,marginBottom:8}}>
-                  <div style={S.sub}><div style={S.lbl}>Pedidos</div><div style={{fontSize:13,fontWeight:700,color:'var(--label)'}}>{hist.length+1}</div></div>
-                  <div style={S.sub}><div style={S.lbl}>LTV</div><div style={{fontSize:11,fontWeight:700,color:'#22c55e'}}>{fmt(ltvTotal)}</div></div>
-                  <div style={S.sub}><div style={S.lbl}>Ticket</div><div style={{fontSize:11,fontWeight:700,color:'#7c6af7'}}>{fmt(ticketMed)}</div></div>
-                </div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}}>
-                  {freqDias&&<div style={S.sub}><div style={S.lbl}>Frequência</div><div style={{fontSize:10,color:'var(--label)'}}>~{freqDias}d</div></div>}
-                  {ultimoPedData&&<div style={S.sub}><div style={S.lbl}>Último pedido</div><div style={{fontSize:10,color:'var(--label)'}}>{ultimoPedData}</div></div>}
-                </div>
-                  </div>
-                </div>
-                {/* Telefone + endereço */}
-                <div style={{display:'flex',flexDirection:'column',gap:4,marginTop:4}}>
-                  {(contato?.telefone||pedRow.telefone)&&<div style={S.sub}>
+                {/* Análise financeira do cliente */}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
+                  <div style={S.sub}><div style={S.lbl}>LTV Total</div><div style={{fontSize:12,fontWeight:600,color:'#22c55e'}}>{fmt(ltvTotal)}</div></div>
+                  <div style={S.sub}><div style={S.lbl}>Ticket Médio</div><div style={{fontSize:12,fontWeight:600,color:'#7c6af7'}}>{fmt(ticketMed)}</div></div>
+                  {(contato?.telefone||pedRow.telefone)&&<div style={{...S.sub,gridColumn:'span 2'}}>
                     <div style={S.lbl}>Telefone</div>
                     <div style={{...S.row,justifyContent:'space-between'}}>
                       <span style={S.val}>{contato?.telefone||pedRow.telefone}</span>
@@ -1386,8 +1318,8 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
                       </button>
                     </div>
                   </div>}
-                  {(ped.enderecoEntrega||contato?.endereco)&&<div style={S.sub}>
-                    <div style={S.lbl}>Endereço de entrega</div>
+                  {(ped.enderecoEntrega||contato?.endereco)&&<div style={{...S.sub,gridColumn:'span 2'}}>
+                    <div style={S.lbl}>Endereço</div>
                     <div style={{fontSize:10,color:'var(--label)',lineHeight:1.4}}>{ped.enderecoEntrega||contato?.endereco}</div>
                   </div>}
                 </div>
@@ -1435,44 +1367,35 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
                         {copied==='cod'?<Check size={10} style={{color:'#22c55e'}}/>:<Copy size={10}/>}
                       </button>
                     </div>
-                    {linkRas&&<a href={linkRas} target="_blank" rel="noopener noreferrer" style={{display:'flex',alignItems:'center',gap:5,fontSize:10,color:'#7c6af7',marginBottom:10,textDecoration:'none'}}>
+                    {linkRas&&<a href={linkRas} target="_blank" rel="noopener noreferrer" style={{display:'flex',alignItems:'center',gap:5,fontSize:10,color:'#7c6af7',marginBottom:8,textDecoration:'none'}}>
                       <ExternalLink size={10}/>Acompanhar rastreio externo
                     </a>}
-                    {/* Timeline de eventos — real data + etiqueta gerada */}
-                    {(()=>{
-                      const todosEvts=[
-                        ...evts.map(ev=>({descricao:ev.descricao||ev.evento,data:ev.data,local:ev.local||ev.origem||'',tipo:'rastreio'})),
-                        ...(etiquetaDisp?[{descricao:'Etiqueta gerada',data:etiquetaDisp.created_at||etiquetaDisp.criado_em,local:'Só Strass',tipo:'etiqueta'}]:[]),
-                      ]
-                      if(todosEvts.length>0) return(
-                        <div style={{display:'flex',flexDirection:'column',gap:0,maxHeight:260,overflowY:'auto'}}>
-                          {todosEvts.map((ev,i)=>(
-                            <div key={i} style={{display:'flex',gap:8,padding:'6px 0',borderBottom:i<todosEvts.length-1?'0.5px solid var(--sep)':'none'}}>
-                              <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0,marginTop:2}}>
-                                <div style={{width:8,height:8,borderRadius:'50%',
-                                  background:i===0?'#06b6d4':ev.tipo==='etiqueta'?'#7c6af7':'var(--sep)',
-                                  boxShadow:i===0?'0 0 5px #06b6d490':ev.tipo==='etiqueta'?'0 0 4px #7c6af780':'none'}}/>
-                                {i<todosEvts.length-1&&<div style={{width:1,height:16,background:'var(--sep)',margin:'2px 0'}}/>}
-                              </div>
-                              <div style={{flex:1,minWidth:0}}>
-                                <div style={{fontSize:10,fontWeight:i===0?600:400,color:i===0?'#06b6d4':ev.tipo==='etiqueta'?'#a78bfa':'var(--label-3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                                  {ev.descricao}
-                                </div>
-                                <div style={{fontSize:9,color:'var(--label-4)'}}>{fmtDH(ev.data)}{ev.local?' · '+ev.local:''}</div>
-                              </div>
+                    {evts.length>0?(
+                      <div style={{display:'flex',flexDirection:'column',gap:0,maxHeight:240,overflowY:'auto'}}>
+                        {evts.map((ev,i)=>(
+                          <div key={i} style={{display:'flex',gap:8,padding:'6px 0',borderBottom:i<evts.length-1?'0.5px solid var(--sep)':'none'}}>
+                            <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0,marginTop:2}}>
+                              <div style={{width:8,height:8,borderRadius:'50%',
+                                background:i===0?'#06b6d4':'var(--sep)',
+                                boxShadow:i===0?'0 0 5px #06b6d490':'none'}}/>
+                              {i<evts.length-1&&<div style={{width:1,height:16,background:'var(--sep)',margin:'2px 0'}}/>}
                             </div>
-                          ))}
-                        </div>
-                      )
-                      if(rastreio?.ultimoEvento) return(
-                        <div style={S.sub}>
-                          <div style={{fontSize:9,color:'#06b6d4',fontWeight:600,marginBottom:2}}>Último evento</div>
-                          <div style={{fontSize:10,color:'var(--label)'}}>{rastreio.ultimoEvento}</div>
-                          {rastreio.dataUltimoEvento&&<div style={{fontSize:9,color:'var(--label-4)',marginTop:1}}>{fmtDH(rastreio.dataUltimoEvento)}</div>}
-                        </div>
-                      )
-                      return <div style={{textAlign:'center',padding:'12px 0',fontSize:10,color:'var(--label-4)'}}>Aguardando movimentação...</div>
-                    })()}
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontSize:10,fontWeight:i===0?600:400,color:i===0?'#06b6d4':'var(--label-3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                                {ev.descricao||ev.evento}
+                              </div>
+                              <div style={{fontSize:9,color:'var(--label-4)'}}>{fmtDH(ev.data)} · {ev.local||ev.origem||''}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ):(rastreio?.ultimoEvento&&(
+                      <div style={S.sub}>
+                        <div style={{fontSize:9,color:'#06b6d4',fontWeight:600,marginBottom:2}}>Último evento</div>
+                        <div style={{fontSize:10,color:'var(--label)'}}>{rastreio.ultimoEvento}</div>
+                        {rastreio.dataUltimoEvento&&<div style={{fontSize:9,color:'var(--label-4)',marginTop:1}}>{fmtDH(rastreio.dataUltimoEvento)}</div>}
+                      </div>
+                    ))}
                   </div>
                 ):(
                   <div style={{padding:'16px 0',textAlign:'center',fontSize:10,color:'var(--label-4)'}}>Sem código de rastreio</div>
@@ -1603,37 +1526,25 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
                 </div>
               )}
 
-              {/* Análise IA — métricas + sugestão */}
+              {/* Recomendações IA */}
               <div style={{...S.sec,borderColor:'rgba(124,106,247,.3)',background:'rgba(124,106,247,.03)'}}>
-                <div style={{...S.row,marginBottom:12}}>
+                <div style={{...S.row,marginBottom:8}}>
                   <Brain size={12} style={{color:'#7c6af7'}}/>
                   <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Análise IA</span>
                 </div>
-                {/* 3 métricas com barras */}
-                <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:10}}>
+                <div style={{display:'flex',flexDirection:'column',gap:5}}>
                   {[
-                    {label:'SATISFAÇÃO PREVISTA',val:satisfacaoPrev,cor:'#22c55e'},
-                    {label:'PROB. RECOMPRA',      val:probRecompra,  cor:'#7c6af7'},
-                    {label:'RISCO DE ATRASO',     val:riscoAtraso,   cor:riscoAtraso>50?'#ef4444':riscoAtraso>25?'#f59e0b':'#22c55e'},
-                  ].map(m=>(
-                    <div key={m.label}>
-                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
-                        <span style={{fontSize:8,fontWeight:700,color:'var(--label-4)',letterSpacing:'.06em'}}>{m.label}</span>
-                        <span style={{fontSize:11,fontWeight:700,color:m.cor}}>{m.val}%</span>
-                      </div>
-                      <div style={{height:4,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
-                        <div style={{height:'100%',borderRadius:99,width:`${m.val}%`,background:m.cor,
-                          boxShadow:`0 0 5px ${m.cor}60`,transition:'width .5s ease'}}/>
-                      </div>
+                    riskScore>=40&&{cor:'#ef4444',msg:`Pedido há ${Math.floor(diasPedido)}d sem movimentação — verificar transportadora`},
+                    hist.length>=3&&{cor:'#22c55e',msg:`Cliente fiel (${hist.length+1}× compras) — candidato a programa VIP`},
+                    Number(vsMedia)>50&&{cor:'#f59e0b',msg:`Pedido ${vsMedia}% acima do ticket médio — validar se intencional`},
+                    !codRas&&[9,15].includes(sitId)&&{cor:'#f97316',msg:`Pedido pago sem rastreio — adicionar código Correios`},
+                    sitId===27&&diasPedido>10&&{cor:'#f59e0b',msg:`Em trânsito há ${Math.floor(diasPedido)}d — verificar entrega`},
+                  ].filter(Boolean).slice(0,3).map((r,i)=>(
+                    <div key={i} style={{fontSize:10,color:r.cor,background:`${r.cor}0c`,border:`0.5px solid ${r.cor}30`,borderRadius:7,padding:'6px 9px',lineHeight:1.4}}>
+                      {r.msg}
                     </div>
                   ))}
-                </div>
-                {/* Sugestão IA */}
-                <div style={{borderTop:'0.5px solid var(--sep)',paddingTop:8}}>
-                  <div style={{fontSize:8,fontWeight:700,color:'var(--label-4)',letterSpacing:'.06em',marginBottom:4}}>SUGESTÃO IA</div>
-                  <div style={{fontSize:10,color:'var(--label)',lineHeight:1.4,padding:'6px 8px',background:'rgba(124,106,247,.06)',borderRadius:7,border:'0.5px solid rgba(124,106,247,.2)'}}>
-                    {sugestaoIA}
-                  </div>
+                  {riskScore===0&&hist.length<3&&!codRas&&<div style={{fontSize:10,color:'var(--label-4)',textAlign:'center',padding:'8px 0'}}>Nenhuma recomendação no momento</div>}
                 </div>
               </div>
 
@@ -2152,11 +2063,14 @@ export default function PagePedidos({api}) {
                     case 'uf':       return <span style={{fontSize:11,color:'var(--label-3)'}}>{p.uf||p.transporte?.etiqueta?.uf||'—'}</span>
                     case 'canal':    return <CanalBadge canal={canal} small/>
                     case 'status':   return <Pill label={s.label} cor={s.cor} bg={s.bg} sz={10}/>
-                    case 'produto':  return <div style={{display:'flex',gap:2}}>
-                      {(p.itens||[]).slice(0,3).map((it,i)=><ProductThumb key={i} item={it} size={24}/>)}
-                      {(p.itens||[]).length>3&&<div style={{width:24,height:24,borderRadius:4,background:'var(--fill)',border:'0.5px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:7,color:'var(--label-4)'}}>+{(p.itens||[]).length-3}</div>}
-                      {!(p.itens||[]).length&&<span style={{fontSize:10,color:'var(--label-4)'}}>—</span>}
-                    </div>
+                    case 'produto':  return <div style={{display:'flex',gap:2,alignItems:'center'}}>{
+                      (p.itens||[]).length>0 ? <>
+                        {(p.itens||[]).slice(0,3).map((it,i)=><ProductThumb key={i} item={it} size={24}/>)}
+                        {(p.itens||[]).length>3&&<div style={{width:24,height:24,borderRadius:4,background:'var(--fill)',border:'0.5px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:7,color:'var(--label-4)'}}>+{(p.itens||[]).length-3}</div>}
+                      </> : parseInt(p.quantidadeItens||0)>0 ?
+                        <span style={{fontSize:10,color:'var(--label-3)',padding:'1px 6px',borderRadius:4,background:'var(--fill)',border:'0.5px solid var(--sep)'}}>{p.quantidadeItens}×</span>
+                      : <span style={{fontSize:10,color:'var(--label-4)'}}>—</span>
+                    }</div>
                     case 'transp':   return <span style={{fontSize:10.5,color:'var(--label-3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',display:'block'}} title={p.transportadora||''}>{p.transportadora||'—'}</span>
                     case 'rastreio': return cod?<div style={{display:'flex',alignItems:'center',gap:4,minWidth:0}}><Truck size={10} style={{color:'#22c55e',flexShrink:0}}/><span style={{fontSize:9.5,fontFamily:'monospace',color:'var(--label-3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:88}} title={cod}>{cod}</span><button onClick={e=>{e.stopPropagation();navigator.clipboard?.writeText(cod)}} title="Copiar" style={{flexShrink:0,background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0,display:'flex',alignItems:'center'}}><Copy size={9}/></button></div>:<span style={{fontSize:10,color:'var(--label-4)'}}>—</span>
                     case 'total':    return <span style={{fontSize:12.5,fontWeight:700,color:'var(--label)'}}>{fmt(p.total)}</span>
