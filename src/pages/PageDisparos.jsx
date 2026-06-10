@@ -94,8 +94,6 @@ const STATUS_META = {
   erro:       { label:'Erro',       cor:'#ef4444', bg:'rgba(239,68,68,.12)',    icon:XCircle },
   ignorado:   { label:'Ignorado',   cor:'#6b7280', bg:'rgba(107,114,128,.12)', icon:Minus },
   aguardando: { label:'Aguardando', cor:'#f59e0b', bg:'rgba(245,158,11,.12)',  icon:Clock },
-  processando:{ label:'Processando',cor:'#06b6d4', bg:'rgba(6,182,212,.12)',   icon:RefreshCw },
-  suprimido:  { label:'Suprimido',  cor:'#a78bfa', bg:'rgba(167,139,250,.12)', icon:Minus },
 }
 
 const PERIODOS = [
@@ -467,6 +465,324 @@ function StatCard({label, value, cor='var(--label)'}) {
     <div style={{flex:1,background:'var(--bg-3)',borderRadius:10,padding:'10px 8px',textAlign:'center',border:'0.5px solid var(--sep)'}}>
       <div style={{fontSize:20,fontWeight:700,color:cor,lineHeight:1}}>{value}</div>
       <div style={{fontSize:9.5,color:'var(--label-4)',marginTop:3,textTransform:'uppercase',letterSpacing:'.04em'}}>{label}</div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NIVELMAX v2 — Funil da jornada, preview da mensagem real, fila de saída,
+// saúde do motor, erros por motivo e SLA por transportadora.
+// Alimentados por /api/dashboard/disparos/painel + variaveis JSONB (webhook v4)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Cache de templates (corpo das mensagens) — 1 fetch por sessão
+let _tplCache = null
+async function _carregarTemplates(api) {
+  if (_tplCache) return _tplCache
+  try {
+    const r = await fetch(`${api}/api/templates`)
+    if (r.ok) {
+      const d = await r.json()
+      const map = {}
+      for (const t of (d.templates||d||[])) {
+        const corpo = (t.blocos||[]).filter(b=>b.tipo==='texto').map(b=>b.conteudo).join('\n')
+        if (corpo) map[t.gatilho] = corpo
+      }
+      _tplCache = map
+    }
+  } catch {}
+  return _tplCache || {}
+}
+
+// Formata corpo estilo WhatsApp: *negrito*, quebras de linha
+function FmtWa({txt}) {
+  return (txt||'').split('\n').map((ln,i)=>(
+    <div key={i} style={{minHeight: ln ? undefined : 8}}>
+      {ln.split(/(\*[^*\n]+\*)/g).map((p,j)=>
+        p.length>2 && p.startsWith('*') && p.endsWith('*')
+          ? <b key={j} style={{color:T.ink1,fontWeight:700}}>{p.slice(1,-1)}</b>
+          : <span key={j}>{p}</span>
+      )}
+    </div>
+  ))
+}
+
+// ── Preview da mensagem REAL enviada (template + variáveis salvas do disparo) ─
+function PreviewMensagem({api, gatilho, variaveis, status}) {
+  const [corpo, setCorpo] = useState(null)
+  const vars = useMemo(()=>{
+    let v = variaveis
+    if (typeof v === 'string') { try { v = JSON.parse(v) } catch { v = null } }
+    return v && typeof v === 'object' ? v : null
+  },[variaveis])
+
+  useEffect(()=>{ let on=true
+    _carregarTemplates(api).then(m=>{ if(on) setCorpo(m[gatilho]||null) })
+    return ()=>{ on=false }
+  },[api,gatilho])
+
+  if (!vars || Object.keys(vars).length===0) return null
+  const rv = k => { const s = vars[k] ?? vars[`{{${k}}}`]; return (s===undefined||s===null||s==='') ? null : String(s) }
+  const renderizado = corpo
+    ? corpo.replace(/\{\{(\w+)\}\}/g, (m,k)=> rv(k) ?? m)
+    : null
+
+  return (
+    <div className="modal-wc-sec">
+      <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:8}}>
+        <MessageSquare size={13} style={{color:T.green}}/>
+        <span style={{fontSize:11,fontWeight:700,color:T.ink2,letterSpacing:'.02em'}}>
+          {status==='enviado' ? 'Mensagem enviada ao cliente' : status==='aguardando' ? 'Mensagem que será enviada' : 'Mensagem do disparo'}
+        </span>
+        <span style={{fontSize:8.5,color:T.ink4,marginLeft:'auto'}}>renderizada das variáveis salvas</span>
+      </div>
+      {renderizado ? (
+        <div style={{
+          background:'#0b141a',border:`1px solid ${T.sep2}`,
+          borderRadius:'12px 12px 12px 3px',padding:'10px 13px',
+          fontSize:11.5,lineHeight:1.55,color:T.ink2,maxWidth:420,
+          boxShadow:'0 2px 12px rgba(0,0,0,.3)',
+        }}>
+          <FmtWa txt={renderizado}/>
+          <div style={{textAlign:'right',fontSize:8.5,color:T.ink4,marginTop:5,display:'flex',justifyContent:'flex-end',alignItems:'center',gap:3}}>
+            {status==='enviado' && <Check size={10} style={{color:T.cyan}}/>}
+            {status==='enviado' && <Check size={10} style={{color:T.cyan,marginLeft:-7}}/>}
+            WhatsApp
+          </div>
+        </div>
+      ) : (
+        <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+          {Object.entries(vars).slice(0,10).map(([k,v])=>(
+            <span key={k} style={{fontSize:9.5,padding:'3px 8px',borderRadius:7,
+              background:T.bg3,border:`1px solid ${T.sep2}`,color:T.ink3}}>
+              <span style={{color:T.ink4}}>{String(k).replace(/[{}]/g,'')}:</span>{' '}
+              <span style={{color:T.ink2,fontWeight:600}}>{String(v).slice(0,38)||'—'}</span>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Funil da Jornada ao vivo ──────────────────────────────────────────────────
+function FunilJornada({painel, onFiltrarGatilho}) {
+  if (!painel?.funil?.length) return null
+  const f = painel.funil
+  const maxQ = Math.max(...f.map(e=>e.passaram), 1)
+  const CORES = ['#a78bfa','#06b6d4','#4f8ef7','#ffb300','#00e676']
+  // Gargalo = menor conversão entre etapas
+  let gargalo = null
+  for (const e of f) if (e.conversao!==null && (gargalo===null || e.conversao < gargalo.conversao)) gargalo = e
+  const LBL = {pedido_enviado:'Enviado',pedido_coletado:'Coletado',rastreio_em_transito:'Em Trânsito',saiu_entrega:'Saiu p/ Entrega',pedido_entregue:'Entregue'}
+
+  return (
+    <div style={{background:`linear-gradient(135deg,${T.bg2} 0%,${T.bg3} 100%)`,
+      border:`1px solid ${T.sep2}`,borderRadius:18,padding:'18px 20px 14px',
+      boxShadow:'0 12px 48px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.05) inset'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:34,height:34,borderRadius:10,
+            background:'linear-gradient(135deg,rgba(167,139,250,.2),rgba(167,139,250,.08))',
+            border:'1px solid rgba(167,139,250,.3)',display:'flex',alignItems:'center',justifyContent:'center',
+            boxShadow:'0 4px 16px rgba(167,139,250,.15)'}}>
+            <Navigation size={16} style={{color:T.purple}}/>
+          </div>
+          <div>
+            <div style={{fontSize:14,fontWeight:700,color:T.ink1,letterSpacing:'-.02em'}}>Funil da Jornada — ao vivo</div>
+            <div style={{fontSize:10.5,color:T.ink4,marginTop:1}}>Pedidos por etapa · conversão · tempo médio — últimos {painel.dias} dias</div>
+          </div>
+        </div>
+        {painel.paradosTransito>0 && (
+          <div style={{display:'flex',alignItems:'center',gap:5,padding:'4px 10px',borderRadius:99,
+            background:T.amberDim,border:`1px solid ${T.amberBor}`}}>
+            <AlertTriangle size={11} style={{color:T.amber}}/>
+            <span style={{fontSize:10,color:T.amber,fontWeight:700}}>{painel.paradosTransito} parados em trânsito há +5d</span>
+          </div>
+        )}
+      </div>
+
+      <div style={{display:'flex',alignItems:'flex-end',gap:4}}>
+        {f.map((e,i)=>{
+          const cor = CORES[i%CORES.length]
+          const h = 26 + Math.round((e.passaram/maxQ)*46)
+          return (
+            <React.Fragment key={e.gatilho}>
+              {i>0 && (
+                <div style={{paddingBottom:34,whiteSpace:'nowrap'}}>
+                  <span style={{fontSize:10.5,fontWeight:700,
+                    color: e.conversao===null ? T.ink4 : e.conversao>=90 ? T.green : e.conversao>=70 ? T.amber : T.red}}>
+                    {e.conversao===null ? '—' : `${e.conversao}%`} →
+                  </span>
+                </div>
+              )}
+              <div onClick={()=>onFiltrarGatilho?.(e.gatilho)} style={{flex:1,textAlign:'center',cursor:'pointer'}}>
+                <div style={{fontSize:19,fontWeight:800,color:cor,letterSpacing:'-.02em'}}>{e.atuais}</div>
+                <div style={{height:h,background:`linear-gradient(180deg,${cor}30,${cor}0a)`,
+                  borderTop:`2px solid ${cor}`,borderRadius:'5px 5px 0 0',marginTop:3}}/>
+                <div style={{fontSize:10,color:T.ink2,fontWeight:600,marginTop:5}}>{LBL[e.gatilho]||e.gatilho}</div>
+                <div style={{fontSize:8.5,color:T.ink4}}>{e.tempoMedioDias!==null?`média ${String(e.tempoMedioDias).replace('.',',')}d`:'—'}</div>
+              </div>
+            </React.Fragment>
+          )
+        })}
+      </div>
+
+      {gargalo && gargalo.conversao!==null && gargalo.conversao<90 && (
+        <div style={{display:'flex',justifyContent:'flex-end',marginTop:8,paddingTop:8,borderTop:`1px solid ${T.sep}`}}>
+          <span style={{fontSize:10,color:T.red,fontWeight:600}}>
+            gargalo: {(LBL[f[gargalo.nivel-1]?.gatilho]||'')} → {LBL[gargalo.gatilho]||gargalo.gatilho} ({gargalo.conversao}%)
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Fila de saída — agendados com countdown ───────────────────────────────────
+function FilaSaida({items=[], onVerDisparo}) {
+  const [,setTick] = useState(0)
+  useEffect(()=>{ const t=setInterval(()=>setTick(x=>x+1),30000); return ()=>clearInterval(t) },[])
+  const fmtEta = (iso) => {
+    const s = Math.round((new Date(iso).getTime()-Date.now())/1000)
+    if (s <= 0)    return {txt:'agora',         cor:T.green}
+    if (s < 3600)  return {txt:`em ${Math.max(1,Math.round(s/60))} min`, cor:T.amber}
+    return {txt:`em ${Math.round(s/3600)}h`, cor:T.ink3}
+  }
+  return (
+    <div style={{background:T.bg2,border:`1px solid ${T.sep2}`,borderRadius:14,padding:'13px 14px'}}>
+      <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:10}}>
+        <Timer size={13} style={{color:T.amber}}/>
+        <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>Fila de saída</span>
+        <span style={{fontSize:9,color:T.ink4,marginLeft:'auto'}}>{items.length} agendado{items.length!==1?'s':''}</span>
+      </div>
+      {items.length===0
+        ? <div style={{fontSize:10.5,color:T.ink4,padding:'14px 0',textAlign:'center'}}>Nenhum disparo agendado</div>
+        : <div style={{display:'flex',flexDirection:'column',gap:6}}>
+            {items.slice(0,5).map(it=>{
+              const eta = fmtEta(it.agendado_para)
+              const gm = GATILHO_META[it.gatilho]||{}
+              return (
+                <div key={it.id} onClick={()=>onVerDisparo?.(it)} style={{display:'flex',alignItems:'center',gap:7,
+                  padding:'7px 9px',borderRadius:9,background:T.bg3,cursor:'pointer'}}>
+                  <span style={{width:7,height:7,borderRadius:'50%',background:gm.cor||T.amber,flexShrink:0,
+                    boxShadow:`0 0 6px ${gm.cor||T.amber}`}}/>
+                  <span style={{fontSize:10.5,color:T.ink2,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                    {gm.label||it.gatilho}
+                  </span>
+                  <span style={{fontSize:9.5,color:T.ink4}}>#{it.numero_pedido}</span>
+                  <span style={{fontSize:10,color:eta.cor,fontWeight:700,marginLeft:'auto',whiteSpace:'nowrap'}}>{eta.txt}</span>
+                </div>
+              )
+            })}
+          </div>}
+    </div>
+  )
+}
+
+// ── Saúde do motor ────────────────────────────────────────────────────────────
+function SaudeMotor({saude, taxa}) {
+  if (!saude) return null
+  const prox = saude.ultimoCicloJob
+    ? Math.max(0, 60 - Math.round((Date.now()-new Date(saude.ultimoCicloJob).getTime())/60000))
+    : null
+  const linhas = [
+    {lbl:'Suprimidos (anti-atropelo)', val:saude.suprimidos,         cor:T.purple},
+    {lbl:'Retries recuperados',        val:saude.retriesRecuperados,  cor:T.green},
+    {lbl:'Fila de rastreio ativa',     val:saude.filaRastreioAtivos,  cor:T.ink1},
+    {lbl:'Processando agora',          val:saude.processando,         cor:T.cyan},
+  ]
+  return (
+    <div style={{background:T.bg2,border:`1px solid ${T.sep2}`,borderRadius:14,padding:'13px 14px'}}>
+      <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:10}}>
+        <ShieldCheck size={13} style={{color:T.purple}}/>
+        <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>Saúde do motor</span>
+        {prox!==null && <span style={{fontSize:9,color:T.blue,marginLeft:'auto',fontWeight:600}}>próx. ciclo ~{prox} min</span>}
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:8}}>
+        {linhas.map(l=>(
+          <div key={l.lbl} style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span style={{fontSize:10.5,color:T.ink3}}>{l.lbl}</span>
+            <span style={{fontSize:11.5,fontWeight:800,color:l.cor}}>{l.val}</span>
+          </div>
+        ))}
+        {taxa!==null && taxa!==undefined && (
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingTop:7,borderTop:`1px solid ${T.sep}`}}>
+            <span style={{fontSize:10.5,color:T.ink3}}>Taxa de entrega</span>
+            <span style={{fontSize:11.5,fontWeight:800,color:taxa>=90?T.green:taxa>=70?T.amber:T.red}}>{taxa}%</span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Erros por motivo ──────────────────────────────────────────────────────────
+function ErrosMotivo({lista=[]}) {
+  const total = lista.reduce((a,e)=>a+e.qtd,0)
+  return (
+    <div style={{background:T.bg2,border:`1px solid ${T.sep2}`,borderRadius:14,padding:'13px 14px'}}>
+      <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:10}}>
+        <AlertTriangle size={13} style={{color:T.red}}/>
+        <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>Erros por motivo</span>
+        <span style={{fontSize:9,color:T.ink4,marginLeft:'auto'}}>{total} no período</span>
+      </div>
+      {lista.length===0
+        ? <div style={{fontSize:10.5,color:T.green,padding:'14px 0',textAlign:'center',fontWeight:600}}>✓ Nenhum erro no período</div>
+        : <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {lista.slice(0,4).map(e=>{
+              const pct = total ? Math.round(e.qtd/total*100) : 0
+              const cor = pct>=50 ? T.red : pct>=25 ? T.amber : T.ink3
+              return (
+                <div key={e.motivo}>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                    <span style={{fontSize:10,color:T.ink2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'78%'}}>{e.motivo}</span>
+                    <span style={{fontSize:10,fontWeight:700,color:cor}}>{e.qtd}</span>
+                  </div>
+                  <div style={{height:4,background:T.bg4,borderRadius:99,overflow:'hidden'}}>
+                    <div style={{width:`${pct}%`,height:'100%',background:cor,borderRadius:99,boxShadow:`0 0 6px ${cor}60`}}/>
+                  </div>
+                </div>
+              )
+            })}
+          </div>}
+    </div>
+  )
+}
+
+// ── SLA por transportadora ────────────────────────────────────────────────────
+function SlaTransportadora({lista=[]}) {
+  if (!lista.length) return null
+  const fmt = d => d===null ? '—' : `${String(d).replace('.',',')}d`
+  return (
+    <div style={{background:T.bg2,border:`1px solid ${T.sep2}`,borderRadius:14,padding:'14px 16px'}}>
+      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+        <Truck size={14} style={{color:T.cyan}}/>
+        <span style={{fontSize:12.5,fontWeight:700,color:T.ink1}}>SLA por transportadora</span>
+        <span style={{fontSize:9.5,color:T.ink4,marginLeft:'auto'}}>etiqueta → coleta → entrega · medido pelos disparos</span>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12}}>
+        {lista.map(s=>{
+          const cor = s.totalDias===null ? T.ink3 : s.totalDias<=3 ? T.green : s.totalDias<=6 ? T.amber : T.red
+          const cParte = s.coletaDias||0, tParte = s.transitoDias||0
+          const soma = cParte+tParte || 1
+          return (
+            <div key={s.nome}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                <span style={{fontSize:11.5,fontWeight:700,color:T.ink1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'70%'}}>{s.nome}</span>
+                <span style={{fontSize:11,fontWeight:800,color:cor}}>{fmt(s.totalDias)}</span>
+              </div>
+              <div style={{display:'flex',height:7,borderRadius:99,overflow:'hidden',background:T.bg4}}>
+                <div style={{width:`${Math.round(cParte/soma*100)}%`,background:`${cor}70`}}/>
+                <div style={{width:`${Math.round(tParte/soma*100)}%`,background:cor,boxShadow:`0 0 8px ${cor}50`}}/>
+              </div>
+              <div style={{fontSize:8.5,color:T.ink4,marginTop:3}}>
+                coleta {fmt(s.coletaDias)} · trânsito {fmt(s.transitoDias)} · {s.entregues} entregue{s.entregues!==1?'s':''}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -923,6 +1239,9 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
 
                 {/* ─── SCROLL ─── */}
                 <div style={{flex:1,overflowY:'auto',minHeight:0}}>
+
+                  {/* Mensagem real enviada — renderizada das variáveis salvas (v4) */}
+                  <PreviewMensagem api={api} gatilho={dados.gatilho} variaveis={dados.variaveis} status={dados.status}/>
 
                   {/* Intelligence multi-nível */}
                   {intel && (() => {
@@ -1939,11 +2258,16 @@ export default function PageDisparos({api: apiProp}) {
   const polRef = useRef(null)
 
   // Carrega stats
+  const [painel, setPainel] = useState(null)   // Nivelmax: funil/fila/saúde/erros/SLA
   const carregarStats = useCallback(async(sil=false)=>{
     if(!sil) setLoadSt(true)
     try {
-      const r = await fetch(`${api}/api/dashboard/disparos-stats?periodo=${periodo}`)
+      const [r, rp] = await Promise.all([
+        fetch(`${api}/api/dashboard/disparos-stats?periodo=${periodo}`),
+        fetch(`${api}/api/dashboard/disparos/painel?periodo=${periodo}`).catch(()=>null),
+      ])
       if (r.ok) { const d=await r.json(); setStats(d); setLastUpd(new Date()) }
+      if (rp?.ok) { const dp=await rp.json(); if(dp?.funil) setPainel(dp) }
     } catch {}
     if(!sil) setLoadSt(false)
   },[api,periodo])
@@ -2192,6 +2516,9 @@ export default function PageDisparos({api: apiProp}) {
 
       <div style={{padding:'16px 20px',display:'flex',flexDirection:'column',gap:16}}>
 
+        {/* ── Funil da Jornada (Nivelmax) ── */}
+        <FunilJornada painel={painel} onFiltrarGatilho={g=>{ setFiltroGat(g); setLogPg(1) }}/>
+
         {/* ── KPIs ── */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:10}}>
           <KCard icon={Send}      label="Total disparos"     value={total}     cor="#7c6af7" sub={`últimos ${stats?.dias||7} dias`} spark={spark7.total}/>
@@ -2201,6 +2528,16 @@ export default function PageDisparos({api: apiProp}) {
           <KCard icon={Activity}  label="Últimas 24h"        value={parseInt(t.ultimas_24h)||0} cor="#a78bfa"/>
           <KCard icon={Clock}     label="Aguardando"          value={aguardando} cor="#f59e0b"/>
         </div>
+
+        {/* ── Cockpit Nivelmax: fila de saída · saúde do motor · erros por motivo ── */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(230px,1fr))',gap:10}}>
+          <FilaSaida items={painel?.filaSaida||[]} onVerDisparo={r=>setDrawer({tipo:'disparo',dados:r})}/>
+          <SaudeMotor saude={painel?.saude} taxa={taxa}/>
+          <ErrosMotivo lista={painel?.errosMotivo||[]}/>
+        </div>
+
+        {/* ── SLA por transportadora ── */}
+        <SlaTransportadora lista={painel?.slaTransportadora||[]}/>
 
         {/* ═══════════════════════════════════════════════════
             ANALYTICS NIVELMAX — Gráficos + Decisão de Gatilhos
