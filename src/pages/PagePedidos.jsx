@@ -1356,23 +1356,28 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
   const [disps,    setDisps ] = useState([])
   const [foto,     setFoto  ] = useState(null)
   const [msgs,     setMsgs  ] = useState([])
-  const [hist,     setHist  ] = useState([])
+  const [histRaw,  setHist  ] = useState([])
   const [copied,   setCpOk  ] = useState('')
   const [expanded, setExp   ] = useState(false)
   const [sending,  setSend  ] = useState(false)
   const [sentNF,   setStNF  ] = useState(false)
   const [msgTxt,   setMsgT  ] = useState('')
+  const [freteStats,setFrSt ] = useState([])
+  const [gatilhos, setGats  ] = useState([])
+  const [showDisp, setShowD ] = useState(false)
+  const [dispOk,   setDispOk] = useState('')
 
   useEffect(()=>{
-    setLoad(true); setDet(null); setNfe(null); setFoto(null); setDisps([]); setMsgs([]); setHist([])
+    setLoad(true); setDet(null); setNfe(null); setFoto(null); setDisps([]); setMsgs([]); setHist([]); setShowD(false); setDispOk('')
     fetch(`${api}/api/dashboard/pedido-completo/${pedRow.numero}`)
       .then(r=>r.ok?r.json():null)
       .then(d=>{
         setDet(d); setLoad(false)
         setMsgs(d?.mensagens?.lista||[])
         setHist(d?.historico?.pedidos||[])
-        const tel=d?.mensagens?.lista?.[0]?.telefone||pedRow.telefone||''
-        if(tel) fetch(`${api}/api/dashboard/foto-perfil/${tel.replace(/\D/g,'')}`)
+        // foto de perfil: telefone vem do CONTATO (a lista de pedidos não traz tel)
+        const tel=(d?.contato?.celular||d?.contato?.telefone||pedRow.telefone||'').replace(/\D/g,'')
+        if(tel) fetch(`${api}/api/dashboard/foto-perfil/${tel}`)
           .then(r=>r.ok?r.json():null).then(f=>f?.url&&setFoto(f.url)).catch(()=>{})
         const nfId=Number(d?.pedido?.notaFiscal?.id||0)
         if(nfId>0) fetch(`${api}/api/dashboard/nfe-link/${nfId}`)
@@ -1380,6 +1385,14 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
       }).catch(()=>setLoad(false))
     fetch(`${api}/api/dashboard/disparos-pedido/${pedRow.numero}`)
       .then(r=>r.ok?r.json():null).then(d=>{if(d?.disparos)setDisps(d.disparos)}).catch(()=>{})
+    // análise de frete (col expandida) — dashboard integrado, cacheado 5 min no backend
+    fetch(`${api}/api/dashboard/pedidos-geo-live`)
+      .then(r=>r.ok?r.json():null).then(d=>setFrSt(d?.freteTransp||[])).catch(()=>{})
+    // gatilhos ativos p/ o botão Disparar
+    fetch(`${api}/api/templates`)
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{const arr=Array.isArray(d)?d:(d?.templates||[]);setGats(arr.filter(t=>t.ativo&&t.gatilho).map(t=>t.gatilho))})
+      .catch(()=>{})
   },[pedRow.numero,api])
 
   const ped       = det?.pedido||pedRow
@@ -1390,16 +1403,86 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
   const sit       = SIT[sitId]||{label:'—',cor:'#888',bg:'var(--fill)',bdr:'var(--sep)'}
   const canal     = getCanal(pedRow)
   const itens     = ped?.itens||[]
+
+  // ── TELEFONE unificado (lista /pedidos não traz tel — vem do contato) ──────
+  const telefone  = (contato?.celular||contato?.telefone||pedRow.telefone||'').replace(/\D/g,'')
+
+  // ── ENDEREÇO (backend manda contato.enderecos[] + transporte.etiqueta) ─────
+  const endObj    = contato?.enderecos?.[0]||null
+  const etiq      = transporte?.etiqueta||null
+  const enderecoStr = endObj
+    ? [`${endObj.endereco||''}${endObj.numero?', '+endObj.numero:''}${endObj.complemento?' — '+endObj.complemento:''}`,
+       `${endObj.bairro?endObj.bairro+' · ':''}${endObj.municipio||''}/${endObj.uf||''}${endObj.cep?' · CEP '+endObj.cep:''}`]
+        .filter(s=>s.trim().replace(/[·\/—,]/g,'').trim()).join('\n')
+    : etiq
+      ? [`${etiq.nome?etiq.nome+' — ':''}${etiq.endereco||''}${etiq.numero?', '+etiq.numero:''}`,
+         `${etiq.bairro?etiq.bairro+' · ':''}${etiq.municipio||''}/${etiq.uf||''}${etiq.cep?' · CEP '+etiq.cep:''}`]
+          .filter(s=>s.trim().replace(/[·\/—,]/g,'').trim()).join('\n')
+      : (ped.enderecoEntrega||'')
+
+  // ── RASTREIO (backend: rastreio.status + eventos[{data,status,detalhe,local}]) ─
   const codRas    = rastreio?.codigo||transporte?.volumes?.[0]?.codigo||pedRow?.codigoRastreio||''
-  const linkRas   = rastreio?.link||rastreio?.linkCorreios||''
+  const linkRas   = rastreio?.linkMelhorRastreio||rastreio?.linkCorreios||rastreio?.link||''
   const evts      = rastreio?.eventos||[]
+  const rasStatus = (rastreio?.status||rastreio?.ultimoStatus||pedRow?.rastreioStatus||'').toLowerCase()
+  const ultimoEv  = evts[0]||null
+  // estado atual extraído do local do último evento ("CTE Curitiba/PR" → PR)
+  const ufDoLocal = (loc)=>{const m=String(loc||'').match(/\/\s*([A-Z]{2})\s*$/);return m?m[1]:null}
+  const curUFRaw  = ufDoLocal(ultimoEv?.local)
+
+  // ── FRETE (vem em transporte.frete, não em pedido.frete) ───────────────────
+  const freteVal  = parseFloat(transporte?.frete ?? ped.frete ?? 0)||0
+
+  // ── HISTÓRICO sem o pedido atual (backend inclui o atual na lista) ─────────
+  const hist      = histRaw.filter(h=>String(h.numero)!==String(pedRow.numero))
   const rfmScore  = calcRFM(hist)
   const rfmCfg    = RFM[rfmScore]||RFM.novo
   const RFMIcon   = rfmCfg.icon
-  const ltvTotal  = hist.reduce((s,p)=>s+parseFloat(p.total||0),0)+parseFloat(ped.total||0)
-  const ticketMed = hist.length>0 ? (hist.reduce((s,p)=>s+parseFloat(p.total||0),0)/hist.length) : parseFloat(ped.total||0)
   const pedTotal  = parseFloat(ped.total||pedRow.total||0)
+  const ltvTotal  = hist.reduce((s,p)=>s+parseFloat(p.total||0),0)+pedTotal
+  const ticketMed = hist.length>0 ? (hist.reduce((s,p)=>s+parseFloat(p.total||0),0)/hist.length) : pedTotal
   const vsMedia   = ticketMed>0 ? ((pedTotal/ticketMed-1)*100).toFixed(0) : 0
+
+  // ── STATUS ATENDIMENTO derivado das mensagens reais ─────────────────────────
+  const msgsAsc   = useMemo(()=>[...msgs].sort((a,b)=>new Date(a.criado_em||a.created_at||0)-new Date(b.criado_em||b.created_at||0)),[msgs])
+  const ultMsg    = msgsAsc[msgsAsc.length-1]
+  const atendStatus = !msgs.length ? null
+    : ultMsg?.direcao==='entrada' ? 'aguardando resposta' : 'em dia'
+
+  // ── IA PREDITIVA DE RECOMPRA (intervalo médio real entre compras) ──────────
+  const recompra = useMemo(()=>{
+    const datas=[...hist.map(h=>h.data),ped.data].filter(Boolean)
+      .map(d=>new Date(d).getTime()).filter(t=>!isNaN(t)).sort((a,b)=>a-b)
+    if(datas.length<2)return null
+    const gaps=[];for(let i=1;i<datas.length;i++)gaps.push((datas[i]-datas[i-1])/86400000)
+    const medio=gaps.reduce((s,g)=>s+g,0)/gaps.length
+    const ultima=datas[datas.length-1]
+    const proxIni=new Date(ultima+medio*86400000*0.8)
+    const proxFim=new Date(ultima+medio*86400000*1.2)
+    const diasDesde=(Date.now()-ultima)/86400000
+    // prob: cresce com nº de compras, decai se passou muito da janela
+    let prob=Math.min(95,30+datas.length*12)
+    if(diasDesde>medio*1.5)prob=Math.max(15,prob-30)
+    return {intervaloMedio:Math.round(medio),compras:datas.length,prob:Math.round(prob),
+      janela:`${proxIni.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} – ${proxFim.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}`,
+      atrasado:diasDesde>medio*1.3}
+  },[hist,ped.data])
+
+  // ── BREAKDOWN FINANCEIRO (taxas de gateway estimadas por forma) ────────────
+  const finBreak = useMemo(()=>{
+    const fp=(ped.formaPagamento||'').toLowerCase()
+    const taxa = fp.includes('pix')?0.0099
+      : fp.includes('boleto')?0
+      : fp.includes('cart')||fp.includes('crédito')||fp.includes('credito')?0.0499
+      : fp.includes('débito')||fp.includes('debito')?0.0199
+      : 0.03
+    const fixo = fp.includes('boleto')?3.49:0
+    const totProd = parseFloat(ped.totalProdutos||0)||Math.max(0,pedTotal-freteVal)
+    const desc    = parseFloat(ped.totalDesconto||0)||0
+    const taxaVal = pedTotal*taxa+fixo
+    return {totProd,desc,frete:freteVal,taxaVal,taxaPct:(taxa*100).toFixed(2),
+      liquido:pedTotal-taxaVal,temForma:!!ped.formaPagamento&&ped.formaPagamento!=='—'}
+  },[ped,pedTotal,freteVal])
 
   // risco: pagamento não confirmado + sem rastreio + prazo excedido
   const diasPedido = (Date.now()-new Date(ped.data||0))/86400000
@@ -1409,47 +1492,71 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
   const riskLabel = riskScore>=60?'Alto':riskScore>=25?'Médio':'Baixo'
   const riskCor   = riskScore>=60?'#ef4444':riskScore>=25?'#f59e0b':'#22c55e'
 
-  // previsão entrega
+  // previsão entrega — usa status REAL do backend (rastreio.status, eventos)
   const rastreioPct=()=>{
     if([30,33].includes(sitId))return 100
-    const rs=rastreio?.ultimoStatus||pedRow?.rastreioStatus||''
-    if(rs==='saiu_entrega')return 90
-    if(rs.includes('transito'))return 55
-    if(rs==='pedido_coletado')return 35
-    if(codRas)return 20
+    if(rasStatus.includes('entreg'))return 100
+    if(rasStatus.includes('saiu')||rasStatus.includes('rota de entrega'))return 90
+    if(rasStatus.includes('transito')||rasStatus.includes('trânsito')||rasStatus.includes('encaminhado')||rasStatus.includes('transfer'))return 55
+    if(rasStatus.includes('coletado')||rasStatus.includes('postado')||rasStatus.includes('postagem'))return 30
+    if(codRas)return 15
     return 0
   }
   const pct      = rastreioPct()
-  const originUF = rastreio?.origemUF||'SP'
-  const destUF   = contato?.uf||rastreio?.destinoUF||''
-  const curUF    = rastreio?.estadoAtual||destUF
+  const originUF = 'SP'
+  const destUF   = endObj?.uf||etiq?.uf||rastreio?.destinoUF||''
+  const curUF    = curUFRaw||(pct>=90?destUF:'')||''
+  const prevEntrega = ped.dataPrevista&&ped.dataPrevista!=='0000-00-00'?fmtD(ped.dataPrevista):null
 
   // steps rastreio visuais
   const STEPS = [
-    {key:'postado',   label:'Postado',    icon:Package,  sids:[9,15,24,27,30,33]},
-    {key:'coletado',  label:'Coletado',   icon:Truck,    sids:[27,30,33], rs:['pedido_coletado','em_transito','saiu_entrega','entregue']},
-    {key:'transito',  label:'Em Trânsito',icon:Navigation,sids:[27,30,33], rs:['em_transito','saiu_entrega','entregue']},
-    {key:'rota',      label:'Em Rota',    icon:MapPin,   sids:[30,33], rs:['saiu_entrega','entregue']},
-    {key:'entregue',  label:'Entregue',   icon:CheckCircle,sids:[30,33], rs:['entregue']},
+    {key:'postado',   label:'Postado',    icon:Package,  min:15},
+    {key:'coletado',  label:'Coletado',   icon:Truck,    min:30},
+    {key:'transito',  label:'Em Trânsito',icon:Navigation,min:55},
+    {key:'rota',      label:'Em Rota',    icon:MapPin,   min:90},
+    {key:'entregue',  label:'Entregue',   icon:CheckCircle,min:100},
   ]
-  const rs = rastreio?.ultimoStatus||pedRow?.rastreioStatus||''
-  const stepDone = (s)=> s.sids.includes(sitId)||(s.rs&&s.rs.some(r=>rs===r||rs.includes(r.split('_')[0])))
-  const stepAtivo = STEPS.findIndex((s,i)=>!stepDone(s)&&(i===0||stepDone(STEPS[i-1])))
+  const stepDone = (s)=> pct>=s.min
+  const stepAtivo = STEPS.findIndex(s=>!stepDone(s))
   const stepAtivoIdx = stepAtivo===-1?STEPS.length-1:stepAtivo
 
   const cp=(v,k)=>{navigator.clipboard?.writeText(String(v||''));setCpOk(k);setTimeout(()=>setCpOk(''),1500)}
   const enviarNF=async()=>{
-    const link=nfe?.linkDanfe||nfe?.linkPDF||''; if(!link||!pedRow.telefone)return
+    const link=nfe?.linkDanfe||nfe?.linkPDF||''; if(!link||!telefone)return
     setSend(true)
     const msg=`*Nota Fiscal — Pedido #${pedRow.numero}*\n\nSua NF-e foi emitida:\n${link}`
-    await fetch(`${api}/api/dashboard/manual/${pedRow.telefone.replace(/\D/g,'')}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:msg})}).catch(()=>{})
+    await fetch(`${api}/api/dashboard/manual/${telefone}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:msg})}).catch(()=>{})
     setSend(false);setStNF(true);setTimeout(()=>setStNF(false),2000)
   }
   const enviarMsg=async()=>{
-    if(!msgTxt.trim()||!pedRow.telefone)return
+    if(!msgTxt.trim()||!telefone)return
     setSend(true)
-    await fetch(`${api}/api/dashboard/manual/${pedRow.telefone.replace(/\D/g,'')}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:msgTxt})}).catch(()=>{})
+    await fetch(`${api}/api/dashboard/manual/${telefone}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:msgTxt})}).catch(()=>{})
     setSend(false);setMsgT('')
+  }
+  // disparo manual de gatilho — registra em disparos_log via backend
+  const dispararGatilho=async(g)=>{
+    if(!telefone||sending)return
+    setSend(true)
+    try{
+      const r=await fetch(`${api}/api/dashboard/disparo-manual`,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({gatilho:g,telefone,numeroPedido:String(pedRow.numero),
+          nomeCliente:contato?.nome||pedRow.contato||'',
+          variaveis:{
+            nome_cliente:(contato?.nome||pedRow.contato||'').split(' ')[0],
+            numero_pedido:String(pedRow.numero),
+            codigo_rastreio:codRas||'',
+            transportadora:transporte?.transportadora||'',
+            link_rastreio:linkRas||'',
+            valor_total:fmt(pedTotal),
+          }})})
+      const d=await r.json()
+      setDispOk(d.ok?g:`erro:${d.motivo||d.erro||'falhou'}`)
+      if(d.ok)fetch(`${api}/api/dashboard/disparos-pedido/${pedRow.numero}`)
+        .then(r=>r.ok?r.json():null).then(x=>{if(x?.disparos)setDisps(x.disparos)}).catch(()=>{})
+    }catch(e){setDispOk('erro:'+e.message)}
+    setSend(false);setShowD(false)
+    setTimeout(()=>setDispOk(''),4000)
   }
 
   const S={
@@ -1546,7 +1653,7 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
             {/* Barra de progresso */}
             <div style={{marginTop:8}}>
               <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
-                <span style={{fontSize:9,color:'var(--label-4)'}}>Progresso da entrega</span>
+                <span style={{fontSize:9,color:'var(--label-4)'}}>Progresso da entrega{prevEntrega?` · previsão ${prevEntrega}`:''}</span>
                 <span style={{fontSize:10,fontWeight:700,color:pct===100?'#22c55e':'#06b6d4'}}>{pct}%</span>
               </div>
               <div style={{height:5,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
@@ -1592,12 +1699,24 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
                   </div>
                   <div style={S.sub}>
                     <div style={S.lbl}>Frete</div>
-                    <div style={{fontSize:13,color:'#22c55e'}}>{ped.frete>0?fmt(ped.frete):'Grátis'}</div>
+                    <div style={{fontSize:13,color:freteVal>0?'var(--label)':'#22c55e'}}>{freteVal>0?fmt(freteVal):'Grátis'}</div>
                   </div>
                   <div style={S.sub}>
                     <div style={S.lbl}>Pagamento</div>
                     <div style={{fontSize:11,color:'#06b6d4',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ped.formaPagamento||ped.forma_pagamento||'—'}</div>
                   </div>
+                </div>
+                {/* Breakdown financeiro estimado */}
+                <div style={{marginTop:8,borderTop:'0.5px solid var(--sep)',paddingTop:8,display:'flex',flexDirection:'column',gap:3}}>
+                  <div style={{display:'flex',justifyContent:'space-between'}}><span style={{fontSize:9.5,color:'var(--label-4)'}}>Produtos</span><span style={{fontSize:9.5,color:'var(--label-2)'}}>{fmt(finBreak.totProd)}</span></div>
+                  {finBreak.desc>0&&<div style={{display:'flex',justifyContent:'space-between'}}><span style={{fontSize:9.5,color:'var(--label-4)'}}>Desconto</span><span style={{fontSize:9.5,color:'#ef4444'}}>−{fmt(finBreak.desc)}</span></div>}
+                  {freteVal>0&&<div style={{display:'flex',justifyContent:'space-between'}}><span style={{fontSize:9.5,color:'var(--label-4)'}}>Frete cobrado</span><span style={{fontSize:9.5,color:'var(--label-2)'}}>+{fmt(freteVal)}</span></div>}
+                  {finBreak.temForma&&<div style={{display:'flex',justifyContent:'space-between'}}><span style={{fontSize:9.5,color:'var(--label-4)'}}>Taxa gateway est. ({finBreak.taxaPct}%)</span><span style={{fontSize:9.5,color:'#ef4444'}}>−{fmt(finBreak.taxaVal)}</span></div>}
+                  <div style={{display:'flex',justifyContent:'space-between',marginTop:2}}>
+                    <span style={{fontSize:10,fontWeight:700,color:'var(--label)'}}>Líquido estimado</span>
+                    <span style={{fontSize:11,fontWeight:700,color:'#22c55e'}}>{fmt(finBreak.liquido)}</span>
+                  </div>
+                  <div style={{fontSize:8,color:'var(--label-4)'}}>* taxa estimada pela forma de pagamento — não inclui custo de produto</div>
                 </div>
                 {/* Risk indicator */}
                 {riskScore>0&&(
@@ -1642,18 +1761,22 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
                   <div style={S.sub}><div style={S.lbl}>LTV Total</div><div style={{fontSize:12,fontWeight:600,color:'#22c55e'}}>{fmt(ltvTotal)}</div></div>
                   <div style={S.sub}><div style={S.lbl}>Ticket Médio</div><div style={{fontSize:12,fontWeight:600,color:'#7c6af7'}}>{fmt(ticketMed)}</div></div>
-                  {(contato?.telefone||pedRow.telefone)&&<div style={{...S.sub,gridColumn:'span 2'}}>
+                  {telefone&&<div style={{...S.sub,gridColumn:'span 2'}}>
                     <div style={S.lbl}>Telefone</div>
                     <div style={{...S.row,justifyContent:'space-between'}}>
-                      <span style={S.val}>{contato?.telefone||pedRow.telefone}</span>
-                      <button onClick={()=>cp(contato?.telefone||pedRow.telefone,'tel')} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0}}>
+                      <span style={S.val}>{contato?.celular||contato?.telefone||telefone}</span>
+                      <button onClick={()=>cp(telefone,'tel')} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0}}>
                         {copied==='tel'?<Check size={10} style={{color:'#22c55e'}}/>:<Copy size={10}/>}
                       </button>
                     </div>
                   </div>}
-                  {(ped.enderecoEntrega||contato?.endereco)&&<div style={{...S.sub,gridColumn:'span 2'}}>
-                    <div style={S.lbl}>Endereço</div>
-                    <div style={{fontSize:10,color:'var(--label)',lineHeight:1.4}}>{ped.enderecoEntrega||contato?.endereco}</div>
+                  {contato?.email&&<div style={{...S.sub,gridColumn:'span 2'}}>
+                    <div style={S.lbl}>E-mail</div>
+                    <div style={{fontSize:10,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{contato.email}</div>
+                  </div>}
+                  {enderecoStr&&<div style={{...S.sub,gridColumn:'span 2'}}>
+                    <div style={S.lbl}>Endereço de entrega</div>
+                    <div style={{fontSize:10,color:'var(--label)',lineHeight:1.45,whiteSpace:'pre-line'}}>{enderecoStr}</div>
                   </div>}
                 </div>
               </div>
@@ -1690,7 +1813,7 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
                 <div style={{...S.row,marginBottom:10}}>
                   <Truck size={12} style={{color:'#06b6d4'}}/>
                   <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Rastreio ao Vivo</span>
-                  {rastreio?.transportadora&&<span style={{marginLeft:'auto',fontSize:9,color:'var(--label-3)',background:'var(--fill)',padding:'2px 7px',borderRadius:99}}>{rastreio.transportadora}</span>}
+                  {transporte?.transportadora&&<span style={{marginLeft:'auto',fontSize:9,color:'var(--label-3)',background:'var(--fill)',padding:'2px 7px',borderRadius:99}}>{transporte.transportadora}</span>}
                 </div>
                 {codRas?(
                   <div>
@@ -1714,19 +1837,20 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
                               {i<evts.length-1&&<div style={{width:1,height:16,background:'var(--sep)',margin:'2px 0'}}/>}
                             </div>
                             <div style={{flex:1,minWidth:0}}>
-                              <div style={{fontSize:10,fontWeight:i===0?600:400,color:i===0?'#06b6d4':'var(--label-3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                                {ev.descricao||ev.evento}
+                              <div style={{fontSize:10,fontWeight:i===0?600:400,color:i===0?'#06b6d4':'var(--label-3)',lineHeight:1.35}}>
+                                {ev.status||ev.descricao||ev.evento||'—'}
                               </div>
-                              <div style={{fontSize:9,color:'var(--label-4)'}}>{fmtDH(ev.data)} · {ev.local||ev.origem||''}</div>
+                              {ev.detalhe&&<div style={{fontSize:9,color:'var(--label-3)',lineHeight:1.3,marginTop:1}}>{ev.detalhe}</div>}
+                              <div style={{fontSize:9,color:'var(--label-4)',marginTop:1}}>{fmtDH(ev.data)}{ev.local?` · ${ev.local}`:''}</div>
                             </div>
                           </div>
                         ))}
                       </div>
-                    ):(rastreio?.ultimoEvento&&(
+                    ):(rasStatus&&(
                       <div style={S.sub}>
-                        <div style={{fontSize:9,color:'#06b6d4',fontWeight:600,marginBottom:2}}>Último evento</div>
-                        <div style={{fontSize:10,color:'var(--label)'}}>{rastreio.ultimoEvento}</div>
-                        {rastreio.dataUltimoEvento&&<div style={{fontSize:9,color:'var(--label-4)',marginTop:1}}>{fmtDH(rastreio.dataUltimoEvento)}</div>}
+                        <div style={{fontSize:9,color:'#06b6d4',fontWeight:600,marginBottom:2}}>Status atual</div>
+                        <div style={{fontSize:10,color:'var(--label)'}}>{rastreio?.status}</div>
+                        {prevEntrega&&<div style={{fontSize:9,color:'var(--label-4)',marginTop:1}}>Previsão de entrega: {prevEntrega}</div>}
                       </div>
                     ))}
                   </div>
@@ -1748,14 +1872,17 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
                   <div style={{display:'flex',flexDirection:'column',gap:6}}>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
                       <div style={S.sub}><div style={S.lbl}>Número</div><div style={S.val}>#{nfe.numero}</div></div>
-                      <div style={S.sub}><div style={S.lbl}>Série</div><div style={S.val}>{nfe.serie||'1'}</div></div>
+                      <div style={S.sub}><div style={S.lbl}>Status SEFAZ</div>
+                        <div style={{fontSize:11,fontWeight:600,color:nfe.situacao==='autorizada'?'#22c55e':nfe.situacao==='cancelada'||nfe.situacao==='denegada'||nfe.situacao==='rejeitada'?'#ef4444':'#f59e0b',textTransform:'capitalize'}}>{nfe.situacao||'—'}</div>
+                      </div>
                     </div>
-                    {nfe.chave&&(
+                    {nfe.dataEmissao&&<div style={S.sub}><div style={S.lbl}>Emitida em</div><div style={S.val}>{fmtDH(nfe.dataEmissao)}</div></div>}
+                    {(nfe.chaveAcesso||nfe.chave)&&(
                       <div style={S.sub}>
                         <div style={S.lbl}>Chave de Acesso</div>
                         <div style={{display:'flex',alignItems:'center',gap:6}}>
-                          <span style={{fontSize:9,color:'var(--label-3)',fontFamily:'monospace',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{nfe.chave}</span>
-                          <button onClick={()=>cp(nfe.chave,'nfe')} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0,flexShrink:0}}>
+                          <span style={{fontSize:9,color:'var(--label-3)',fontFamily:'monospace',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{nfe.chaveAcesso||nfe.chave}</span>
+                          <button onClick={()=>cp(nfe.chaveAcesso||nfe.chave,'nfe')} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0,flexShrink:0}}>
                             {copied==='nfe'?<Check size={10} style={{color:'#22c55e'}}/>:<Copy size={10}/>}
                           </button>
                         </div>
@@ -1765,8 +1892,9 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
                       <a href={nfe.linkDanfe} target="_blank" rel="noopener noreferrer" style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,fontSize:10,color:'#7c6af7',padding:'6px',borderRadius:7,background:'rgba(124,106,247,.08)',border:'0.5px solid rgba(124,106,247,.2)',textDecoration:'none'}}>
                         <ExternalLink size={10}/>Ver DANFE
                       </a>
-                      {(contato?.telefone||pedRow.telefone)&&(
-                        <button onClick={enviarNF} disabled={sending||sentNF} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,fontSize:10,padding:'6px',borderRadius:7,cursor:'pointer',background:sentNF?'rgba(34,197,94,.1)':'rgba(34,197,94,.08)',border:`0.5px solid ${sentNF?'rgba(34,197,94,.3)':'rgba(34,197,94,.2)'}`,color:sentNF?'#22c55e':'#22c55e'}}>
+                      {nfe.xml&&<a href={nfe.xml} target="_blank" rel="noopener noreferrer" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:4,fontSize:10,color:'var(--label-3)',padding:'6px 10px',borderRadius:7,background:'var(--fill)',border:'0.5px solid var(--sep)',textDecoration:'none'}}>XML</a>}
+                      {telefone&&(
+                        <button onClick={enviarNF} disabled={sending||sentNF} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,fontSize:10,padding:'6px',borderRadius:7,cursor:'pointer',background:sentNF?'rgba(34,197,94,.1)':'rgba(34,197,94,.08)',border:`0.5px solid ${sentNF?'rgba(34,197,94,.3)':'rgba(34,197,94,.2)'}`,color:'#22c55e'}}>
                           {sentNF?<><Check size={10}/>Enviada!</>:<><Send size={10}/>Enviar WA</>}
                         </button>
                       )}
@@ -1774,8 +1902,11 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
                   </div>
                 ):(
                   <div>
-                    <div style={{fontSize:10,color:'var(--label-4)',marginBottom:8}}>Situação: <span style={{color:sit.cor}}>{sit.label}</span></div>
-                    {ped.enderecoEntrega&&<div style={S.sub}><div style={S.lbl}>Endereço de entrega</div><div style={{fontSize:10,color:'var(--label)',lineHeight:1.4}}>{ped.enderecoEntrega}</div></div>}
+                    <div style={{fontSize:10,color:'var(--label-4)',marginBottom:8}}>
+                      {ped.notaFiscal?.id?'Aguardando autorização SEFAZ ou link indisponível':'NF-e ainda não emitida para este pedido'}
+                      {' · '}Situação: <span style={{color:sit.cor}}>{sit.label}</span>
+                    </div>
+                    {enderecoStr&&<div style={S.sub}><div style={S.lbl}>Endereço de entrega</div><div style={{fontSize:10,color:'var(--label)',lineHeight:1.45,whiteSpace:'pre-line'}}>{enderecoStr}</div></div>}
                   </div>
                 )}
               </div>
@@ -1812,28 +1943,28 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
               <div style={{...S.sec,padding:'12px'}}>
                 <div style={{...S.row,justifyContent:'space-between',marginBottom:10}}>
                   <div style={S.row}><MessageSquare size={12} style={{color:'#22c55e'}}/><span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>WhatsApp</span></div>
-                  {pedRow.statusAtendimento&&<span style={{fontSize:9,padding:'1px 7px',borderRadius:99,color:pedRow.statusAtendimento==='resolvido'?'#22c55e':'#f59e0b',background:pedRow.statusAtendimento==='resolvido'?'rgba(34,197,94,.12)':'rgba(245,158,11,.12)',border:`0.5px solid ${pedRow.statusAtendimento==='resolvido'?'rgba(34,197,94,.3)':'rgba(245,158,11,.3)'}`}}>{pedRow.statusAtendimento}</span>}
+                  {atendStatus&&<span style={{fontSize:9,padding:'1px 7px',borderRadius:99,color:atendStatus==='em dia'?'#22c55e':'#f59e0b',background:atendStatus==='em dia'?'rgba(34,197,94,.12)':'rgba(245,158,11,.12)',border:`0.5px solid ${atendStatus==='em dia'?'rgba(34,197,94,.3)':'rgba(245,158,11,.3)'}`}}>{atendStatus}</span>}
                 </div>
-                {msgs.length>0?(
+                {msgsAsc.length>0?(
                   <div style={{display:'flex',flexDirection:'column',gap:5,maxHeight:180,overflowY:'auto'}}>
-                    {msgs.slice(-6).map((m,i)=>{
+                    {msgsAsc.slice(-8).map((m,i)=>{
                       const isBot=m.role==='assistant'||m.direcao==='saida'
                       const isSys=m.tipo==='gatilho'||m.tipo==='sistema'
-                      if(isSys)return <div key={i} style={{fontSize:9,color:'#06b6d4',background:'rgba(6,182,212,.06)',border:'0.5px solid rgba(6,182,212,.2)',borderRadius:6,padding:'3px 7px',textAlign:'center'}}>⚡ {m.conteudo||m.content}</div>
+                      if(isSys)return <div key={i} style={{fontSize:9,color:'#06b6d4',background:'rgba(6,182,212,.06)',border:'0.5px solid rgba(6,182,212,.2)',borderRadius:6,padding:'3px 7px',textAlign:'center'}}>⚡ {(m.conteudo||m.content||'').slice(0,90)}</div>
                       return(
                         <div key={i} style={{display:'flex',justifyContent:isBot?'flex-end':'flex-start'}}>
                           <div style={{maxWidth:'85%',padding:'5px 9px',borderRadius:isBot?'8px 8px 2px 8px':'8px 8px 8px 2px',background:isBot?'rgba(124,106,247,.12)':'var(--fill)',border:`0.5px solid ${isBot?'rgba(124,106,247,.25)':'var(--sep)'}`}}>
                             <div style={{fontSize:10,color:isBot?'#a78bfa':'var(--label)',lineHeight:1.4}}>{(m.conteudo||m.content||'').slice(0,120)}{(m.conteudo||m.content||'').length>120?'…':''}</div>
-                            <div style={{fontSize:8,color:'var(--label-4)',textAlign:'right',marginTop:2}}>{isBot?'Bia · ':''}{fmtDH(m.createdAt||m.created_at||m.data)}</div>
+                            <div style={{fontSize:8,color:'var(--label-4)',textAlign:'right',marginTop:2}}>{isBot?'Bia · ':''}{fmtDH(m.criado_em||m.createdAt||m.created_at||m.data)}</div>
                           </div>
                         </div>
                       )
                     })}
                   </div>
                 ):(
-                  <div style={{fontSize:10,color:'var(--label-4)',textAlign:'center',padding:'10px 0'}}>{pedRow.telefone?'Sem mensagens':'Telefone não cadastrado'}</div>
+                  <div style={{fontSize:10,color:'var(--label-4)',textAlign:'center',padding:'10px 0'}}>{telefone?'Sem mensagens com este número':'Telefone não cadastrado no contato'}</div>
                 )}
-                {pedRow.telefone&&(
+                {telefone&&(
                   <div style={{marginTop:8,display:'flex',gap:5}}>
                     <input value={msgTxt} onChange={e=>setMsgT(e.target.value)} onKeyDown={e=>e.key==='Enter'&&enviarMsg()} placeholder="Responder..." style={{flex:1,background:'var(--fill)',border:'0.5px solid var(--sep)',borderRadius:7,padding:'5px 8px',fontSize:10,color:'var(--label)',outline:'none'}}/>
                     <button onClick={enviarMsg} disabled={!msgTxt.trim()||sending} style={{padding:'5px 10px',borderRadius:7,border:'0.5px solid rgba(124,106,247,.4)',background:'rgba(124,106,247,.1)',color:'#7c6af7',cursor:'pointer',fontSize:10,display:'flex',alignItems:'center',gap:4}}>
@@ -1866,18 +1997,40 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
                   <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Análise IA</span>
                 </div>
                 <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                  {/* Previsão de recompra — calculada do histórico real */}
+                  {recompra&&(
+                    <div style={{background:'rgba(124,106,247,.06)',border:'0.5px solid rgba(124,106,247,.25)',borderRadius:8,padding:'8px 10px'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+                        <div style={{width:34,height:34,borderRadius:'50%',flexShrink:0,
+                          background:`conic-gradient(${recompra.prob>=70?'#22c55e':recompra.prob>=40?'#f59e0b':'#ef4444'} ${recompra.prob}%, var(--sep) 0%)`,
+                          display:'flex',alignItems:'center',justifyContent:'center'}}>
+                          <div style={{width:26,height:26,borderRadius:'50%',background:'var(--bg-2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:8.5,fontWeight:700,color:recompra.prob>=70?'#22c55e':recompra.prob>=40?'#f59e0b':'#ef4444'}}>{recompra.prob}%</div>
+                        </div>
+                        <div>
+                          <div style={{fontSize:10,fontWeight:600,color:'var(--label)'}}>Probabilidade de recompra</div>
+                          <div style={{fontSize:9,color:'var(--label-4)'}}>compra a cada ~{recompra.intervaloMedio} dias ({recompra.compras} pedidos)</div>
+                        </div>
+                      </div>
+                      <div style={{fontSize:9.5,color:recompra.atrasado?'#f59e0b':'#7c6af7'}}>
+                        {recompra.atrasado
+                          ?`Janela de recompra passou — bom momento para reengajar`
+                          :`Próxima janela provável: ${recompra.janela}`}
+                      </div>
+                    </div>
+                  )}
                   {[
                     riskScore>=40&&{cor:'#ef4444',msg:`Pedido há ${Math.floor(diasPedido)}d sem movimentação — verificar transportadora`},
                     hist.length>=3&&{cor:'#22c55e',msg:`Cliente fiel (${hist.length+1}× compras) — candidato a programa VIP`},
-                    Number(vsMedia)>50&&{cor:'#f59e0b',msg:`Pedido ${vsMedia}% acima do ticket médio — validar se intencional`},
-                    !codRas&&[9,15].includes(sitId)&&{cor:'#f97316',msg:`Pedido pago sem rastreio — adicionar código Correios`},
-                    sitId===27&&diasPedido>10&&{cor:'#f59e0b',msg:`Em trânsito há ${Math.floor(diasPedido)}d — verificar entrega`},
+                    Number(vsMedia)>50&&hist.length>0&&{cor:'#f59e0b',msg:`Pedido ${vsMedia}% acima do ticket médio — validar se intencional`},
+                    !codRas&&[9,15].includes(sitId)&&{cor:'#f97316',msg:`Pedido pago sem código de rastreio — verificar etiqueta`},
+                    pct>=30&&pct<90&&diasPedido>10&&{cor:'#f59e0b',msg:`Em trânsito há ${Math.floor(diasPedido)}d — acompanhar possível atraso`},
+                    atendStatus==='aguardando resposta'&&{cor:'#06b6d4',msg:`Cliente mandou mensagem e aguarda resposta`},
                   ].filter(Boolean).slice(0,3).map((r,i)=>(
                     <div key={i} style={{fontSize:10,color:r.cor,background:`${r.cor}0c`,border:`0.5px solid ${r.cor}30`,borderRadius:7,padding:'6px 9px',lineHeight:1.4}}>
                       {r.msg}
                     </div>
                   ))}
-                  {riskScore===0&&hist.length<3&&!codRas&&<div style={{fontSize:10,color:'var(--label-4)',textAlign:'center',padding:'8px 0'}}>Nenhuma recomendação no momento</div>}
+                  {!recompra&&riskScore===0&&hist.length<3&&codRas&&<div style={{fontSize:10,color:'var(--label-4)',textAlign:'center',padding:'8px 0'}}>Nenhuma recomendação no momento</div>}
                 </div>
               </div>
 
@@ -1886,18 +2039,45 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
                 <div style={{...S.lbl,marginBottom:8}}>Ações rápidas</div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
                   {[
-                    {Ic:MessageSquare,label:'Conversa',cor:'#22c55e',href:pedRow.telefone?`https://wa.me/${pedRow.telefone}`:null},
-                    {Ic:Send,label:'Disparar',cor:'#7c6af7'},
-                    {Ic:ExternalLink,label:'Bling',cor:'#60a5fa',href:`https://app.bling.com.br/vendas.php#id=${pedRow.numero}`},
+                    {Ic:MessageSquare,label:'Conversa',cor:'#22c55e',href:telefone?`https://wa.me/${telefone.startsWith('55')?telefone:'55'+telefone}`:null,off:!telefone},
+                    {Ic:Send,label:'Disparar',cor:'#7c6af7',onClick:()=>setShowD(v=>!v),off:!telefone},
+                    {Ic:ExternalLink,label:'Bling',cor:'#60a5fa',href:ped.linkBling||`https://www.bling.com.br/vendas.php#/vendas/${ped.id||''}`},
                     {Ic:Copy,label:'Copiar nº',cor:'var(--label-3)',onClick:()=>cp(pedRow.numero,'num')},
-                  ].map(({Ic,label,cor,href,onClick})=>
-                    href
+                  ].map(({Ic,label,cor,href,onClick,off})=>
+                    href&&!off
                       ?<a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'7px',borderRadius:8,fontSize:11,color:cor,background:`${cor}18`,border:`0.5px solid ${cor}40`,cursor:'pointer',textDecoration:'none'}}><Ic size={12}/>{label}</a>
-                      :<button key={label} onClick={onClick} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'7px',borderRadius:8,fontSize:11,color:cor,background:`${cor}18`,border:`0.5px solid ${cor}40`,cursor:'pointer'}}>
+                      :<button key={label} onClick={off?undefined:onClick} disabled={off} title={off?'Telefone não cadastrado':undefined} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'7px',borderRadius:8,fontSize:11,color:off?'var(--label-4)':cor,background:off?'var(--fill)':`${cor}18`,border:`0.5px solid ${off?'var(--sep)':cor+'40'}`,cursor:off?'not-allowed':'pointer',opacity:off?.6:1}}>
                         {label==='Copiar nº'&&copied==='num'?<Check size={12} style={{color:'#22c55e'}}/>:<Ic size={12}/>}{label}
                       </button>
                   )}
                 </div>
+                {/* Seletor de gatilho */}
+                {showDisp&&(
+                  <div style={{marginTop:8,background:'var(--fill)',border:'0.5px solid rgba(124,106,247,.3)',borderRadius:8,padding:'8px 10px'}}>
+                    <div style={{fontSize:9,color:'var(--label-4)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}}>Escolha o gatilho</div>
+                    {gatilhos.length?(
+                      <div style={{display:'flex',flexWrap:'wrap',gap:5,maxHeight:120,overflowY:'auto'}}>
+                        {gatilhos.map(g=>(
+                          <button key={g} onClick={()=>dispararGatilho(g)} disabled={sending}
+                            style={{fontSize:9.5,padding:'4px 9px',borderRadius:99,cursor:'pointer',
+                              color:'#7c6af7',background:'rgba(124,106,247,.1)',border:'0.5px solid rgba(124,106,247,.3)'}}>
+                            {g}
+                          </button>
+                        ))}
+                      </div>
+                    ):(
+                      <div style={{fontSize:10,color:'var(--label-4)'}}>Nenhum template ativo encontrado</div>
+                    )}
+                  </div>
+                )}
+                {dispOk&&(
+                  <div style={{marginTop:6,fontSize:10,padding:'5px 9px',borderRadius:7,
+                    color:dispOk.startsWith('erro')?'#ef4444':'#22c55e',
+                    background:dispOk.startsWith('erro')?'rgba(239,68,68,.08)':'rgba(34,197,94,.08)',
+                    border:`0.5px solid ${dispOk.startsWith('erro')?'rgba(239,68,68,.3)':'rgba(34,197,94,.3)'}`}}>
+                    {dispOk.startsWith('erro')?dispOk.replace('erro:','Falhou: '):`✓ Gatilho "${dispOk}" disparado e registrado`}
+                  </div>
+                )}
               </div>
 
             </div>
@@ -1910,22 +2090,27 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
                     <Timer size={12} style={{color:'#f59e0b'}}/>
                     <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Análise de Frete</span>
                   </div>
-                  {det?.transpStats?.length>0?(
-                    det.transpStats.map(t=>(
-                      <div key={t.nome} style={{marginBottom:10}}>
+                  {freteStats.length>0?(
+                    freteStats.map(t=>{
+                      const atual=(transporte?.transportadora||'').toLowerCase().includes((t.nome||'').toLowerCase().split(' ')[0])
+                      return(
+                      <div key={t.nome} style={{marginBottom:10,padding:atual?'6px 8px':0,borderRadius:atual?8:0,
+                        background:atual?'rgba(6,182,212,.06)':'none',border:atual?'0.5px solid rgba(6,182,212,.25)':'none'}}>
                         <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
-                          <span style={{fontSize:10,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:130}}>{t.nome}</span>
+                          <span style={{fontSize:10,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:120}}>
+                            {t.nome}{atual&&<span style={{color:'#06b6d4',fontSize:8,marginLeft:4}}>● este pedido</span>}
+                          </span>
                           <div style={{display:'flex',gap:8,flexShrink:0}}>
-                            <span style={{fontSize:10,fontWeight:700,color:t.tempoMedio<=3?'#22c55e':t.tempoMedio<=7?'#f59e0b':'#ef4444'}}>{t.tempoMedio}d</span>
-                            <span style={{fontSize:10,color:'var(--label-4)'}}>{fmt(t.custoMedio||0)}</span>
+                            {t.tempoMedio!=null&&<span style={{fontSize:10,fontWeight:700,color:t.tempoMedio<=3?'#22c55e':t.tempoMedio<=7?'#f59e0b':'#ef4444'}}>{t.tempoMedio}d</span>}
+                            <span style={{fontSize:10,color:'var(--label-4)'}}>R$ {t.mediaEnvio}/envio</span>
                           </div>
                         </div>
                         <div style={{height:5,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
-                          <div style={{height:'100%',borderRadius:99,width:`${Math.min(100,(t.tempoMedio/14)*100)}%`,background:t.tempoMedio<=3?'#22c55e':t.tempoMedio<=7?'#f59e0b':'#ef4444'}}/>
+                          <div style={{height:'100%',borderRadius:99,width:`${Math.min(100,((t.tempoMedio||7)/14)*100)}%`,background:(t.tempoMedio||7)<=3?'#22c55e':(t.tempoMedio||7)<=7?'#f59e0b':'#ef4444'}}/>
                         </div>
-                        {t.taxaExtravio>0&&<div style={{fontSize:9,color:'#ef4444',marginTop:2}}>{t.taxaExtravio}% taxa de extravio</div>}
+                        <div style={{fontSize:9,color:'var(--label-4)',marginTop:2}}>{t.pedidos} envios · {fmt(t.totalFrete)} total</div>
                       </div>
-                    ))
+                    )})
                   ):(
                     <div style={{fontSize:10,color:'var(--label-4)',textAlign:'center',padding:'12px 0'}}>Dados de frete não disponíveis</div>
                   )}
