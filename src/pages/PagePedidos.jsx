@@ -2205,9 +2205,9 @@ export default function PagePedidos({api}) {
           </>
             </div>
             {/* PAINEL DIREITO DA LISTA */}
-            <div style={{width:260,flexShrink:0,borderLeft:glBorder,background:'rgba(0,0,0,.2)',overflowY:'auto',padding:'14px 12px',display:'flex',flexDirection:'column',gap:12}}>
+            <div style={{width:260,flexShrink:0,borderLeft:glB,background:'rgba(0,0,0,.2)',overflowY:'auto',padding:'14px 12px',display:'flex',flexDirection:'column',gap:12}}>
               {/* Top Produtos em Pedidos */}
-              <div style={{background:glass,border:glBorder,borderRadius:12,padding:'12px 14px',backdropFilter:'blur(10px)'}}>
+              <div style={{background:glass,border:glB,borderRadius:12,padding:'12px 14px',backdropFilter:'blur(10px)'}}>
                 <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10}}>
                   <Package size={13} style={{color:'#7c6af7'}}/>
                   <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>Produtos em Pedidos</span>
@@ -2228,7 +2228,7 @@ export default function PagePedidos({api}) {
                 }
               </div>
               {/* Ações Necessárias */}
-              <div style={{background:glass,border:glBorder,borderRadius:12,padding:'12px 14px',backdropFilter:'blur(10px)'}}>
+              <div style={{background:glass,border:glB,borderRadius:12,padding:'12px 14px',backdropFilter:'blur(10px)'}}>
                 <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10}}>
                   <AlertTriangle size={13} style={{color:'#f59e0b'}}/>
                   <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>Ações Necessárias</span>
