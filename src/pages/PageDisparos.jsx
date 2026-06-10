@@ -787,6 +787,115 @@ function SlaTransportadora({lista=[]}) {
   )
 }
 
+// ── Pulse strip — micro-KPIs em 1 linha (substitui os 6 KCards no Pulso) ─────
+function PulseStrip({total, taxa, u24, clientes, aguardando, erros, onErros}) {
+  const Item = ({lbl, val, cor=T.ink1, onClick}) => (
+    <div onClick={onClick} style={{display:'flex',alignItems:'baseline',gap:6,cursor:onClick?'pointer':'default'}}>
+      <span style={{fontSize:10,color:T.ink4}}>{lbl}</span>
+      <span style={{fontSize:14,fontWeight:800,color:cor,letterSpacing:'-.02em'}}>{val}</span>
+    </div>
+  )
+  return (
+    <div style={{display:'flex',alignItems:'center',gap:22,flexWrap:'wrap',
+      background:T.bg2,border:`1px solid ${T.sep2}`,borderRadius:12,padding:'9px 16px'}}>
+      <Item lbl="Total" val={total}/>
+      <Item lbl="Taxa" val={taxa===null?'—':`${taxa}%`} cor={taxa===null?T.ink3:taxa>=90?T.green:taxa>=70?T.amber:T.red}/>
+      <Item lbl="24h" val={u24}/>
+      <Item lbl="Clientes" val={clientes}/>
+      <Item lbl="Aguardando" val={aguardando} cor={aguardando>0?T.amber:T.ink1}/>
+      <Item lbl="Erros" val={erros} cor={erros>0?T.red:T.ink1} onClick={erros>0?onErros:undefined}/>
+    </div>
+  )
+}
+
+// ── Precisa de ação — erros por motivo + parados, tudo clicável ───────────────
+function PrecisaDeAcao({painel, onErros, onParados}) {
+  const erros = painel?.errosMotivo||[]
+  const parados = painel?.paradosTransito||0
+  const nada = erros.length===0 && parados===0
+  return (
+    <div style={{background:T.bg2,border:`1px solid ${nada?T.sep2:T.redBor}`,borderRadius:14,padding:'13px 14px'}}>
+      <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:10}}>
+        <AlertTriangle size={13} style={{color:nada?T.green:T.red}}/>
+        <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>Precisa de ação</span>
+      </div>
+      {nada
+        ? <div style={{fontSize:11,color:T.green,fontWeight:600,padding:'12px 0',textAlign:'center'}}>✓ Tudo em dia — nenhuma pendência</div>
+        : <div style={{display:'flex',flexDirection:'column',gap:6}}>
+            {parados>0 && (
+              <div onClick={onParados} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',
+                borderRadius:9,background:T.amberDim,border:`1px solid ${T.amberBor}`,cursor:'pointer'}}>
+                <Truck size={12} style={{color:T.amber,flexShrink:0}}/>
+                <span style={{fontSize:11,color:T.ink2,flex:1}}><b style={{color:T.amber}}>{parados}</b> parados em trânsito há +5 dias</span>
+                <ChevronRight size={12} style={{color:T.ink4}}/>
+              </div>
+            )}
+            {erros.slice(0,3).map(e=>(
+              <div key={e.motivo} onClick={onErros} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',
+                borderRadius:9,background:T.redDim,border:`1px solid ${T.redBor}`,cursor:'pointer'}}>
+                <XCircle size={12} style={{color:T.red,flexShrink:0}}/>
+                <span style={{fontSize:11,color:T.ink2,flex:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                  <b style={{color:T.red}}>{e.qtd}</b> — {e.motivo}
+                </span>
+                <ChevronRight size={12} style={{color:T.ink4}}/>
+              </div>
+            ))}
+          </div>}
+    </div>
+  )
+}
+
+// ── Saindo agora — fila de saída (futuro) + últimos envios (passado) ─────────
+// Um único fluxo temporal: agendados em countdown no topo, recém-enviados embaixo
+function SaindoAgora({fila=[], recentes=[], onVerDisparo}) {
+  const [,setTick] = useState(0)
+  useEffect(()=>{ const t=setInterval(()=>setTick(x=>x+1),30000); return ()=>clearInterval(t) },[])
+  const eta = (iso) => {
+    const s = Math.round((new Date(iso).getTime()-Date.now())/1000)
+    if (s <= 0)   return {txt:'agora',   cor:T.green}
+    if (s < 3600) return {txt:`em ${Math.max(1,Math.round(s/60))}m`, cor:T.amber}
+    return {txt:`em ${Math.round(s/3600)}h`, cor:T.ink3}
+  }
+  const Linha = ({r, dir}) => {
+    const gm = GATILHO_META[r.gatilho]||{}
+    const sm = STATUS_META[r.status]||{}
+    return (
+      <div onClick={()=>onVerDisparo?.(r)} style={{display:'flex',alignItems:'center',gap:7,
+        padding:'6px 9px',borderRadius:8,background:T.bg3,cursor:'pointer'}}>
+        <span style={{width:6,height:6,borderRadius:'50%',background:gm.cor||T.ink3,flexShrink:0,
+          boxShadow:dir==='out'?`0 0 6px ${gm.cor||T.ink3}`:'none'}}/>
+        <span style={{fontSize:10.5,color:T.ink2,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',flex:1}}>
+          {gm.label||r.gatilho} <span style={{color:T.ink4,fontWeight:400}}>#{r.numero_pedido}</span>
+        </span>
+        {dir==='out'
+          ? <span style={{fontSize:10,fontWeight:700,color:eta(r.agendado_para).cor,whiteSpace:'nowrap'}}>{eta(r.agendado_para).txt}</span>
+          : <span style={{fontSize:9.5,color:sm.cor||T.ink4,whiteSpace:'nowrap'}}>{tempoRel(r.criado_em)||''}</span>}
+      </div>
+    )
+  }
+  return (
+    <div style={{background:T.bg2,border:`1px solid ${T.sep2}`,borderRadius:14,padding:'13px 14px'}}>
+      <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:10}}>
+        <Radio size={13} style={{color:T.cyan}}/>
+        <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>Saindo agora</span>
+        <span style={{fontSize:9,color:T.ink4,marginLeft:'auto'}}>{fila.length} na fila</span>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:5}}>
+        {fila.slice(0,4).map(r=><Linha key={`f${r.id}`} r={r} dir="out"/>)}
+        {fila.length>0 && recentes.length>0 &&
+          <div style={{display:'flex',alignItems:'center',gap:8,padding:'2px 0'}}>
+            <div style={{flex:1,height:1,background:T.sep2}}/>
+            <span style={{fontSize:8.5,color:T.ink4}}>enviados</span>
+            <div style={{flex:1,height:1,background:T.sep2}}/>
+          </div>}
+        {recentes.slice(0,4).map(r=><Linha key={`r${r.id}`} r={r} dir="in"/>)}
+        {fila.length===0 && recentes.length===0 &&
+          <div style={{fontSize:10.5,color:T.ink4,padding:'12px 0',textAlign:'center'}}>Sem movimentação recente</div>}
+      </div>
+    </div>
+  )
+}
+
 function EventoCard({d, onReenviar, reenviados, setReenviados}) {
   const m = GATILHO_META[d.gatilho]||{label:d.gatilho,icon:Zap,cor:'#6b7280'}
   const s = STATUS_META[d.status]||STATUS_META.ignorado
@@ -947,6 +1056,8 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
   const [envManOk, setEnvManOk]   = useState(false)
   const [ordemDisp, setOrdemDisp] = useState([])
   const [ringReady,  setRingReady] = useState(false)
+  const [tplsCorpo,  setTplsCorpo] = useState(null)   // corpo dos templates p/ bolhas
+  useEffect(()=>{ let on=true; _carregarTemplates(api).then(m=>{ if(on) setTplsCorpo(m) }); return ()=>{on=false} },[api])
 
   // Anima o ring do perfil após carregar (precisa de 1 frame para CSS transition funcionar)
   useEffect(() => {
@@ -1085,11 +1196,18 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
               msg: `${meta?.label} ${tempoStr} sem notificação.${
                 gatInsight?.clientes ? ` Além deste, **${gatInsight.clientes}** pedidos nas últimas 2 semanas no mesmo estado.` : ''
               }`,
-            } : isErr ? {
-              sev:'erro',
-              titulo:'Erro de envio',
-              msg: dados.erro_msg || 'Falha na API WhatsApp.',
-            } : isAg ? {
+            } : isErr ? (()=>{
+              // Diagnóstico acionável — motivo normalizado + próximo passo (Nivelmax)
+              const em = (dados.erro_msg||'').toLowerCase()
+              const diag =
+                em.includes('132000')||em.includes('param') ? {t:'Parâmetros do template (Meta #132000)', a:'O nº de variáveis não bate com o template aprovado — ajuste o template na página Gatilhos e reenvie.'} :
+                em.includes('cota')||em.includes('limit')||em.includes('131048')||em.includes('131056') ? {t:'Cota da Meta excedida', a:'Limite diário de conversas atingido — aguarde o reset (~24h do 1º envio) e use Reenviar.'} :
+                em.includes('timeout')||em.includes('econn')||em.includes('network') ? {t:'Timeout / conexão', a:'Falha temporária de rede — o motor re-tenta sozinho até 3×; ou use Reenviar agora.'} :
+                em.includes('telefone')||em.includes('phone')||em.includes('131026') ? {t:'Telefone inválido', a:'Número não tem WhatsApp ativo — confira o cadastro do cliente no Bling.'} :
+                em.includes('inativ')||em.includes('não encontrado')||em.includes('nao encontrado') ? {t:'Template inativo ou ausente', a:'Ative o template na página Gatilhos e use Reenviar.'} :
+                {t:'Erro de envio', a: dados.erro_msg || 'Falha na API WhatsApp — use Reenviar para tentar de novo.'}
+              return { sev:'erro', titulo: diag.t, msg: diag.a }
+            })() : isAg ? {
               sev:'aviso',
               titulo:'Aguardando envio',
               msg:`Agendado para +${dados.delay_min}min após o evento. Será enviado automaticamente.`,
@@ -1405,6 +1523,71 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                     </div>
                   </div>
 
+                  {/* Tempos da jornada — timestamps e durações reais (Nivelmax) */}
+                  {(()=>{
+                    if (!ordemDisp?.length) return null
+                    const minPor = {}
+                    for (const d of ordemDisp) {
+                      if (d.status!=='enviado') continue
+                      const st = GATILHO_STEP[d.gatilho]; if (st===undefined) continue
+                      const t = new Date(d.criado_em).getTime()
+                      if (!minPor[st] || t < minPor[st]) minPor[st] = t
+                    }
+                    const steps = Object.keys(minPor).map(Number).sort((a,b)=>a-b)
+                    if (steps.length < 2) return null
+                    const fmtD = ms => { const d = ms/86400000
+                      return d >= 1 ? `+${d.toFixed(1).replace('.',',')}d` : `+${Math.max(1,Math.round(ms/3600000))}h` }
+                    const fmtT = t => new Date(t).toLocaleDateString('pt-BR',{weekday:'short'}).replace('.','') + ' ' +
+                      new Date(t).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+                    return (
+                      <div className="modal-wc-sec" style={{padding:'8px 16px'}}>
+                        <div style={{display:'flex',alignItems:'center',flexWrap:'wrap',gap:6,
+                          fontSize:9.5,color:'#6b7294'}}>
+                          {steps.map((st,i)=>(
+                            <React.Fragment key={st}>
+                              {i>0 && <span style={{color:'#00e676',fontWeight:700,fontSize:9.5}}>
+                                {fmtD(minPor[st]-minPor[steps[i-1]])} →</span>}
+                              <span>
+                                <span style={{color:'#b8bdd4',fontWeight:600}}>{JOURNEY[st]?.lbl||`Etapa ${st}`}</span>{' '}
+                                <span style={{fontFamily:'monospace',fontSize:9}}>{fmtT(minPor[st])}</span>
+                              </span>
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Tentativas deste gatilho — prova do retry do motor (Nivelmax) */}
+                  {(()=>{
+                    const tent = (ordemDisp||[]).filter(d=>d.gatilho===dados.gatilho)
+                      .sort((a,b)=>new Date(a.criado_em)-new Date(b.criado_em))
+                    if (tent.length < 2) return null
+                    return (
+                      <div className="modal-wc-sec" style={{padding:'8px 16px'}}>
+                        <div style={{fontSize:9,color:'#6b7294',textTransform:'uppercase',
+                          letterSpacing:'.07em',marginBottom:6}}>Tentativas deste gatilho</div>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:5,alignItems:'center'}}>
+                          {tent.map((d,i)=>{
+                            const ok = d.status==='enviado'
+                            const hora = new Date(d.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+                            return (
+                              <React.Fragment key={d.id||i}>
+                                {i>0 && <span style={{color:'#3a3f5c',fontSize:9}}>·</span>}
+                                <span style={{fontSize:10,fontWeight:600,
+                                  color: ok?'#00e676':d.status==='erro'?'#ff4757':'#ffb300'}}>
+                                  {ok?'✓':d.status==='erro'?'✕':'…'} {hora} {d.status}
+                                  {ok && i>0 && tent.slice(0,i).some(x=>x.status==='erro') &&
+                                    <span style={{color:'#6b7294',fontWeight:400}}> (retry do motor)</span>}
+                                </span>
+                              </React.Fragment>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
                   {/* Diagnóstico técnico colapsável */}
                   <div className="modal-wc-sec" style={{padding:'10px 16px'}}>
                     <details>
@@ -1480,7 +1663,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                       ? <><CheckCircle size={13}/>Mensagem enviada!</>
                       : <><Send size={13}/>Enviar mensagem agora</>}
                   </button>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
                     <button onClick={()=>onVerPedido?.(dados.numero_pedido)}
                       className="modal-wc-btn-s" style={{padding:10}}>
                       <ExternalLink size={12}/>Ver pedido
@@ -1491,7 +1674,11 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                         border:'1px solid rgba(167,139,250,.22)',fontFamily:'inherit',
                         display:'flex',alignItems:'center',justifyContent:'center',gap:7,
                         transition:'all .15s'}}>
-                      <Users size={12}/>Ver perfil completo
+                      <Users size={12}/>Perfil
+                    </button>
+                    <button onClick={()=>{ try{navigator.clipboard.writeText(dados.telefone||'')}catch{} }}
+                      className="modal-wc-btn-s" style={{padding:10}}>
+                      <Hash size={12}/>Copiar tel
                     </button>
                   </div>
                 </div>
@@ -1610,6 +1797,27 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                         {fmtTel(dados.telefone)}
                       </div>
                       <div style={{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}}>
+                        {!loadCli && (()=>{
+                          // Telefone validado = nenhum erro de número no histórico (Nivelmax)
+                          const telRuim = (cli?.disparos||[]).some(d=>{
+                            const em=(d.erro_msg||'').toLowerCase()
+                            return em.includes('131026')||em.includes('telefone')||em.includes('phone')
+                          })
+                          const temEnvio = enviados>0
+                          if (telRuim) return (
+                            <span style={{fontSize:9.5,padding:'2px 9px',borderRadius:99,
+                              background:'rgba(255,71,87,.12)',color:'#ff4757',
+                              border:'1px solid rgba(255,71,87,.22)',fontWeight:600}}>
+                              ⚠ telefone com falhas
+                            </span>)
+                          if (temEnvio) return (
+                            <span style={{fontSize:9.5,padding:'2px 9px',borderRadius:99,
+                              background:'rgba(0,230,118,.1)',color:'#00e676',
+                              border:'1px solid rgba(0,230,118,.22)',fontWeight:600}}>
+                              ✓ tel validado
+                            </span>)
+                          return null
+                        })()}
                         {score===0&&!loadCli&&(
                           <span style={{fontSize:9.5,padding:'2px 9px',borderRadius:99,
                             background:'rgba(255,71,87,.12)',color:'#ff4757',
@@ -1636,26 +1844,94 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                   </div>
                 </div>
 
-                {/* ─── STATS 4 colunas ─── */}
-                {!loadCli && cli && (
+                {/* ─── STATS 4 colunas — relacionamento (Nivelmax) ─── */}
+                {!loadCli && cli && (()=>{
+                  const tentC  = enviados + erros
+                  const taxaC  = tentC > 0 ? Math.round(enviados/tentC*100) : null
+                  const ultimo = (cli?.disparos||[])[0]?.criado_em
+                  const ultStr = ultimo ? (tempoRel(ultimo)||'—').replace('há ','') : '—'
+                  return (
                   <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',
                     flexShrink:0,borderBottom:'1px solid rgba(255,255,255,.05)'}}>
                     {[
-                      {lbl:'Disparos', val:total,    cor:'#eef0f6'},
-                      {lbl:'Enviados', val:enviados,  cor:enviados>0?'#00e676':'#ff4757'},
-                      {lbl:'Ignorados',val:ignorados, cor:ignorados>0?'#ffb300':'#6b7294'},
-                      {lbl:'Pedidos',  val:pedidos.length, cor:'#a78bfa'},
+                      {lbl:'Pedidos',     val:pedidos.length, cor:'#a78bfa'},
+                      {lbl:'Disparos',    val:total,          cor:'#eef0f6'},
+                      {lbl:'Taxa entrega',val:taxaC===null?'—':`${taxaC}%`, cor:taxaC===null?'#6b7294':taxaC>=90?'#00e676':taxaC>=70?'#ffb300':'#ff4757'},
+                      {lbl:'Últ. contato',val:ultStr,         cor:'#4f8ef7', small:true},
                     ].map((s,i)=>(
                       <div key={i} style={{padding:'10px 0',textAlign:'center',
                         borderRight:i<3?'1px solid rgba(255,255,255,.04)':'none'}}>
-                        <div style={{fontSize:22,fontWeight:700,color:s.cor,
-                          letterSpacing:'-.03em',lineHeight:1}}>{s.val}</div>
+                        <div style={{fontSize:s.small?13:22,fontWeight:700,color:s.cor,
+                          letterSpacing:'-.03em',lineHeight:s.small?1.7:1}}>{s.val}</div>
                         <div style={{fontSize:8,color:'#6b7294',textTransform:'uppercase',
                           letterSpacing:'.05em',marginTop:3}}>{s.lbl}</div>
                       </div>
                     ))}
                   </div>
-                )}
+                  )
+                })()}
+
+                {/* ─── Pressão de mensagens — anti-fadiga (Nivelmax) ─── */}
+                {!loadCli && cli && (()=>{
+                  const seteD = Date.now() - 7*86400000
+                  const msgs7 = (cli?.disparos||[]).filter(d=>d.status==='enviado' && new Date(d.criado_em).getTime()>seteD).length
+                  const nivel = msgs7<=3 ? {cor:'#00e676',dim:T.greenDim,lbl:'saudável — espaço para comunicar'}
+                            : msgs7<=6 ? {cor:'#ffb300',dim:T.amberDim,lbl:'moderado — evite disparos promocionais esta semana'}
+                            :            {cor:'#ff4757',dim:T.redDim,  lbl:'alto — risco de fadiga, só transacionais essenciais'}
+                  const pct = Math.min(100, Math.round(msgs7/8*100))
+                  return (
+                    <div style={{padding:'9px 16px',flexShrink:0,borderBottom:'1px solid rgba(255,255,255,.05)'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8}}>
+                        <span style={{fontSize:8.5,color:'#6b7294',textTransform:'uppercase',
+                          letterSpacing:'.06em',whiteSpace:'nowrap'}}>Pressão de msgs</span>
+                        <div style={{flex:1,height:5,background:T.bg4,borderRadius:99,overflow:'hidden'}}>
+                          <div style={{width:`${pct}%`,height:'100%',background:nivel.cor,borderRadius:99,
+                            boxShadow:`0 0 6px ${nivel.cor}60`,transition:'width .4s'}}/>
+                        </div>
+                        <span style={{fontSize:10,fontWeight:700,color:nivel.cor,whiteSpace:'nowrap'}}>{msgs7} / 7d</span>
+                      </div>
+                      <div style={{fontSize:8.5,color:'#6b7294',marginTop:3}}>{nivel.lbl}</div>
+                    </div>
+                  )
+                })()}
+
+                {/* ─── Pedido ativo — jornada em dots (Nivelmax) ─── */}
+                {!loadCli && cli && pedidos.length>0 && (()=>{
+                  const STEP_CLI = {
+                    pedido_criado:0,pagamento_aprovado:0,pagamento_pendente:0,pix_pendente:0,
+                    em_separacao:1,nfe_emitida:1,produto_embalado:1,
+                    pedido_enviado:2,pedido_coletado:2,
+                    rastreio_em_transito:3,saiu_entrega:3,tentativa_entrega:3,nao_entrou_unidade:3,endereco_incorreto:3,
+                    pedido_entregue:4,nao_entregue:4,pacote_devolvido:4,avaliar_pedido:4,
+                  }
+                  const pedAtivo = String(pedidos[0])
+                  const dispPed  = (cli?.disparos||[]).filter(d=>String(d.numero_pedido)===pedAtivo && d.status==='enviado')
+                  if (!dispPed.length) return null
+                  const cur = Math.max(...dispPed.map(d=>STEP_CLI[d.gatilho] ?? -1))
+                  if (cur < 0) return null
+                  const LBLS = ['Pago','Separado','Enviado','Trânsito','Entregue']
+                  return (
+                    <div style={{padding:'9px 16px',flexShrink:0,borderBottom:'1px solid rgba(255,255,255,.05)'}}>
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                        <span style={{fontSize:8.5,color:'#6b7294',textTransform:'uppercase',letterSpacing:'.06em'}}>
+                          Pedido ativo #{pedAtivo}
+                        </span>
+                        <span style={{fontSize:9,fontWeight:700,color:cur>=4?'#00e676':'#4f8ef7'}}>{LBLS[cur]}</span>
+                      </div>
+                      <div style={{display:'flex',alignItems:'center'}}>
+                        {LBLS.map((_,i)=>(
+                          <React.Fragment key={i}>
+                            {i>0 && <div style={{flex:1,height:2,background:i<=cur?'#00e676':'rgba(255,255,255,.07)'}}/>}
+                            <span style={{width:8,height:8,borderRadius:'50%',flexShrink:0,
+                              background:i<cur?'#00e676':i===cur?'#4f8ef7':'rgba(255,255,255,.12)',
+                              boxShadow:i===cur?'0 0 8px #4f8ef7':'none',
+                              outline:i===cur?'3px solid rgba(79,142,247,.18)':'none'}}/>
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 {/* ─── SCROLL ─── */}
                 <div style={{flex:1,overflowY:'auto',minHeight:0}}>
@@ -1873,13 +2149,34 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                                   display:'flex',alignItems:'center',justifyContent:'center'}}>
                                   <Ic size={10} style={{color:m.cor}}/>
                                 </div>
-                                <span style={{flex:1,fontSize:11.5,color:'#b8bdd4',
-                                  overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                                  {m.label}
-                                  {selPed==='todos'&&d.numero_pedido&&(
-                                    <span style={{fontSize:9,color:'#3a3f5c',marginLeft:5}}>#{d.numero_pedido}</span>
-                                  )}
-                                </span>
+                                <div style={{flex:1,minWidth:0}}>
+                                  <div style={{fontSize:11.5,color:'#b8bdd4',
+                                    overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                                    {m.label}
+                                    {selPed==='todos'&&d.numero_pedido&&(
+                                      <span style={{fontSize:9,color:'#3a3f5c',marginLeft:5}}>#{d.numero_pedido}</span>
+                                    )}
+                                  </div>
+                                  {/* Mini-bolha: trecho da mensagem real (variáveis salvas v4) */}
+                                  {(()=>{
+                                    let v = d.variaveis
+                                    if (typeof v==='string') { try{v=JSON.parse(v)}catch{v=null} }
+                                    const corpo = tplsCorpo?.[d.gatilho]
+                                    if (!v || !corpo) return null
+                                    const rend = corpo.replace(/\{\{(\w+)\}\}/g,(mm,k)=>{
+                                      const s=v[k]??v[`{{${k}}}`]; return (s===undefined||s===null||s==='')?mm:String(s)
+                                    }).replace(/\*/g,'').split('\n').filter(Boolean).slice(0,2).join(' ')
+                                    if (!rend) return null
+                                    return (
+                                      <div style={{fontSize:9.5,color:'#6b7294',fontStyle:'italic',
+                                        background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.05)',
+                                        borderRadius:'8px 8px 8px 2px',padding:'3px 8px',marginTop:3,
+                                        overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'96%'}}>
+                                        "{rend.slice(0,92)}{rend.length>92?'…':''}"
+                                      </div>
+                                    )
+                                  })()}
+                                </div>
                                 <div style={{display:'inline-flex',alignItems:'center',gap:3,
                                   padding:'2px 7px',borderRadius:99,flexShrink:0,
                                   background:sdim,border:`0.5px solid ${sbr}`}}>
@@ -2238,6 +2535,7 @@ export default function PageDisparos({api: apiProp}) {
 
   // Drawer lateral (detalhe do disparo OU perfil do cliente)
   const [drawer, setDrawer] = useState(null)  // {tipo:'disparo'|'cliente', dados}
+  const [aba, setAba] = useState('pulso')     // 'pulso' | 'analytics' | 'log'
   // Insights dispensados (marcados como "entendi") — por texto
   const [insDispensados, setInsDispensados] = useState([])
 
@@ -2465,6 +2763,21 @@ export default function PageDisparos({api: apiProp}) {
                 {lastUpd&&<span style={{marginLeft:8}}>· atualizado {lastUpd.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>}
               </p>
             </div>
+            {/* Pill do motor — sempre visível, em qualquer aba */}
+            {painel?.saude && (()=>{
+              const s = painel.saude
+              const prox = s.ultimoCicloJob ? Math.max(0, 60 - Math.round((Date.now()-new Date(s.ultimoCicloJob).getTime())/60000)) : null
+              return (
+                <div style={{display:'flex',alignItems:'center',gap:6,padding:'4px 12px',borderRadius:99,
+                  background:T.greenDim,border:`1px solid ${T.greenBor}`,marginLeft:6}}>
+                  <span style={{width:7,height:7,borderRadius:'50%',background:T.green,
+                    boxShadow:`0 0 8px ${T.green}`,animation:'pulse 2s ease infinite'}}/>
+                  <span style={{fontSize:10,color:T.green,fontWeight:700,whiteSpace:'nowrap'}}>
+                    motor operando{prox!==null && ` · ciclo ~${prox}min`} · {s.filaRastreioAtivos} na fila
+                  </span>
+                </div>
+              )
+            })()}
           </div>
         </div>
         <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
@@ -2516,28 +2829,54 @@ export default function PageDisparos({api: apiProp}) {
 
       <div style={{padding:'16px 20px',display:'flex',flexDirection:'column',gap:16}}>
 
-        {/* ── Funil da Jornada (Nivelmax) ── */}
-        <FunilJornada painel={painel} onFiltrarGatilho={g=>{ setFiltroGat(g); setLogPg(1) }}/>
-
-        {/* ── KPIs ── */}
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:10}}>
-          <KCard icon={Send}      label="Total disparos"     value={total}     cor="#7c6af7" sub={`últimos ${stats?.dias||7} dias`} spark={spark7.total}/>
-          <KCard icon={CheckCircle}label="Enviados"           value={enviados}  cor="#22c55e" sub={taxa===null?'sem envios ainda':`taxa ${taxa}%`} trend={taxa===null?undefined:taxa>=90?5:taxa>=70?0:-5} spark={spark7.enviados}/>
-          <KCard icon={XCircle}   label="Erros"              value={erros}     cor="#ef4444" trend={erros>0?-1:0} spark={spark7.erros}/>
-          <KCard icon={Users}     label="Clientes alcançados" value={parseInt(t.clientes_unicos)||0} cor="#4a9fff" spark={spark7.clientes}/>
-          <KCard icon={Activity}  label="Últimas 24h"        value={parseInt(t.ultimas_24h)||0} cor="#a78bfa"/>
-          <KCard icon={Clock}     label="Aguardando"          value={aguardando} cor="#f59e0b"/>
+        {/* ── Abas: Pulso · Analytics · Log ── */}
+        <div style={{display:'flex',gap:6}}>
+          {[
+            {id:'pulso',     lbl:'⚡ Pulso'},
+            {id:'analytics', lbl:'Analytics'},
+            {id:'log',       lbl:`Log${logTotal?` · ${logTotal}`:''}`},
+          ].map(tb=>(
+            <button key={tb.id} onClick={()=>setAba(tb.id)} style={{
+              padding:'6px 16px',borderRadius:99,fontSize:11.5,fontWeight:600,cursor:'pointer',
+              border:`1px solid ${aba===tb.id?T.purpleBor:T.sep2}`,
+              background:aba===tb.id?T.purpleDim:'transparent',
+              color:aba===tb.id?T.purple:T.ink3,transition:'all .15s'}}>
+              {tb.lbl}
+            </button>
+          ))}
         </div>
 
-        {/* ── Cockpit Nivelmax: fila de saída · saúde do motor · erros por motivo ── */}
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(230px,1fr))',gap:10}}>
-          <FilaSaida items={painel?.filaSaida||[]} onVerDisparo={r=>setDrawer({tipo:'disparo',dados:r})}/>
-          <SaudeMotor saude={painel?.saude} taxa={taxa}/>
-          <ErrosMotivo lista={painel?.errosMotivo||[]}/>
-        </div>
+        {/* ════════════ ABA PULSO — operação ao vivo ════════════ */}
+        {aba==='pulso' && (<>
+        {/* ── Funil da Jornada — hero ── */}
+        <FunilJornada painel={painel} onFiltrarGatilho={g=>{ setFiltroGat(g); setLogPg(1); setAba('log') }}/>
 
+        {/* ── Pulse strip — micro-KPIs ── */}
+        <PulseStrip total={total} taxa={taxa} u24={parseInt(t.ultimas_24h)||0}
+          clientes={parseInt(t.clientes_unicos)||0} aguardando={aguardando} erros={erros}
+          onErros={()=>{ setFiltroSt('erro'); setLogPg(1); setAba('log') }}/>
+
+        {/* ── Precisa de ação · Saindo agora ── */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:10}}>
+          <PrecisaDeAcao painel={painel}
+            onErros={()=>{ setFiltroSt('erro'); setLogPg(1); setAba('log') }}
+            onParados={()=>{ setFiltroGat('rastreio_em_transito'); setLogPg(1); setAba('log') }}/>
+          <SaindoAgora fila={painel?.filaSaida||[]} recentes={liveFeedItems||[]}
+            onVerDisparo={r=>setDrawer({tipo:'disparo',dados:r})}/>
+        </div>
+        </>)}
+
+        {/* ════════════ ABA ANALYTICS — desempenho ════════════ */}
+        {aba==='analytics' && (<>
         {/* ── SLA por transportadora ── */}
         <SlaTransportadora lista={painel?.slaTransportadora||[]}/>
+
+        {/* ── Saúde do motor + erros (visão completa) ── */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(230px,1fr))',gap:10}}>
+          <SaudeMotor saude={painel?.saude} taxa={taxa}/>
+          <ErrosMotivo lista={painel?.errosMotivo||[]}/>
+          <FilaSaida items={painel?.filaSaida||[]} onVerDisparo={r=>setDrawer({tipo:'disparo',dados:r})}/>
+        </div>
 
         {/* ═══════════════════════════════════════════════════
             ANALYTICS NIVELMAX — Gráficos + Decisão de Gatilhos
@@ -2967,6 +3306,10 @@ export default function PageDisparos({api: apiProp}) {
         </div>
 
 
+        </>)}
+
+        {/* ════════════ ABA LOG — auditoria ════════════ */}
+        {aba==='log' && (<>
         {/* ── Log de disparos ── */}
         <div style={{background:T.bg1,border:`1px solid ${T.sep2}`,borderRadius:14,
           overflow:'hidden',boxShadow:'0 8px 32px rgba(0,0,0,.5)'}}>
@@ -3047,13 +3390,7 @@ export default function PageDisparos({api: apiProp}) {
             </div>
           </div>
 
-          {/* ── LIVE FEED — disparos em tempo real ── */}
-          <LiveFeed
-            items={liveFeedItems}
-            novos={novosCount}
-            onVerNovos={()=>{ setNovos(0); carregarLog(1) }}
-            onItemClick={r=>setDrawer({tipo:'disparo',dados:r})}
-          />
+          {/* Live feed migrou para o card "Saindo agora" da aba Pulso */}
 
           {/* ── Linhas do log ── */}
           <div style={{minHeight:120,maxHeight:'calc(100vh - 440px)',overflowY:'auto',
@@ -3150,6 +3487,8 @@ export default function PageDisparos({api: apiProp}) {
             </div>
           )}
         </div>
+
+        </>)}
 
         {/* respiro final — garante que o log seja totalmente visível ao rolar */}
         <div style={{height:24,flexShrink:0}}/>
