@@ -12,7 +12,7 @@ import {
   RotateCcw, ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
   Eye, X, Navigation, Hash, Timer, AlertTriangle, ShieldCheck, MapPin,
   ToggleLeft, ToggleRight, Download, Info, MessageSquare,
-  ExternalLink, Radio, Settings, MoreVertical, Brain, Phone,
+  ExternalLink, Radio, Settings, MoreVertical, Brain,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -94,6 +94,8 @@ const STATUS_META = {
   erro:       { label:'Erro',       cor:'#ef4444', bg:'rgba(239,68,68,.12)',    icon:XCircle },
   ignorado:   { label:'Ignorado',   cor:'#6b7280', bg:'rgba(107,114,128,.12)', icon:Minus },
   aguardando: { label:'Aguardando', cor:'#f59e0b', bg:'rgba(245,158,11,.12)',  icon:Clock },
+  processando:{ label:'Processando',cor:'#06b6d4', bg:'rgba(6,182,212,.12)',   icon:RefreshCw },
+  suprimido:  { label:'Suprimido',  cor:'#a78bfa', bg:'rgba(167,139,250,.12)', icon:Minus },
 }
 
 const PERIODOS = [
