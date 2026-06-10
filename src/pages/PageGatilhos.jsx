@@ -11,7 +11,7 @@ import {
   ArrowRight, SlidersHorizontal, Tag, Repeat, Activity,
   GripVertical, Timer, Edit3, Send as SendIcon,
   Search, Users, Download, Minus, CheckCircle as CheckCircleIc,
-  Navigation, ArrowUpRight, History, TrendingUp, ChevronLeft,
+  Navigation, ArrowUpRight, History, TrendingUp, ChevronLeft, MapPin,
 } from 'lucide-react'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
