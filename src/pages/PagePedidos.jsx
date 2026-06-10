@@ -118,6 +118,13 @@ function Pill({label,cor,bg,bdr,sz=10}) {
   return <span style={{fontSize:sz,fontWeight:700,padding:'2px 8px',borderRadius:99,
     color:cor,background:bg,border:`1px solid ${bdr||cor+'33'}`,whiteSpace:'nowrap',flexShrink:0}}>{label}</span>
 }
+function SitBadge({sitId}) {
+  const s = SIT[sitId]||{label:'—',cor:'#888',bg:'var(--fill)',bdr:'var(--sep)'}
+  return <span style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:99,
+    color:s.cor,background:s.bg,border:`1px solid ${s.bdr}`,whiteSpace:'nowrap',flexShrink:0}}>
+    {s.label}
+  </span>
+}
 function CanalBadge({canal,small}) {
   const c   = CANAL_CFG[canal]||CANAL_CFG.bling
   const Logo= CANAL_LOGO[canal]||LogoBling
