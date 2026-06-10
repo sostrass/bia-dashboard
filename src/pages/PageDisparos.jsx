@@ -859,17 +859,44 @@ function SaindoAgora({fila=[], recentes=[], onVerDisparo}) {
   const Linha = ({r, dir}) => {
     const gm = GATILHO_META[r.gatilho]||{}
     const sm = STATUS_META[r.status]||{}
+    const SIc = sm.icon
     return (
-      <div onClick={()=>onVerDisparo?.(r)} style={{display:'flex',alignItems:'center',gap:7,
-        padding:'6px 9px',borderRadius:8,background:T.bg3,cursor:'pointer'}}>
-        <span style={{width:6,height:6,borderRadius:'50%',background:gm.cor||T.ink3,flexShrink:0,
+      <div onClick={()=>onVerDisparo?.(r)} style={{display:'flex',alignItems:'center',gap:8,
+        padding:'7px 9px',borderRadius:9,background:T.bg3,cursor:'pointer',
+        border:'1px solid transparent',transition:'border .15s'}}
+        onMouseEnter={e=>e.currentTarget.style.border=`1px solid ${T.sep2}`}
+        onMouseLeave={e=>e.currentTarget.style.border='1px solid transparent'}>
+        <span style={{width:7,height:7,borderRadius:'50%',background:gm.cor||T.ink3,flexShrink:0,
           boxShadow:dir==='out'?`0 0 6px ${gm.cor||T.ink3}`:'none'}}/>
-        <span style={{fontSize:10.5,color:T.ink2,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',flex:1}}>
-          {gm.label||r.gatilho} <span style={{color:T.ink4,fontWeight:400}}>#{r.numero_pedido}</span>
-        </span>
-        {dir==='out'
-          ? <span style={{fontSize:10,fontWeight:700,color:eta(r.agendado_para).cor,whiteSpace:'nowrap'}}>{eta(r.agendado_para).txt}</span>
-          : <span style={{fontSize:9.5,color:sm.cor||T.ink4,whiteSpace:'nowrap'}}>{tempoRel(r.criado_em)||''}</span>}
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:6,minWidth:0}}>
+            <span style={{fontSize:10.5,color:T.ink1,fontWeight:600,
+              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+              {r.nome_cliente||'Cliente'}
+            </span>
+            {r.canal && <PlataformaSVG canal={r.canal} size={11}/>}
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:5,fontSize:9,color:T.ink4,minWidth:0}}>
+            <span style={{color:gm.cor||T.ink3,fontWeight:600,overflow:'hidden',
+              textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{gm.label||r.gatilho}</span>
+            {r.numero_pedido && <span style={{flexShrink:0}}>· #{r.numero_pedido}</span>}
+            {r.telefone && <span style={{fontFamily:'monospace',flexShrink:0}}>· {fmtTel(r.telefone)}</span>}
+          </div>
+        </div>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:2,flexShrink:0}}>
+          {dir==='out'
+            ? <span style={{fontSize:10,fontWeight:700,color:eta(r.agendado_para).cor,whiteSpace:'nowrap'}}>{eta(r.agendado_para).txt}</span>
+            : <span style={{fontSize:9,color:T.ink4,whiteSpace:'nowrap'}}>{tempoRel(r.criado_em)||''}</span>}
+          {dir!=='out' && sm.label && (
+            <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:8.5,fontWeight:700,
+              color:sm.cor,textTransform:'uppercase',letterSpacing:'.03em'}}>
+              {SIc && <SIc size={8}/>}{sm.label}
+            </span>
+          )}
+          {dir==='out' && (
+            <span style={{fontSize:8.5,fontWeight:700,color:T.amber,textTransform:'uppercase',letterSpacing:'.03em'}}>agendado</span>
+          )}
+        </div>
       </div>
     )
   }
@@ -891,6 +918,194 @@ function SaindoAgora({fila=[], recentes=[], onVerDisparo}) {
         {recentes.slice(0,4).map(r=><Linha key={`r${r.id}`} r={r} dir="in"/>)}
         {fila.length===0 && recentes.length===0 &&
           <div style={{fontSize:10.5,color:T.ink4,padding:'12px 0',textAlign:'center'}}>Sem movimentação recente</div>}
+      </div>
+    </div>
+  )
+}
+
+// ── Ações de 1 clique: copiar e WhatsApp ─────────────────────────────────────
+function CopyChip({valor, copiar, label, mono=true, cor='#a78bfa'}) {
+  const [ok, setOk] = useState(false)
+  if (!valor) return null
+  return (
+    <button onClick={e=>{ e.stopPropagation()
+      try{ navigator.clipboard.writeText(String(copiar ?? valor)) }catch{}
+      setOk(true); setTimeout(()=>setOk(false),1600) }}
+      title={`Copiar ${label||''}`}
+      style={{display:'inline-flex',alignItems:'center',gap:5,padding:'4px 9px',
+        borderRadius:8,fontSize:10,cursor:'pointer',fontFamily:'inherit',
+        background:ok?'rgba(0,230,118,.1)':`${cor}12`,
+        border:`1px solid ${ok?'rgba(0,230,118,.3)':`${cor}30`}`,
+        color:ok?'#00e676':cor,transition:'all .15s',maxWidth:'100%'}}>
+      {label && <span style={{fontSize:8,color:T.ink4,textTransform:'uppercase',letterSpacing:'.05em',flexShrink:0}}>{label}</span>}
+      <span style={{fontFamily:mono?'monospace':'inherit',fontWeight:600,
+        overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{String(valor)}</span>
+      {ok ? <Check size={10} style={{flexShrink:0}}/> : <FileText size={9} style={{flexShrink:0,opacity:.6}}/>}
+    </button>
+  )
+}
+function abrirWhats(tel) {
+  const n = String(tel||'').replace(/\D/g,'')
+  if (!n) return
+  window.open(`https://wa.me/${n.startsWith('55')?n:'55'+n}`, '_blank')
+}
+function BotaoWhats({tel, full=false}) {
+  return (
+    <button onClick={()=>abrirWhats(tel)} style={{
+      padding:full?'10px':'7px 12px',borderRadius:11,fontSize:11.5,fontWeight:700,cursor:'pointer',
+      background:'rgba(37,211,102,.12)',color:'#25d366',
+      border:'1px solid rgba(37,211,102,.3)',fontFamily:'inherit',
+      display:'flex',alignItems:'center',justifyContent:'center',gap:6,
+      width:full?'100%':'auto',transition:'all .15s'}}>
+      <MessageSquare size={12}/>Falar no WhatsApp
+    </button>
+  )
+}
+
+// ── Pedido ao vivo: 1 fetch de pedido-completo com cache, reusado pelos cards ─
+const _pedCacheLive = new Map()
+function usePedidoLive(api, numero, ativo=true) {
+  const [ped, setPed] = useState(null)
+  const [nfe, setNfe] = useState(null)
+  const [load, setLoad] = useState(false)
+  useEffect(()=>{ let on=true
+    if (!ativo || !numero) { setPed(null); setNfe(null); return }
+    const k = String(numero)
+    const hit = _pedCacheLive.get(k)
+    if (hit && Date.now()-hit.ts < 120000) { setPed(hit.ped); setNfe(hit.nfe); return }
+    setLoad(true)
+    fetch(`${api}/api/dashboard/pedido-completo/${k}`)
+      .then(r=>r.ok?r.json():null)
+      .then(async d=>{
+        if (!on || !d) { if(on) setLoad(false); return }
+        setPed(d)
+        let nf = null
+        const nfId = d.pedido?.notaFiscal?.id
+        if (nfId) {
+          try {
+            const rn = await fetch(`${api}/api/dashboard/nfe-link/${nfId}`)
+            if (rn.ok) nf = await rn.json()
+          } catch {}
+        }
+        if (on) { setNfe(nf); setLoad(false) }
+        _pedCacheLive.set(k, {ts:Date.now(), ped:d, nfe:nf})
+      }).catch(()=>{ if(on) setLoad(false) })
+    return ()=>{ on=false }
+  },[api,numero,ativo])
+  return { ped, nfe, load }
+}
+
+// ── Rastreio ao vivo — código copiável + status + mini-timeline real ─────────
+function RastreioLive({ped}) {
+  const ras = ped?.rastreio
+  if (!ras?.codigo && !ras?.eventos?.length) return null
+  const evs = (ras.eventos||[]).slice(0,3)
+  return (
+    <div className="modal-wc-sec" style={{padding:'10px 16px'}}>
+      <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:7,flexWrap:'wrap'}}>
+        <Navigation size={12} style={{color:T.cyan}}/>
+        <span style={{fontSize:10,fontWeight:700,color:T.ink2,textTransform:'uppercase',letterSpacing:'.05em'}}>Rastreio</span>
+        {ras.status && <span style={{fontSize:9.5,padding:'2px 8px',borderRadius:99,
+          background:T.cyanDim,border:`1px solid ${T.cyanBor}`,color:T.cyan,fontWeight:600}}>{ras.status}</span>}
+        <div style={{flex:1}}/>
+        <CopyChip valor={ras.codigo} cor="#06b6d4"/>
+      </div>
+      {evs.length>0 && (
+        <div style={{display:'flex',flexDirection:'column',gap:0}}>
+          {evs.map((ev,i)=>(
+            <div key={i} style={{display:'flex',gap:8,alignItems:'flex-start'}}>
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',width:10,flexShrink:0}}>
+                <span style={{width:7,height:7,borderRadius:'50%',marginTop:3,
+                  background:i===0?T.cyan:'rgba(255,255,255,.15)',
+                  boxShadow:i===0?`0 0 7px ${T.cyan}`:'none'}}/>
+                {i<evs.length-1 && <span style={{width:1.5,flex:1,minHeight:14,background:'rgba(255,255,255,.08)'}}/>}
+              </div>
+              <div style={{paddingBottom:i<evs.length-1?7:0,minWidth:0}}>
+                <div style={{fontSize:10.5,color:i===0?T.ink1:T.ink3,fontWeight:i===0?600:400,
+                  overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                  {ev.status||ev.descricao||'—'}
+                </div>
+                <div style={{fontSize:8.5,color:T.ink4}}>{ev.data||''}{ev.local?` · ${ev.local}`:''}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {ras.codigo && (
+        <button onClick={()=>window.open(`https://melhorrastreio.com.br/rastreio/${ras.codigo}`,'_blank')}
+          style={{marginTop:7,fontSize:9.5,color:T.cyan,background:'none',border:'none',
+            cursor:'pointer',padding:0,display:'flex',alignItems:'center',gap:4,fontFamily:'inherit'}}>
+          <ExternalLink size={10}/>Abrir rastreamento completo
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ── NF-e ao vivo — situação SEFAZ + DANFE + chave copiável ───────────────────
+function NfeLive({nfe}) {
+  if (!nfe || (!nfe.chaveAcesso && !nfe.linkDanfe)) return null
+  const sitCor = {autorizada:'#00e676',cancelada:'#ff4757',rejeitada:'#ff4757',denegada:'#ff4757',pendente:'#ffb300'}[nfe.situacao]||T.ink3
+  return (
+    <div className="modal-wc-sec" style={{padding:'10px 16px'}}>
+      <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:7,flexWrap:'wrap'}}>
+        <FileText size={12} style={{color:'#f59e0b'}}/>
+        <span style={{fontSize:10,fontWeight:700,color:T.ink2,textTransform:'uppercase',letterSpacing:'.05em'}}>Nota fiscal</span>
+        {nfe.situacao && <span style={{fontSize:9.5,padding:'2px 8px',borderRadius:99,fontWeight:700,
+          background:`${sitCor}14`,border:`1px solid ${sitCor}35`,color:sitCor,textTransform:'uppercase'}}>{nfe.situacao}</span>}
+        {nfe.numero && <span style={{fontSize:9.5,color:T.ink4}}>nº {nfe.numero}</span>}
+      </div>
+      <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
+        {nfe.linkDanfe && (
+          <button onClick={()=>window.open(nfe.linkDanfe,'_blank')} style={{
+            padding:'5px 11px',borderRadius:8,fontSize:10.5,fontWeight:700,cursor:'pointer',
+            background:'rgba(245,158,11,.1)',color:'#f59e0b',
+            border:'1px solid rgba(245,158,11,.28)',fontFamily:'inherit',
+            display:'flex',alignItems:'center',gap:5}}>
+            <ExternalLink size={10}/>Abrir DANFE
+          </button>
+        )}
+        {nfe.chaveAcesso && <CopyChip valor={`${String(nfe.chaveAcesso).slice(0,18)}…`} copiar={nfe.chaveAcesso} label="chave" cor="#f59e0b"/>}
+      </div>
+    </div>
+  )
+}
+
+// ── Dados completos do cliente (do pedido-completo) ──────────────────────────
+function DadosClienteLive({ped}) {
+  const c = ped?.contato
+  if (!c) return null
+  const end = (c.enderecos&&c.enderecos[0]) || c.endereco || null
+  const endStr = end ? [end.endereco||end.rua, end.numero, end.bairro].filter(Boolean).join(', ') : null
+  const cidStr = end ? [end.municipio||end.cidade, end.uf].filter(Boolean).join(' — ') : null
+  return (
+    <div className="modal-wc-sec" style={{padding:'10px 16px'}}>
+      <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:7}}>
+        <Users size={12} style={{color:T.purple}}/>
+        <span style={{fontSize:10,fontWeight:700,color:T.ink2,textTransform:'uppercase',letterSpacing:'.05em'}}>Dados do cliente</span>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:6}}>
+        {c.email && (
+          <div style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}>
+            <span style={{fontSize:8.5,color:T.ink4,width:46,flexShrink:0,textTransform:'uppercase'}}>E-mail</span>
+            <CopyChip valor={c.email} mono={false} cor="#4f8ef7"/>
+          </div>
+        )}
+        {c.cpfCnpj && (
+          <div style={{display:'flex',alignItems:'center',gap:7}}>
+            <span style={{fontSize:8.5,color:T.ink4,width:46,flexShrink:0,textTransform:'uppercase'}}>CPF/CNPJ</span>
+            <CopyChip valor={c.cpfCnpj} cor="#4f8ef7"/>
+          </div>
+        )}
+        {(endStr||cidStr) && (
+          <div style={{display:'flex',alignItems:'flex-start',gap:7}}>
+            <span style={{fontSize:8.5,color:T.ink4,width:46,flexShrink:0,textTransform:'uppercase',marginTop:2}}>Endereço</span>
+            <div style={{fontSize:10.5,color:T.ink2,lineHeight:1.5,minWidth:0}}>
+              {endStr}{endStr&&cidStr?<br/>:null}
+              {cidStr && <span style={{color:T.ink3}}><MapPin size={9} style={{verticalAlign:-1,marginRight:3}}/>{cidStr}{end?.cep?` · ${end.cep}`:''}</span>}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -1058,6 +1273,12 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
   const [ringReady,  setRingReady] = useState(false)
   const [tplsCorpo,  setTplsCorpo] = useState(null)   // corpo dos templates p/ bolhas
   useEffect(()=>{ let on=true; _carregarTemplates(api).then(m=>{ if(on) setTplsCorpo(m) }); return ()=>{on=false} },[api])
+
+  // Pedido ao vivo (rastreio + NF-e + dados do cliente) — serve os dois cards
+  const pedAlvo = tipo==='disparo'
+    ? dados?.numero_pedido
+    : (cli?.resumo?.pedidos||[])[0]
+  const { ped: pedLive, nfe: nfeLive } = usePedidoLive(api, pedAlvo, !!pedAlvo)
 
   // Anima o ring do perfil após carregar (precisa de 1 frame para CSS transition funcionar)
   useEffect(() => {
@@ -1361,6 +1582,16 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                   {/* Mensagem real enviada — renderizada das variáveis salvas (v4) */}
                   <PreviewMensagem api={api} gatilho={dados.gatilho} variaveis={dados.variaveis} status={dados.status}/>
 
+                  {/* Ações de 1 clique — copiar e WhatsApp (Nivelmax) */}
+                  <div className="modal-wc-sec" style={{padding:'8px 16px',display:'flex',
+                    gap:6,flexWrap:'wrap',alignItems:'center'}}>
+                    <CopyChip valor={dados.numero_pedido} label="pedido" cor="#a78bfa"/>
+                    <CopyChip valor={fmtTel(dados.telefone)} copiar={dados.telefone} label="tel" cor="#4f8ef7"/>
+                    {pedLive?.rastreio?.codigo && <CopyChip valor={pedLive.rastreio.codigo} label="rastreio" cor="#06b6d4"/>}
+                    <div style={{flex:1}}/>
+                    <BotaoWhats tel={dados.telefone}/>
+                  </div>
+
                   {/* Intelligence multi-nível */}
                   {intel && (() => {
                     const {cor,dim,bor,Icon} = intelCor
@@ -1588,6 +1819,10 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                     )
                   })()}
 
+                  {/* Rastreio real com mini-timeline + Nota fiscal (Nivelmax) */}
+                  <RastreioLive ped={pedLive}/>
+                  <NfeLive nfe={nfeLive}/>
+
                   {/* Diagnóstico técnico colapsável */}
                   <div className="modal-wc-sec" style={{padding:'10px 16px'}}>
                     <details>
@@ -1663,7 +1898,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                       ? <><CheckCircle size={13}/>Mensagem enviada!</>
                       : <><Send size={13}/>Enviar mensagem agora</>}
                   </button>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                     <button onClick={()=>onVerPedido?.(dados.numero_pedido)}
                       className="modal-wc-btn-s" style={{padding:10}}>
                       <ExternalLink size={12}/>Ver pedido
@@ -1676,6 +1911,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                         transition:'all .15s'}}>
                       <Users size={12}/>Perfil
                     </button>
+                    <BotaoWhats tel={dados.telefone} full/>
                     <button onClick={()=>{ try{navigator.clipboard.writeText(dados.telefone||'')}catch{} }}
                       className="modal-wc-btn-s" style={{padding:10}}>
                       <Hash size={12}/>Copiar tel
@@ -1944,6 +2180,11 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                   )}
 
                   {cli && (<>
+                    {/* Dados completos + rastreio + NF-e do pedido ativo (Nivelmax) */}
+                    <DadosClienteLive ped={pedLive}/>
+                    <RastreioLive ped={pedLive}/>
+                    <NfeLive nfe={nfeLive}/>
+
                     {/* Insight */}
                     {insightTxt && (
                       <div className="modal-wc-sec">
@@ -2207,6 +2448,11 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                 <div style={{flexShrink:0,padding:'10px 14px',
                   borderTop:'1px solid rgba(255,255,255,.05)',
                   background:'#0d1017',display:'flex',flexDirection:'column',gap:9}}>
+                  {/* Contato direto (Nivelmax) */}
+                  <div style={{display:'flex',gap:7,alignItems:'center'}}>
+                    <div style={{flex:1}}><BotaoWhats tel={dados?.telefone} full/></div>
+                    <CopyChip valor={fmtTel(dados?.telefone)} copiar={dados?.telefone} label="tel" cor="#4f8ef7"/>
+                  </div>
                   {/* Disparo manual: select + pedido */}
                   {cli && (
                     <div style={{display:'flex',gap:7}}>
@@ -2535,7 +2781,7 @@ export default function PageDisparos({api: apiProp}) {
 
   // Drawer lateral (detalhe do disparo OU perfil do cliente)
   const [drawer, setDrawer] = useState(null)  // {tipo:'disparo'|'cliente', dados}
-  const [aba, setAba] = useState('pulso')     // 'pulso' | 'analytics' | 'log'
+  const [aba, setAba] = useState('operacao')     // 'pulso' | 'analytics' | 'log'
   // Insights dispensados (marcados como "entendi") — por texto
   const [insDispensados, setInsDispensados] = useState([])
 
@@ -2829,25 +3075,25 @@ export default function PageDisparos({api: apiProp}) {
 
       <div style={{padding:'16px 20px',display:'flex',flexDirection:'column',gap:16}}>
 
-        {/* ── Abas: Pulso · Analytics · Log ── */}
+        {/* ── Abas: Operação · Log ── */}
         <div style={{display:'flex',gap:6}}>
           {[
-            {id:'pulso',     lbl:'⚡ Pulso'},
-            {id:'analytics', lbl:'Analytics'},
-            {id:'log',       lbl:`Log${logTotal?` · ${logTotal}`:''}`},
+            {id:'operacao', lbl:'Operação', Ic:Activity},
+            {id:'log',      lbl:`Log${logTotal?` · ${logTotal}`:''}`, Ic:FileText},
           ].map(tb=>(
             <button key={tb.id} onClick={()=>setAba(tb.id)} style={{
               padding:'6px 16px',borderRadius:99,fontSize:11.5,fontWeight:600,cursor:'pointer',
+              display:'flex',alignItems:'center',gap:6,
               border:`1px solid ${aba===tb.id?T.purpleBor:T.sep2}`,
               background:aba===tb.id?T.purpleDim:'transparent',
               color:aba===tb.id?T.purple:T.ink3,transition:'all .15s'}}>
-              {tb.lbl}
+              <tb.Ic size={12}/>{tb.lbl}
             </button>
           ))}
         </div>
 
-        {/* ════════════ ABA PULSO — operação ao vivo ════════════ */}
-        {aba==='pulso' && (<>
+        {/* ════════════ ABA OPERAÇÃO — ao vivo + análises ════════════ */}
+        {aba==='operacao' && (<>
         {/* ── Funil da Jornada — hero ── */}
         <FunilJornada painel={painel} onFiltrarGatilho={g=>{ setFiltroGat(g); setLogPg(1); setAba('log') }}/>
 
@@ -2864,18 +3110,13 @@ export default function PageDisparos({api: apiProp}) {
           <SaindoAgora fila={painel?.filaSaida||[]} recentes={liveFeedItems||[]}
             onVerDisparo={r=>setDrawer({tipo:'disparo',dados:r})}/>
         </div>
-        </>)}
-
-        {/* ════════════ ABA ANALYTICS — desempenho ════════════ */}
-        {aba==='analytics' && (<>
-        {/* ── SLA por transportadora ── */}
+        {/* ── SLA por transportadora (análise) ── */}
         <SlaTransportadora lista={painel?.slaTransportadora||[]}/>
 
-        {/* ── Saúde do motor + erros (visão completa) ── */}
+        {/* ── Saúde do motor + erros — visão completa ── */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(230px,1fr))',gap:10}}>
           <SaudeMotor saude={painel?.saude} taxa={taxa}/>
           <ErrosMotivo lista={painel?.errosMotivo||[]}/>
-          <FilaSaida items={painel?.filaSaida||[]} onVerDisparo={r=>setDrawer({tipo:'disparo',dados:r})}/>
         </div>
 
         {/* ═══════════════════════════════════════════════════
