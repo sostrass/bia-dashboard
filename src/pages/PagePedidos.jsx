@@ -1063,6 +1063,15 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
     + (sitId===6&&diasPedido>2?25:0)
   const riskLabel = riskScore>=60?'Alto':riskScore>=25?'Médio':'Baixo'
   const riskCor   = riskScore>=60?'#ef4444':riskScore>=25?'#f59e0b':'#22c55e'
+  // Métricas IA calculadas
+  const satisfacaoPrev = Math.min(98,Math.max(55, 70+(hist.length>5?15:hist.length>2?8:0)+(riskScore===0?5:-Math.round(riskScore/10))))
+  const probRecompra   = Math.min(97,Math.max(20, 38+(hist.length>8?42:hist.length>5?32:hist.length>2?22:hist.length>0?12:0)+(ltvTotal>1000?8:ltvTotal>300?4:0)))
+  const riscoAtraso    = Math.min(95, riskScore>60?80:riskScore>30?45:riskScore>0?20:5)
+  const sugestaoIA     = [30,33].includes(sitId)?`Enviar avaliação — alta prob. de ${probRecompra>70?'5':'4'} estrelas`
+    : sitId===27&&diasPedido>8?'Verificar prazo — pedido em trânsito há muito tempo'
+    : hist.length>=3?`Cliente fiel ${hist.length+1}× — candidato a desconto de retenção`
+    : !codRas&&[9,15].includes(sitId)?'Gerar etiqueta — pedido pago sem código de rastreio'
+    : 'Aguardar próxima movimentação do pedido'
 
   // previsão entrega
   const rastreioPct=()=>{
@@ -1078,6 +1087,11 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
   const originUF = rastreio?.origemUF||'SP'
   const destUF   = contato?.uf||rastreio?.destinoUF||''
   const curUF    = rastreio?.estadoAtual||destUF
+  const cidadeOrig = rastreio?.cidadeOrigem||(evts.length>0?(evts[evts.length-1]?.local||evts[evts.length-1]?.origem||'').split('/')[0]?.trim():'')||''
+  const cidadeDest = rastreio?.cidadeDestino||contato?.municipio||(ped.enderecoEntrega||'').split(',').slice(-2,-1)[0]?.trim()||''
+  const prevFmt = ped.dataPrevista&&ped.dataPrevista!=='0000-00-00'?(()=>{const d=new Date(ped.dataPrevista+'T12:00:00');return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`})():''
+  const probPrazo = rastreio?.probabilidadePrazo||null
+  const etiquetaDisp = disps.find(d=>['pedido_enviado','pedido_coletado','pedido_aguardando_pagamento'].includes(d.gatilho))
 
   // steps rastreio visuais
   const STEPS = [
@@ -1213,15 +1227,33 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
             </div>
           </div>
 
-          {/* MAPA DE ROTA (se tiver código de rastreio) */}
+          {/* ROTA — indicador cidade origem → destino */}
           {codRas&&(
-            <div style={{...S.sec,padding:'10px 14px',background:'var(--bg)',border:'0.5px solid var(--sep)'}}>
-              <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
-                <Navigation size={12} style={{color:'#06b6d4'}}/>
-                <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Rota do pacote</span>
-                {destUF&&<span style={{fontSize:9,color:'var(--label-4)',marginLeft:'auto'}}>{originUF} → {destUF}</span>}
+            <div style={{...S.sec,padding:'12px 16px',background:'linear-gradient(135deg,rgba(6,182,212,.05),transparent)'}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+                <div style={{display:'flex',alignItems:'center',gap:6}}>
+                  <Navigation size={12} style={{color:'#06b6d4'}}/>
+                  <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Rota do pacote</span>
+                  {rastreio?.transportadora&&<span style={{fontSize:9,color:'var(--label-3)',background:'var(--fill)',padding:'1px 7px',borderRadius:99}}>{rastreio.transportadora}</span>}
+                </div>
+                <span style={{fontSize:10,fontWeight:700,color:'#06b6d4'}}>{pct}% do caminho</span>
               </div>
-              <PackageMiniMap origem={originUF} destino={destUF||undefined} atual={curUF} pct={pct}/>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                <span style={{fontSize:10,color:'var(--label)',fontWeight:500,flexShrink:0,minWidth:60,textAlign:'right'}}>{cidadeOrig||originUF}</span>
+                <div style={{flex:1,position:'relative'}}>
+                  <div style={{height:4,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
+                    <div style={{height:'100%',borderRadius:99,width:`${pct}%`,background:'linear-gradient(90deg,#7c6af7,#4a9fff,#06b6d4)',boxShadow:'0 0 6px rgba(6,182,212,.5)',transition:'width .6s ease'}}/>
+                  </div>
+                  <div style={{position:'absolute',top:'50%',left:`${pct}%`,transform:'translate(-50%,-50%)',width:10,height:10,borderRadius:'50%',background:'#06b6d4',border:'2px solid var(--bg-2)',boxShadow:'0 0 6px #06b6d4'}}/>
+                </div>
+                <span style={{fontSize:10,color:'var(--label)',fontWeight:500,flexShrink:0,minWidth:60}}>{cidadeDest||destUF}</span>
+              </div>
+              {(prevFmt||probPrazo)&&(
+                <div style={{display:'flex',alignItems:'center',gap:8,fontSize:10}}>
+                  {prevFmt&&<span style={{color:'var(--label-3)'}}><span style={{color:'var(--label-4)'}}>Prev. </span><span style={{fontWeight:600,color:'var(--label)'}}>{prevFmt}</span></span>}
+                  {probPrazo&&<span style={{color:'#22c55e',fontWeight:600}}>· {probPrazo}% no prazo</span>}
+                </div>
+              )}
             </div>
           )}
 
@@ -1514,25 +1546,34 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
                 </div>
               )}
 
-              {/* Recomendações IA */}
+              {/* Análise IA — métricas + sugestão */}
               <div style={{...S.sec,borderColor:'rgba(124,106,247,.3)',background:'rgba(124,106,247,.03)'}}>
-                <div style={{...S.row,marginBottom:8}}>
+                <div style={{...S.row,marginBottom:12}}>
                   <Brain size={12} style={{color:'#7c6af7'}}/>
                   <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Análise IA</span>
                 </div>
-                <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:10}}>
                   {[
-                    riskScore>=40&&{cor:'#ef4444',msg:`Pedido há ${Math.floor(diasPedido)}d sem movimentação — verificar transportadora`},
-                    hist.length>=3&&{cor:'#22c55e',msg:`Cliente fiel (${hist.length+1}× compras) — candidato a programa VIP`},
-                    Number(vsMedia)>50&&{cor:'#f59e0b',msg:`Pedido ${vsMedia}% acima do ticket médio — validar se intencional`},
-                    !codRas&&[9,15].includes(sitId)&&{cor:'#f97316',msg:`Pedido pago sem rastreio — adicionar código Correios`},
-                    sitId===27&&diasPedido>10&&{cor:'#f59e0b',msg:`Em trânsito há ${Math.floor(diasPedido)}d — verificar entrega`},
-                  ].filter(Boolean).slice(0,3).map((r,i)=>(
-                    <div key={i} style={{fontSize:10,color:r.cor,background:`${r.cor}0c`,border:`0.5px solid ${r.cor}30`,borderRadius:7,padding:'6px 9px',lineHeight:1.4}}>
-                      {r.msg}
+                    {label:'SATISFAÇÃO PREVISTA',val:satisfacaoPrev,cor:'#22c55e'},
+                    {label:'PROB. RECOMPRA',      val:probRecompra,  cor:'#7c6af7'},
+                    {label:'RISCO DE ATRASO',     val:riscoAtraso,   cor:riscoAtraso>50?'#ef4444':riscoAtraso>25?'#f59e0b':'#22c55e'},
+                  ].map(m=>(
+                    <div key={m.label}>
+                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                        <span style={{fontSize:8,fontWeight:700,color:'var(--label-4)',letterSpacing:'.06em'}}>{m.label}</span>
+                        <span style={{fontSize:11,fontWeight:700,color:m.cor}}>{m.val}%</span>
+                      </div>
+                      <div style={{height:4,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
+                        <div style={{height:'100%',borderRadius:99,width:`${m.val}%`,background:m.cor,boxShadow:`0 0 5px ${m.cor}60`,transition:'width .5s ease'}}/>
+                      </div>
                     </div>
                   ))}
-                  {riskScore===0&&hist.length<3&&!codRas&&<div style={{fontSize:10,color:'var(--label-4)',textAlign:'center',padding:'8px 0'}}>Nenhuma recomendação no momento</div>}
+                </div>
+                <div style={{borderTop:'0.5px solid var(--sep)',paddingTop:8}}>
+                  <div style={{fontSize:8,fontWeight:700,color:'var(--label-4)',letterSpacing:'.06em',marginBottom:4}}>SUGESTÃO IA</div>
+                  <div style={{fontSize:10,color:'var(--label)',lineHeight:1.4,padding:'6px 8px',background:'rgba(124,106,247,.06)',borderRadius:7,border:'0.5px solid rgba(124,106,247,.2)'}}>
+                    {sugestaoIA}
+                  </div>
                 </div>
               </div>
 
@@ -2206,8 +2247,9 @@ export default function PagePedidos({api}) {
               </div>
             </div>
           </div>
-        })()
+        })() : null
         }
+      </div>
     </div>
 
     {sel&&<SmartOrderCard pedRow={sel} onClose={()=>setSel(null)} api={api} allPedidos={pedidos}/>}
