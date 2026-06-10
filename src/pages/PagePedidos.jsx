@@ -118,13 +118,6 @@ function Pill({label,cor,bg,bdr,sz=10}) {
   return <span style={{fontSize:sz,fontWeight:700,padding:'2px 8px',borderRadius:99,
     color:cor,background:bg,border:`1px solid ${bdr||cor+'33'}`,whiteSpace:'nowrap',flexShrink:0}}>{label}</span>
 }
-function SitBadge({sitId}) {
-  const s = SIT[sitId]||{label:'—',cor:'#888',bg:'var(--fill)',bdr:'var(--sep)'}
-  return <span style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:99,
-    color:s.cor,background:s.bg,border:`1px solid ${s.bdr}`,whiteSpace:'nowrap',flexShrink:0}}>
-    {s.label}
-  </span>
-}
 function CanalBadge({canal,small}) {
   const c   = CANAL_CFG[canal]||CANAL_CFG.bling
   const Logo= CANAL_LOGO[canal]||LogoBling
@@ -322,7 +315,7 @@ function AnalyticsView({pedidos, api}) {
   const DIAS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
 
   const TT={contentStyle:{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:8,fontSize:11,color:'var(--label)'}}
-  const card={background:'rgba(255,255,255,.03)',backdropFilter:'blur(10px)',WebkitBackdropFilter:'blur(10px)',border:'0.5px solid rgba(255,255,255,.08)',borderRadius:14,padding:'14px 16px'}
+  const card={background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:14,padding:'14px 16px'}
   const maxProd=Math.max(...prodTodos.map(p=>p.valor),1)
   const maxHoje=Math.max(...prodHoje.map(p=>p.valor),1)
   const maxPend=Math.max(...prodPendentes.map(p=>p.qtd),1)
@@ -536,13 +529,13 @@ function AnalyticsView({pedidos, api}) {
                     )
                   })}
                 </div>
-                <div style={{display:'flex',gap:4,borderTop:'0.5px solid rgba(255,255,255,.08)',paddingTop:8}}>
+                <div style={{display:'flex',gap:8,borderTop:'0.5px solid var(--sep)',paddingTop:8}}>
                   {cols.map(s=>{
                     const d=ops.por_sit[s.sid]||{n:0,valor:0}
                     return(
                       <div key={s.sid} style={{flex:1,textAlign:'center'}}>
-                        <div style={{fontSize:8,fontWeight:600,color:s.cor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.label}</div>
-                        <div style={{fontSize:9,fontWeight:700,color:s.cor}}>{total>0?((d.n/total)*100).toFixed(0):0}%</div>
+                        <div style={{fontSize:9,color:s.cor,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.label}</div>
+                        <div style={{fontSize:8,color:'var(--label-4)'}}>{total>0?((d.n/total)*100).toFixed(0):0}%</div>
                       </div>
                     )
                   })}
@@ -578,22 +571,24 @@ function AnalyticsView({pedidos, api}) {
                     return(
                       <div key={k} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
                         <span style={{fontSize:9,fontWeight:600,color:cfg.cor,whiteSpace:'nowrap'}}>{d.v>=1000?`R$${(d.v/1000).toFixed(0)}k`:fmt(d.v)}</span>
-                        <div style={{width:'100%',borderRadius:'4px 4px 0 0',height:h,
-                          background:`linear-gradient(180deg,${cfg.cor},${cfg.cor}66)`,
-                          boxShadow:`0 0 6px ${cfg.cor}40`,transition:'height .5s ease'}}/>
+                        <div style={{width:'100%',borderRadius:'4px 4px 0 0',height:h,position:'relative',
+                          background:`linear-gradient(180deg,${cfg.cor},${cfg.cor}88)`,
+                          boxShadow:`0 0 8px ${cfg.cor}40`,transition:'height .5s ease'}}>
+                          <div style={{position:'absolute',top:-16,left:'50%',transform:'translateX(-50%)'}}>
+                            <Logo size={12}/>
+                          </div>
+                        </div>
                       </div>
                     )
                   })}
                 </div>
-                <div style={{display:'flex',gap:4,borderTop:'0.5px solid rgba(255,255,255,.08)',paddingTop:8}}>
+                <div style={{display:'flex',gap:8,borderTop:'0.5px solid var(--sep)',paddingTop:8}}>
                   {canais.map(([k,d])=>{
                     const cfg=CANAL_CFG[k]||CANAL_CFG.bling
-                    const Logo=CANAL_LOGO[k]||LogoBling
                     return(
-                      <div key={k} style={{flex:1,textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
-                        <Logo size={11}/>
-                        <div style={{fontSize:7,fontWeight:600,color:cfg.cor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:40}}>{cfg.label.split(' ')[0]}</div>
-                        <div style={{fontSize:8,color:'rgba(255,255,255,.4)'}}>{d.n}</div>
+                      <div key={k} style={{flex:1,textAlign:'center'}}>
+                        <div style={{fontSize:9,color:cfg.cor,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{cfg.label.split(' ')[0]}</div>
+                        <div style={{fontSize:8,color:'var(--label-4)'}}>{d.n} ped.</div>
                       </div>
                     )
                   })}
@@ -905,8 +900,8 @@ function BrasilMapHeat({ data = {}, onClick, activeUf, size = 300 }) {
   return (
     <div style={{ position: 'relative' }}>
       <svg width={size} height={size * 1.08} viewBox="0 0 310 330">
-        {/* fundo do país */}
-        <path d={BRASIL_OUTLINE} fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.15)" strokeWidth="1.2"/>
+        {/* Sombra/fundo */}
+        <path d={BRASIL_OUTLINE} fill="var(--fill)" stroke="var(--sep)" strokeWidth="1"/>
         {/* Dots por estado */}
         {ESTADOS.map(e => {
           const d = data[e.uf] || { valor: 0, n: 0 }
@@ -919,16 +914,12 @@ function BrasilMapHeat({ data = {}, onClick, activeUf, size = 300 }) {
               onMouseEnter={() => setHover(e.uf)} onMouseLeave={() => setHover(null)}>
               {intensity > 0 && (
                 <>
-                  <circle cx={e.cx} cy={e.cy} r={r * 2}
-                    fill={`rgba(124,106,247,${intensity * 0.2})`} />
+                  <circle cx={e.cx} cy={e.cy} r={r * 1.8}
+                    fill={`rgba(34,197,94,${intensity * 0.15})`} />
                   <circle cx={e.cx} cy={e.cy} r={r}
-                    fill={`rgba(124,106,247,${0.5 + intensity * 0.5})`}
-                    stroke="rgba(167,139,250,.8)" strokeWidth="0.8"/>
+                    fill={`rgba(34,197,94,${0.3 + intensity * 0.7})`}
+                    stroke="rgba(34,197,94,.5)" strokeWidth="0.5"/>
                 </>
-              )}
-              {intensity === 0 && (
-                <circle cx={e.cx} cy={e.cy} r={2}
-                  fill="rgba(255,255,255,.12)"/>
               )}
               {(isHover || isActive || intensity > 0.3) && (
                 <text x={e.cx} y={e.cy - r - 4} textAnchor="middle"
@@ -950,12 +941,12 @@ function BrasilMapHeat({ data = {}, onClick, activeUf, size = 300 }) {
         )}
       </svg>
       {/* legenda */}
-      <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:9, color:'rgba(255,255,255,.4)', marginTop:4 }}>
-        <div style={{ width:8, height:8, borderRadius:'50%', background:'rgba(124,106,247,.3)' }}/>
+      <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:9, color:'var(--label-4)', marginTop:4 }}>
+        <div style={{ width:8, height:8, borderRadius:'50%', background:'rgba(34,197,94,.2)' }}/>
         <span>baixo</span>
-        <div style={{ flex:1, height:3, borderRadius:99, background:'linear-gradient(90deg,rgba(124,106,247,.2),rgba(167,139,250,.9))' }}/>
+        <div style={{ flex:1, height:3, borderRadius:99, background:'linear-gradient(90deg,rgba(34,197,94,.2),rgba(34,197,94,.9))' }}/>
         <span>alto</span>
-        <div style={{ width:8, height:8, borderRadius:'50%', background:'rgba(167,139,250,.9)' }}/>
+        <div style={{ width:8, height:8, borderRadius:'50%', background:'rgba(34,197,94,.9)' }}/>
       </div>
     </div>
   )
@@ -1011,14 +1002,12 @@ function PackageMiniMap({ origem = 'SP', destino, atual, pct = 0 }) {
 }
 
 // ─── SMART ORDER CARD — MODO IMERSIVO ────────────────────────────────────────
-function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
+function SmartOrderCard({pedRow, onClose, api, allPedidos, onSelectOrder}) {
   const [det,      setDet   ] = useState(null)
   const [load,     setLoad  ] = useState(true)
   const [nfe,      setNfe   ] = useState(null)
   const [disps,    setDisps ] = useState([])
   const [foto,     setFoto  ] = useState(null)
-  const [msgs,     setMsgs  ] = useState([])
-  const [hist,     setHist  ] = useState([])
   const [copied,   setCpOk  ] = useState('')
   const [expanded, setExp   ] = useState(false)
   const [sending,  setSend  ] = useState(false)
@@ -1026,18 +1015,16 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
   const [msgTxt,   setMsgT  ] = useState('')
 
   useEffect(()=>{
-    setLoad(true); setDet(null); setNfe(null); setFoto(null); setDisps([]); setMsgs([]); setHist([])
+    setLoad(true); setDet(null); setNfe(null); setFoto(null); setDisps([])
     fetch(`${api}/api/dashboard/pedido-completo/${pedRow.numero}`)
       .then(r=>r.ok?r.json():null)
       .then(d=>{
         setDet(d); setLoad(false)
-        setMsgs(d?.mensagens?.lista||[])
-        setHist(d?.historico?.pedidos||[])
-        const tel=d?.mensagens?.lista?.[0]?.telefone||pedRow.telefone||''
-        if(tel) fetch(`${api}/api/dashboard/foto-perfil/${tel.replace(/\D/g,'')}`)
+        const tel=d?.contato?.celular||d?.contato?.telefone||pedRow.telefone||''
+        if(tel)fetch(`${api}/api/dashboard/foto-perfil/${String(tel).replace(/\D/g,'')}`)
           .then(r=>r.ok?r.json():null).then(f=>f?.url&&setFoto(f.url)).catch(()=>{})
         const nfId=Number(d?.pedido?.notaFiscal?.id||0)
-        if(nfId>0) fetch(`${api}/api/dashboard/nfe-link/${nfId}`)
+        if(nfId>0)fetch(`${api}/api/dashboard/nfe-link/${nfId}`)
           .then(r=>r.ok?r.json():null).then(setNfe).catch(()=>{})
       }).catch(()=>setLoad(false))
     fetch(`${api}/api/dashboard/disparos-pedido/${pedRow.numero}`)
@@ -1047,603 +1034,532 @@ function SmartOrderCard({pedRow, onClose, api, allPedidos}) {
   const ped       = det?.pedido||pedRow
   const contato   = det?.contato
   const rastreio  = det?.rastreio
-  const transporte= det?.transporte
+  const hist      = (det?.historico?.pedidos||[]).filter(h=>String(h.numero)!==String(pedRow.numero))
+  const msgs      = det?.mensagens?.lista||[]
   const sitId     = getSitId(ped)
   const sit       = SIT[sitId]||{label:'—',cor:'#888',bg:'var(--fill)',bdr:'var(--sep)'}
   const canal     = getCanal(pedRow)
   const itens     = ped?.itens||[]
-  const codRas    = rastreio?.codigo||transporte?.volumes?.[0]?.codigo||pedRow?.codigoRastreio||''
-  const linkRas   = rastreio?.link||rastreio?.linkCorreios||''
+  const codRas    = rastreio?.codigo||pedRow?.codigoRastreio||''
+  const linkRas   = rastreio?.linkMelhorRastreio||rastreio?.linkCorreios||''
   const evts      = rastreio?.eventos||[]
   const rfmScore  = calcRFM(hist)
   const rfmCfg    = RFM[rfmScore]||RFM.novo
   const RFMIcon   = rfmCfg.icon
-  const ltvTotal  = hist.reduce((s,p)=>s+parseFloat(p.total||0),0)+parseFloat(ped.total||0)
-  const ticketMed = hist.length>0 ? (hist.reduce((s,p)=>s+parseFloat(p.total||0),0)/hist.length) : parseFloat(ped.total||0)
   const pedTotal  = parseFloat(ped.total||pedRow.total||0)
-  const vsMedia   = ticketMed>0 ? ((pedTotal/ticketMed-1)*100).toFixed(0) : 0
+  const ltvTotal  = hist.reduce((s,p)=>s+parseFloat(p.total||0),0)+pedTotal
+  const ticketMed = hist.length>0?(ltvTotal/(hist.length+1)):pedTotal
 
-  // risco: pagamento não confirmado + sem rastreio + prazo excedido
-  const diasPedido = (Date.now()-new Date(ped.data||0))/86400000
-  const riskScore = (([9,15].includes(sitId)&&!codRas&&diasPedido>3)?40:0)
-    + (sitId===27&&diasPedido>15?35:0)
-    + (sitId===6&&diasPedido>2?25:0)
-  const riskLabel = riskScore>=60?'Alto':riskScore>=25?'Médio':'Baixo'
-  const riskCor   = riskScore>=60?'#ef4444':riskScore>=25?'#f59e0b':'#22c55e'
-  // Métricas IA calculadas
-  const satisfacaoPrev = Math.min(98,Math.max(55, 70+(hist.length>5?15:hist.length>2?8:0)+(riskScore===0?5:-Math.round(riskScore/10))))
-  const probRecompra   = Math.min(97,Math.max(20, 38+(hist.length>8?42:hist.length>5?32:hist.length>2?22:hist.length>0?12:0)+(ltvTotal>1000?8:ltvTotal>300?4:0)))
-  const riscoAtraso    = Math.min(95, riskScore>60?80:riskScore>30?45:riskScore>0?20:5)
-  const sugestaoIA     = [30,33].includes(sitId)?`Enviar avaliação — alta prob. de ${probRecompra>70?'5':'4'} estrelas`
-    : sitId===27&&diasPedido>8?'Verificar prazo — pedido em trânsito há muito tempo'
-    : hist.length>=3?`Cliente fiel ${hist.length+1}× — candidato a desconto de retenção`
-    : !codRas&&[9,15].includes(sitId)?'Gerar etiqueta — pedido pago sem código de rastreio'
-    : 'Aguardar próxima movimentação do pedido'
+  // ── Métricas do cliente ─────────────────────────────────────────
+  const histDatas = hist.map(h=>new Date(h.data)).filter(d=>!isNaN(d)).sort((a,b)=>a-b)
+  const freqDias  = histDatas.length>1
+    ? Math.round((histDatas[histDatas.length-1]-histDatas[0])/86400000/(histDatas.length-1))
+    : null
+  const ultimoPed = histDatas.length?histDatas[histDatas.length-1]:null
 
-  // previsão entrega
+  // Histórico de compras por mês (mini bar chart)
+  const comprasMes = useMemo(()=>{
+    const m={}
+    const todos=[...hist,{data:ped.data||pedRow.data,total:pedTotal}]
+    todos.forEach(h=>{
+      const d=new Date(h.data); if(isNaN(d))return
+      const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+      m[k]=(m[k]||0)+parseFloat(h.total||0)
+    })
+    return Object.entries(m).sort((a,b)=>a[0].localeCompare(b[0])).slice(-7)
+  },[hist,ped,pedRow,pedTotal])
+  const maxMes = Math.max(...comprasMes.map(([,v])=>v),1)
+
+  // ── Rastreio: progresso, origem, destino, previsão ──────────────
   const rastreioPct=()=>{
     if([30,33].includes(sitId))return 100
-    const rs=rastreio?.ultimoStatus||pedRow?.rastreioStatus||''
-    if(rs==='saiu_entrega')return 90
-    if(rs.includes('transito'))return 55
-    if(rs==='pedido_coletado')return 35
-    if(codRas)return 20
+    const rs=(rastreio?.status||pedRow?.rastreioStatus||'').toLowerCase()
+    if(rs.includes('entregue'))return 100
+    if(rs.includes('saiu')||rs.includes('rota de entrega'))return 88
+    if(rs.includes('transito')||rs.includes('transferência')||rs.includes('encaminhado'))return 62
+    if(rs.includes('coletado')||rs.includes('postado')||rs.includes('recebido'))return 32
+    if(codRas)return 15
     return 0
   }
-  const pct      = rastreioPct()
-  const originUF = rastreio?.origemUF||'SP'
-  const destUF   = contato?.uf||rastreio?.destinoUF||''
-  const curUF    = rastreio?.estadoAtual||destUF
-  const cidadeOrig = rastreio?.cidadeOrigem||(evts.length>0?(evts[evts.length-1]?.local||evts[evts.length-1]?.origem||'').split('/')[0]?.trim():'')||''
-  const cidadeDest = rastreio?.cidadeDestino||contato?.municipio||(ped.enderecoEntrega||'').split(',').slice(-2,-1)[0]?.trim()||''
-  const prevFmt = ped.dataPrevista&&ped.dataPrevista!=='0000-00-00'?(()=>{const d=new Date(ped.dataPrevista+'T12:00:00');return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`})():''
-  const probPrazo = rastreio?.probabilidadePrazo||null
-  const etiquetaDisp = disps.find(d=>['pedido_enviado','pedido_coletado','pedido_aguardando_pagamento'].includes(d.gatilho))
+  const pct       = rastreioPct()
+  const destCidade= contato?.enderecos?.[0]?.municipio||contato?.enderecoGeral?.municipio||''
+  const destUF    = contato?.enderecos?.[0]?.uf||contato?.enderecoGeral?.uf||''
+  const enderecoFull = contato?.enderecos?.[0]
+    ? `${contato.enderecos[0].endereco||''}, ${contato.enderecos[0].numero||''} — ${destCidade}/${destUF} — CEP ${contato.enderecos[0].cep||''}`
+    : ped.enderecoEntrega||''
 
-  // steps rastreio visuais
-  const STEPS = [
-    {key:'postado',   label:'Postado',    icon:Package,  sids:[9,15,24,27,30,33]},
-    {key:'coletado',  label:'Coletado',   icon:Truck,    sids:[27,30,33], rs:['pedido_coletado','em_transito','saiu_entrega','entregue']},
-    {key:'transito',  label:'Em Trânsito',icon:Navigation,sids:[27,30,33], rs:['em_transito','saiu_entrega','entregue']},
-    {key:'rota',      label:'Em Rota',    icon:MapPin,   sids:[30,33], rs:['saiu_entrega','entregue']},
-    {key:'entregue',  label:'Entregue',   icon:CheckCircle,sids:[30,33], rs:['entregue']},
-  ]
-  const rs = rastreio?.ultimoStatus||pedRow?.rastreioStatus||''
-  const stepDone = (s)=> s.sids.includes(sitId)||(s.rs&&s.rs.some(r=>rs===r||rs.includes(r.split('_')[0])))
-  const stepAtivo = STEPS.findIndex((s,i)=>!stepDone(s)&&(i===0||stepDone(STEPS[i-1])))
-  const stepAtivoIdx = stepAtivo===-1?STEPS.length-1:stepAtivo
+  // Previsão de entrega (a partir dos eventos ou heurística por % atual)
+  const previsao = useMemo(()=>{
+    // tenta achar previsão nos eventos
+    for(const ev of evts){
+      const m=(ev.raw||ev.descricao||'').match(/previsão[^\d]*(\d{2}\/\d{2})/i)
+      if(m)return m[1]
+    }
+    if(pct>=100)return null
+    // heurística: dias restantes proporcionais ao que falta
+    const diasRest = pct>=88?1:pct>=62?2:pct>=32?4:6
+    const d=new Date(); d.setDate(d.getDate()+diasRest)
+    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`
+  },[evts,pct])
+  const chanceNoPrazo = pct>=88?96:pct>=62?94:pct>=32?88:pct>0?80:null
+
+  // ── Análise IA: satisfação, recompra, risco ─────────────────────
+  const diasPedido = (Date.now()-new Date(ped.data||pedRow.data||0))/86400000
+  const riscoAtraso = Math.min(95, Math.max(2,
+    (pct===0&&diasPedido>3?55:0) + (pct>0&&pct<62&&diasPedido>7?30:0) + (diasPedido>12?20:0) + 4
+  ))
+  const satisfacao = Math.max(40, Math.min(98,
+    92 - (riscoAtraso>40?22:riscoAtraso>15?8:0) + (hist.length>=3?4:0)
+  ))
+  const probRecompra = Math.max(15, Math.min(95,
+    35 + hist.length*12 + (rfmScore==='vip'?15:rfmScore==='fiel'?10:0) - (riscoAtraso>40?15:0)
+  ))
+  const sugestaoIA =
+    pct>=100 ? {b:'pedir_avaliacao', t:'quando confirmado — alta prob. de 5 estrelas e review positivo'} :
+    pct>=88  ? {b:'pedido_entregue', t:'quando confirmado — alta prob. de 5 estrelas e review positivo'} :
+    riscoAtraso>40 ? {b:'verificar transportadora', t:`— pedido há ${Math.floor(diasPedido)}d, risco de atraso ${riscoAtraso}%`} :
+    !codRas&&[9,15].includes(sitId)&&diasPedido>2 ? {b:'gerar etiqueta', t:'— pedido pago aguardando envio'} :
+    hist.length>=4 ? {b:'oferta VIP', t:`— cliente com ${hist.length+1} compras, candidato a cupom fidelidade`} :
+    null
 
   const cp=(v,k)=>{navigator.clipboard?.writeText(String(v||''));setCpOk(k);setTimeout(()=>setCpOk(''),1500)}
+  const telCli=contato?.celular||contato?.telefone||pedRow.telefone||''
   const enviarNF=async()=>{
-    const link=nfe?.linkDanfe||nfe?.linkPDF||''; if(!link||!pedRow.telefone)return
+    const link=nfe?.linkDanfe||nfe?.linkPDF||''; if(!link||!telCli)return
     setSend(true)
-    const msg=`*Nota Fiscal — Pedido #${pedRow.numero}*\n\nSua NF-e foi emitida:\n${link}`
-    await fetch(`${api}/api/dashboard/manual/${pedRow.telefone.replace(/\D/g,'')}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:msg})}).catch(()=>{})
+    await fetch(`${api}/api/dashboard/manual/${String(telCli).replace(/\D/g,'')}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:`*Nota Fiscal — Pedido #${pedRow.numero}*\n\nSua NF-e foi emitida:\n${link}`})}).catch(()=>{})
     setSend(false);setStNF(true);setTimeout(()=>setStNF(false),2000)
   }
   const enviarMsg=async()=>{
-    if(!msgTxt.trim()||!pedRow.telefone)return
+    if(!msgTxt.trim()||!telCli)return
     setSend(true)
-    await fetch(`${api}/api/dashboard/manual/${pedRow.telefone.replace(/\D/g,'')}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:msgTxt})}).catch(()=>{})
+    await fetch(`${api}/api/dashboard/manual/${String(telCli).replace(/\D/g,'')}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensagem:msgTxt})}).catch(()=>{})
     setSend(false);setMsgT('')
   }
+  const abrirPedido=(numero)=>{
+    if(!onSelectOrder)return
+    const p=allPedidos?.find(x=>String(x.numero)===String(numero))
+    onSelectOrder(p||{numero})
+  }
+
+  // Jornada
+  const JSTEPS=[
+    {key:'criado',  label:'Criado',  on:[6,9,12,15,18,21,24,27,30,33].includes(sitId)},
+    {key:'pago',    label:'Pago',    on:[9,15,18,21,24,27,30,33].includes(sitId)},
+    {key:'separado',label:'Separado',on:[9,24,27,30,33].includes(sitId)},
+    {key:'enviado', label:'Enviado', on:[27,30,33].includes(sitId)||pct>=15},
+    {key:'saiu',    label:'Saiu',    on:pct>=88},
+    {key:'entregue',label:'Entregue',on:pct>=100},
+  ]
 
   const S={
-    sec:{background:'rgba(255,255,255,.04)',backdropFilter:'blur(10px)',WebkitBackdropFilter:'blur(10px)',border:'0.5px solid rgba(255,255,255,.08)',borderRadius:12,padding:'12px 14px'},
-    sub:{background:'rgba(255,255,255,.05)',borderRadius:8,padding:'8px 10px',border:'0.5px solid rgba(255,255,255,.07)'},
+    sec:{background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:12,padding:'12px 14px'},
+    sub:{background:'var(--fill)',borderRadius:8,padding:'8px 10px'},
     lbl:{fontSize:9,color:'var(--label-4)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.07em',marginBottom:3},
-    val:{fontSize:11,color:'var(--label)'},
+    h:{fontSize:11,fontWeight:600,color:'var(--label)'},
     row:{display:'flex',alignItems:'center',gap:8},
   }
-  const cc=CANAL_CFG[canal]||CANAL_CFG.bling; const CIc=CANAL_LOGO[canal]||LogoBling
+  const cc=CANAL_CFG[canal]||CANAL_CFG.bling
+  const CLogo=CANAL_LOGO[canal]||LogoBling
 
   return (
-    <div style={{
-      width:expanded?'100%':'920px', flexShrink:0,
-      borderLeft:'0.5px solid var(--sep)',
-      background:'var(--bg-2)',
-      display:'flex',flexDirection:'column',
-      overflowY:'auto',
-      transition:'width .25s ease',
-    }}>
-      {/* HEADER */}
-      <div style={{padding:'14px 20px',borderBottom:'0.5px solid var(--sep)',
-        display:'flex',alignItems:'center',gap:10,flexShrink:0,
+    <div style={{width:expanded?'100%':'960px',flexShrink:0,borderLeft:'0.5px solid var(--sep)',
+      background:'var(--bg-2)',display:'flex',flexDirection:'column',overflowY:'auto',transition:'width .25s ease'}}>
+
+      {/* ══ HEADER ══ */}
+      <div style={{padding:'14px 20px',borderBottom:'0.5px solid var(--sep)',display:'flex',alignItems:'center',gap:10,flexShrink:0,
         background:`linear-gradient(135deg,${sit.cor}0c,transparent)`}}>
         <div style={{flex:1}}>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
             <span style={{fontSize:20,fontWeight:700,color:sit.cor}}>#{ped.numero||pedRow.numero}</span>
             <SitBadge sitId={sitId}/>
             <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:9,fontWeight:600,padding:'2px 7px',borderRadius:99,color:cc.cor,background:`${cc.cor}18`,border:`0.5px solid ${cc.cor}40`}}>
-              {CIc&&<CIc size={10}/>}{cc.label}
+              <CLogo size={10}/>{cc.label}
             </span>
-            {riskScore>0&&<span style={{fontSize:9,fontWeight:600,padding:'1px 7px',borderRadius:99,color:riskCor,background:`${riskCor}18`,border:`0.5px solid ${riskCor}40`}}>
-              Risco {riskLabel}
-            </span>}
           </div>
           <div style={{fontSize:10,color:'var(--label-4)',marginTop:2}}>
-            {fmtD(ped.data||pedRow.data)} · {ped.formaPagamento||ped.forma_pagamento||'—'} · {ped.nomeLoja||'Só Strass'}
+            {fmtD(ped.data||pedRow.data)} · {ped.formaPagamento||'—'} · {ped.nomeLoja||'Só Strass'}
           </div>
         </div>
-        {codRas&&(
-          <button onClick={()=>cp(codRas,'ras')} style={{padding:'5px 10px',borderRadius:7,border:'0.5px solid var(--sep)',background:'var(--fill)',cursor:'pointer',color:'var(--label-3)',fontSize:10,display:'flex',alignItems:'center',gap:4}}>
-            {copied==='ras'?<Check size={11} style={{color:'#22c55e'}}/>:<Copy size={11}/>}
-            {codRas.slice(0,20)}
-          </button>
-        )}
-        <button onClick={()=>setExp(v=>!v)} title={expanded?"Compactar":"Expandir"} style={{padding:6,borderRadius:7,border:'0.5px solid var(--sep)',background:'var(--fill)',cursor:'pointer',color:'var(--label-3)',display:'flex'}}>
+        {codRas&&<button onClick={()=>cp(codRas,'ras')} style={{padding:'5px 10px',borderRadius:7,border:'0.5px solid var(--sep)',background:'var(--fill)',cursor:'pointer',color:'var(--label-3)',fontSize:10,display:'flex',alignItems:'center',gap:4}}>
+          {copied==='ras'?<Check size={11} style={{color:'#22c55e'}}/>:<Copy size={11}/>}{codRas.slice(0,22)}
+        </button>}
+        <button onClick={()=>setExp(v=>!v)} title={expanded?'Compactar':'Expandir'} style={{padding:6,borderRadius:7,border:'0.5px solid var(--sep)',background:'var(--fill)',cursor:'pointer',color:'var(--label-3)',display:'flex'}}>
           <ArrowUpRight size={14} style={{transform:expanded?'rotate(180deg)':'none'}}/>
         </button>
         <button onClick={onClose} style={{background:'var(--fill)',border:'0.5px solid var(--sep)',borderRadius:8,padding:6,cursor:'pointer',color:'var(--label-3)',display:'flex'}}><X size={14}/></button>
       </div>
 
       {load?(
-        <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--label-4)',gap:8}}>
+        <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--label-4)',gap:8,minHeight:300}}>
           <RefreshCw size={16} style={{animation:'spin 1s linear infinite'}}/>Carregando...
         </div>
       ):(
-        <div style={{padding:'16px 20px',display:'flex',flexDirection:'column',gap:14}}>
+        <div style={{padding:'16px 20px',display:'grid',gridTemplateColumns:'1fr 1.1fr 1fr',gap:12,alignItems:'start'}}>
 
-          {/* JORNADA + RASTREIO STEPS */}
-          <div style={S.sec}>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
-              <span style={{fontSize:11,fontWeight:600,color:'var(--label)',display:'flex',alignItems:'center',gap:6}}>
-                <Route size={12} style={{color:'#06b6d4'}}/>Jornada do Pedido
-              </span>
-              {codRas&&<span style={{fontSize:9,fontFamily:'monospace',color:'var(--label-3)'}}>{codRas}</span>}
-            </div>
-            {/* Steps visuais de rastreio */}
-            <div style={{display:'flex',alignItems:'flex-start',gap:0}}>
-              {STEPS.map((s,i)=>{
-                const done=stepDone(s); const ativo=i===stepAtivoIdx; const Ic=s.icon
-                return(
-                  <div key={s.key} style={{display:'flex',alignItems:'center',flex:i<STEPS.length-1?1:'0 0 auto'}}>
-                    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
-                      <div style={{width:32,height:32,borderRadius:'50%',
-                        background:done?`${sit.cor}18`:ativo?`${sit.cor}10`:'var(--fill)',
-                        border:`2px solid ${done||ativo?sit.cor:'var(--sep)'}`,
-                        display:'flex',alignItems:'center',justifyContent:'center',
-                        boxShadow:ativo?`0 0 0 4px ${sit.cor}18`:'none',
-                        transition:'all .3s',flexShrink:0}}>
-                        <Ic size={14} style={{color:done||ativo?sit.cor:'var(--label-4)'}}/>
-                      </div>
-                      <div style={{textAlign:'center'}}>
-                        <div style={{fontSize:9,fontWeight:ativo?700:done?500:400,color:done||ativo?sit.cor:'var(--label-4)',whiteSpace:'nowrap'}}>{s.label}</div>
-                        {evts[STEPS.length-1-i]&&<div style={{fontSize:8,color:'var(--label-4)',whiteSpace:'nowrap'}}>{fmtD(evts[STEPS.length-1-i]?.data)}</div>}
-                      </div>
-                    </div>
-                    {i<STEPS.length-1&&(
-                      <div style={{flex:1,height:2,margin:'0 4px',marginBottom:20,background:done?sit.cor:'var(--sep)',transition:'background .3s'}}/>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-            {/* Barra de progresso */}
-            <div style={{marginTop:8}}>
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
-                <span style={{fontSize:9,color:'var(--label-4)'}}>Progresso da entrega</span>
-                <span style={{fontSize:10,fontWeight:700,color:pct===100?'#22c55e':'#06b6d4'}}>{pct}%</span>
-              </div>
-              <div style={{height:5,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
-                <div style={{height:'100%',borderRadius:99,width:`${pct}%`,
-                  background:pct===100?'#22c55e':'linear-gradient(90deg,#7c6af7,#4a9fff,#06b6d4)',
-                  boxShadow:pct===100?'0 0 6px rgba(34,197,94,.5)':'0 0 6px rgba(6,182,212,.4)',
-                  transition:'width .6s ease'}}/>
-              </div>
-            </div>
-          </div>
+          {/* ════ COLUNA 1 — Total + Cliente + Itens ════ */}
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
 
-          {/* ROTA — indicador cidade origem → destino */}
-          {codRas&&(
-            <div style={{...S.sec,padding:'12px 16px',background:'linear-gradient(135deg,rgba(6,182,212,.05),transparent)'}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
-                <div style={{display:'flex',alignItems:'center',gap:6}}>
-                  <Navigation size={12} style={{color:'#06b6d4'}}/>
-                  <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Rota do pacote</span>
-                  {rastreio?.transportadora&&<span style={{fontSize:9,color:'var(--label-3)',background:'var(--fill)',padding:'1px 7px',borderRadius:99}}>{rastreio.transportadora}</span>}
+            {/* Total + Frete */}
+            <div style={{...S.sec,background:`linear-gradient(135deg,${sit.cor}0a,transparent)`,borderColor:`${sit.cor}30`}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                <div><div style={S.lbl}>Total</div>
+                  <div style={{fontSize:19,fontWeight:700,color:sit.cor}}>{fmt(pedTotal)}</div>
+                  {ticketMed>0&&hist.length>0&&<div style={{fontSize:9,color:pedTotal>=ticketMed?'#22c55e':'#f59e0b',marginTop:1}}>
+                    {pedTotal>=ticketMed?'↑':'↓'}{Math.abs(((pedTotal/ticketMed-1)*100)).toFixed(0)}% vs média
+                  </div>}
                 </div>
-                <span style={{fontSize:10,fontWeight:700,color:'#06b6d4'}}>{pct}% do caminho</span>
+                <div><div style={S.lbl}>Frete</div>
+                  <div style={{fontSize:15,fontWeight:600,color:'#22c55e'}}>{ped.frete>0?fmt(ped.frete):'Grátis'}</div>
+                  <div style={{fontSize:9,color:'var(--label-4)',marginTop:1}}>{ped.formaPagamento||''}</div>
+                </div>
               </div>
-              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                <span style={{fontSize:10,color:'var(--label)',fontWeight:500,flexShrink:0,minWidth:60,textAlign:'right'}}>{cidadeOrig||originUF}</span>
-                <div style={{flex:1,position:'relative'}}>
-                  <div style={{height:4,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
-                    <div style={{height:'100%',borderRadius:99,width:`${pct}%`,background:'linear-gradient(90deg,#7c6af7,#4a9fff,#06b6d4)',boxShadow:'0 0 6px rgba(6,182,212,.5)',transition:'width .6s ease'}}/>
+            </div>
+
+            {/* Cliente */}
+            <div style={S.sec}>
+              <div style={{...S.row,marginBottom:10}}>
+                <div style={{width:44,height:44,borderRadius:'50%',flexShrink:0,padding:2.5,
+                  background:`conic-gradient(${rfmCfg.cor} ${Math.min(100,(hist.length+1)*12)}%, var(--sep) 0%)`}}>
+                  <div style={{width:'100%',height:'100%',borderRadius:'50%',overflow:'hidden',background:'linear-gradient(135deg,#4a9fff,#06b6d4)',display:'flex',alignItems:'center',justifyContent:'center',border:'2px solid var(--bg-2)'}}>
+                    {foto?<img src={foto} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                      :<span style={{fontSize:13,fontWeight:700,color:'#fff'}}>{(contato?.nome||pedRow.contato||'?').split(' ').map(w=>w[0]).slice(0,2).join('')}</span>}
                   </div>
-                  <div style={{position:'absolute',top:'50%',left:`${pct}%`,transform:'translate(-50%,-50%)',width:10,height:10,borderRadius:'50%',background:'#06b6d4',border:'2px solid var(--bg-2)',boxShadow:'0 0 6px #06b6d4'}}/>
                 </div>
-                <span style={{fontSize:10,color:'var(--label)',fontWeight:500,flexShrink:0,minWidth:60}}>{cidadeDest||destUF}</span>
+                <div style={{flex:1,overflow:'hidden'}}>
+                  <div style={{fontSize:13,fontWeight:600,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{contato?.nome||pedRow.contato||'—'}</div>
+                  <div style={{display:'flex',gap:4,marginTop:3}}>
+                    <span style={{fontSize:9,fontWeight:600,padding:'1px 6px',borderRadius:99,color:rfmCfg.cor,background:`${rfmCfg.cor}18`,border:`0.5px solid ${rfmCfg.cor}40`,display:'inline-flex',alignItems:'center',gap:2}}>
+                      <RFMIcon size={8}/>{rfmCfg.label}
+                    </span>
+                    {telCli&&<button onClick={()=>cp(telCli,'tel')} style={{fontSize:9,padding:'1px 6px',borderRadius:99,color:'var(--label-3)',background:'var(--fill)',border:'0.5px solid var(--sep)',cursor:'pointer',display:'inline-flex',alignItems:'center',gap:2}}>
+                      {copied==='tel'?<Check size={8} style={{color:'#22c55e'}}/>:<Phone size={8}/>}{String(telCli).slice(-9)}
+                    </button>}
+                  </div>
+                </div>
               </div>
-              {(prevFmt||probPrazo)&&(
-                <div style={{display:'flex',alignItems:'center',gap:8,fontSize:10}}>
-                  {prevFmt&&<span style={{color:'var(--label-3)'}}><span style={{color:'var(--label-4)'}}>Prev. </span><span style={{fontWeight:600,color:'var(--label)'}}>{prevFmt}</span></span>}
-                  {probPrazo&&<span style={{color:'#22c55e',fontWeight:600}}>· {probPrazo}% no prazo</span>}
+
+              {/* Histórico de compras — mini bar chart */}
+              {comprasMes.length>1&&(
+                <div style={{marginBottom:10}}>
+                  <div style={{...S.lbl,marginBottom:5}}>Histórico de compras</div>
+                  <div style={{display:'flex',alignItems:'flex-end',gap:3,height:42}}>
+                    {comprasMes.map(([mes,v],i)=>(
+                      <div key={mes} title={`${mes}: ${fmt(v)}`} style={{flex:1,borderRadius:'3px 3px 0 0',
+                        height:`${Math.max(10,(v/maxMes)*100)}%`,
+                        background:i===comprasMes.length-1?'linear-gradient(180deg,#a78bfa,#7c6af7)':'rgba(124,106,247,.3)',
+                        boxShadow:i===comprasMes.length-1?'0 0 6px rgba(124,106,247,.4)':'none'}}/>
+                    ))}
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between',marginTop:3}}>
+                    <span style={{fontSize:8,color:'var(--label-4)'}}>{comprasMes[0]?.[0]?.slice(5)}/{comprasMes[0]?.[0]?.slice(2,4)}</span>
+                    <span style={{fontSize:8,color:'#a78bfa',fontWeight:600}}>hoje</span>
+                  </div>
                 </div>
               )}
-            </div>
-          )}
 
-          {/* 3 COLUNAS */}
-          <div style={{display:'grid',gridTemplateColumns:expanded?'1fr 1fr 1fr 1fr':'1fr 1fr 1fr',gap:12}}>
-
-            {/* COL 1 — DNA do Cliente */}
-            <div style={{display:'flex',flexDirection:'column',gap:10}}>
-
-              {/* KPIs do pedido + análise financeira */}
-              <div style={{...S.sec,background:`linear-gradient(135deg,${sit.cor}09,transparent)`,borderColor:`${sit.cor}28`}}>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-                  <div style={S.sub}>
-                    <div style={S.lbl}>Total</div>
-                    <div style={{fontSize:15,fontWeight:700,color:sit.cor}}>{fmt(ped.total||pedRow.total)}</div>
-                    {ticketMed>0&&<div style={{fontSize:9,color:Number(vsMedia)>=0?'#22c55e':'#ef4444',marginTop:1}}>
-                      {Number(vsMedia)>=0?'↑':'↓'}{Math.abs(Number(vsMedia))}% vs média
-                    </div>}
-                  </div>
-                  <div style={S.sub}>
-                    <div style={S.lbl}>Itens</div>
-                    <div style={{fontSize:15,fontWeight:700,color:'var(--label)'}}>{itens.length||'—'}</div>
-                  </div>
-                  <div style={S.sub}>
-                    <div style={S.lbl}>Frete</div>
-                    <div style={{fontSize:13,color:'#22c55e'}}>{ped.frete>0?fmt(ped.frete):'Grátis'}</div>
-                  </div>
-                  <div style={S.sub}>
-                    <div style={S.lbl}>Pagamento</div>
-                    <div style={{fontSize:11,color:'#06b6d4',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ped.formaPagamento||ped.forma_pagamento||'—'}</div>
-                  </div>
-                </div>
-                {/* Risk indicator */}
-                {riskScore>0&&(
-                  <div style={{marginTop:8,padding:'5px 8px',borderRadius:7,background:`${riskCor}12`,border:`0.5px solid ${riskCor}30`,display:'flex',alignItems:'center',gap:6}}>
-                    <AlertTriangle size={11} style={{color:riskCor,flexShrink:0}}/>
-                    <span style={{fontSize:10,color:riskCor}}>Risco {riskLabel}</span>
-                    <div style={{flex:1,height:3,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
-                      <div style={{height:'100%',borderRadius:99,width:`${Math.min(100,riskScore)}%`,background:riskCor}}/>
-                    </div>
-                    <span style={{fontSize:9,color:riskCor,flexShrink:0}}>{riskScore}%</span>
-                  </div>
-                )}
+              {/* Métricas */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
+                <div style={S.sub}><div style={S.lbl}>{hist.length+1} pedidos</div><div style={{fontSize:12,fontWeight:700,color:'#22c55e'}}>{fmt(ltvTotal)} total</div></div>
+                <div style={S.sub}><div style={S.lbl}>Ticket médio</div><div style={{fontSize:12,fontWeight:700,color:'#a78bfa'}}>{fmt(ticketMed)}</div></div>
+                {freqDias&&<div style={S.sub}><div style={S.lbl}>Frequência</div><div style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>~{freqDias} dias</div></div>}
+                {ultimoPed&&<div style={S.sub}><div style={S.lbl}>Último pedido</div><div style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>{ultimoPed.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</div></div>}
               </div>
+            </div>
 
-              {/* Cliente DNA */}
+            {/* Itens com peso na compra */}
+            {itens.length>0&&(
               <div style={S.sec}>
                 <div style={{...S.row,marginBottom:10}}>
-                  <div style={{width:44,height:44,borderRadius:'50%',flexShrink:0,padding:3,
-                    background:`conic-gradient(${rfmCfg.cor} ${Math.min(100,(hist.length+1)*12.5)}%, var(--sep) 0%)`}}>
-                    <div style={{width:'100%',height:'100%',borderRadius:'50%',overflow:'hidden',
-                      background:'linear-gradient(135deg,#7c6af7,#06b6d4)',
-                      display:'flex',alignItems:'center',justifyContent:'center',
-                      border:'2px solid var(--bg-2)'}}>
-                      {foto
-                        ?<img src={foto} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                        :<span style={{fontSize:13,fontWeight:700,color:'#fff'}}>{(contato?.nome||pedRow.contato||'?').split(' ').map(w=>w[0]).slice(0,2).join('')}</span>}
-                    </div>
-                  </div>
-                  <div style={{flex:1,overflow:'hidden'}}>
-                    <div style={{fontSize:13,fontWeight:600,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                      {contato?.nome||pedRow.contato||'—'}
-                    </div>
-                    <div style={{display:'flex',alignItems:'center',gap:5,marginTop:3}}>
-                      <span style={{fontSize:9,fontWeight:600,padding:'1px 6px',borderRadius:99,color:rfmCfg.cor,background:`${rfmCfg.cor}18`,border:`0.5px solid ${rfmCfg.cor}40`,display:'inline-flex',alignItems:'center',gap:2}}>
-                        <RFMIcon size={8}/>{rfmCfg.label}
-                      </span>
-                      <span style={{fontSize:9,color:'var(--label-4)'}}>{hist.length+1} pedidos</span>
-                    </div>
-                  </div>
+                  <Package size={12} style={{color:'#7c6af7'}}/>
+                  <span style={S.h}>Itens · peso na compra</span>
                 </div>
-                {/* Análise financeira do cliente */}
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
-                  <div style={S.sub}><div style={S.lbl}>LTV Total</div><div style={{fontSize:12,fontWeight:600,color:'#22c55e'}}>{fmt(ltvTotal)}</div></div>
-                  <div style={S.sub}><div style={S.lbl}>Ticket Médio</div><div style={{fontSize:12,fontWeight:600,color:'#7c6af7'}}>{fmt(ticketMed)}</div></div>
-                  {(contato?.telefone||pedRow.telefone)&&<div style={{...S.sub,gridColumn:'span 2'}}>
-                    <div style={S.lbl}>Telefone</div>
-                    <div style={{...S.row,justifyContent:'space-between'}}>
-                      <span style={S.val}>{contato?.telefone||pedRow.telefone}</span>
-                      <button onClick={()=>cp(contato?.telefone||pedRow.telefone,'tel')} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0}}>
-                        {copied==='tel'?<Check size={10} style={{color:'#22c55e'}}/>:<Copy size={10}/>}
-                      </button>
-                    </div>
-                  </div>}
-                  {(ped.enderecoEntrega||contato?.endereco)&&<div style={{...S.sub,gridColumn:'span 2'}}>
-                    <div style={S.lbl}>Endereço</div>
-                    <div style={{fontSize:10,color:'var(--label)',lineHeight:1.4}}>{ped.enderecoEntrega||contato?.endereco}</div>
-                  </div>}
-                </div>
-              </div>
-
-              {/* Produtos */}
-              {itens.length>0&&(
-                <div style={S.sec}>
-                  <div style={{...S.row,marginBottom:8}}><Package size={12} style={{color:'#7c6af7'}}/><span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Produtos</span></div>
-                  <div style={{display:'flex',flexDirection:'column',gap:5}}>
-                    {itens.slice(0,4).map((it,i)=>(
-                      <div key={i} style={{...S.sub,display:'flex',alignItems:'center',gap:8}}>
-                        {it.foto&&<img src={it.foto} alt="" style={{width:32,height:32,borderRadius:6,objectFit:'cover',flexShrink:0,border:'0.5px solid var(--sep)'}} onError={e=>{e.target.style.display='none'}}/>}
-                        <div style={{flex:1,overflow:'hidden'}}>
+                <div style={{display:'flex',flexDirection:'column',gap:9}}>
+                  {itens.map((it,i)=>{
+                    const valItem=(parseFloat(it.valor||0))*(it.quantidade||1)
+                    const pctItem=pedTotal>0?(valItem/pedTotal*100):0
+                    const cores=['#7c6af7','#06b6d4','#22c55e','#f59e0b','#f97316','#a78bfa']
+                    const cor=cores[i%cores.length]
+                    return(
+                      <div key={i} style={{display:'flex',gap:8,alignItems:'flex-start'}}>
+                        <ProductThumb item={it} size={34}/>
+                        <div style={{flex:1,minWidth:0}}>
                           <div style={{fontSize:10,fontWeight:500,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{it.descricao||it.nome}</div>
-                          <div style={{fontSize:9,color:'var(--label-4)'}}>{it.quantidade}× · {fmt(it.valor||0)}</div>
-                        </div>
-                        <span style={{fontSize:11,fontWeight:600,color:'var(--label)',flexShrink:0}}>{fmt((it.valor||0)*(it.quantidade||1))}</span>
-                      </div>
-                    ))}
-                    {itens.length>4&&<div style={{fontSize:10,color:'var(--label-4)',textAlign:'center'}}>+{itens.length-4} mais</div>}
-                  </div>
-                  <div style={{borderTop:'0.5px solid var(--sep)',marginTop:8,paddingTop:8,display:'flex',justifyContent:'space-between',fontSize:12,fontWeight:700,color:'var(--label)'}}>
-                    <span>Total</span><span style={{color:sit.cor}}>{fmt(ped.total||pedRow.total)}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* COL 2 — Rastreio ao Vivo + NF-e Expandida */}
-            <div style={{display:'flex',flexDirection:'column',gap:10}}>
-
-              {/* Rastreio ao vivo — todos os eventos */}
-              <div style={S.sec}>
-                <div style={{...S.row,marginBottom:10}}>
-                  <Truck size={12} style={{color:'#06b6d4'}}/>
-                  <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Rastreio ao Vivo</span>
-                  {rastreio?.transportadora&&<span style={{marginLeft:'auto',fontSize:9,color:'var(--label-3)',background:'var(--fill)',padding:'2px 7px',borderRadius:99}}>{rastreio.transportadora}</span>}
-                </div>
-                {codRas?(
-                  <div>
-                    <div style={{...S.sub,display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-                      <span style={{fontSize:9,color:'var(--label-3)',fontFamily:'monospace'}}>{codRas}</span>
-                      <button onClick={()=>cp(codRas,'cod')} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0}}>
-                        {copied==='cod'?<Check size={10} style={{color:'#22c55e'}}/>:<Copy size={10}/>}
-                      </button>
-                    </div>
-                    {linkRas&&<a href={linkRas} target="_blank" rel="noopener noreferrer" style={{display:'flex',alignItems:'center',gap:5,fontSize:10,color:'#7c6af7',marginBottom:8,textDecoration:'none'}}>
-                      <ExternalLink size={10}/>Acompanhar rastreio externo
-                    </a>}
-                    {evts.length>0?(
-                      <div style={{display:'flex',flexDirection:'column',gap:0,maxHeight:240,overflowY:'auto'}}>
-                        {evts.map((ev,i)=>(
-                          <div key={i} style={{display:'flex',gap:8,padding:'6px 0',borderBottom:i<evts.length-1?'0.5px solid var(--sep)':'none'}}>
-                            <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0,marginTop:2}}>
-                              <div style={{width:8,height:8,borderRadius:'50%',
-                                background:i===0?'#06b6d4':'var(--sep)',
-                                boxShadow:i===0?'0 0 5px #06b6d490':'none'}}/>
-                              {i<evts.length-1&&<div style={{width:1,height:16,background:'var(--sep)',margin:'2px 0'}}/>}
-                            </div>
-                            <div style={{flex:1,minWidth:0}}>
-                              <div style={{fontSize:10,fontWeight:i===0?600:400,color:i===0?'#06b6d4':'var(--label-3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                                {ev.descricao||ev.evento}
-                              </div>
-                              <div style={{fontSize:9,color:'var(--label-4)'}}>{fmtDH(ev.data)} · {ev.local||ev.origem||''}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ):(rastreio?.ultimoEvento&&(
-                      <div style={S.sub}>
-                        <div style={{fontSize:9,color:'#06b6d4',fontWeight:600,marginBottom:2}}>Último evento</div>
-                        <div style={{fontSize:10,color:'var(--label)'}}>{rastreio.ultimoEvento}</div>
-                        {rastreio.dataUltimoEvento&&<div style={{fontSize:9,color:'var(--label-4)',marginTop:1}}>{fmtDH(rastreio.dataUltimoEvento)}</div>}
-                      </div>
-                    ))}
-                  </div>
-                ):(
-                  <div style={{padding:'16px 0',textAlign:'center',fontSize:10,color:'var(--label-4)'}}>Sem código de rastreio</div>
-                )}
-              </div>
-
-              {/* NF-e EXPANDIDA — todos os dados inline, sem botão */}
-              <div style={{...S.sec,borderColor:nfe?.linkDanfe?'rgba(34,197,94,.25)':'rgba(245,158,11,.2)',background:nfe?.linkDanfe?'rgba(34,197,94,.03)':'rgba(245,158,11,.02)'}}>
-                <div style={{...S.row,marginBottom:10}}>
-                  <FileText size={12} style={{color:nfe?.linkDanfe?'#22c55e':'#f59e0b'}}/>
-                  <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Nota Fiscal</span>
-                  {nfe?.linkDanfe
-                    ?<span style={{marginLeft:'auto',fontSize:9,color:'#22c55e',background:'rgba(34,197,94,.12)',border:'0.5px solid rgba(34,197,94,.3)',padding:'1px 7px',borderRadius:99}}>Emitida</span>
-                    :<span style={{marginLeft:'auto',fontSize:9,color:'#f59e0b',background:'rgba(245,158,11,.1)',border:'0.5px solid rgba(245,158,11,.3)',padding:'1px 7px',borderRadius:99}}>Pendente</span>}
-                </div>
-                {nfe?.linkDanfe?(
-                  <div style={{display:'flex',flexDirection:'column',gap:6}}>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
-                      <div style={S.sub}><div style={S.lbl}>Número</div><div style={S.val}>#{nfe.numero}</div></div>
-                      <div style={S.sub}><div style={S.lbl}>Série</div><div style={S.val}>{nfe.serie||'1'}</div></div>
-                    </div>
-                    {nfe.chave&&(
-                      <div style={S.sub}>
-                        <div style={S.lbl}>Chave de Acesso</div>
-                        <div style={{display:'flex',alignItems:'center',gap:6}}>
-                          <span style={{fontSize:9,color:'var(--label-3)',fontFamily:'monospace',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{nfe.chave}</span>
-                          <button onClick={()=>cp(nfe.chave,'nfe')} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0,flexShrink:0}}>
-                            {copied==='nfe'?<Check size={10} style={{color:'#22c55e'}}/>:<Copy size={10}/>}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    <div style={{display:'flex',gap:6}}>
-                      <a href={nfe.linkDanfe} target="_blank" rel="noopener noreferrer" style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,fontSize:10,color:'#7c6af7',padding:'6px',borderRadius:7,background:'rgba(124,106,247,.08)',border:'0.5px solid rgba(124,106,247,.2)',textDecoration:'none'}}>
-                        <ExternalLink size={10}/>Ver DANFE
-                      </a>
-                      {(contato?.telefone||pedRow.telefone)&&(
-                        <button onClick={enviarNF} disabled={sending||sentNF} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:5,fontSize:10,padding:'6px',borderRadius:7,cursor:'pointer',background:sentNF?'rgba(34,197,94,.1)':'rgba(34,197,94,.08)',border:`0.5px solid ${sentNF?'rgba(34,197,94,.3)':'rgba(34,197,94,.2)'}`,color:sentNF?'#22c55e':'#22c55e'}}>
-                          {sentNF?<><Check size={10}/>Enviada!</>:<><Send size={10}/>Enviar WA</>}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ):(
-                  <div>
-                    <div style={{fontSize:10,color:'var(--label-4)',marginBottom:8}}>Situação: <span style={{color:sit.cor}}>{sit.label}</span></div>
-                    {ped.enderecoEntrega&&<div style={S.sub}><div style={S.lbl}>Endereço de entrega</div><div style={{fontSize:10,color:'var(--label)',lineHeight:1.4}}>{ped.enderecoEntrega}</div></div>}
-                  </div>
-                )}
-              </div>
-
-              {/* Histórico financeiro */}
-              {hist.length>0&&(
-                <div style={S.sec}>
-                  <div style={{...S.row,marginBottom:8}}><History size={12} style={{color:'#f59e0b'}}/><span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Histórico</span><span style={{marginLeft:'auto',fontSize:9,color:'var(--label-4)'}}>{hist.length+1} pedidos</span></div>
-                  <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                    <div style={{...S.sub,display:'flex',justifyContent:'space-between',alignItems:'center',background:`${sit.cor}12`,borderColor:`${sit.cor}35`,border:`0.5px solid ${sit.cor}35`}}>
-                      <div><span style={{fontSize:10,fontWeight:600,color:sit.cor}}>#{pedRow.numero}</span><span style={{fontSize:9,color:'var(--label-4)',marginLeft:6}}>atual</span></div>
-                      <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>{fmt(pedRow.total)}</span>
-                    </div>
-                    {hist.slice(0,4).map((h,i)=>(
-                      <div key={i} style={{...S.sub,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                        <div><span style={{fontSize:10,color:'var(--label)'}}>{h.numero}</span><span style={{fontSize:9,color:'var(--label-4)',marginLeft:6}}>{fmtD(h.data)}</span></div>
-                        <div style={{display:'flex',alignItems:'center',gap:6}}>
-                          <div style={{width:40,height:3,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
-                            <div style={{height:'100%',background:'#7c6af7',borderRadius:99,width:`${Math.min(100,(parseFloat(h.total||0)/Math.max(pedTotal,parseFloat(h.total||0),1)*100)).toFixed(0)}%`}}/>
-                          </div>
-                          <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>{fmt(h.total)}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* COL 3 — WhatsApp inline + Disparos + AI */}
-            <div style={{display:'flex',flexDirection:'column',gap:10}}>
-
-              {/* Conversa WhatsApp completa */}
-              <div style={{...S.sec,padding:'12px'}}>
-                <div style={{...S.row,justifyContent:'space-between',marginBottom:10}}>
-                  <div style={S.row}><MessageSquare size={12} style={{color:'#22c55e'}}/><span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>WhatsApp</span></div>
-                  {pedRow.statusAtendimento&&<span style={{fontSize:9,padding:'1px 7px',borderRadius:99,color:pedRow.statusAtendimento==='resolvido'?'#22c55e':'#f59e0b',background:pedRow.statusAtendimento==='resolvido'?'rgba(34,197,94,.12)':'rgba(245,158,11,.12)',border:`0.5px solid ${pedRow.statusAtendimento==='resolvido'?'rgba(34,197,94,.3)':'rgba(245,158,11,.3)'}`}}>{pedRow.statusAtendimento}</span>}
-                </div>
-                {msgs.length>0?(
-                  <div style={{display:'flex',flexDirection:'column',gap:5,maxHeight:180,overflowY:'auto'}}>
-                    {msgs.slice(-6).map((m,i)=>{
-                      const isBot=m.role==='assistant'||m.direcao==='saida'
-                      const isSys=m.tipo==='gatilho'||m.tipo==='sistema'
-                      if(isSys)return <div key={i} style={{fontSize:9,color:'#06b6d4',background:'rgba(6,182,212,.06)',border:'0.5px solid rgba(6,182,212,.2)',borderRadius:6,padding:'3px 7px',textAlign:'center'}}>⚡ {m.conteudo||m.content}</div>
-                      return(
-                        <div key={i} style={{display:'flex',justifyContent:isBot?'flex-end':'flex-start'}}>
-                          <div style={{maxWidth:'85%',padding:'5px 9px',borderRadius:isBot?'8px 8px 2px 8px':'8px 8px 8px 2px',background:isBot?'rgba(124,106,247,.12)':'var(--fill)',border:`0.5px solid ${isBot?'rgba(124,106,247,.25)':'var(--sep)'}`}}>
-                            <div style={{fontSize:10,color:isBot?'#a78bfa':'var(--label)',lineHeight:1.4}}>{(m.conteudo||m.content||'').slice(0,120)}{(m.conteudo||m.content||'').length>120?'…':''}</div>
-                            <div style={{fontSize:8,color:'var(--label-4)',textAlign:'right',marginTop:2}}>{isBot?'Bia · ':''}{fmtDH(m.createdAt||m.created_at||m.data)}</div>
+                          <div style={{fontSize:9,color:'var(--label-4)',marginBottom:3}}>{it.quantidade} pct · {fmt(valItem)}</div>
+                          <div style={{height:4,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
+                            <div style={{height:'100%',borderRadius:99,width:`${pctItem.toFixed(0)}%`,background:cor,boxShadow:`0 0 4px ${cor}60`}}/>
                           </div>
                         </div>
-                      )
-                    })}
-                  </div>
-                ):(
-                  <div style={{fontSize:10,color:'var(--label-4)',textAlign:'center',padding:'10px 0'}}>{pedRow.telefone?'Sem mensagens':'Telefone não cadastrado'}</div>
-                )}
-                {pedRow.telefone&&(
-                  <div style={{marginTop:8,display:'flex',gap:5}}>
-                    <input value={msgTxt} onChange={e=>setMsgT(e.target.value)} onKeyDown={e=>e.key==='Enter'&&enviarMsg()} placeholder="Responder..." style={{flex:1,background:'var(--fill)',border:'0.5px solid var(--sep)',borderRadius:7,padding:'5px 8px',fontSize:10,color:'var(--label)',outline:'none'}}/>
-                    <button onClick={enviarMsg} disabled={!msgTxt.trim()||sending} style={{padding:'5px 10px',borderRadius:7,border:'0.5px solid rgba(124,106,247,.4)',background:'rgba(124,106,247,.1)',color:'#7c6af7',cursor:'pointer',fontSize:10,display:'flex',alignItems:'center',gap:4}}>
-                      <Send size={10}/>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Disparos */}
-              {disps.length>0&&(
-                <div style={S.sec}>
-                  <div style={{...S.row,marginBottom:8}}><Send size={12} style={{color:'#a78bfa'}}/><span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Gatilhos</span><span style={{marginLeft:'auto',fontSize:9,color:'var(--label-4)'}}>{disps.length}</span></div>
-                  <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                    {disps.slice(0,5).map((d,i)=>(
-                      <div key={i} style={{...S.sub,display:'flex',alignItems:'center',gap:7}}>
-                        <div style={{width:6,height:6,borderRadius:'50%',flexShrink:0,background:d.status==='enviado'?'#22c55e':'#ef4444',boxShadow:d.status==='enviado'?'0 0 4px #22c55e80':'none'}}/>
-                        <span style={{fontSize:10,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'var(--label)'}}>{d.gatilho||d.tipo_gatilho}</span>
-                        <span style={{fontSize:9,color:'var(--label-4)',flexShrink:0}}>{fmtD(d.created_at||d.criado_em)}</span>
                       </div>
-                    ))}
-                  </div>
+                    )
+                  })}
                 </div>
-              )}
-
-              {/* Análise IA — métricas + sugestão */}
-              <div style={{...S.sec,borderColor:'rgba(124,106,247,.3)',background:'rgba(124,106,247,.03)'}}>
-                <div style={{...S.row,marginBottom:12}}>
-                  <Brain size={12} style={{color:'#7c6af7'}}/>
-                  <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Análise IA</span>
-                </div>
-                <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:10}}>
-                  {[
-                    {label:'SATISFAÇÃO PREVISTA',val:satisfacaoPrev,cor:'#22c55e'},
-                    {label:'PROB. RECOMPRA',      val:probRecompra,  cor:'#7c6af7'},
-                    {label:'RISCO DE ATRASO',     val:riscoAtraso,   cor:riscoAtraso>50?'#ef4444':riscoAtraso>25?'#f59e0b':'#22c55e'},
-                  ].map(m=>(
-                    <div key={m.label}>
-                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
-                        <span style={{fontSize:8,fontWeight:700,color:'var(--label-4)',letterSpacing:'.06em'}}>{m.label}</span>
-                        <span style={{fontSize:11,fontWeight:700,color:m.cor}}>{m.val}%</span>
-                      </div>
-                      <div style={{height:4,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
-                        <div style={{height:'100%',borderRadius:99,width:`${m.val}%`,background:m.cor,boxShadow:`0 0 5px ${m.cor}60`,transition:'width .5s ease'}}/>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div style={{borderTop:'0.5px solid var(--sep)',paddingTop:8}}>
-                  <div style={{fontSize:8,fontWeight:700,color:'var(--label-4)',letterSpacing:'.06em',marginBottom:4}}>SUGESTÃO IA</div>
-                  <div style={{fontSize:10,color:'var(--label)',lineHeight:1.4,padding:'6px 8px',background:'rgba(124,106,247,.06)',borderRadius:7,border:'0.5px solid rgba(124,106,247,.2)'}}>
-                    {sugestaoIA}
-                  </div>
-                </div>
-              </div>
-
-              {/* Ações rápidas */}
-              <div style={S.sec}>
-                <div style={{...S.lbl,marginBottom:8}}>Ações rápidas</div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-                  {[
-                    {Ic:MessageSquare,label:'Conversa',cor:'#22c55e',href:pedRow.telefone?`https://wa.me/${pedRow.telefone}`:null},
-                    {Ic:Send,label:'Disparar',cor:'#7c6af7'},
-                    {Ic:ExternalLink,label:'Bling',cor:'#60a5fa',href:`https://app.bling.com.br/vendas.php#id=${pedRow.numero}`},
-                    {Ic:Copy,label:'Copiar nº',cor:'var(--label-3)',onClick:()=>cp(pedRow.numero,'num')},
-                  ].map(({Ic,label,cor,href,onClick})=>
-                    href
-                      ?<a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'7px',borderRadius:8,fontSize:11,color:cor,background:`${cor}18`,border:`0.5px solid ${cor}40`,cursor:'pointer',textDecoration:'none'}}><Ic size={12}/>{label}</a>
-                      :<button key={label} onClick={onClick} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'7px',borderRadius:8,fontSize:11,color:cor,background:`${cor}18`,border:`0.5px solid ${cor}40`,cursor:'pointer'}}>
-                        {label==='Copiar nº'&&copied==='num'?<Check size={12} style={{color:'#22c55e'}}/>:<Ic size={12}/>}{label}
-                      </button>
-                  )}
-                </div>
-              </div>
-
-            </div>
-
-            {/* COL 4 — só no modo expandido: análise de frete + mapa regiões */}
-            {expanded&&(
-              <div style={{display:'flex',flexDirection:'column',gap:10}}>
-                <div style={S.sec}>
-                  <div style={{...S.row,marginBottom:10}}>
-                    <Timer size={12} style={{color:'#f59e0b'}}/>
-                    <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Análise de Frete</span>
-                  </div>
-                  {det?.transpStats?.length>0?(
-                    det.transpStats.map(t=>(
-                      <div key={t.nome} style={{marginBottom:10}}>
-                        <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
-                          <span style={{fontSize:10,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:130}}>{t.nome}</span>
-                          <div style={{display:'flex',gap:8,flexShrink:0}}>
-                            <span style={{fontSize:10,fontWeight:700,color:t.tempoMedio<=3?'#22c55e':t.tempoMedio<=7?'#f59e0b':'#ef4444'}}>{t.tempoMedio}d</span>
-                            <span style={{fontSize:10,color:'var(--label-4)'}}>{fmt(t.custoMedio||0)}</span>
-                          </div>
-                        </div>
-                        <div style={{height:5,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
-                          <div style={{height:'100%',borderRadius:99,width:`${Math.min(100,(t.tempoMedio/14)*100)}%`,background:t.tempoMedio<=3?'#22c55e':t.tempoMedio<=7?'#f59e0b':'#ef4444'}}/>
-                        </div>
-                        {t.taxaExtravio>0&&<div style={{fontSize:9,color:'#ef4444',marginTop:2}}>{t.taxaExtravio}% taxa de extravio</div>}
-                      </div>
-                    ))
-                  ):(
-                    <div style={{fontSize:10,color:'var(--label-4)',textAlign:'center',padding:'12px 0'}}>Dados de frete não disponíveis</div>
-                  )}
-                </div>
-                {/* Mini mapa cliente */}
-                <div style={S.sec}>
-                  <div style={{...S.row,marginBottom:8}}><MapPin size={12} style={{color:'#22c55e'}}/><span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>Localização</span></div>
-                  <PackageMiniMap origem={originUF} destino={destUF||undefined} atual={curUF} pct={pct}/>
-                  <div style={{marginTop:8,display:'flex',gap:8,fontSize:9,color:'var(--label-4)'}}>
-                    <span style={{display:'flex',alignItems:'center',gap:3}}><span style={{width:6,height:6,borderRadius:'50%',background:'#7c6af7',display:'inline-block'}}/> Origem: {originUF}</span>
-                    {destUF&&<span style={{display:'flex',alignItems:'center',gap:3}}><span style={{width:6,height:6,borderRadius:'50%',background:'#22c55e',display:'inline-block'}}/> Destino: {destUF}</span>}
-                  </div>
+                <div style={{borderTop:'0.5px solid var(--sep)',marginTop:10,paddingTop:8,display:'flex',justifyContent:'space-between',fontSize:12,fontWeight:700}}>
+                  <span style={{color:'var(--label)'}}>Total</span><span style={{color:sit.cor}}>{fmt(pedTotal)}</span>
                 </div>
               </div>
             )}
+          </div>
+
+          {/* ════ COLUNA 2 — Jornada + Rastreio + NF ════ */}
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+
+            {/* Jornada */}
+            <div style={S.sec}>
+              <div style={{...S.lbl,marginBottom:10}}>Jornada do pedido</div>
+              <div style={{display:'flex',alignItems:'center'}}>
+                {JSTEPS.map((j,i)=>(
+                  <div key={j.key} style={{display:'flex',alignItems:'center',flex:i<JSTEPS.length-1?1:'0 0 auto'}}>
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+                      <div style={{width:11,height:11,borderRadius:'50%',
+                        background:j.on?sit.cor:'transparent',border:`2px solid ${j.on?sit.cor:'var(--sep)'}`,
+                        boxShadow:j.on&&!JSTEPS[i+1]?.on?`0 0 0 3px ${sit.cor}25`:'none'}}/>
+                      <span style={{fontSize:8,color:j.on?sit.cor:'var(--label-4)',whiteSpace:'nowrap'}}>{j.label}</span>
+                    </div>
+                    {i<JSTEPS.length-1&&<div style={{flex:1,height:2,margin:'0 2px',marginBottom:12,background:j.on&&JSTEPS[i+1].on?sit.cor:'var(--sep)'}}/>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Rastreio ao Vivo */}
+            <div style={{...S.sec,borderColor:codRas?'rgba(6,182,212,.3)':'var(--sep)'}}>
+              <div style={{...S.row,marginBottom:8}}>
+                <Route size={12} style={{color:'#06b6d4'}}/>
+                <span style={S.h}>Rastreio ao Vivo</span>
+                {codRas&&<button onClick={()=>cp(codRas,'cod')} style={{marginLeft:'auto',fontSize:9,fontFamily:'monospace',padding:'2px 8px',borderRadius:99,color:'#06b6d4',background:'rgba(6,182,212,.1)',border:'0.5px solid rgba(6,182,212,.3)',cursor:'pointer',display:'flex',alignItems:'center',gap:3}}>
+                  {copied==='cod'?<Check size={9} style={{color:'#22c55e'}}/>:null}{codRas.slice(0,18)}
+                </button>}
+              </div>
+              {codRas?(
+                <>
+                  {/* Origem → % → Destino */}
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+                    <span style={{fontSize:10,fontWeight:600,color:'var(--label)'}}>Limeira/SP</span>
+                    <span style={{fontSize:10,fontWeight:700,color:'#06b6d4'}}>{pct}% do caminho</span>
+                    <span style={{fontSize:10,fontWeight:600,color:'var(--label)'}}>{destCidade?`${destCidade}/${destUF}`:'—'}</span>
+                  </div>
+                  <div style={{height:5,background:'var(--fill)',borderRadius:99,overflow:'hidden',marginBottom:5}}>
+                    <div style={{height:'100%',borderRadius:99,width:`${pct}%`,
+                      background:pct===100?'#22c55e':'linear-gradient(90deg,#7c6af7,#06b6d4)',
+                      boxShadow:pct===100?'0 0 6px rgba(34,197,94,.5)':'0 0 6px rgba(6,182,212,.5)',transition:'width .6s'}}/>
+                  </div>
+                  {previsao&&chanceNoPrazo&&(
+                    <div style={{textAlign:'center',fontSize:10,color:'#22c55e',fontWeight:600,marginBottom:10}}>
+                      Prev. {previsao} · {chanceNoPrazo}% chance no prazo
+                    </div>
+                  )}
+                  {pct===100&&(
+                    <div style={{textAlign:'center',fontSize:10,color:'#22c55e',fontWeight:700,marginBottom:10}}>✓ Entregue</div>
+                  )}
+                  {/* Timeline de eventos */}
+                  {evts.length>0?(
+                    <div style={{display:'flex',flexDirection:'column',maxHeight:expanded?400:230,overflowY:'auto'}}>
+                      {evts.map((ev,i)=>(
+                        <div key={i} style={{display:'flex',gap:8,padding:'5px 0'}}>
+                          <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0,marginTop:3}}>
+                            <div style={{width:8,height:8,borderRadius:'50%',
+                              background:i===0?'#06b6d4':i===evts.length-1?'#a78bfa':'#22c55e',
+                              boxShadow:i===0?'0 0 5px #06b6d490':'none'}}/>
+                            {i<evts.length-1&&<div style={{width:1.5,flex:1,minHeight:14,background:'var(--sep)',margin:'2px 0'}}/>}
+                          </div>
+                          <div style={{flex:1,minWidth:0,paddingBottom:2}}>
+                            <div style={{fontSize:10,fontWeight:i===0?600:400,color:i===0?'#06b6d4':'var(--label)',lineHeight:1.35}}>{ev.raw||ev.descricao||ev.status}</div>
+                            <div style={{fontSize:9,color:'var(--label-4)'}}>{fmtDH(ev.data)}{(ev.local||ev.origem)?` · ${ev.local||ev.origem}`:''}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ):(
+                    <div style={{fontSize:10,color:'var(--label-4)',textAlign:'center',padding:'8px 0'}}>
+                      {rastreio?.status?`Status: ${rastreio.status}`:'Aguardando primeiro evento de rastreio'}
+                    </div>
+                  )}
+                  {linkRas&&<a href={linkRas} target="_blank" rel="noopener noreferrer" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:4,fontSize:10,color:'#7c6af7',marginTop:8,padding:'5px',borderRadius:7,background:'rgba(124,106,247,.07)',border:'0.5px solid rgba(124,106,247,.2)',textDecoration:'none'}}>
+                    <ExternalLink size={10}/>Acompanhar rastreio externo
+                  </a>}
+                </>
+              ):(
+                <div style={{fontSize:10,color:'var(--label-4)',textAlign:'center',padding:'14px 0'}}>
+                  Etiqueta ainda não gerada · sit={sitId} {sit.label}
+                </div>
+              )}
+            </div>
+
+            {/* Nota Fiscal */}
+            <div style={{...S.sec,borderColor:nfe?.linkDanfe?'rgba(34,197,94,.3)':'rgba(245,158,11,.25)',background:nfe?.linkDanfe?'rgba(34,197,94,.03)':'rgba(245,158,11,.02)'}}>
+              <div style={{...S.row,marginBottom:8}}>
+                <FileText size={12} style={{color:nfe?.linkDanfe?'#22c55e':'#f59e0b'}}/>
+                <span style={S.h}>Nota Fiscal</span>
+                <span style={{marginLeft:'auto',fontSize:9,fontWeight:600,padding:'1px 8px',borderRadius:99,
+                  color:nfe?.linkDanfe?'#22c55e':'#f59e0b',
+                  background:nfe?.linkDanfe?'rgba(34,197,94,.12)':'rgba(245,158,11,.12)',
+                  border:`0.5px solid ${nfe?.linkDanfe?'rgba(34,197,94,.35)':'rgba(245,158,11,.35)'}`}}>
+                  {nfe?.linkDanfe?'Emitida':'Não emitida'}
+                </span>
+              </div>
+              {nfe?.linkDanfe?(
+                <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
+                    <div style={S.sub}><div style={S.lbl}>Número</div><div style={{fontSize:11,color:'var(--label)'}}>#{nfe.numero}</div></div>
+                    <div style={S.sub}><div style={S.lbl}>Série</div><div style={{fontSize:11,color:'var(--label)'}}>{nfe.serie||'1'}</div></div>
+                  </div>
+                  {nfe.chave&&<div style={S.sub}>
+                    <div style={S.lbl}>Chave</div>
+                    <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                      <span style={{fontSize:8.5,color:'var(--label-3)',fontFamily:'monospace',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{nfe.chave}</span>
+                      <button onClick={()=>cp(nfe.chave,'nfe')} style={{background:'none',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0,flexShrink:0}}>
+                        {copied==='nfe'?<Check size={10} style={{color:'#22c55e'}}/>:<Copy size={10}/>}
+                      </button>
+                    </div>
+                  </div>}
+                  <div style={{display:'flex',gap:6}}>
+                    <a href={nfe.linkDanfe} target="_blank" rel="noopener noreferrer" style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:4,fontSize:10,color:'#7c6af7',padding:'6px',borderRadius:7,background:'rgba(124,106,247,.08)',border:'0.5px solid rgba(124,106,247,.2)',textDecoration:'none'}}>
+                      <ExternalLink size={10}/>Ver DANFE
+                    </a>
+                    {telCli&&<button onClick={enviarNF} disabled={sending||sentNF} style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:4,fontSize:10,padding:'6px',borderRadius:7,cursor:'pointer',background:'rgba(34,197,94,.08)',border:'0.5px solid rgba(34,197,94,.25)',color:'#22c55e'}}>
+                      {sentNF?<><Check size={10}/>Enviada!</>:<><Send size={10}/>Enviar WA</>}
+                    </button>}
+                  </div>
+                </div>
+              ):(
+                <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
+                    <div style={S.sub}><div style={S.lbl}>Situação Bling</div><div style={{fontSize:10,color:'var(--label)'}}>sit={sitId} {sit.label}</div></div>
+                    <div style={S.sub}><div style={S.lbl}>Série</div><div style={{fontSize:10,color:'var(--label-4)'}}>—</div></div>
+                  </div>
+                  {enderecoFull&&<div style={S.sub}>
+                    <div style={S.lbl}>Endereço de entrega (para NF-e)</div>
+                    <div style={{fontSize:10,color:'var(--label)',lineHeight:1.45}}>{enderecoFull}</div>
+                  </div>}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ════ COLUNA 3 — WhatsApp + IA + Histórico ════ */}
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+
+            {/* Conversa WhatsApp */}
+            <div style={{...S.sec,padding:'12px'}}>
+              <div style={{...S.row,justifyContent:'space-between',marginBottom:10}}>
+                <div style={S.row}><MessageSquare size={12} style={{color:'#22c55e'}}/><span style={S.h}>Conversa WhatsApp</span></div>
+                {pedRow.statusAtendimento&&<span style={{fontSize:9,fontWeight:600,padding:'1px 8px',borderRadius:99,color:pedRow.statusAtendimento==='resolvido'?'#22c55e':'#f59e0b',background:pedRow.statusAtendimento==='resolvido'?'rgba(34,197,94,.12)':'rgba(245,158,11,.12)',border:`0.5px solid ${pedRow.statusAtendimento==='resolvido'?'rgba(34,197,94,.3)':'rgba(245,158,11,.3)'}`}}>{pedRow.statusAtendimento}</span>}
+              </div>
+              {msgs.length>0?(
+                <div style={{display:'flex',flexDirection:'column',gap:5,maxHeight:expanded?320:190,overflowY:'auto'}}>
+                  {/* disparos intercalados como eventos do sistema */}
+                  {disps.slice(0,2).map((d,i)=>(
+                    <div key={`d${i}`} style={{fontSize:9,color:'#06b6d4',background:'rgba(6,182,212,.06)',border:'0.5px solid rgba(6,182,212,.2)',borderRadius:6,padding:'3px 8px',textAlign:'center'}}>
+                      ⚡ Bia disparou: {d.gatilho||d.tipo_gatilho} · {fmtD(d.created_at||d.criado_em)}
+                    </div>
+                  ))}
+                  {msgs.slice(-6).map((m,i)=>{
+                    const isBot=m.role==='assistant'||m.direcao==='saida'
+                    return(
+                      <div key={i} style={{display:'flex',justifyContent:isBot?'flex-end':'flex-start'}}>
+                        <div style={{maxWidth:'86%',padding:'5px 9px',borderRadius:isBot?'9px 9px 2px 9px':'9px 9px 9px 2px',
+                          background:isBot?'rgba(124,106,247,.12)':'var(--fill)',
+                          border:`0.5px solid ${isBot?'rgba(124,106,247,.25)':'var(--sep)'}`}}>
+                          <div style={{fontSize:10,color:isBot?'#a78bfa':'var(--label)',lineHeight:1.4}}>
+                            {(m.conteudo||m.content||'').slice(0,130)}{(m.conteudo||m.content||'').length>130?'…':''}
+                          </div>
+                          <div style={{fontSize:8,color:'var(--label-4)',textAlign:'right',marginTop:2}}>{isBot?'Bia · ':''}{fmtDH(m.createdAt||m.created_at||m.data)}</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ):(
+                <div style={{fontSize:10,color:'var(--label-4)',textAlign:'center',padding:'12px 0'}}>{telCli?'Sem mensagens registradas':'Telefone não cadastrado'}</div>
+              )}
+              {telCli&&(
+                <div style={{marginTop:8,display:'flex',gap:5}}>
+                  <input value={msgTxt} onChange={e=>setMsgT(e.target.value)} onKeyDown={e=>e.key==='Enter'&&enviarMsg()} placeholder="Responder cliente..." style={{flex:1,background:'var(--fill)',border:'0.5px solid var(--sep)',borderRadius:7,padding:'5px 9px',fontSize:10,color:'var(--label)',outline:'none'}}/>
+                  <button onClick={enviarMsg} disabled={!msgTxt.trim()||sending} style={{padding:'5px 11px',borderRadius:7,border:'0.5px solid rgba(124,106,247,.4)',background:'rgba(124,106,247,.1)',color:'#7c6af7',cursor:'pointer',display:'flex',alignItems:'center'}}>
+                    <Send size={10}/>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Análise IA */}
+            <div style={{...S.sec,borderColor:'rgba(124,106,247,.3)',background:'rgba(124,106,247,.03)'}}>
+              <div style={{...S.row,marginBottom:10}}>
+                <Brain size={12} style={{color:'#7c6af7'}}/>
+                <span style={S.h}>Análise IA</span>
+              </div>
+              {[
+                {label:'Satisfação prevista', v:satisfacao,   cor:'#06b6d4', grad:'linear-gradient(90deg,#06b6d4,#22c55e)'},
+                {label:'Prob. recompra',      v:probRecompra, cor:'#7c6af7', grad:'linear-gradient(90deg,#7c6af7,#a78bfa)'},
+                {label:'Risco de atraso',     v:riscoAtraso,  cor:riscoAtraso>40?'#ef4444':'#22c55e', grad:riscoAtraso>40?'#ef4444':'#22c55e'},
+              ].map(m=>(
+                <div key={m.label} style={{marginBottom:9}}>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                    <span style={{fontSize:9,color:'var(--label-4)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.05em'}}>{m.label}</span>
+                    <span style={{fontSize:11,fontWeight:700,color:m.cor}}>{m.v}%</span>
+                  </div>
+                  <div style={{height:5,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
+                    <div style={{height:'100%',borderRadius:99,width:`${m.v}%`,background:m.grad,boxShadow:`0 0 5px ${m.cor}50`,transition:'width .6s'}}/>
+                  </div>
+                </div>
+              ))}
+              {sugestaoIA&&(
+                <div style={{marginTop:10,padding:'8px 10px',borderRadius:8,background:'rgba(124,106,247,.07)',border:'0.5px solid rgba(124,106,247,.25)'}}>
+                  <div style={{...S.lbl,marginBottom:3}}>Sugestão IA</div>
+                  <div style={{fontSize:10,color:'var(--label)',lineHeight:1.45}}>
+                    Enviar <strong style={{color:'#a78bfa'}}>{sugestaoIA.b}</strong> {sugestaoIA.t}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Histórico Cliente — CLICÁVEL */}
+            {(hist.length>0||true)&&(
+              <div style={S.sec}>
+                <div style={{...S.row,marginBottom:8}}>
+                  <History size={12} style={{color:'#f59e0b'}}/>
+                  <span style={S.h}>Histórico Cliente</span>
+                  <span style={{marginLeft:'auto',fontSize:9,color:'var(--label-4)'}}>{hist.length+1} pedidos</span>
+                </div>
+                <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                  <div style={{...S.sub,display:'flex',justifyContent:'space-between',alignItems:'center',background:`${sit.cor}10`,border:`0.5px solid ${sit.cor}35`}}>
+                    <span style={{fontSize:10,fontWeight:600,color:sit.cor}}>#{pedRow.numero} <span style={{fontSize:9,color:'var(--label-4)',fontWeight:400}}>← atual</span></span>
+                    <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>{fmt(pedTotal)}</span>
+                  </div>
+                  {hist.slice(0,expanded?12:5).map((h,i)=>(
+                    <button key={i} onClick={()=>abrirPedido(h.numero)}
+                      onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(124,106,247,.4)';e.currentTarget.style.background='rgba(124,106,247,.06)'}}
+                      onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--sep)';e.currentTarget.style.background='var(--fill)'}}
+                      style={{...S.sub,display:'flex',justifyContent:'space-between',alignItems:'center',width:'100%',cursor:'pointer',border:'0.5px solid var(--sep)',transition:'all .15s',textAlign:'left'}}>
+                      <span style={{fontSize:10,color:'var(--label)'}}>#{h.numero} <span style={{fontSize:9,color:'var(--label-4)'}}>· {fmtD(h.data)}</span></span>
+                      <span style={{fontSize:11,fontWeight:600,color:'var(--label)'}}>{fmt(h.total)}</span>
+                    </button>
+                  ))}
+                  {hist.length>(expanded?12:5)&&<div style={{fontSize:9,color:'var(--label-4)',textAlign:'center',padding:'3px 0'}}>+ {hist.length-(expanded?12:5)} pedidos anteriores</div>}
+                  {hist.length===0&&<div style={{fontSize:10,color:'var(--label-4)',textAlign:'center',padding:'6px 0'}}>Primeira compra deste cliente</div>}
+                </div>
+              </div>
+            )}
+
+            {/* Ações rápidas */}
+            <div style={S.sec}>
+              <div style={{...S.lbl,marginBottom:8}}>Ações rápidas</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+                {[
+                  {Ic:MessageSquare,label:'Conversa',cor:'#22c55e',href:telCli?`https://wa.me/${String(telCli).replace(/\D/g,'')}`:null},
+                  {Ic:Send,label:'Disparar',cor:'#7c6af7'},
+                  {Ic:ExternalLink,label:'Bling',cor:'#60a5fa',href:ped.linkBling||`https://www.bling.com.br/vendas.php`},
+                  {Ic:Copy,label:'Copiar nº',cor:'var(--label-3)',onClick:()=>cp(pedRow.numero,'num')},
+                ].map(({Ic,label,cor,href,onClick})=>
+                  href
+                    ?<a key={label} href={href} target="_blank" rel="noopener noreferrer" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'7px',borderRadius:8,fontSize:11,color:cor,background:`${cor}15`,border:`0.5px solid ${cor}38`,cursor:'pointer',textDecoration:'none'}}><Ic size={12}/>{label}</a>
+                    :<button key={label} onClick={onClick} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:5,padding:'7px',borderRadius:8,fontSize:11,color:cor,background:`${cor}15`,border:`0.5px solid ${cor}38`,cursor:'pointer'}}>
+                      {label==='Copiar nº'&&copied==='num'?<Check size={12} style={{color:'#22c55e'}}/>:<Ic size={12}/>}{label}
+                    </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -2027,17 +1943,7 @@ export default function PagePedidos({api}) {
           </div>
         ) : view==='analytics' ? <AnalyticsView pedidos={filtrados} api={api}/>
           : view==='kanban'    ? <KanbanView filtrados={filtrados} onSel={setSel}/>
-          : view==='lista' ? (()=>{
-            const now=Date.now()
-            const topProds=(()=>{const m={};filtrados.forEach(p=>{(p.itens||[]).forEach(it=>{const k=it.codigo||it.descricao||'?';if(!m[k])m[k]={nome:it.descricao||it.nome||k,cod:it.codigo||'',qtd:0,valor:0};m[k].qtd+=(it.quantidade||1);m[k].valor+=parseFloat(it.valor||0)*(it.quantidade||1)})});return Object.values(m).sort((a,b)=>b.qtd-a.qtd).slice(0,6)})()
-            const maxQtd=Math.max(...topProds.map(p=>p.qtd),1)
-            const semEnvioList=filtrados.filter(p=>[9,15].includes(getSitId(p))&&(now-new Date(p.data||0))/86400000>3&&!p.codigoRastreio)
-            const extraList=filtrados.filter(p=>getSitId(p)===27&&(now-new Date(p.data||0))/86400000>15)
-            const entreguesSemMsg=filtrados.filter(p=>[30,33].includes(getSitId(p)))
-            const glass='rgba(255,255,255,.04)',glB='0.5px solid rgba(255,255,255,.08)'
-            return <div style={{display:'flex',flex:1,overflow:'hidden',gap:0}}>
-              <div style={{flex:1,overflow:'hidden',display:'flex',flexDirection:'column'}}>
-          <>
+          : <>
             {showCols&&<div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:12,padding:'14px 16px',marginBottom:12}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
                 <div style={{fontSize:13,fontWeight:700,color:'var(--label)'}}>Colunas customizadas</div>
@@ -2210,56 +2116,11 @@ export default function PagePedidos({api}) {
               )}
             </div>}
           </>
-            </div>
-            {/* PAINEL DIREITO DA LISTA */}
-            <div style={{width:260,flexShrink:0,borderLeft:glB,background:'rgba(0,0,0,.2)',overflowY:'auto',padding:'14px 12px',display:'flex',flexDirection:'column',gap:12}}>
-              {/* Top Produtos em Pedidos */}
-              <div style={{background:glass,border:glB,borderRadius:12,padding:'12px 14px',backdropFilter:'blur(10px)'}}>
-                <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10}}>
-                  <Package size={13} style={{color:'#7c6af7'}}/>
-                  <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>Produtos em Pedidos</span>
-                </div>
-                {topProds.length===0?<div style={{fontSize:10,color:'rgba(255,255,255,.3)',textAlign:'center',padding:'8px 0'}}>Nenhum produto</div>:
-                  topProds.map((p,i)=>(
-                    <div key={p.cod||p.nome} style={{marginBottom:8}}>
-                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
-                        <span style={{fontSize:10,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1,marginRight:6}}>{p.nome}</span>
-                        <span style={{fontSize:10,fontWeight:700,color:i===0?'#7c6af7':i===1?'#06b6d4':'#22c55e',flexShrink:0}}>{p.qtd} pct</span>
-                      </div>
-                      <div style={{height:3,background:'rgba(255,255,255,.08)',borderRadius:99,overflow:'hidden'}}>
-                        <div style={{height:'100%',borderRadius:99,width:`${(p.qtd/maxQtd*100).toFixed(0)}%`,background:i===0?'#7c6af7':i===1?'#06b6d4':'#22c55e',boxShadow:i===0?'0 0 5px #7c6af780':'none'}}/>
-                      </div>
-                      {p.cod&&<div style={{fontSize:8,color:'rgba(255,255,255,.25)',marginTop:1}}>{fmt(p.valor)} · cod {p.cod}</div>}
-                    </div>
-                  ))
-                }
-              </div>
-              {/* Ações Necessárias */}
-              <div style={{background:glass,border:glB,borderRadius:12,padding:'12px 14px',backdropFilter:'blur(10px)'}}>
-                <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10}}>
-                  <AlertTriangle size={13} style={{color:'#f59e0b'}}/>
-                  <span style={{fontSize:12,fontWeight:600,color:'var(--label)'}}>Ações Necessárias</span>
-                </div>
-                {[
-                  semEnvioList.length>0&&{cor:'#ef4444',bg:'rgba(239,68,68,.08)',titulo:`${semEnvioList.length} sem envio +3 dias`,acao:'gerar etiqueta urgente'},
-                  extraList.length>0&&{cor:'#f59e0b',bg:'rgba(245,158,11,.08)',titulo:`${extraList.length} em trânsito +15d`,acao:'verificar extravio'},
-                  entreguesSemMsg.length>0&&{cor:'#7c6af7',bg:'rgba(124,106,247,.08)',titulo:`${entreguesSemMsg.length} entregues sem retorno`,acao:'disparar confirmação'},
-                ].filter(Boolean).map((a,i)=>(
-                  <div key={i} style={{marginBottom:8,padding:'8px 10px',borderRadius:8,background:a.bg,border:`0.5px solid ${a.cor}30`}}>
-                    <div style={{fontSize:11,fontWeight:600,color:a.cor}}>{a.titulo}</div>
-                    <div style={{fontSize:10,color:'rgba(255,255,255,.4)',marginTop:1}}>{a.acao}</div>
-                  </div>
-                ))}
-                {semEnvioList.length===0&&extraList.length===0&&<div style={{fontSize:10,color:'rgba(255,255,255,.3)',textAlign:'center',padding:'8px 0'}}>✓ Sem ações urgentes</div>}
-              </div>
-            </div>
-          </div>
-        })() : null
         }
       </div>
     </div>
 
-    {sel&&<SmartOrderCard pedRow={sel} onClose={()=>setSel(null)} api={api} allPedidos={pedidos}/>}
+    {sel&&<SmartOrderCard pedRow={sel} onClose={()=>setSel(null)} api={api} allPedidos={pedidos} onSelectOrder={p=>setSel(p)}/>}
     <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
   </div>
 }
