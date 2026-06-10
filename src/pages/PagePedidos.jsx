@@ -2184,6 +2184,32 @@ export default function PagePedidos({api}) {
     setLoad(false)
   },[api])
 
+  // Itens em lote (a listagem do Bling não traz itens) — cache no backend,
+  // busca gradual dos faltantes em rodadas de 8 até completar
+  const itensRound = useRef(0)
+  const carregarItens = useCallback(async(lista)=>{
+    const alvo=(lista||[]).filter(p=>!p.itens&&p.id).map(p=>({numero:p.numero,id:p.id}))
+    if(!alvo.length)return
+    itensRound.current=0
+    const rodada=async()=>{
+      try{
+        const r=await fetch(`${api}/api/dashboard/pedidos-itens`,{method:'POST',
+          headers:{'Content-Type':'application/json'},body:JSON.stringify({pedidos:alvo})})
+        if(!r.ok)return
+        const d=await r.json()
+        const m=d.itens||{}
+        if(Object.keys(m).length)
+          setPed(prev=>prev.map(p=>m[String(p.numero)]?{...p,itens:m[String(p.numero)]}:p))
+        // continua buscando os faltantes (máx 10 rodadas = 80 detalhes)
+        if(d.pendentes>0&&itensRound.current<10){
+          itensRound.current++
+          setTimeout(rodada,4500)
+        }
+      }catch{}
+    }
+    rodada()
+  },[api])
+
   const carregar = useCallback(async(pg=1,acum=false)=>{
     if(pg===1)setLoad(true);else setLM(true)
     try{
@@ -2199,10 +2225,11 @@ export default function PagePedidos({api}) {
         setTM(n.length>=100)
         setPgAPI(pg)
         if(d.total) setTotalBling(d.total)
+        carregarItens(n)
       }
     }catch{}
     if(pg===1)setLoad(false);else setLM(false)
-  },[api,filtroSit,date])
+  },[api,filtroSit,date,carregarItens])
 
   useEffect(()=>{carregar(1,false);setPgUI(1)},[carregar])
 
