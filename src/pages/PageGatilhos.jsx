@@ -18,6 +18,12 @@ import {
 const R   = n => `R$ ${Number(n||0).toFixed(2).replace('.',',')}`
 const fmt = n => Number(n||0).toLocaleString('pt-BR')
 
+// ─── Recharts (gráficos NIVELMAX) ─────────────────────────────────────────────
+import {
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, CartesianGrid, Cell,
+} from 'recharts'
+
 // ─── Paleta dark enterprise (idêntica à PageDisparos / PageCampanhas) ──────────
 const T = {
   bg0:'#08090f', bg1:'#0d1017', bg2:'#111520', bg3:'#161b2c', bg4:'#1c2238',
@@ -35,52 +41,67 @@ const T = {
 // Grupos e gatilhos
 const GATILHOS = [
   // ── 1. Compra & Pagamento ──────────────────────────────────────────────
-  { id:'pedido_criado',       label:'Pedido Criado',         grupo:'Compra & Pagamento', tipo:'bling', icon:ShoppingBag, cor:'#00d4aa', situacao:'order.created', desc:'Disparo automático quando um novo pedido é criado no Bling (webhook order.created — status Em Aberto)', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}','{{link_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{endereco_entrega}}','{{endereco_faturamento}}'] },
-  { id:'pagamento_aprovado',  label:'Pagamento Aprovado',    grupo:'Compra & Pagamento', tipo:'bling', icon:CreditCard,  cor:'#4a9fff', situacao:'sit=15',  desc:'Pedido em Em Andamento (pagamento confirmado)', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{link_pedido}}'] },
-  { id:'pagamento_pendente',  label:'Pagamento Pendente',    grupo:'Compra & Pagamento', tipo:'bling', icon:Clock,       cor:'#f59e0b', situacao:'sit=6',   desc:'Pedido em Aberto (aguardando pagamento)', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{link_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  { id:'pedido_criado',       label:'Pedido Criado',         grupo:'Compra & Pagamento', tipo:'bling', icon:ShoppingBag, cor:'#00d4aa', situacao:'order.created', desc:'Disparo automático quando um novo pedido é criado no Bling (webhook order.created — status Em Aberto)', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}','{{data_pedido}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{link_pedido}}','{{endereco_entrega}}','{{endereco_faturamento}}'] },
+  { id:'pagamento_aprovado',  label:'Pagamento Aprovado',    grupo:'Compra & Pagamento', tipo:'bling', icon:CreditCard,  cor:'#4a9fff', situacao:'sit=15',  desc:'Pedido em Em Andamento (pagamento confirmado)', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}','{{data_pedido}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{link_pedido}}'] },
+  { id:'pagamento_pendente',  label:'Pagamento Pendente',    grupo:'Compra & Pagamento', tipo:'bling', icon:Clock,       cor:'#f59e0b', situacao:'sit=6',   desc:'Pedido em Aberto (aguardando pagamento)', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}','{{data_pedido}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{link_pedido}}'] },
 
   // ── 2. Preparação & Nota ───────────────────────────────────────────────
-  { id:'em_separacao',        label:'Em Separação',          grupo:'Preparação & Nota', tipo:'bling', icon:Layers,      cor:'#8b5cf6', situacao:'sit=9', desc:'Pedido em Atendido (separação/embalagem) — automático', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
-  { id:'produto_embalado',    label:'Produto Embalado',      grupo:'Preparação & Nota', tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'#EMBALADO',  desc:'Disparo via comando #EMBALADO nas observações internas do pedido no Bling', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}'] },
-  { id:'em_andamento',        label:'Em Andamento (info)',    grupo:'Preparação & Nota', tipo:'bling', icon:RefreshCw,   cor:'#8b5cf6', situacao:'manual',  manual:true, desc:'Gatilho informativo — sit=15 (Em Andamento) já dispara Pagamento Aprovado automaticamente. Use este apenas para comunicados extras.', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
-  { id:'nfe_pendente',        label:'NF-e Pendente',         grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#f59e0b', situacao:'nfe=1',   desc:'Nota emitida, aguardando autorização da SEFAZ', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}'] },
-  { id:'nfe_rejeitada',       label:'NF-e Rejeitada',        grupo:'Preparação & Nota', tipo:'bling', icon:AlertTriangle, cor:'#ef4444', situacao:'nfe=4',   desc:'Nota rejeitada pela SEFAZ (uso interno/aviso)', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}'] },
-  { id:'nfe_emitida',         label:'NF-e Emitida',          grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#06b6d4', situacao:'nfe=5',   desc:'Nota autorizada pela SEFAZ — DANFE disponível', variaveis:['{{qtde_item_pedido}}','{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{numero_nfe}}','{{link_nfe}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  { id:'em_separacao',        label:'Em Separação',          grupo:'Preparação & Nota', tipo:'bling', icon:Layers,      cor:'#8b5cf6', situacao:'sit=9', desc:'Pedido em Atendido (separação/embalagem) — automático', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  { id:'produto_embalado',    label:'Produto Embalado',      grupo:'Preparação & Nota', tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'#EMBALADO',  desc:'Disparo via comando #EMBALADO nas observações internas do pedido no Bling', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{qtde_item_pedido}}','{{itens_linha_unica}}'] },
+  { id:'aguardando_retirada', label:'Aguardando Retirada',   grupo:'Preparação & Nota', tipo:'bling', icon:MapPin,      cor:'#f59e0b', situacao:'sit=9', desc:'Dispara automaticamente quando o pedido entra em Atendido (sit=9) e o campo transporte é "Cliente Retira" — pedido pronto para retirada na loja', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  { id:'moto_expressa',       label:'Moto Expressa',         grupo:'Preparação & Nota', tipo:'bling', icon:Truck,       cor:'#f97316', situacao:'sit=9', desc:'Dispara automaticamente quando o pedido entra em Atendido (sit=9) e o campo transporte é "Moto Expressa" — entrega local por motoboy', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}','{{endereco_entrega}}'] },
+  { id:'em_andamento',        label:'Em Andamento (info)',    grupo:'Preparação & Nota', tipo:'bling', icon:RefreshCw,   cor:'#8b5cf6', situacao:'manual',  manual:true, desc:'Gatilho informativo — sit=15 (Em Andamento) já dispara Pagamento Aprovado automaticamente. Use este apenas para comunicados extras.', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
+  { id:'nfe_pendente',        label:'NF-e Pendente',         grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#f59e0b', situacao:'nfe=1',   desc:'Nota emitida, aguardando autorização da SEFAZ', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{numero_nfe}}'] },
+  { id:'nfe_rejeitada',       label:'NF-e Rejeitada',        grupo:'Preparação & Nota', tipo:'bling', icon:AlertTriangle, cor:'#ef4444', situacao:'nfe=4',   desc:'Nota rejeitada pela SEFAZ (uso interno/aviso)', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{numero_nfe}}'] },
+  { id:'nfe_emitida',         label:'NF-e Emitida',          grupo:'Preparação & Nota', tipo:'bling', icon:FileText,    cor:'#06b6d4', situacao:'nfe=5',   desc:'Nota autorizada pela SEFAZ — DANFE disponível', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{numero_nfe}}','{{link_nfe}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'] },
 
   // ── 3. Envio & Rastreio (jornada física do pacote) ─────────────────────
-  { id:'pedido_enviado',      label:'Pedido Enviado',        grupo:'Envio & Rastreio', tipo:'bling', icon:Truck,       cor:'#a78bfa', situacao:'sit=27',  desc:'Despachado com código de rastreio', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}','{{link_acompanhamento}}','{{previsao_entrega}}','{{endereco_entrega}}'] },
-  { id:'pedido_coletado',     label:'Pedido Coletado',       grupo:'Envio & Rastreio', tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'auto',    desc:'Transportadora coletou o pacote', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{previsao_entrega}}','{{historico_rastreio}}','{{link_acompanhamento}}'] },
+  { id:'pedido_enviado',      label:'Pedido Enviado',        grupo:'Envio & Rastreio', tipo:'bling', icon:Truck,       cor:'#a78bfa', situacao:'sit=27',  desc:'Despachado com código de rastreio', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{status_rastreio}}','{{previsao_entrega}}','{{link_rastreio}}','{{link_acompanhamento}}','{{endereco_entrega}}'] },
+  { id:'pedido_coletado',     label:'Pedido Coletado',       grupo:'Envio & Rastreio', tipo:'bling', icon:Package,     cor:'#06b6d4', situacao:'auto',    desc:'Transportadora coletou o pacote', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{previsao_entrega}}','{{historico_rastreio}}','{{link_acompanhamento}}'] },
   { id:'rastreio_em_transito',label:'Em Trânsito',           grupo:'Envio & Rastreio', tipo:'bling', icon:Radio,       cor:'#4a9fff', situacao:'auto',    desc:'Pacote em movimentação entre bases', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{status_rastreio}}','{{previsao_entrega}}','{{historico_rastreio}}','{{historico_rastreio_citar}}','{{link_acompanhamento}}'] },
-  { id:'saiu_entrega',        label:'Saiu para Entrega',     grupo:'Envio & Rastreio', tipo:'bling', icon:Truck,       cor:'#f59e0b', situacao:'auto / #SAIU', hibrido:true, desc:'Detectado pelo rastreio ou comando #SAIU', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}','{{previsao_entrega}}','{{endereco_entrega}}','{{historico_rastreio}}','{{link_acompanhamento}}'] },
-  { id:'tentativa_entrega',   label:'Tentativa de Entrega',  grupo:'Envio & Rastreio', tipo:'bling', icon:AlertTriangle,cor:'#f59e0b', situacao:'auto',   desc:'Destinatário ausente — vai tentar de novo', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{previsao_entrega}}','{{link_acompanhamento}}'] },
-  { id:'aguardando_retirada', label:'Aguardando Retirada',   grupo:'Envio & Rastreio', tipo:'bling', icon:Clock,       cor:'#0ea5e9', situacao:'transp="Cliente Retira"', hibrido:true, desc:'Pedido para retirada na loja — detectado pelo transportador "Cliente Retira" no Bling (sit=9), pelo rastreio ou comando #AGUARDANDO', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}'] },
-  { id:'moto_expressa',       label:'Moto Expressa',         grupo:'Envio & Rastreio', tipo:'bling', icon:Truck,       cor:'#f97316', situacao:'transp="Moto Expressa"', desc:'Entrega local por motoboy — detectado pelo transportador "Moto Expressa" no Bling (sit=9)', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{endereco_entrega}}','{{valor_total}}'] },
+  { id:'saiu_entrega',        label:'Saiu para Entrega',     grupo:'Envio & Rastreio', tipo:'bling', icon:Truck,       cor:'#f59e0b', situacao:'auto / #SAIU', hibrido:true, desc:'Detectado pelo rastreio ou comando #SAIU', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{status_rastreio}}','{{link_rastreio}}','{{previsao_entrega}}','{{endereco_entrega}}','{{historico_rastreio}}','{{link_acompanhamento}}'] },
+  { id:'tentativa_entrega',   label:'Tentativa de Entrega',  grupo:'Envio & Rastreio', tipo:'bling', icon:AlertTriangle,cor:'#f59e0b', situacao:'auto',   desc:'Destinatário ausente — vai tentar de novo', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{previsao_entrega}}','{{link_acompanhamento}}'] },
   { id:'endereco_incorreto',  label:'Endereço Incorreto',    grupo:'Envio & Rastreio', tipo:'bling', icon:AlertCircle, cor:'#ef4444', situacao:'auto',    desc:'Endereço com problema — precisa revisar', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{endereco_entrega}}','{{link_acompanhamento}}'] },
   { id:'nao_entrou_unidade',  label:'Não Entrou na Unidade', grupo:'Envio & Rastreio', tipo:'bling', icon:AlertTriangle,cor:'#dc2626', situacao:'auto',   desc:'Objeto não chegou na unidade de destino (Jadlog)', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{transportadora}}','{{status_rastreio}}','{{link_acompanhamento}}'] },
-  { id:'pedido_entregue',     label:'Pedido Entregue',       grupo:'Envio & Rastreio', tipo:'bling', icon:Package,     cor:'#22c55e', situacao:'sit=30 / auto',  desc:'Entrega confirmada', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{historico_rastreio}}','{{historico_rastreio_citar}}','{{link_acompanhamento}}'] },
-  { id:'nao_entregue',        label:'Não Entregue',          grupo:'Envio & Rastreio', tipo:'bling', icon:AlertCircle, cor:'#ef4444', situacao:'sit=33',  desc:'Tentativa de entrega falhou', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{link_rastreio}}','{{link_acompanhamento}}'] },
-  { id:'pacote_devolvido',    label:'Pacote Devolvido',      grupo:'Envio & Rastreio', tipo:'bling', icon:RefreshCw,   cor:'#f87171', situacao:'auto',    desc:'Pacote retornou ao remetente', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{link_acompanhamento}}'] },
+  { id:'pedido_entregue',     label:'Pedido Entregue',       grupo:'Envio & Rastreio', tipo:'bling', icon:Package,     cor:'#22c55e', situacao:'sit=30 / auto',  desc:'Entrega confirmada', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{transportadora}}','{{codigo_rastreio}}','{{status_rastreio}}','{{historico_rastreio}}','{{historico_rastreio_citar}}','{{link_acompanhamento}}'] },
+  { id:'nao_entregue',        label:'Não Entregue',          grupo:'Envio & Rastreio', tipo:'bling', icon:AlertCircle, cor:'#ef4444', situacao:'sit=33',  desc:'Tentativa de entrega falhou', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}','{{link_acompanhamento}}'] },
+  { id:'pacote_devolvido',    label:'Pacote Devolvido',      grupo:'Envio & Rastreio', tipo:'bling', icon:RefreshCw,   cor:'#f87171', situacao:'auto',    desc:'Pacote retornou ao remetente', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{link_acompanhamento}}'] },
 
   // ── 4. Pós-venda ───────────────────────────────────────────────────────
-  { id:'cancelamento',        label:'Pedido Cancelado',      grupo:'Pós-venda',     tipo:'bling', icon:XCircle,     cor:'#6b7280', situacao:'sit=12',  desc:'Pedido cancelado', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}'] },
-  { id:'devolucao',           label:'Devolução',             grupo:'Pós-venda',     tipo:'bling', icon:RefreshCw,   cor:'#f87171', situacao:'sit=36',  desc:'Pedido devolvido', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}'] },
-  { id:'avaliar_pedido',      label:'Avaliação Pós-venda',   grupo:'Pós-venda',     tipo:'bling', icon:Star,        cor:'#f87171', situacao:'manual',  manual:true, desc:'Satisfação após entrega', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{link_acompanhamento}}'] },
-  { id:'boas_vindas',         label:'Boas-vindas',           grupo:'Pós-venda',     tipo:'bling', icon:Star,        cor:'#e879f9', situacao:'manual',  manual:true, desc:'Primeiro contato no WhatsApp', variaveis:['{{nome_cliente}}','{{nome_loja}}'] },
+  { id:'cancelamento',        label:'Pedido Cancelado',      grupo:'Pós-venda',     tipo:'bling', icon:XCircle,     cor:'#6b7280', situacao:'sit=12',  desc:'Pedido cancelado', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}'] },
+  { id:'devolucao',           label:'Devolução',             grupo:'Pós-venda',     tipo:'bling', icon:RefreshCw,   cor:'#f87171', situacao:'sit=36',  desc:'Pedido devolvido', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}'] },
+  { id:'avaliar_pedido',      label:'Avaliação Pós-venda',   grupo:'Pós-venda',     tipo:'bling', icon:Star,        cor:'#f87171', situacao:'manual',  manual:true, desc:'Satisfação após entrega', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{link_acompanhamento}}'] },
+  { id:'boas_vindas',         label:'Boas-vindas',           grupo:'Pós-venda',     tipo:'bling', icon:Star,        cor:'#e879f9', situacao:'manual',  manual:true, desc:'Primeiro contato no WhatsApp', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{nome_loja}}','{{telefone_loja}}','{{site_loja}}'] },
 
   // ── 4b. Comandos Manuais (observações internas do Bling) ─────────────
-  { id:'pix_pendente',      label:'PIX Pendente',      grupo:'Pós-venda',     tipo:'bling', icon:CreditCard, cor:'#06b6d4', situacao:'#PIX',    manual:true, desc:'Comando #PIX nas observações internas — pagamento via PIX aguardando confirmação', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{link_pedido}}'] },
-  { id:'estorno_realizado', label:'Estorno Realizado',  grupo:'Pós-venda',     tipo:'bling', icon:RefreshCw,  cor:'#f97316', situacao:'#ESTORNO', manual:true, desc:'Comando #ESTORNO nas observações internas — reembolso processado', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}'] },
+  { id:'pix_pendente',      label:'PIX Pendente',      grupo:'Pós-venda',     tipo:'bling', icon:CreditCard, cor:'#06b6d4', situacao:'#PIX',    manual:true, desc:'Comando #PIX nas observações internas — pagamento via PIX aguardando confirmação', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{link_pedido}}'] },
+  { id:'estorno_realizado', label:'Estorno Realizado',  grupo:'Pós-venda',     tipo:'bling', icon:RefreshCw,  cor:'#f97316', situacao:'#ESTORNO', manual:true, desc:'Comando #ESTORNO nas observações internas — reembolso processado', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{forma_pagamento}}'] },
 
   // ── 5. Inteligência (Bia) — inline, sem aprovação Meta ─────────────────
-  { id:'avise_me',            label:'Produto Disponível',    grupo:'Inteligência',  tipo:'bling', icon:Bell,        cor:'#fb923c', situacao:'#AVISE',  manual:true, desc:'Produto voltou ao estoque (#AVISE)', variaveis:['{{nome_cliente}}','{{nome_produto}}','{{preco_produto}}','{{link_produto}}'] },
-  { id:'catalogo_produto',    label:'Produto do Catálogo',   grupo:'Inteligência',  tipo:'bling', icon:ShoppingBag, cor:'#10b981', situacao:'manual',  manual:true, desc:'Produto enviado via catálogo', variaveis:['{{nome_produto}}','{{preco_cartao}}','{{preco_pix}}','{{foto_produto}}','{{descricao_produto}}'] },
+  { id:'avise_me',            label:'Produto Disponível',    grupo:'Inteligência',  tipo:'bling', icon:Bell,        cor:'#fb923c', situacao:'#AVISE',  manual:true, desc:'Produto voltou ao estoque (#AVISE)', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{nome_produto}}','{{preco_produto}}','{{preco_pix}}','{{preco_cartao}}','{{foto_produto}}','{{link_produto}}','{{nome_loja}}'] },
+  { id:'catalogo_produto',    label:'Produto do Catálogo',   grupo:'Inteligência',  tipo:'bling', icon:ShoppingBag, cor:'#10b981', situacao:'manual',  manual:true, desc:'Produto enviado via catálogo', variaveis:['{{nome_produto}}','{{preco_cartao}}','{{preco_pix}}','{{preco_produto}}','{{foto_produto}}','{{link_produto}}','{{descricao_produto}}','{{nome_loja}}'] },
   { id:'reengajamento',       label:'Reengajamento',         grupo:'Inteligência',  tipo:'ia',    icon:Brain,       cor:'#7c6af7', situacao:'auto-ia', desc:'Cliente inativo detectado pela Bia', variaveis:['{{nome_cliente}}','{{dias_inativo}}','{{ultimo_produto}}'] },
   { id:'recompra_vip',        label:'Ciclo VIP',             grupo:'Inteligência',  tipo:'ia',    icon:Brain,       cor:'#7c6af7', situacao:'auto-ia', desc:'VIP no ciclo de recompra', variaveis:['{{nome_cliente}}','{{ciclo_dias}}'] },
   { id:'primeira_recompra',   label:'1ª Recompra',           grupo:'Inteligência',  tipo:'ia',    icon:Brain,       cor:'#7c6af7', situacao:'auto-ia', desc:'1ª compra sem retorno', variaveis:['{{nome_cliente}}','{{ultimo_produto}}'] },
-  { id:'pos_entrega',         label:'Pós-entrega IA',        grupo:'Inteligência',  tipo:'ia',    icon:Brain,       cor:'#7c6af7', situacao:'auto-ia', desc:'Follow-up automático pós-entrega', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  { id:'pos_entrega',         label:'Pós-entrega IA',        grupo:'Inteligência',  tipo:'ia',    icon:Brain,       cor:'#7c6af7', situacao:'auto-ia', desc:'Follow-up automático pós-entrega', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{link_acompanhamento}}'] },
 ]
 
 const GRUPOS_ORDEM = ['Compra & Pagamento','Preparação & Nota','Envio & Rastreio','Pós-venda','Inteligência']
+
+// ── Variáveis centralizadas ────────────────────────────────────────────────────
+// Fonte única de verdade. Adicionar aqui faz aparecer automaticamente em todos
+// os editores de bloco, sem precisar atualizar cada gatilho individualmente.
+const TODAS_VARIAVEIS = {
+  Cliente:      ['{{nome_cliente}}','{{primeiro_nome}}','{{telefone_cliente}}','{{email_cliente}}'],
+  Pedido:       ['{{numero_pedido}}','{{data_pedido}}','{{valor_total}}','{{forma_pagamento}}','{{link_pedido}}','{{qtde_item_pedido}}','{{lista_itens_pedido}}','{{itens_linha_unica}}'],
+  Endereço:     ['{{endereco_entrega}}','{{endereco_faturamento}}'],
+  Entrega:      ['{{transportadora}}','{{codigo_rastreio}}','{{previsao_entrega}}','{{link_rastreio}}','{{link_acompanhamento}}','{{status_rastreio}}','{{historico_rastreio}}','{{historico_rastreio_citar}}'],
+  'Nota Fiscal':['{{numero_nfe}}','{{link_nfe}}'],
+  Produto:      ['{{nome_produto}}','{{preco_produto}}','{{preco_pix}}','{{preco_cartao}}','{{foto_produto}}','{{link_produto}}','{{descricao_produto}}'],
+  Loja:         ['{{nome_loja}}','{{telefone_loja}}','{{site_loja}}'],
+}
+// Flat list para campos de URL (só variáveis que fazem sentido como parte de URL)
+const VARS_URL = ['{{link_pedido}}','{{link_rastreio}}','{{link_acompanhamento}}','{{link_nfe}}','{{link_produto}}','{{numero_pedido}}','{{codigo_rastreio}}']
 
 const TIPOS_BLOCO = [
   { tipo:'cabecalho', label:'Cabeçalho', icon:Hash,        cor:'#00d4aa', desc:'Negrito no topo' },
@@ -256,7 +277,7 @@ const PADROES = {
 
   moto_expressa: {
     cab:'',
-    corpo:'Oi *{{nome_cliente}}*! 🛵\n\nSeu pedido *#{{numero_pedido}}* será entregue hoje por *Moto Expressa*!\n\n📍 *Endereço de entrega:*\n{{endereco_entrega}}\n\n_Fique atento ao seu telefone — o entregador pode ligar ao chegar._ 😊',
+    corpo:'Oi *{{nome_cliente}}*! 🛵\n\nSeu pedido *#{{numero_pedido}}* será entregue por *Moto Expressa*!\n\n📍 *Endereço de entrega:*\n{{endereco_entrega}}\n\n_Fique atento ao seu telefone — o entregador pode ligar ao chegar._ 😊',
     rod:'',
     bts:[]
   },
@@ -340,6 +361,13 @@ const rv = t=>(t||'').replace(/\{\{([^}]+)\}\}/g,(_,k)=>AMOSTRAS[`{{${k}}}`]||`{
 // gatilho dispara. Usado no manual da aba Configuração.
 function manualGatilho(g) {
   const s = g?.situacao || ''
+  // Gatilhos de entrega local — descrição específica
+  if (g?.id === 'aguardando_retirada') {
+    return { tipo:'Automático (Bling)', quando:'Dispara quando o pedido entra em *Atendido* e o campo de transporte é *"Cliente Retira"* — sem código de rastreio, cliente busca na loja.' }
+  }
+  if (g?.id === 'moto_expressa') {
+    return { tipo:'Automático (Bling)', quando:'Dispara quando o pedido entra em *Atendido* e o campo de transporte é *"Moto Expressa"* — entrega local por motoboy, sem código postal.' }
+  }
   // Situações do Bling (sit=N) → nome amigável
   const SIT_NOME = {
     '6':'o pedido entra como *Em Aberto* no Bling (novo pedido)',
@@ -463,97 +491,172 @@ function PreviewBolha({ blocos }) {
 }
 
 function PreviewWA({ blocos=[], label='' }) {
-  const hora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+  const hora  = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
   const vazio = !blocos.filter(b=>b.tipo!=='quebra').length
+
   return (
-    <div style={{maxWidth:290,margin:'0 auto',userSelect:'none',position:'relative'}}>
-      {/* ── Moldura do celular ── */}
+    <div style={{width:'100%',display:'flex',flexDirection:'column',
+      alignItems:'center',userSelect:'none',position:'relative',paddingTop:4}}>
+
+      {/* ── Botões laterais (apenas visuais) ── */}
+      <div style={{position:'absolute',left:10,top:72,width:3,height:26,
+        borderRadius:'3px 0 0 3px',
+        background:'linear-gradient(180deg,#1f2d38,#0d1820)',
+        boxShadow:'-1px 0 3px rgba(0,0,0,.5)'}}/>
+      <div style={{position:'absolute',left:10,top:105,width:3,height:26,
+        borderRadius:'3px 0 0 3px',
+        background:'linear-gradient(180deg,#1f2d38,#0d1820)',
+        boxShadow:'-1px 0 3px rgba(0,0,0,.5)'}}/>
+      <div style={{position:'absolute',right:10,top:90,width:3,height:48,
+        borderRadius:'0 3px 3px 0',
+        background:'linear-gradient(180deg,#1f2d38,#0d1820)',
+        boxShadow:'1px 0 3px rgba(0,0,0,.5)'}}/>
+
+      {/* ── Moldura ── */}
       <div style={{
-        borderRadius:44,overflow:'hidden',
-        background:'linear-gradient(160deg,#1a252e,#111c24)',
-        border:'8px solid #0d1820',
-        boxShadow:'0 0 0 1px rgba(255,255,255,.07) inset, 0 24px 60px rgba(0,0,0,.7), 0 0 0 12px rgba(10,20,28,.4)',
-        position:'relative',
+        width:260,
+        borderRadius:46,
+        padding:'8px 7px',
+        background:'linear-gradient(160deg,#1f2d38 0%,#0d1820 50%,#111c26 100%)',
+        border:'1px solid rgba(255,255,255,.1)',
+        boxShadow:[
+          '0 0 0 1px rgba(0,0,0,.95)',
+          '0 0 0 8px #0c1a22',
+          '0 0 0 9px rgba(255,255,255,.05)',
+          '0 24px 60px rgba(0,0,0,.85)',
+          'inset 0 1px 0 rgba(255,255,255,.07)',
+        ].join(','),
       }}>
-        {/* Status bar */}
-        <div style={{background:'#111b21',padding:'10px 18px 5px',
-          display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <span style={{fontSize:10,color:'#9aa4ae',fontWeight:600}}>{hora}</span>
-          {/* Notch */}
-          <div style={{width:68,height:16,borderRadius:99,background:'#0d1820',
-            display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <div style={{width:8,height:8,borderRadius:'50%',background:'#1a2733'}}/>
-          </div>
-          <div style={{display:'flex',gap:4,alignItems:'center'}}>
-            <svg width="14" height="10" viewBox="0 0 14 10"><rect x="1" y="3" width="2" height="7" rx="1" fill="#9aa4ae"/><rect x="4.5" y="2" width="2" height="8" rx="1" fill="#9aa4ae"/><rect x="8" y="0.5" width="2" height="9.5" rx="1" fill="#9aa4ae"/><rect x="11.5" y="0" width="2" height="10" rx="1" fill="#9aa4ae" opacity=".3"/></svg>
-            <svg width="16" height="10" viewBox="0 0 16 10"><rect x="0.5" y="0.5" width="13" height="9" rx="2.5" stroke="#9aa4ae" strokeWidth="1.2" fill="none"/><rect x="14" y="3" width="1.5" height="4" rx="1" fill="#9aa4ae" opacity=".5"/><rect x="2" y="2.5" width="9" height="5" rx="1.5" fill="#9aa4ae"/></svg>
-          </div>
-        </div>
+        {/* Reflexo no topo */}
+        <div style={{position:'absolute',top:10,left:'20%',right:'20%',height:1.5,
+          background:'linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent)',
+          borderRadius:99,zIndex:2,pointerEvents:'none'}}/>
 
-        {/* WhatsApp header */}
-        <div style={{background:'#202c33',padding:'8px 12px',
-          display:'flex',alignItems:'center',gap:9,
-          borderBottom:'1px solid rgba(255,255,255,.04)'}}>
-          <ChevronLeft size={20} style={{color:'#00a884',flexShrink:0}}/>
-          <div style={{width:36,height:36,borderRadius:'50%',flexShrink:0,
-            background:'linear-gradient(135deg,#00a884,#006855)',
-            display:'flex',alignItems:'center',justifyContent:'center',
-            fontSize:14,fontWeight:700,color:'#fff',
-            boxShadow:'0 2px 8px rgba(0,168,132,.3)'}}>S</div>
-          <div style={{flex:1,minWidth:0}}>
-            <p style={{fontSize:13,fontWeight:700,color:'#e9edef',margin:0,lineHeight:1.2}}>Só Strass</p>
-            <p style={{fontSize:10,color:'#8696a0',margin:0}}>mensagem automática</p>
-          </div>
-          <div style={{display:'flex',gap:12,flexShrink:0}}>
-            <Phone size={16} style={{color:'#aab8c2'}}/>
-            <MoreHorizontal size={16} style={{color:'#aab8c2'}}/>
-          </div>
-        </div>
+        {/* Tela */}
+        <div style={{borderRadius:38,overflow:'hidden',background:'#0b141a',
+          boxShadow:'inset 0 0 0 1px rgba(255,255,255,.05)'}}>
 
-        {/* Chat area */}
-        <div style={{
-          background:'#0b141a',
-          minHeight:140,maxHeight:420,
-          overflowY:'auto',
-          padding:'10px 10px 14px',
-        }}>
-          {/* Data pill */}
-          <div style={{display:'flex',justifyContent:'center',marginBottom:10}}>
-            <span style={{fontSize:10,color:'#8696a0',background:'rgba(11,20,26,.85)',
-              padding:'3px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,.05)'}}>
-              {new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long'})}
-            </span>
-          </div>
-          {vazio ? (
-            <div style={{display:'flex',flexDirection:'column',alignItems:'center',
-              padding:'20px 0',opacity:.25}}>
-              <MessageSquare size={22} style={{color:'#8696a0'}}/>
-              <p style={{fontSize:10,color:'#8696a0',marginTop:6,margin:'6px 0 0'}}>Configure os blocos</p>
+          {/* Status bar */}
+          <div style={{background:'#111b21',padding:'12px 18px 5px',
+            display:'flex',justifyContent:'space-between',alignItems:'center',
+            position:'relative'}}>
+            <span style={{fontSize:10,color:'#aab8c2',fontWeight:700}}>{hora}</span>
+
+            {/* Dynamic Island */}
+            <div style={{
+              position:'absolute',left:'50%',top:6,transform:'translateX(-50%)',
+              width:76,height:22,borderRadius:99,
+              background:'#000',
+              border:'1px solid rgba(255,255,255,.07)',
+              display:'flex',alignItems:'center',justifyContent:'center',gap:6,
+            }}>
+              <div style={{width:8,height:8,borderRadius:'50%',
+                background:'#111c24',border:'1px solid rgba(255,255,255,.05)'}}/>
+              <div style={{width:5,height:5,borderRadius:'50%',background:'#0d1820'}}/>
             </div>
-          ) : (
-            <PreviewBolha blocos={blocos}/>
-          )}
-        </div>
 
-        {/* Input bar */}
-        <div style={{background:'#202c33',padding:'7px 10px',
-          display:'flex',alignItems:'center',gap:7}}>
-          <div style={{flex:1,background:'#2a3942',borderRadius:22,
-            padding:'8px 14px',fontSize:12,color:'#8696a0',
-            border:'1px solid rgba(255,255,255,.04)'}}>
-            Mensagem...
+            {/* Ícones status */}
+            <div style={{display:'flex',gap:4,alignItems:'center'}}>
+              {/* Barras sinal */}
+              <div style={{display:'flex',alignItems:'flex-end',gap:1}}>
+                {[3,5,7,9].map((h,i)=>(
+                  <div key={i} style={{width:2,height:h,borderRadius:1,
+                    background:i<3?'#aab8c2':'rgba(170,184,194,.25)'}}/>
+                ))}
+              </div>
+              {/* Bateria mini */}
+              <div style={{width:16,height:8,borderRadius:2,
+                border:'1.2px solid rgba(170,184,194,.5)',padding:1,
+                display:'flex',alignItems:'center',position:'relative'}}>
+                <div style={{width:'72%',height:'100%',borderRadius:1,background:'#aab8c2'}}/>
+                <div style={{position:'absolute',right:-3,top:'50%',transform:'translateY(-50%)',
+                  width:2,height:4,borderRadius:'0 1px 1px 0',
+                  background:'rgba(170,184,194,.4)'}}/>
+              </div>
+            </div>
           </div>
-          <div style={{width:36,height:36,borderRadius:'50%',background:'#00a884',flexShrink:0,
-            display:'flex',alignItems:'center',justifyContent:'center',
-            boxShadow:'0 2px 8px rgba(0,168,132,.3)'}}>
-            <Send size={14} style={{color:'#fff',transform:'translate(1px,-1px)'}}/>
+
+          {/* WA Header */}
+          <div style={{background:'#202c33',padding:'7px 10px 8px',
+            display:'flex',alignItems:'center',gap:7,
+            borderBottom:'1px solid rgba(255,255,255,.04)'}}>
+            <ChevronLeft size={17} style={{color:'#00a884',flexShrink:0}}/>
+            <div style={{position:'relative',flexShrink:0}}>
+              <div style={{width:32,height:32,borderRadius:'50%',
+                background:'linear-gradient(135deg,#00a884,#006855)',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                fontSize:13,fontWeight:800,color:'#fff',
+                boxShadow:'0 2px 8px rgba(0,168,132,.3)'}}>S</div>
+              <div style={{position:'absolute',bottom:0,right:0,width:8,height:8,
+                borderRadius:'50%',background:'#25d366',border:'1.5px solid #202c33'}}/>
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <p style={{fontSize:12,fontWeight:700,color:'#e9edef',margin:0,lineHeight:1.2}}>
+                Só Strass
+              </p>
+              <p style={{fontSize:9,color:'#25d366',margin:0}}>online</p>
+            </div>
+            <div style={{display:'flex',gap:11,flexShrink:0}}>
+              <Phone size={14} style={{color:'#aab8c2'}}/>
+              <MoreHorizontal size={14} style={{color:'#aab8c2'}}/>
+            </div>
+          </div>
+
+          {/* Chat */}
+          <div style={{
+            background:'#0b141a',
+            minHeight:140,
+            maxHeight:380,
+            overflowY:'auto',
+            padding:'10px 8px 12px',
+          }}>
+            {/* Data */}
+            <div style={{display:'flex',justifyContent:'center',marginBottom:10}}>
+              <span style={{fontSize:9,color:'#8696a0',
+                background:'rgba(11,20,26,.9)',
+                padding:'3px 10px',borderRadius:7,
+                border:'1px solid rgba(255,255,255,.05)'}}>
+                {new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long'})}
+              </span>
+            </div>
+            {vazio ? (
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',
+                padding:'20px 0',opacity:.25}}>
+                <MessageSquare size={20} style={{color:'#8696a0'}}/>
+                <p style={{fontSize:9.5,color:'#8696a0',marginTop:6,margin:'6px 0 0',
+                  textAlign:'center'}}>Configure os blocos</p>
+              </div>
+            ) : (
+              <PreviewBolha blocos={blocos}/>
+            )}
+          </div>
+
+          {/* Input bar */}
+          <div style={{background:'#0b141a',padding:'6px 8px 12px',
+            display:'flex',alignItems:'center',gap:6}}>
+            <div style={{flex:1,background:'#2a3942',borderRadius:20,
+              padding:'7px 12px',fontSize:10.5,color:'#8696a0',
+              border:'1px solid rgba(255,255,255,.04)',
+              display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span>Mensagem...</span>
+              <span style={{fontSize:14,opacity:.45}}>😊</span>
+            </div>
+            <div style={{width:34,height:34,borderRadius:'50%',
+              background:'linear-gradient(135deg,#00a884,#006855)',flexShrink:0,
+              display:'flex',alignItems:'center',justifyContent:'center',
+              boxShadow:'0 3px 12px rgba(0,168,132,.4)'}}>
+              <Send size={13} style={{color:'#fff',transform:'translate(1px,-1px)'}}/>
+            </div>
           </div>
         </div>
       </div>
 
       {!vazio&&(
-        <p style={{fontSize:9,color:T.ink4,textAlign:'center',marginTop:8}}>
-          Preview com dados de exemplo
+        <p style={{fontSize:9,color:T.ink4,textAlign:'center',marginTop:8,
+          display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
+          <span style={{width:4,height:4,borderRadius:'50%',background:T.green,
+            display:'inline-block'}}/>
+          Preview ao vivo
         </p>
       )}
     </div>
@@ -561,896 +664,31 @@ function PreviewWA({ blocos=[], label='' }) {
 }
 
 
-// ── Contador de caracteres com semáforo visual ────────────────────────────────
-// limites oficiais Meta: cabeçalho=60, corpo=1024, rodapé=60, botão=25/20
-function CharCount({ text='', limit }) {
-  const len = (text||'').length
-  if (len === 0) return null
-  const pct  = len / limit
-  const cor  = pct >= 1 ? T.red : pct >= 0.85 ? T.amber : T.ink4
-  const dim  = pct >= 1 ? T.redDim : pct >= 0.85 ? T.amberDim : 'transparent'
-  const over = len > limit
-  return (
-    <div style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:6}}>
-      {pct >= 0.85 && (
-        <span style={{fontSize:9,fontWeight:700,color:cor}}>
-          {over ? `⚠ ${len-limit} acima do limite` : `${limit-len} restantes`}
-        </span>
-      )}
-      <span style={{fontSize:10,fontWeight:700,color:cor,
-        background:dim,padding:'1px 6px',borderRadius:4,
-        fontVariantNumeric:'tabular-nums'}}>
-        {len}/{limit}
-      </span>
-    </div>
-  )
-}
-
-// ── Bloco individual ──────────────────────────────────────────────────────────
-function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate }) {
-  const [aberto,setAberto]=useState(true)
-  const def=TIPOS_BLOCO.find(t=>t.tipo===b.tipo)||TIPOS_BLOCO[0], Ic=def.icon
-  const inserirVar=(v,fId)=>{
-    const el=document.getElementById(fId)
-    // Campo destino depende do TIPO do bloco: cabeçalho/texto → conteudo; demais → url
-    const campo=(b.tipo==='texto'||b.tipo==='cabecalho')?'conteudo':'url'
-    const atual=b[campo]||''
-    // Sem elemento (ou campo nunca focado) → anexa no fim do conteúdo
-    if(!el){ onChange({...b,[campo]:atual+v}); return }
-    // selectionStart/End podem ser null/undefined se o campo não foi focado ainda.
-    // Nesse caso, insere no FIM (previsível) em vez de duplicar/embaralhar.
-    let s=el.selectionStart, e=el.selectionEnd
-    if(typeof s!=='number'||typeof e!=='number'){ s=atual.length; e=atual.length }
-    const novo=atual.slice(0,s)+v+atual.slice(e)
-    onChange({...b,[campo]:novo})
-    setTimeout(()=>{ try{ el.focus(); el.setSelectionRange(s+v.length,s+v.length) }catch{} },0)
-  }
-  const sty={background:'var(--bg)',border:'1px solid var(--sep)',borderRadius:9,color:'var(--label)',outline:'none',padding:'9px 12px',fontSize:13,width:'100%',fontFamily:'inherit',lineHeight:1.6}
-  if(b.tipo==='quebra') return (
-    <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0"}}>
-      <div style={{flex:1,height:1,borderTop:"1px dashed var(--sep)"}}/>
-      <div style={{display:"flex",alignItems:"center",gap:4,padding:"4px 10px",borderRadius:99,fontSize:10,fontWeight:600,background:"var(--bg-3)",color:"var(--label-3)",border:"1px solid var(--sep)"}}><Plus size={8}/> Nova mensagem separada</div>
-      <div style={{flex:1,height:1,borderTop:"1px dashed var(--sep)"}}/>
-      <button onClick={onDelete} style={{color:'var(--label-4)'}}><X size={11}/></button>
-    </div>
-  )
-  return (
-    <div style={{borderRadius:12,overflow:"hidden",transition:"all .15s",border:`1px solid ${aberto?def.cor+'30':'var(--sep)'}`,background:'var(--bg-2)',marginBottom:12}}>
-      <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:'var(--bg-3)',borderBottom:aberto?'1px solid var(--sep)':'none'}}>
-        <GripVertical size={12} style={{color:'var(--label-4)',cursor:'grab'}}/>
-        <div style={{width:16,height:16,borderRadius:5,display:"flex",alignItems:"center",justifyContent:"center",background:`${def.cor}20`}}><Ic size={10} style={{color:def.cor}}/></div>
-        <span style={{fontSize:11,fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:'var(--label-2)'}}>
-          {def.label}{b.tipo==='texto'&&b.conteudo?<span style={{fontWeight:400,marginLeft:4,color:'var(--label-4)'}}> — {b.conteudo.slice(0,30).replace(/\n/g,' ')}{b.conteudo.length>30?'…':''}</span>:null}
-        </span>
-        <div style={{display:"flex",alignItems:"center",gap:2}}>
-          <button onClick={()=>onMove(idx,-1)} disabled={idx===0} style={{padding:2,borderRadius:4,color:"var(--label-4)",background:"none",border:"none",cursor:"pointer",display:"flex"}}><ChevronUp size={10}/></button>
-          <button onClick={()=>onMove(idx,1)} disabled={idx===total-1} style={{padding:2,borderRadius:4,color:"var(--label-4)",background:"none",border:"none",cursor:"pointer",display:"flex"}}><ChevronDown size={10}/></button>
-          <button onClick={onDuplicate} style={{padding:2,borderRadius:4,color:"var(--label-4)",background:"none",border:"none",cursor:"pointer",display:"flex"}}><Copy size={10}/></button>
-          <button onClick={()=>setAberto(v=>!v)} style={{padding:2,borderRadius:4,color:"var(--label-4)",background:"none",border:"none",cursor:"pointer",display:"flex"}}>{aberto?<ChevronUp size={10}/>:<ChevronDown size={10}/>}</button>
-          <button onClick={onDelete} style={{padding:2,borderRadius:4,color:"var(--label-4)",background:"none",border:"none",cursor:"pointer",display:"flex"}}><X size={10}/></button>
-        </div>
-      </div>
-      {aberto&&(
-        <div style={{padding:16,display:"flex",flexDirection:"column",gap:12}}>
-
-          {/* CABEÇALHO — limite Meta: 60 chars */}
-          {b.tipo==='cabecalho'&&(
-            <div style={{display:'flex',flexDirection:'column',gap:6}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:2}}>
-                <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--label-4)'}}>
-                  Cabeçalho <span style={{fontWeight:400,letterSpacing:0,textTransform:'none'}}>— título em negrito no topo</span>
-                </span>
-                <span style={{fontSize:9,color:'var(--label-4)'}}>limite: 60 chars</span>
-              </div>
-              <input id={`bloco-${b.id}`} value={b.conteudo||''} maxLength={70}
-                onChange={e=>onChange({...b,conteudo:e.target.value})}
-                placeholder="Emoji + título breve"
-                style={{...sty,
-                  borderColor:(b.conteudo||'').length>55?((b.conteudo||'').length>=60?T.red:T.amber):'var(--sep)'
-                }}/>
-              <CharCount text={b.conteudo} limit={60}/>
-              {(b.conteudo||'').length>60&&(
-                <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 10px',borderRadius:7,background:T.redDim,border:`1px solid ${T.redBor}`}}>
-                  <AlertTriangle size={11} style={{color:T.red,flexShrink:0}}/>
-                  <span style={{fontSize:11,color:T.red,fontWeight:600}}>Cabeçalho excede 60 caracteres — a Meta vai rejeitar o template.</span>
-                </div>
-              )}
-              <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
-                <EmojiPicker onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/>
-                <VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/>
-              </div>
-            </div>
-          )}
-
-          {/* TEXTO (CORPO) — limite Meta: 1024 chars */}
-          {b.tipo==='texto'&&(
-            <div style={{display:'flex',flexDirection:'column',gap:6}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:2}}>
-                <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--label-4)'}}>
-                  Corpo <span style={{fontWeight:400,letterSpacing:0,textTransform:'none'}}>{'— *negrito* _itálico_ {{variável}}'}</span>
-                </span>
-                <span style={{fontSize:9,color:'var(--label-4)'}}>limite: 1024 chars</span>
-              </div>
-              <textarea id={`bloco-${b.id}`} value={b.conteudo||''}
-                onChange={e=>onChange({...b,conteudo:e.target.value})}
-                placeholder="Olá *{{nome_cliente}}*!..."
-                rows={7} style={{...sty,resize:'vertical',minHeight:140,lineHeight:1.7,
-                  borderColor:(b.conteudo||'').length>900?((b.conteudo||'').length>=1024?T.red:T.amber):'var(--sep)'
-                }}/>
-              <CharCount text={b.conteudo} limit={1024}/>
-              {(b.conteudo||'').length>=1024&&(
-                <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 10px',borderRadius:7,background:T.redDim,border:`1px solid ${T.redBor}`}}>
-                  <AlertTriangle size={11} style={{color:T.red,flexShrink:0}}/>
-                  <span style={{fontSize:11,color:T.red,fontWeight:600}}>Corpo excede 1024 caracteres — a Meta vai rejeitar o template.</span>
-                </div>
-              )}
-              <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
-                <EmojiPicker onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/>
-                <VarPills vars={vars} onInsert={v=>inserirVar(v,`bloco-${b.id}`)}/>
-              </div>
-            </div>
-          )}
-
-          {/* RODAPÉ — limite Meta: 60 chars */}
-          {b.tipo==='rodape'&&(
-            <div style={{display:'flex',flexDirection:'column',gap:6}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:2}}>
-                <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--label-4)'}}>
-                  Rodapé <span style={{fontWeight:400,letterSpacing:0,textTransform:'none'}}>— aparece em itálico, menor</span>
-                </span>
-                <span style={{fontSize:9,color:'var(--label-4)'}}>limite: 60 chars</span>
-              </div>
-              <input value={b.conteudo||''} maxLength={70}
-                onChange={e=>onChange({...b,conteudo:e.target.value})}
-                placeholder="Ex: Mensagem automática — não responda."
-                style={{...sty,
-                  borderColor:(b.conteudo||'').length>50?((b.conteudo||'').length>=60?T.red:T.amber):'var(--sep)'
-                }}/>
-              <CharCount text={b.conteudo} limit={60}/>
-              {(b.conteudo||'').length>60&&(
-                <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 10px',borderRadius:7,background:T.redDim,border:`1px solid ${T.redBor}`}}>
-                  <AlertTriangle size={11} style={{color:T.red,flexShrink:0}}/>
-                  <span style={{fontSize:11,color:T.red,fontWeight:600}}>Rodapé excede 60 caracteres — a Meta vai rejeitar o template.</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* IMAGEM */}
-          {b.tipo==='imagem'&&(
-            <div style={{display:'flex',flexDirection:'column',gap:8}}>
-              <input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})}
-                placeholder="URL da imagem ou {{foto_produto}}"
-                style={{...sty,fontFamily:'monospace',fontSize:12}}/>
-              <VarPills vars={['{{foto_produto}}',...vars.filter(v=>v.includes('foto'))]}
-                onInsert={v=>onChange({...b,url:(b.url||'')+v})}/>
-              <input value={b.legenda||''} onChange={e=>onChange({...b,legenda:e.target.value})}
-                placeholder="Legenda (opcional)" style={{...sty,fontSize:12}}/>
-            </div>
-          )}
-
-          {b.tipo==='video'&&<input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})} placeholder="URL do vídeo" style={{...sty,fontFamily:'monospace',fontSize:12}}/>}
-          {b.tipo==='audio'&&<input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})} placeholder="URL do áudio" style={{...sty,fontFamily:'monospace',fontSize:12}}/>}
-
-          {/* BOTÃO — limite: 25 chars (URL/CTA) ou 20 chars (reply) */}
-          {b.tipo==='botao'&&(
-            <div style={{display:'flex',flexDirection:'column',gap:8}}>
-              <div>
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:4}}>
-                  <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--label-4)'}}>Texto do botão</span>
-                  <span style={{fontSize:9,color:'var(--label-4)'}}>limite: {b.acao==='reply'?20:25} chars</span>
-                </div>
-                <input value={b.texto||''} maxLength={b.acao==='reply'?25:30}
-                  onChange={e=>onChange({...b,texto:e.target.value})}
-                  placeholder={`Texto (máx. ${b.acao==='reply'?20:25} chars)`}
-                  style={{...sty,
-                    borderColor:(b.texto||'').length>(b.acao==='reply'?18:22)?((b.texto||'').length>=(b.acao==='reply'?20:25)?T.red:T.amber):'var(--sep)'
-                  }}/>
-                <CharCount text={b.texto} limit={b.acao==='reply'?20:25}/>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
-                {[['reply','💬 Resposta'],['url','🔗 Link'],['tel','📞 Ligar']].map(([v,l])=>(
-                  <button key={v} onClick={()=>onChange({...b,acao:v})}
-                    style={{padding:"7px 4px",borderRadius:7,fontSize:10,fontWeight:600,cursor:"pointer",
-                      background:b.acao===v?'var(--accent-dim)':'var(--bg)',
-                      color:b.acao===v?'var(--accent)':'var(--label-3)',
-                      border:b.acao===v?'1px solid var(--accent-border)':'1px solid var(--sep)'}}>
-                    {l}
-                  </button>
-                ))}
-              </div>
-              {(b.acao==='url'||b.acao==='tel')&&(
-                <div style={{display:'flex',flexDirection:'column',gap:6}}>
-                  <input value={b.valor||''} onChange={e=>onChange({...b,valor:e.target.value})}
-                    placeholder={b.acao==='tel'?'55119... (com DDI)':'https://...'}
-                    style={{...sty,fontFamily:'monospace',fontSize:11}}/>
-                  {b.acao==='url'&&<VarPills vars={vars} onInsert={v=>onChange({...b,valor:(b.valor||'')+v})}/>}
-                </div>
-              )}
-            </div>
-          )}
-
-          {b.tipo==='link'&&(
-            <div style={{display:'flex',flexDirection:'column',gap:8}}>
-              <div>
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:4}}>
-                  <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--label-4)'}}>Texto do link</span>
-                  <span style={{fontSize:9,color:'var(--label-4)'}}>limite: 25 chars</span>
-                </div>
-                <input value={b.texto||''} onChange={e=>onChange({...b,texto:e.target.value})}
-                  placeholder="Texto do link" maxLength={30} style={sty}/>
-                <CharCount text={b.texto} limit={25}/>
-              </div>
-              <input value={b.url||''} onChange={e=>onChange({...b,url:e.target.value})}
-                placeholder="URL" style={{...sty,fontFamily:'monospace',fontSize:12}}/>
-              <VarPills vars={vars} onInsert={v=>onChange({...b,url:(b.url||'')+v})}/>
-            </div>
-          )}
-
-          {b.tipo==='ligar'&&(
-            <div style={{display:'flex',flexDirection:'column',gap:8}}>
-              <div>
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:4}}>
-                  <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--label-4)'}}>Texto do botão</span>
-                  <span style={{fontSize:9,color:'var(--label-4)'}}>limite: 20 chars</span>
-                </div>
-                <input value={b.texto||''} onChange={e=>onChange({...b,texto:e.target.value})}
-                  placeholder="Ligar agora" maxLength={25} style={sty}/>
-                <CharCount text={b.texto} limit={20}/>
-              </div>
-              <input value={b.valor||''} onChange={e=>onChange({...b,valor:e.target.value})}
-                placeholder="55119... (com DDI)" style={{...sty,fontFamily:'monospace',fontSize:12}}/>
-            </div>
-          )}
-
-        </div>
-      )}
-    </div>
-  )
-}
-
-// Mini-gráfico de linha (sparkline) para os indicadores do topo.
-function Sparkline({ dados, cor, largura=58, altura=22 }) {
-  if (!dados || dados.length < 2) return null
-  const max = Math.max(...dados, 1), min = Math.min(...dados, 0)
-  const range = max - min || 1
-  const pts = dados.map((v,i) => {
-    const x = (i / (dados.length - 1)) * largura
-    const y = altura - ((v - min) / range) * altura
-    return `${x.toFixed(1)},${y.toFixed(1)}`
-  }).join(' ')
-  const ult = dados[dados.length-1]
-  const ultX = largura, ultY = altura - ((ult - min) / range) * altura
-  return (
-    <svg width={largura} height={altura} style={{overflow:'visible',flexShrink:0}}>
-      <polyline points={pts} fill="none" stroke={cor} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
-      <circle cx={ultX} cy={ultY} r="2" fill={cor}/>
-    </svg>
-  )
-}
-
-function VarPills({vars,onInsert}){
-  if(!vars?.length)return null
-  return <div style={{display:"flex",flexWrap:"wrap",gap:4}}>{vars.map(v=><button key={v} onClick={()=>onInsert(v)} style={{padding:'2px 6px',borderRadius:4,fontSize:9,fontFamily:'monospace',background:'var(--accent-dim)',color:'var(--accent)',border:'1px solid var(--accent-border)',cursor:'pointer'}}>{v}</button>)}</div>
-}
-
-// Seletor de emoji para os textos. Conjunto curado e útil para e-commerce/WhatsApp.
-const EMOJIS = {
-  'Frequentes': ['😊','🎉','✅','❤️','🙌','👏','✨','🔥','💜','🛍️'],
-  'Pedido':     ['📦','🛒','🧾','💳','💰','🏷️','✔️','📋','🎁','⭐'],
-  'Entrega':    ['🚚','📍','🛵','✈️','🏠','🗺️','⏱️','📮','🚪','🤝'],
-  'Atenção':    ['⚠️','❗','⏰','🔔','💡','👀','📢','🆘','❌','🚨'],
-  'Carinho':    ['😍','🥰','😘','💖','🌟','💫','🌸','💐','👋','🫶'],
-}
-
-function EmojiPicker({ onInsert }) {
-  const [aberto, setAberto] = useState(false)
-  const [cat, setCat] = useState('Frequentes')
-  return (
-    <div style={{ position:'relative', display:'inline-block' }}>
-      <button onClick={()=>setAberto(a=>!a)} title="Inserir emoji"
-        style={{ display:'flex', alignItems:'center', gap:4, padding:'2px 8px', borderRadius:6, fontSize:11,
-                 background:'var(--accent-dim)', color:'var(--accent)', border:'1px solid var(--accent-border)', cursor:'pointer' }}>
-        <span style={{fontSize:13}}>😊</span> Emoji
-      </button>
-      {aberto && (
-        <>
-          <div onClick={()=>setAberto(false)} style={{ position:'fixed', inset:0, zIndex:40 }}/>
-          <div style={{ position:'absolute', top:'calc(100% + 4px)', left:0, zIndex:50, width:228,
-                        background:'var(--bg-2)', border:'0.5px solid var(--sep)', borderRadius:10, padding:8,
-                        boxShadow:'0 8px 24px rgba(0,0,0,.25)' }}>
-            <div style={{ display:'flex', gap:3, marginBottom:7, flexWrap:'wrap' }}>
-              {Object.keys(EMOJIS).map(c=>(
-                <button key={c} onClick={()=>setCat(c)}
-                  style={{ fontSize:9.5, padding:'2px 7px', borderRadius:99, cursor:'pointer',
-                           background: cat===c?'var(--accent)':'var(--fill)', color: cat===c?'#fff':'var(--label-3)',
-                           border:'none' }}>{c}</button>
-              ))}
-            </div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(8,1fr)', gap:2 }}>
-              {EMOJIS[cat].map((e,i)=>(
-                <button key={i} onClick={()=>{ onInsert(e); setAberto(false) }}
-                  style={{ fontSize:17, padding:3, borderRadius:6, background:'transparent', border:'none', cursor:'pointer', lineHeight:1 }}
-                  onMouseEnter={ev=>ev.currentTarget.style.background='var(--fill)'}
-                  onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}>{e}</button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
-
-// ══════════════════════════════════════════════════════════════════════════════
-// PÁGINA PRINCIPAL
-// ══════════════════════════════════════════════════════════════════════════════
-// ── PLANO DE DISPAROS ─────────────────────────────────────────────────────────
-function PlanodeDisparos({ gatilhos, configs, atividade, onSelect, api }) {
-  const [numPedido, setNumPedido] = useState('')
-  const [checando,  setChecando]  = useState(false)
-  const [resultado, setResultado] = useState(null)
-  // Drag and drop na sequência — a esteira de transporte (pedido_enviado abre).
-  // Retirada na loja e Moto Expressa são RAMOS paralelos (exceções), não etapas.
-  const [seqLocal,  setSeqLocal]  = useState([
-    { id:'pedido_enviado',      nivel:0 },
-    { id:'pedido_coletado',     nivel:1 },
-    { id:'rastreio_em_transito',nivel:2 },
-    { id:'saiu_entrega',        nivel:3 },
-    { id:'pedido_entregue',     nivel:4 },
-  ])
-  // Metadados do plano vindos do servidor — reenviados no save para não perder
-  const planoMeta = useRef({ repetiveis:['rastreio_em_transito'], uma_vez:[], excecoes:[] })
-  const [salvandoSeq, setSalvandoSeq] = useState(false)
-  const [seqSalva,    setSeqSalva]    = useState(false)
-  const dragIdx = useRef(null)
-
-  // Carrega sequência salva no banco
-  useEffect(() => {
-    fetch(`${api}/api/dashboard/gatilhos/plano`)
-      .then(r=>r.json()).then(d=>{
-        if (d?.niveis) {
-          const sorted = Object.entries(d.niveis)
-            .sort(([,a],[,b])=>a-b)
-            .map(([id,nivel])=>({id,nivel}))
-          if (sorted.length) setSeqLocal(sorted)
-        }
-        planoMeta.current = {
-          repetiveis: d?.repetiveis||['rastreio_em_transito'],
-          uma_vez:    d?.uma_vez||[],
-          excecoes:   d?.excecoes||EXCECOES_RASTREIO,
-        }
-      }).catch(()=>{})
-  }, [api])
-
-  const salvarSeq = async (novaSeq) => {
-    setSalvandoSeq(true)
-    const niveis = Object.fromEntries(novaSeq.map((item,i)=>[item.id,i]))
-    try {
-      await fetch(`${api}/api/dashboard/gatilhos/plano`,{
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          niveis,
-          repetiveis: planoMeta.current.repetiveis,
-          uma_vez:    planoMeta.current.uma_vez,
-          excecoes:   planoMeta.current.excecoes?.length ? planoMeta.current.excecoes : EXCECOES_RASTREIO,
-        })
-      })
-      setSeqSalva(true); setTimeout(()=>setSeqSalva(false),2000)
-    } catch {}
-    setSalvandoSeq(false)
-  }
-
-  const onDragStart = (i) => { dragIdx.current = i }
-  const onDragOver  = (e) => { e.preventDefault() }
-  const onDrop      = (i) => {
-    if (dragIdx.current===null || dragIdx.current===i) return
-    const nova = [...seqLocal]
-    const [item] = nova.splice(dragIdx.current, 1)
-    nova.splice(i, 0, item)
-    const comNivel = nova.map((x,idx)=>({...x,nivel:idx}))
-    setSeqLocal(comNivel)
-    dragIdx.current = null
-    salvarSeq(comNivel)
-  }
-
-  const verificar = async () => {
-    if (!numPedido.trim()) return
-    setChecando(true); setResultado(null)
-    try {
-      const r = await fetch(`${api}/api/dashboard/disparos-log?busca=${numPedido}&limite=100`)
-      const d = await r.json()
-      const disparos = (d.disparos||[]).filter(x=>String(x.numero_pedido)===String(numPedido.trim()))
-      setResultado({ pedido: numPedido.trim(), disparos })
-    } catch { setResultado({ pedido: numPedido.trim(), disparos: [] }) }
-    setChecando(false)
-  }
-
-  const EXCECOES_RASTREIO = ['tentativa_entrega','nao_entrou_unidade','endereco_incorreto','nao_entregue','pacote_devolvido']
-
-  const statusDe = (id) => {
-    const cfg = configs[id]
-    if (!cfg) return 'criar'
-    if (!cfg.ativo) return 'off'
-    return 'on'
-  }
-  const qtdDe = (id) => atividade[id] || 0
-
-  const STATUS_COR = { on:'#22c55e', off:'#f59e0b', criar:'#ef4444' }
-  const STATUS_LBL = { on:'ativo', off:'aguardando', criar:'criar' }
-  const GRUPOS_PLANO = ['Compra & Pagamento','Preparação & Nota','Pós-venda']
-
-  const CardGatilho = ({g, excecao}) => {
-    const st = statusDe(g.id)
-    const qt = qtdDe(g.id)
-    const GIc = g.icon
-    const disparouNoPedido = resultado?.disparos?.some(d=>d.gatilho===g.id)
-    const faltouNoPedido   = resultado && !disparouNoPedido && !excecao
-    return (
-      <div onClick={()=>onSelect(g.id)} title="Editar template"
-        style={{cursor:'pointer',borderRadius:10,padding:'10px 12px',
-          border:`0.5px solid ${faltouNoPedido?'rgba(239,68,68,.4)':disparouNoPedido?'rgba(34,197,94,.3)':'var(--sep)'}`,
-          background:faltouNoPedido?'rgba(239,68,68,.04)':disparouNoPedido?'rgba(34,197,94,.04)':'var(--bg)',
-          display:'flex',gap:10,alignItems:'flex-start',transition:'all .12s',
-          boxShadow:'0 1px 4px rgba(0,0,0,.12)'}}
-        onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 4px 16px rgba(0,0,0,.22)';e.currentTarget.style.transform='translateY(-1px)'}}
-        onMouseLeave={e=>{e.currentTarget.style.boxShadow='0 1px 4px rgba(0,0,0,.12)';e.currentTarget.style.transform='none'}}>
-        <div style={{width:30,height:30,borderRadius:8,flexShrink:0,
-          background:`${g.cor}18`,border:`0.5px solid ${g.cor}30`,
-          display:'flex',alignItems:'center',justifyContent:'center'}}>
-          {GIc && <GIc size={14} style={{color:g.cor}}/>}
-        </div>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:11.5,fontWeight:600,color:'var(--label)',
-            overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:4}}>{g.label}</div>
-          <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
-            <span style={{fontSize:9,padding:'1px 6px',borderRadius:99,
-              background:`${STATUS_COR[st]}15`,color:STATUS_COR[st],
-              border:`0.5px solid ${STATUS_COR[st]}30`,fontWeight:600}}>
-              {STATUS_LBL[st]}
-            </span>
-            {qt>0 && <span style={{fontSize:9,color:'var(--label-4)'}}>{qt}/7d</span>}
-          </div>
-        </div>
-        {resultado && (
-          <div style={{flexShrink:0,width:18,height:18,borderRadius:'50%',
-            display:'flex',alignItems:'center',justifyContent:'center',
-            background:disparouNoPedido?'rgba(34,197,94,.2)':faltouNoPedido?'rgba(239,68,68,.1)':'transparent',
-            border:disparouNoPedido?'1px solid #22c55e':faltouNoPedido?'1px solid rgba(239,68,68,.3)':'none'}}>
-            {disparouNoPedido&&<Check size={10} style={{color:'#22c55e'}}/>}
-            {faltouNoPedido&&<XCircle size={10} style={{color:'#ef4444'}}/>}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  const SOMBRA_SECAO = '0 4px 24px rgba(0,0,0,.2), 0 1px 0 rgba(255,255,255,.04) inset'
-
-  return (
-    <div style={{flex:1,minHeight:0,overflowY:'auto',padding:'16px 20px',display:'flex',flexDirection:'column',gap:16,fontFamily:'"DM Sans", system-ui, sans-serif'}}>
-      <style>{`
-        .plan-seq-card{transition:all .15s cubic-bezier(.2,.8,.2,1)}
-        .plan-seq-card:hover{box-shadow:0 8px 28px rgba(0,0,0,.3)!important;transform:translateY(-2px)}
-        .plan-seq-card.dragging{opacity:.4;transform:scale(.97)}
-        .plan-seq-card.drag-over{outline:2px dashed #7c6af7;outline-offset:2px}
-      `}</style>
-
-      {/* Header */}
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8}}>
-        <div>
-          <div style={{fontSize:16,fontWeight:700,color:'var(--label)',letterSpacing:'-.02em',display:'flex',alignItems:'center',gap:8}}>
-            <SlidersHorizontal size={17} style={{color:'#7c6af7'}}/>
-            Plano de disparos
-          </div>
-          <div style={{fontSize:11,color:'var(--label-4)',marginTop:2}}>
-            Sequência, status e regras — clique para editar · arraste para reordenar
-          </div>
-        </div>
-        <div style={{display:'flex',gap:6,alignItems:'center'}}>
-          {seqSalva && (
-            <span style={{fontSize:11,color:'#22c55e',display:'flex',alignItems:'center',gap:4}}>
-              <Check size={11}/>Sequência salva
-            </span>
-          )}
-          <input value={numPedido} onChange={e=>setNumPedido(e.target.value)}
-            onKeyDown={e=>e.key==='Enter'&&verificar()}
-            placeholder="Nº do pedido..." style={{
-            padding:'6px 10px',borderRadius:8,fontSize:12,width:130,
-            border:'0.5px solid var(--sep)',background:'var(--bg)',color:'var(--label)'}}/>
-          <button onClick={verificar} disabled={!numPedido.trim()||checando} style={{
-            display:'flex',alignItems:'center',gap:5,padding:'6px 12px',borderRadius:8,
-            background:'rgba(124,106,247,.1)',border:'0.5px solid rgba(124,106,247,.25)',
-            color:'#7c6af7',cursor:numPedido.trim()?'pointer':'not-allowed',fontSize:12,fontWeight:600}}>
-            {checando?<><RefreshCw size={11} style={{animation:'spin .7s linear infinite'}}/>Checando...</>:<><Activity size={11}/>Verificar</>}
-          </button>
-          {resultado && (
-            <button onClick={()=>setResultado(null)} style={{display:'flex',alignItems:'center',padding:4,borderRadius:6,background:'none',border:'none',cursor:'pointer',color:'var(--label-4)'}}>
-              <X size={13}/>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {resultado && (
-        <div style={{padding:'10px 14px',borderRadius:10,background:'var(--fill)',border:'0.5px solid var(--sep)',
-          boxShadow:SOMBRA_SECAO}}>
-          <div style={{fontSize:11,fontWeight:600,color:'var(--label)',marginBottom:6,display:'flex',alignItems:'center',gap:6}}>
-            <Activity size={12} style={{color:'#7c6af7'}}/>
-            Pedido #{resultado.pedido} — {resultado.disparos.length} disparo(s) registrado(s)
-          </div>
-          <div style={{display:'flex',gap:12,flexWrap:'wrap',fontSize:10.5,color:'var(--label-4)'}}>
-            <span style={{color:'#22c55e'}}>✓ verde = disparou</span>
-            <span style={{color:'#f59e0b'}}>⏳ laranja = ignorado</span>
-            <span style={{color:'#ef4444'}}>✗ vermelho = não disparou</span>
-          </div>
-        </div>
-      )}
-
-      {/* Grupos normais */}
-      {GRUPOS_PLANO.map(grupo => {
-        const gs = gatilhos.filter(g=>g.grupo===grupo)
-        if (!gs.length) return null
-        const COR_GRUPO = {'Compra & Pagamento':'#00d4aa','Preparação & Nota':'#8b5cf6','Pós-venda':'#f87171'}[grupo]||'#7c6af7'
-        return (
-          <div key={grupo} style={{background:'var(--bg-2)',border:'0.5px solid var(--sep)',borderRadius:14,overflow:'hidden',boxShadow:SOMBRA_SECAO}}>
-            <div style={{padding:'10px 14px',borderBottom:'0.5px solid var(--sep)',background:'var(--bg-3)',
-              display:'flex',alignItems:'center',gap:8}}>
-              <div style={{width:6,height:6,borderRadius:'50%',background:COR_GRUPO,flexShrink:0,
-                boxShadow:`0 0 6px ${COR_GRUPO}`}}/>
-              <span style={{fontSize:12,fontWeight:600,color:'var(--label)',letterSpacing:'-.01em'}}>{grupo}</span>
-              <span style={{fontSize:10,color:'var(--label-4)',marginLeft:'auto'}}>
-                {gs.filter(g=>statusDe(g.id)==='on').length}/{gs.length} ativos
-              </span>
-            </div>
-            <div style={{padding:'10px',display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:6}}>
-              {gs.map(g => <CardGatilho key={g.id} g={g}/>)}
-            </div>
-          </div>
-        )
-      })}
-
-      {/* Envio & Rastreio — SEQUÊNCIA RÍGIDA com DRAG AND DROP */}
-      <div style={{background:'var(--bg-2)',border:'0.5px solid rgba(74,159,255,.35)',borderRadius:14,overflow:'hidden',boxShadow:SOMBRA_SECAO}}>
-        <div style={{padding:'10px 14px',borderBottom:'0.5px solid rgba(74,159,255,.2)',
-          background:'rgba(74,159,255,.04)',display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-          <div style={{width:6,height:6,borderRadius:'50%',background:'#4a9fff',flexShrink:0,boxShadow:'0 0 6px #4a9fff'}}/>
-          <span style={{fontSize:12,fontWeight:600,color:'var(--label)',letterSpacing:'-.01em'}}>Envio & Rastreio</span>
-          <span style={{fontSize:9.5,padding:'2px 8px',borderRadius:99,
-            background:'rgba(74,159,255,.1)',color:'#4a9fff',border:'0.5px solid rgba(74,159,255,.2)',fontWeight:600}}>
-            sequência rígida · anti-atropelamento
-          </span>
-          {salvandoSeq && (
-            <span style={{fontSize:10,color:'var(--label-4)',display:'flex',alignItems:'center',gap:4,marginLeft:'auto'}}>
-              <RefreshCw size={10} style={{animation:'spin .7s linear infinite'}}/>Salvando...
-            </span>
-          )}
-          <span style={{fontSize:10,color:'var(--label-4)',marginLeft:salvandoSeq?0:'auto',
-            display:'flex',alignItems:'center',gap:4}}>
-            <GripVertical size={12}/>arraste para reordenar
-          </span>
-        </div>
-        <div style={{padding:'12px'}}>
-          {/* Sequência DRAGGABLE */}
-          <div style={{fontSize:10.5,fontWeight:600,color:'var(--label-4)',marginBottom:8,
-            textTransform:'uppercase',letterSpacing:'.04em'}}>Sequência (arraste para reordenar)</div>
-          <div style={{display:'flex',gap:0,alignItems:'stretch',marginBottom:16,overflowX:'auto',paddingBottom:4}}>
-            {seqLocal.map((item, i) => {
-              const g = gatilhos.find(x=>x.id===item.id)
-              if (!g) return null
-              const st = statusDe(g.id)
-              const qt = qtdDe(g.id)
-              const GIc = g.icon
-              const disparouNoPedido = resultado?.disparos?.some(d=>d.gatilho===g.id)
-              return (
-                <div key={g.id} style={{display:'flex',alignItems:'center'}}>
-                  <div className="plan-seq-card"
-                    draggable
-                    onDragStart={()=>onDragStart(i)}
-                    onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag-over')}}
-                    onDragLeave={e=>e.currentTarget.classList.remove('drag-over')}
-                    onDrop={e=>{e.currentTarget.classList.remove('drag-over');onDrop(i)}}
-                    onClick={()=>onSelect(g.id)}
-                    title={`Nível ${item.nivel} · arraste para mover · clique para editar`}
-                    style={{cursor:'grab',minWidth:130,borderRadius:12,padding:'12px 10px',
-                      border:`0.5px solid ${disparouNoPedido?'rgba(34,197,94,.4)':st==='on'?'rgba(74,159,255,.3)':'var(--sep)'}`,
-                      background:disparouNoPedido?'rgba(34,197,94,.06)':st==='on'?'rgba(74,159,255,.05)':'var(--bg)',
-                      display:'flex',flexDirection:'column',gap:7,alignItems:'center',textAlign:'center',
-                      boxShadow:'0 2px 10px rgba(0,0,0,.18)',userSelect:'none'}}>
-                    {/* grip */}
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%',opacity:.4}}>
-                      <GripVertical size={10} style={{color:'var(--label-4)'}}/>
-                      <span style={{fontSize:9,color:'#4a9fff',fontWeight:700}}>N{item.nivel}</span>
-                    </div>
-                    <div style={{width:34,height:34,borderRadius:10,
-                      background:`${g.cor}18`,border:`0.5px solid ${g.cor}30`,
-                      display:'flex',alignItems:'center',justifyContent:'center'}}>
-                      {GIc && <GIc size={16} style={{color:g.cor}}/>}
-                    </div>
-                    <div style={{fontSize:11,fontWeight:600,color:'var(--label)',lineHeight:1.3}}>{g.label}</div>
-                    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
-                      <span style={{fontSize:9,padding:'2px 7px',borderRadius:99,
-                        background:`${STATUS_COR[st]}15`,color:STATUS_COR[st],fontWeight:600}}>
-                        {STATUS_LBL[st]}
-                      </span>
-                      {qt>0 && <span style={{fontSize:9,color:'var(--label-4)'}}>{qt}/7d</span>}
-                    </div>
-                    {resultado && (
-                      <div style={{width:18,height:18,borderRadius:'50%',
-                        display:'flex',alignItems:'center',justifyContent:'center',
-                        background:disparouNoPedido?'rgba(34,197,94,.2)':'rgba(239,68,68,.1)',
-                        border:`1px solid ${disparouNoPedido?'#22c55e':'rgba(239,68,68,.3)'}`}}>
-                        {disparouNoPedido?<Check size={9} style={{color:'#22c55e'}}/>:<XCircle size={9} style={{color:'#ef4444'}}/>}
-                      </div>
-                    )}
-                  </div>
-                  {i < seqLocal.length-1 && (
-                    <div style={{display:'flex',flexDirection:'column',alignItems:'center',padding:'0 3px',flexShrink:0}}>
-                      <ArrowRight size={13} style={{color:'var(--label-4)'}}/>
-                      <span style={{fontSize:8,color:'var(--label-4)',marginTop:1,whiteSpace:'nowrap'}}>bloqueia</span>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Exceções */}
-          <div style={{fontSize:10.5,fontWeight:600,color:'var(--label-4)',marginBottom:8,
-            textTransform:'uppercase',letterSpacing:'.04em'}}>Exceções — disparam a qualquer momento</div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:6}}>
-            {gatilhos.filter(g=>g.grupo==='Envio & Rastreio' && !seqLocal.find(s=>s.id===g.id)).map(g=>(
-              <CardGatilho key={g.id} g={g} excecao/>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Legenda */}
-      <div style={{display:'flex',gap:14,flexWrap:'wrap',paddingBottom:8,fontSize:10,color:'var(--label-4)'}}>
-        {[['#22c55e','ativo'],['#f59e0b','aguardando ativação'],['#ef4444','criar + aprovar Meta']].map(([c,l])=>(
-          <div key={l} style={{display:'flex',alignItems:'center',gap:5}}>
-            <div style={{width:7,height:7,borderRadius:'50%',background:c,boxShadow:`0 0 5px ${c}`}}/>
-            {l}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// Helper: tempo relativo (ex: "há 2h", "ontem", "3 dias")
-// ─── INSIGHT CARD para PageGatilhos ──────────────────────────────────────────
-// Idêntico ao InsightCard do PageDisparos mas com "Ver gatilho" como ação
-function InsightCardGat({ ins, onDismiss, onGoto }) {
-  const [detalhe, setDetalhe] = useState(false)
-  const cfg = {
-    critico:      {cor:T.red,   dim:T.redDim,   bor:T.redBor,   Ic:AlertTriangle, lbl:'CRÍTICO'},
-    aviso:        {cor:T.amber, dim:T.amberDim, bor:T.amberBor, Ic:Clock,         lbl:'ATENÇÃO'},
-    oportunidade: {cor:T.blue,  dim:T.blueDim,  bor:T.blueBor,  Ic:Star,          lbl:'OPORTUNIDADE'},
-    positivo:     {cor:T.green, dim:T.greenDim, bor:T.greenBor, Ic:Activity,      lbl:'POSITIVO'},
-  }[ins.tipo] || {cor:T.ink3, dim:T.gray, bor:T.grayBor, Ic:Info, lbl:'INFO'}
-  const {cor, dim, bor, Ic, lbl} = cfg
-
-  return (
-    <div style={{borderRadius:11, padding:'12px 14px', background:dim,
-      border:`1px solid ${bor}`, animation:'fadeIn .3s ease'}}>
-      <div style={{display:'flex', alignItems:'flex-start', gap:10}}>
-        <div style={{width:32, height:32, borderRadius:9, background:`${cor}18`,
-          border:`1px solid ${bor}`, display:'flex', alignItems:'center',
-          justifyContent:'center', flexShrink:0, marginTop:1}}>
-          <Ic size={15} style={{color:cor}}/>
-        </div>
-        <div style={{flex:1, minWidth:0}}>
-          {/* badges de severidade + métrica */}
-          <div style={{display:'flex', alignItems:'center', gap:6, marginBottom:5, flexWrap:'wrap'}}>
-            <span style={{fontSize:9, padding:'1px 7px', borderRadius:99,
-              background:`${cor}20`, color:cor, fontWeight:700, letterSpacing:'.04em'}}>{lbl}</span>
-            {ins.afetados > 0 && (
-              <span style={{fontSize:10, color:T.ink3, display:'flex', alignItems:'center', gap:3}}>
-                <AlertTriangle size={9}/>{ins.afetados} disparo{ins.afetados>1?'s':''} afetados
-              </span>
-            )}
-            {ins.dias > 0 && (
-              <span style={{fontSize:10, color:T.ink4}}>{ins.dias}d sem envio</span>
-            )}
-          </div>
-
-          {/* título */}
-          <div style={{fontSize:13, fontWeight:600, color:T.ink1, marginBottom:4, lineHeight:1.4}}>
-            {ins.titulo}
-          </div>
-
-          {/* descrição colapsável */}
-          {detalhe && (
-            <div style={{fontSize:11, color:T.ink2, lineHeight:1.65, marginBottom:9,
-              animation:'fadeIn .2s ease', padding:'8px 10px', borderRadius:7,
-              background:'rgba(255,255,255,.04)'}}>
-              {ins.desc}
-            </div>
-          )}
-
-          {/* ações */}
-          <div style={{display:'flex', alignItems:'center', gap:7, flexWrap:'wrap', marginTop:8}}>
-            {ins.gatilho && onGoto && (
-              <button onClick={()=>onGoto(ins.gatilho)} style={{
-                display:'inline-flex', alignItems:'center', gap:5,
-                padding:'5px 12px', borderRadius:7, border:'none', cursor:'pointer',
-                fontSize:11, fontWeight:600,
-                background:'linear-gradient(135deg,#5b21b6,#9333ea)', color:'#fff'}}>
-                <Zap size={10}/>Abrir gatilho ↗
-              </button>
-            )}
-            <button onClick={()=>setDetalhe(v=>!v)} style={{
-              display:'inline-flex', alignItems:'center', gap:4,
-              padding:'5px 10px', borderRadius:7, cursor:'pointer',
-              fontSize:10.5, background:'transparent', border:`1px solid ${bor}`,
-              color:cor, fontWeight:500}}>
-              {detalhe?<ChevronUp size={10}/>:<ChevronDown size={10}/>}
-              {detalhe?'Menos':'Detalhes'}
-            </button>
-            <button onClick={onDismiss} style={{marginLeft:'auto',
-              display:'inline-flex', alignItems:'center', gap:4,
-              padding:'5px 10px', borderRadius:7, cursor:'pointer',
-              fontSize:10.5, background:'transparent', border:`1px solid ${T.sep}`,
-              color:T.ink3, fontWeight:500}}>
-              <CheckCircle size={10}/>Entendi
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── COMMAND PALETTE ⌘K para Gatilhos ────────────────────────────────────────
-function CmdGatilhos({open, onClose, gatilhos, configs, onSelect, onToggle, labelDe}) {
-  const [q, setQ] = useState('')
-  const inputRef = useRef(null)
-  useEffect(() => { if(open){ setQ(''); setTimeout(()=>inputRef.current?.focus(),50) } },[open])
-
-  const results = q.trim()
-    ? gatilhos.filter(g => labelDe(g).toLowerCase().includes(q.toLowerCase()))
-    : []
-
-  const acoes = [
-    {icon:CheckCircleIc, label:'Ativar todos com template', fn:()=>{ gatilhos.filter(g=>configs[g.id]&&!configs[g.id]?.ativo).forEach(g=>onToggle(g.id)); onClose() }},
-    {icon:X,            label:'Desativar todos', fn:()=>{ gatilhos.filter(g=>configs[g.id]?.ativo).forEach(g=>onToggle(g.id)); onClose() }},
-  ]
-
-  if (!open) return null
-  const bg = 'rgba(13,16,23,0.94)', bdr = 'rgba(255,255,255,0.08)'
-  return (
-    <>
-      <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:200,
-        background:'rgba(0,0,0,.65)',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)'}}/>
-      <div style={{position:'fixed',top:'18%',left:'50%',transform:'translateX(-50%)',
-        width:'min(520px,94vw)',zIndex:201,
-        background:bg, backdropFilter:'blur(24px)', WebkitBackdropFilter:'blur(24px)',
-        border:`1px solid ${bdr}`,borderRadius:16,
-        boxShadow:'0 40px 100px rgba(0,0,0,.85)',animation:'slideup .2s ease'}}>
-        {/* Input */}
-        <div style={{padding:'12px 14px',borderBottom:`1px solid ${bdr}`,
-          display:'flex',alignItems:'center',gap:10}}>
-          <Search size={16} style={{color:'#6b7294',flexShrink:0}}/>
-          <input ref={inputRef} value={q} onChange={e=>setQ(e.target.value)}
-            placeholder="Buscar gatilho ou ação..."
-            onKeyDown={e=>{ if(e.key==='Escape')onClose(); if(e.key==='Enter'&&results.length){onSelect(results[0].id);onClose()} }}
-            style={{flex:1,border:'none',background:'transparent',color:'#eef0f6',
-              fontSize:15,outline:'none',fontFamily:'inherit'}}/>
-          <kbd style={{fontSize:10,padding:'2px 6px',borderRadius:5,flexShrink:0,
-            background:'#1c2238',color:'#6b7294',border:`1px solid ${bdr}`}}>Esc</kbd>
-        </div>
-        {/* Conteúdo */}
-        <div style={{maxHeight:340,overflowY:'auto'}}>
-          {!q && (
-            <div style={{padding:'8px 10px'}}>
-              <div style={{fontSize:9,color:'#3a3f5c',textTransform:'uppercase',letterSpacing:'.07em',padding:'4px 4px 8px'}}>Ações rápidas</div>
-              {acoes.map((a,i)=>(
-                <div key={i} onClick={a.fn}
-                  style={{display:'flex',alignItems:'center',gap:10,padding:'9px 10px',
-                    borderRadius:8,cursor:'pointer',transition:'background .1s'}}
-                  onMouseEnter={e=>e.currentTarget.style.background='#161b2c'}
-                  onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                  <div style={{width:28,height:28,borderRadius:8,background:'#161b2c',
-                    display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                    <a.icon size={13} style={{color:'#6b7294'}}/>
-                  </div>
-                  <span style={{flex:1,fontSize:13,color:'#b8bdd4'}}>{a.label}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {q && results.length===0 && (
-            <div style={{padding:'32px 0',textAlign:'center',color:'#6b7294',fontSize:13}}>
-              Nenhum gatilho para "{q}"
-            </div>
-          )}
-          {results.map((g,i)=>{
-            const cfg  = configs[g.id]
-            const ativo= cfg?.ativo
-            const Icon = g.icon
-            return (
-              <div key={i}
-                style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',
-                  cursor:'pointer',borderTop:`1px solid ${bdr}`,transition:'background .1s'}}
-                onMouseEnter={e=>e.currentTarget.style.background='#161b2c'}
-                onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                <div style={{width:34,height:34,borderRadius:9,background:`${g.cor}18`,
-                  border:`0.5px solid ${g.cor}28`,display:'flex',alignItems:'center',
-                  justifyContent:'center',flexShrink:0}}>
-                  <Icon size={15} style={{color:g.cor}}/>
-                </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:13,color:'#eef0f6',fontWeight:500}}>{labelDe(g)}</div>
-                  <div style={{fontSize:11,color:'#6b7294',marginTop:2}}>
-                    {ativo?'● Ativo':'○ Inativo'} · {g.grupo}
-                  </div>
-                </div>
-                <div style={{display:'flex',gap:6,flexShrink:0}}>
-                  <button onClick={e=>{e.stopPropagation();onSelect(g.id);onClose()}}
-                    style={{padding:'4px 10px',borderRadius:7,border:'1px solid rgba(167,139,250,.25)',
-                      background:'rgba(167,139,250,.08)',color:'#a78bfa',cursor:'pointer',
-                      fontSize:11,fontWeight:600}}>Editar</button>
-                  <button onClick={e=>{e.stopPropagation();onToggle(g.id);onClose()}}
-                    style={{padding:'4px 10px',borderRadius:7,border:`1px solid ${ativo?'rgba(255,71,87,.25)':'rgba(0,230,118,.25)'}`,
-                      background:ativo?'rgba(255,71,87,.08)':'rgba(0,230,118,.08)',
-                      color:ativo?'#ff4757':'#00e676',cursor:'pointer',
-                      fontSize:11,fontWeight:600}}>
-                    {ativo?'Desativar':'Ativar'}
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-        <div style={{padding:'8px 14px',borderTop:`1px solid ${bdr}`,
-          display:'flex',gap:10,alignItems:'center'}}>
-          <kbd style={{fontSize:10,padding:'1px 6px',borderRadius:4,background:'#1c2238',color:'#3a3f5c',border:`1px solid ${bdr}`}}>↵</kbd>
-          <span style={{fontSize:10,color:'#3a3f5c'}}>editar</span>
-          <span style={{marginLeft:'auto',fontSize:10,color:'#3a3f5c'}}>⌘K para fechar</span>
-        </div>
-      </div>
-    </>
-  )
-}
-
-function tempoRel(iso) {
-  if (!iso) return null
-  const diff = Date.now() - new Date(iso).getTime()
-  const min  = Math.floor(diff/60000)
-  if (min < 60)   return min <= 1 ? 'agora' : `${min}min`
-  const h = Math.floor(min/60)
-  if (h < 24)    return `${h}h`
-  const d = Math.floor(h/24)
-  if (d === 1)   return 'ontem'
-  return `${d}d`
-}
-
 // ─── SPARKLINE LINE (substitui barras por polyline com area) ─────────────────
-function SparkCard({ serie=[], cor='#22c55e' }) {
-  const data = serie
-  if (!data || data.length < 2) return null
-  const max = Math.max(...data, 1)
-  const H = 22, W = 58
-  const pts = data.map((v,i)=>`${(i/(data.length-1))*W},${H-2-(v/max)*(H-6)+2}`).join(' ')
-  const area = `0,${H} ${pts} ${W},${H}`
-  const gid  = `spk${cor.replace(/[^a-z0-9]/gi,'').slice(0,6)}`
-  const lx=W, ly=H-2-(data[data.length-1]/max)*(H-6)+2
+function SparkCard({ serie=[], cor='#22c55e', w=72, h=28 }) {
+  if (!serie || serie.length < 2) return null
+  const data = serie.map((v,i)=>({i,v}))
+  const gid  = `spk-${cor.replace(/[^a-z0-9]/gi,'').slice(0,8)}`
   return (
-    <svg width={W} height={H} style={{display:'block',flexShrink:0}}>
-      <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={cor} stopOpacity=".3"/>
-          <stop offset="100%" stopColor={cor} stopOpacity="0"/>
-        </linearGradient>
-      </defs>
-      <polygon points={area} fill={`url(#${gid})`}/>
-      <polyline points={pts} fill="none" stroke={cor} strokeWidth="1.5"
-        strokeLinecap="round" strokeLinejoin="round"/>
-      <circle cx={lx} cy={ly} r="2.5" fill={cor}/>
-    </svg>
+    <ResponsiveContainer width={w} height={h}>
+      <AreaChart data={data} margin={{top:3,right:1,left:1,bottom:0}}>
+        <defs>
+          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%"  stopColor={cor} stopOpacity={0.45}/>
+            <stop offset="95%" stopColor={cor} stopOpacity={0.02}/>
+          </linearGradient>
+          <filter id={`glow-${gid}`}>
+            <feGaussianBlur stdDeviation="1.5" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <Area dataKey="v" type="monotone"
+          stroke={cor} strokeWidth={2}
+          fill={`url(#${gid})`} fillOpacity={1}
+          dot={false} activeDot={{r:3,fill:cor,strokeWidth:0}}
+          filter={`url(#glow-${gid})`}/>
+      </AreaChart>
+    </ResponsiveContainer>
   )
 }
 
@@ -1464,6 +702,95 @@ function Skel({w='100%', h=16, r=6}) {
 }
 
 
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function tempoRel(iso) {
+  if (!iso) return null
+  const diff = Date.now() - new Date(iso).getTime()
+  const min = Math.floor(diff / 60000)
+  if (min < 1)  return 'agora'
+  if (min < 60) return `${min}min`
+  const h = Math.floor(min / 60)
+  if (h < 24)  return `${h}h`
+  const d = Math.floor(h / 24)
+  if (d === 1) return 'ontem'
+  return `${d}d`
+}
+
+// ─── INSIGHT CARD — card de alerta no painel de gatilhos ─────────────────────
+function InsightCardGat({ ins, onDismiss, onGoto }) {
+  const [detail, setDetail] = useState(false)
+  const cfg = {
+    critico:      { cor:T.red,   dim:T.redDim,   bor:T.redBor,   icon:AlertTriangle, lbl:'CRÍTICO'      },
+    aviso:        { cor:T.amber, dim:T.amberDim, bor:T.amberBor, icon:Clock,         lbl:'ATENÇÃO'       },
+    oportunidade: { cor:T.blue,  dim:T.blueDim,  bor:T.blueBor,  icon:Star,          lbl:'OPORTUNIDADE'  },
+    positivo:     { cor:T.green, dim:T.greenDim, bor:T.greenBor, icon:TrendingUp,    lbl:'POSITIVO'      },
+  }[ins.tipo] || { cor:T.ink3, dim:T.bg3, bor:T.sep, icon:Info, lbl:'INFO' }
+  const Ic = cfg.icon
+  return (
+    <div style={{ borderRadius:11, padding:'12px 14px', background:cfg.dim,
+      border:`1px solid ${cfg.bor}`, animation:'fadeIn .3s ease' }}>
+      <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+        <div style={{ width:32, height:32, borderRadius:9, background:`${cfg.cor}18`,
+          border:`1px solid ${cfg.bor}`, display:'flex', alignItems:'center',
+          justifyContent:'center', flexShrink:0, marginTop:1 }}>
+          <Ic size={15} style={{ color:cfg.cor }}/>
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:5, flexWrap:'wrap' }}>
+            <span style={{ fontSize:9, padding:'1px 7px', borderRadius:99,
+              background:`${cfg.cor}20`, color:cfg.cor, fontWeight:700, letterSpacing:'.04em' }}>
+              {cfg.lbl}
+            </span>
+            {ins.clientes>0 && (
+              <span style={{ fontSize:10, color:T.ink3, display:'flex', alignItems:'center', gap:3 }}>
+                <Users size={9}/>{ins.clientes} clientes
+              </span>
+            )}
+            {ins.total>0 && !ins.clientes && (
+              <span style={{ fontSize:10, color:T.ink4 }}>{ins.total} disparos</span>
+            )}
+          </div>
+          <div style={{ fontSize:12.5, fontWeight:600, color:T.ink1, marginBottom:5, lineHeight:1.4 }}>
+            {ins.titulo}
+          </div>
+          {detail && (
+            <div style={{ fontSize:11, color:T.ink2, lineHeight:1.6, marginBottom:8,
+              animation:'fadeIn .2s ease' }}>
+              {ins.desc}
+            </div>
+          )}
+          <div style={{ display:'flex', alignItems:'center', gap:7, flexWrap:'wrap', marginTop:7 }}>
+            {ins.gatilho && onGoto && (
+              <button onClick={()=>onGoto(ins.gatilho)}
+                style={{ display:'inline-flex', alignItems:'center', gap:5,
+                  padding:'5px 11px', borderRadius:7, border:'none', cursor:'pointer',
+                  fontSize:11, fontWeight:600,
+                  background:'linear-gradient(135deg,#5b21b6,#9333ea)', color:'#fff' }}>
+                <Zap size={10}/>Abrir gatilho
+              </button>
+            )}
+            <button onClick={()=>setDetail(v=>!v)}
+              style={{ display:'inline-flex', alignItems:'center', gap:4,
+                padding:'5px 10px', borderRadius:7, cursor:'pointer',
+                fontSize:10.5, background:'transparent', border:`1px solid ${cfg.bor}`,
+                color:cfg.cor, fontWeight:500 }}>
+              {detail ? <ChevronUp size={10}/> : <ChevronDown size={10}/>}
+              {detail ? 'Menos' : 'Detalhes'}
+            </button>
+            <button onClick={onDismiss}
+              style={{ marginLeft:'auto', display:'inline-flex', alignItems:'center', gap:4,
+                padding:'5px 10px', borderRadius:7, cursor:'pointer',
+                fontSize:10.5, background:'transparent', border:`1px solid ${T.sep}`,
+                color:T.ink3, fontWeight:500 }}>
+              <CheckCircle size={10}/>Entendi
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ─── PAINEL MOLISE — copiloto de automações ────────────────────────────────
 function MolisePanel({ sugestoes, sugestoesFechadas, onDismiss, onGoto, onClose }) {
@@ -1652,6 +979,168 @@ function MolisePanel({ sugestoes, sugestoesFechadas, onDismiss, onGoto, onClose 
 }
 
 // ─── SIDEBAR DE NAVEGAÇÃO ─────────────────────────────────────────────────────
+// ─── ⌘K COMMAND PALETTE ───────────────────────────────────────────────────────
+function CmdGatilhos({ open, onClose, gatilhos, configs, onSelect, onToggle, labelDe }) {
+  const [q, setQ] = useState('')
+  const inputRef  = useRef(null)
+
+  useEffect(() => {
+    if (open) { setQ(''); setTimeout(()=>inputRef.current?.focus(), 60) }
+  }, [open])
+
+  useEffect(() => {
+    const fn = e => { if (e.key==='Escape') onClose() }
+    document.addEventListener('keydown', fn)
+    return () => document.removeEventListener('keydown', fn)
+  }, [onClose])
+
+  const filtrados = useMemo(() => {
+    const busca = q.toLowerCase().trim()
+    return gatilhos.filter(g =>
+      !busca ||
+      g.label.toLowerCase().includes(busca) ||
+      g.id.toLowerCase().includes(busca) ||
+      (g.desc||'').toLowerCase().includes(busca)
+    )
+  }, [gatilhos, q])
+
+  if (!open) return null
+  return (
+    <>
+      {/* Overlay */}
+      <div onClick={onClose} style={{
+        position:'fixed',inset:0,zIndex:9000,
+        background:'rgba(0,0,0,.65)',backdropFilter:'blur(4px)',
+        animation:'gat-fadeUp .15s ease'
+      }}/>
+
+      {/* Painel ⌘K */}
+      <div style={{
+        position:'fixed',top:'18%',left:'50%',transform:'translateX(-50%)',
+        zIndex:9001,width:'min(540px,92vw)',
+        background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+        border:`1px solid ${T.sep2}`,borderRadius:18,overflow:'hidden',
+        boxShadow:'0 32px 80px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.06) inset',
+        animation:'gat-fadeUp .25s cubic-bezier(.2,.8,.2,1)'
+      }}>
+        {/* Campo de busca */}
+        <div style={{display:'flex',alignItems:'center',gap:10,
+          padding:'13px 16px',borderBottom:`1px solid ${T.sep}`,
+          background:`linear-gradient(90deg,${T.bg3},${T.bg2})`}}>
+          <Search size={15} style={{color:T.ink4,flexShrink:0}}/>
+          <input
+            ref={inputRef}
+            value={q}
+            onChange={e=>setQ(e.target.value)}
+            placeholder="Buscar gatilho..."
+            style={{flex:1,background:'transparent',border:'none',outline:'none',
+              fontSize:14,color:T.ink1,fontFamily:'inherit'}}/>
+          {q&&(
+            <button onClick={()=>setQ('')}
+              style={{background:'none',border:'none',cursor:'pointer',
+                color:T.ink4,display:'flex',padding:2}}>
+              <X size={13}/>
+            </button>
+          )}
+          <kbd style={{fontSize:9.5,padding:'2px 7px',borderRadius:6,
+            background:T.bg4,color:T.ink4,border:`1px solid ${T.sep2}`,
+            fontFamily:'inherit',flexShrink:0}}>Esc</kbd>
+        </div>
+
+        {/* Lista */}
+        <div style={{maxHeight:380,overflowY:'auto'}}>
+          {filtrados.length===0?(
+            <div style={{padding:'32px',textAlign:'center',color:T.ink4}}>
+              <Search size={20} style={{opacity:.2,display:'block',margin:'0 auto 8px'}}/>
+              <p style={{fontSize:12,margin:0}}>Nenhum gatilho encontrado para "{q}"</p>
+            </div>
+          ):filtrados.map(g=>{
+            const cfg    = configs[g.id]
+            const ativo  = cfg?.ativo ?? false
+            const GIc    = g.icon || Zap
+            const nomeCustom = labelDe?.(g.id)
+            return (
+              <div key={g.id}
+                style={{display:'flex',alignItems:'center',gap:11,
+                  padding:'10px 16px',cursor:'pointer',
+                  borderBottom:`1px solid ${T.sep}`,transition:'background .1s'}}
+                onMouseEnter={e=>e.currentTarget.style.background=T.bg3}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+                onClick={()=>{ onSelect(g.id); onClose() }}>
+
+                {/* Ícone */}
+                <div style={{width:34,height:34,borderRadius:10,flexShrink:0,
+                  background:`${g.cor}18`,border:`1px solid ${g.cor}30`,
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  boxShadow:`0 2px 8px ${g.cor}15`}}>
+                  <GIc size={15} style={{color:g.cor}}/>
+                </div>
+
+                {/* Texto */}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
+                    <span style={{fontSize:13,fontWeight:600,color:T.ink1}}>
+                      {nomeCustom||g.label}
+                    </span>
+                    {nomeCustom&&nomeCustom!==g.label&&(
+                      <span style={{fontSize:9.5,color:T.ink4}}>({g.label})</span>
+                    )}
+                  </div>
+                  <span style={{fontSize:10.5,color:T.ink4,
+                    overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
+                    display:'block',maxWidth:320}}>
+                    {g.desc||g.id}
+                  </span>
+                </div>
+
+                {/* Status toggle */}
+                <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+                  <span style={{fontSize:9.5,color:ativo?T.green:T.ink4,fontWeight:600}}>
+                    {ativo?'Ativo':'Inativo'}
+                  </span>
+                  <button
+                    onClick={e=>{e.stopPropagation();onToggle?.(g.id)}}
+                    style={{position:'relative',width:36,height:20,borderRadius:99,
+                      border:'none',cursor:'pointer',flexShrink:0,
+                      background:ativo?`linear-gradient(90deg,${T.green},${T.green}cc)`:'rgba(255,255,255,.1)',
+                      boxShadow:ativo?`0 0 10px ${T.green}40`:undefined,
+                      transition:'all .2s'}}>
+                    <span style={{position:'absolute',width:14,height:14,
+                      background:'#fff',borderRadius:'50%',
+                      top:3,left:ativo?19:3,
+                      transition:'left .18s ease',
+                      boxShadow:'0 1px 4px rgba(0,0,0,.3)'}}/>
+                  </button>
+                  <ChevronRight size={13} style={{color:T.ink4}}/>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Footer */}
+        <div style={{padding:'8px 16px',borderTop:`1px solid ${T.sep}`,
+          display:'flex',alignItems:'center',gap:12,
+          background:`linear-gradient(90deg,${T.bg2},${T.bg3})`}}>
+          <div style={{display:'flex',alignItems:'center',gap:5,fontSize:10,color:T.ink4}}>
+            <kbd style={{fontSize:9,padding:'1px 6px',borderRadius:5,
+              background:T.bg4,border:`1px solid ${T.sep2}`}}>↵</kbd>
+            abrir
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:5,fontSize:10,color:T.ink4}}>
+            <kbd style={{fontSize:9,padding:'1px 6px',borderRadius:5,
+              background:T.bg4,border:`1px solid ${T.sep2}`}}>↑↓</kbd>
+            navegar
+          </div>
+          <span style={{marginLeft:'auto',fontSize:10,color:T.ink4}}>
+            {filtrados.length} gatilho{filtrados.length!==1?'s':''}
+          </span>
+        </div>
+      </div>
+    </>
+  )
+}
+
 function GatilhoSidebar({ gatilhos, configs, indicadores, selId, onSelect, labelDe,
                           insightsGat, insDismiss, toggleAtivo, custos }) {
   const [busca,   setBusca]   = useState('')
@@ -1819,130 +1308,515 @@ function GatilhoSidebar({ gatilhos, configs, indicadores, selId, onSelect, label
 }
 
 // ─── DASHBOARD — tela inicial quando nenhum gatilho selecionado ───────────────
+// ─── GATILHO DASHBOARD — NIVELMAX ────────────────────────────────────────────
 function GatilhoDashboard({ pulso, sparks, jornada, insightsGat, insDismiss, setInsDismiss,
-                            onGoto, atividadeRecente, custos, custosPeriodo, onSetPeriodo }) {
-  return (
-    <div style={{flex:1,overflowY:'auto',background:T.bg0}}>
+                            onGoto, atividadeRecente, custos, custosPeriodo, onSetPeriodo,
+                            monitor, monitorLoad }) {
 
-      {/* KPIs */}
-      {pulso && (
-        <div style={{padding:'14px 20px 0',display:'grid',
-          gridTemplateColumns:'repeat(6,1fr)',gap:8}}>
-          {[
-            {l:'Aprovados',    v:pulso.meta.aprovados,   cor:T.green,  spk:'aprovados'},
-            {l:'Em análise',   v:pulso.meta.analise,     cor:T.amber,  spk:'analise'},
-            {l:'Não enviados', v:pulso.meta.naoEnviados, cor:T.ink2,   spk:'naoEnviados'},
-            {l:'Rejeitados',   v:pulso.meta.rejeitados,  cor:T.red,    spk:'rejeitados'},
-            {l:'Disparos hoje',v:pulso.disparosHoje,     cor:T.blue,   spk:'disparos'},
-            {l:'Em rota',      v:pulso.clientesEmRota,   cor:T.purple, spk:'emRota'},
-          ].map((c,i)=>(
-            <div key={i} style={{background:T.bg2,borderRadius:10,overflow:'hidden',
-              border:`1px solid ${T.sep}`,boxShadow:'0 2px 8px rgba(0,0,0,.2)'}}>
-              <div style={{height:2.5,background:`linear-gradient(90deg,${c.cor},${c.cor}40)`}}/>
-              <div style={{padding:'10px 13px'}}>
-                <div style={{fontSize:8.5,color:T.ink4,textTransform:'uppercase',
-                  letterSpacing:'.08em',marginBottom:5,fontWeight:600}}>{c.l}</div>
-                <div style={{display:'flex',alignItems:'flex-end',
-                  justifyContent:'space-between',gap:6}}>
-                  <span style={{fontSize:20,fontWeight:800,color:c.cor,lineHeight:1,
-                    letterSpacing:'-.04em'}}>{c.v}</span>
-                  {sparks?.[c.spk]&&<SparkCard serie={sparks[c.spk]} cor={c.cor}/>}
+  // Contador animado para KPI cards
+  function KpiCard({ label, value, cor, spk, icon:Ic }) {
+    const [disp, setDisp] = useState(0)
+    const num = typeof value==='number' ? value : (parseInt(String(value||''))||0)
+    useEffect(()=>{
+      if (!num) { setDisp(0); return }
+      const t0=Date.now(), dur=700
+      const tick=()=>{
+        const p=Math.min((Date.now()-t0)/dur,1)
+        setDisp(Math.round((1-Math.pow(1-p,3))*num))
+        if(p<1) requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    },[num])
+    return (
+      <div style={{
+        background:`linear-gradient(135deg,${T.bg2} 0%,${T.bg3} 100%)`,
+        border:`1px solid ${T.sep2}`,borderRadius:14,overflow:'hidden',
+        position:'relative',
+        boxShadow:`0 8px 28px rgba(0,0,0,.28), 0 0 0 1px ${cor}10 inset`,
+        transition:'transform .18s,box-shadow .18s',cursor:'default',
+      }}
+      onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=`0 14px 40px rgba(0,0,0,.4), 0 0 32px ${cor}18`}}
+      onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow=`0 8px 28px rgba(0,0,0,.28), 0 0 0 1px ${cor}10 inset`}}>
+        {/* Blob decorativo */}
+        <div style={{position:'absolute',top:-20,right:-20,width:80,height:80,borderRadius:'50%',
+          background:`radial-gradient(circle,${cor}28 0%,transparent 70%)`,pointerEvents:'none',filter:'blur(10px)'}}/>
+        {/* Linha colorida topo */}
+        <div style={{height:2.5,background:`linear-gradient(90deg,${cor},${cor}40)`,
+          boxShadow:`0 0 8px ${cor}60`}}/>
+        <div style={{padding:'11px 12px'}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+            <div style={{width:28,height:28,borderRadius:8,
+              background:`linear-gradient(135deg,${cor}25,${cor}12)`,
+              border:`1px solid ${cor}35`,
+              display:'flex',alignItems:'center',justifyContent:'center',
+              boxShadow:`0 3px 10px ${cor}20`}}>
+              <Ic size={13} style={{color:cor}}/>
+            </div>
+            {sparks?.[spk]&&<SparkCard serie={sparks[spk]} cor={cor} w={60} h={24}/>}
+          </div>
+          <div style={{fontSize:26,fontWeight:800,color:T.ink1,letterSpacing:'-.04em',
+            lineHeight:1,textShadow:`0 0 24px ${cor}30`}}>{disp}</div>
+          <div style={{fontSize:9.5,color:T.ink4,marginTop:4,fontWeight:500,
+            textTransform:'uppercase',letterSpacing:'.07em'}}>{label}</div>
+        </div>
+      </div>
+    )
+  }
+
+  // Dados para o gráfico de evolução (últimos 7 dias a partir dos sparks)
+  const evolucao = useMemo(()=>{
+    if(!sparks?.disparos||!sparks.disparos.length) return []
+    const dias = sparks.disparos.length
+    return sparks.disparos.map((v,i)=>({
+      d: `D-${dias-1-i}`,
+      disparos: v,
+      enviados: sparks.enviados?.[i]||0,
+      ignorados: Math.max(0,(sparks.ignorados?.[i]||0)),
+    }))
+  },[sparks])
+
+  // Dados de performance por gatilho (de pulso.porGatilho)
+  const gatPerf = useMemo(()=>{
+    if(!pulso?.porGatilho) return []
+    return Object.entries(pulso.porGatilho)
+      .map(([id,g])=>{
+        const gat = GATILHOS.find(x=>x.id===id)
+        const tent = (g.enviados||0)+(g.erros||0)
+        const taxa = tent>0 ? Math.round((g.enviados||0)/tent*100) : null
+        return { id, label:gat?.label||id, cor:gat?.cor||T.ink3,
+                 total:g.total||0, enviados:g.enviados||0, erros:g.erros||0,
+                 ignorados:g.ignorados||0, taxa }
+      })
+      .filter(g=>g.total>0)
+      .sort((a,b)=>b.total-a.total)
+      .slice(0,8)
+  },[pulso])
+
+  return (
+    <div style={{flex:1,overflowY:'auto',background:T.bg0,padding:'18px 20px',
+      display:'flex',flexDirection:'column',gap:16}}>
+
+      {/* ── CSS ANIMATIONS ── */}
+      <style>{`
+        @keyframes gat-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+        @keyframes gat-glow{0%,100%{box-shadow:0 0 6px rgba(0,230,118,.2)}50%{box-shadow:0 0 18px rgba(0,230,118,.6)}}
+        @keyframes gat-shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+        @keyframes gat-fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+      `}</style>
+
+      {/* ── 0. SISTEMA DE SAÚDE — barra de status global ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,
+        animation:'gat-fadeUp .35s ease'}}>
+        {/* Meta API Status */}
+        <div style={{
+          background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+          border:`1px solid ${pulso?.meta?.aprovados>0?T.greenBor:T.sep2}`,
+          borderRadius:12, padding:'11px 13px',
+          display:'flex', alignItems:'center', gap:10,
+          boxShadow:'0 6px 20px rgba(0,0,0,.25)',
+        }}>
+          <div style={{width:10,height:10,borderRadius:'50%',flexShrink:0,
+            background:pulso?.meta?.aprovados>0?T.green:T.amber,
+            boxShadow:pulso?.meta?.aprovados>0?`0 0 10px ${T.green}`:undefined,
+            animation:'gat-pulse 2s ease infinite'}}/>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:10.5,fontWeight:700,color:T.ink1}}>Meta API</div>
+            <div style={{fontSize:9.5,color:T.ink4,marginTop:1}}>
+              {pulso?.meta?.aprovados>0?'Conectado e operacional':'Verificando conexão...'}
+            </div>
+          </div>
+          <div style={{fontSize:11,fontWeight:700,
+            color:pulso?.meta?.aprovados>0?T.green:T.amber,flexShrink:0}}>
+            {pulso?.meta?.aprovados||0}/{(pulso?.meta?.aprovados||0)+(pulso?.meta?.analise||0)+(pulso?.meta?.rejeitados||0)} aprv.
+          </div>
+        </div>
+        {/* Gatilhos críticos */}
+        {(() => {
+          const criticos = (insightsGat||[]).filter(i=>!insDismiss.has(i.id)&&i.tipo==='critico').length
+          return (
+            <div style={{
+              background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+              border:`1px solid ${criticos>0?T.redBor:T.sep2}`,
+              borderRadius:12, padding:'11px 13px',
+              display:'flex', alignItems:'center', gap:10,
+              boxShadow:'0 6px 20px rgba(0,0,0,.25)',
+            }}>
+              <div style={{width:30,height:30,borderRadius:9,flexShrink:0,
+                background:criticos>0?T.redDim:T.greenDim,
+                border:`1px solid ${criticos>0?T.redBor:T.greenBor}`,
+                display:'flex',alignItems:'center',justifyContent:'center'}}>
+                {criticos>0?<AlertTriangle size={14} style={{color:T.red}}/>:<CheckCircle size={14} style={{color:T.green}}/>}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:10.5,fontWeight:700,color:T.ink1}}>Gatilhos críticos</div>
+                <div style={{fontSize:9.5,color:T.ink4,marginTop:1}}>
+                  {criticos>0?`${criticos} precisam de atenção`:'Todos operacionais'}
+                </div>
+              </div>
+              <div style={{fontSize:18,fontWeight:800,letterSpacing:'-.04em',
+                color:criticos>0?T.red:T.green,flexShrink:0}}>{criticos}</div>
+            </div>
+          )
+        })()}
+        {/* Taxa de entrega hoje */}
+        {(() => {
+          const h = pulso?.disparosHoje||0
+          const e = pulso?.enviadosHoje||0
+          const tx = h>0?Math.round(e/h*100):null
+          const cor = tx===null?T.ink4:tx>=80?T.green:tx>=50?T.amber:T.red
+          return (
+            <div style={{
+              background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+              border:`1px solid ${T.sep2}`,
+              borderRadius:12, padding:'11px 13px',
+              display:'flex', alignItems:'center', gap:10,
+              boxShadow:'0 6px 20px rgba(0,0,0,.25)',
+            }}>
+              <div style={{position:'relative',width:36,height:36,flexShrink:0}}>
+                <svg width="36" height="36" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,.07)" strokeWidth="4"/>
+                  <circle cx="18" cy="18" r="14" fill="none"
+                    stroke={cor} strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeDasharray="88"
+                    strokeDashoffset={tx===null?88:Math.round(88*(1-(tx/100)))}
+                    transform="rotate(-90 18 18)"
+                    style={{transition:'stroke-dashoffset 1s ease',
+                      filter:`drop-shadow(0 0 4px ${cor})`}}/>
+                </svg>
+                <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',
+                  justifyContent:'center',fontSize:9,fontWeight:800,color:cor}}>
+                  {tx===null?'—':`${tx}%`}
+                </div>
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:10.5,fontWeight:700,color:T.ink1}}>Taxa hoje</div>
+                <div style={{fontSize:9.5,color:T.ink4,marginTop:1}}>
+                  {h>0?`${e} de ${h} disparos enviados`:'Nenhum disparo hoje'}
                 </div>
               </div>
             </div>
+          )
+        })()}
+      </div>
+
+      {/* ── 1. KPI CARDS ── */}
+      {pulso && (
+        <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:10,
+          animation:'gat-fadeUp .4s ease'}}>
+          {[
+            {l:'Aprovados',    v:pulso.meta?.aprovados||0,   cor:T.green,  spk:'aprovados',   icon:CheckCircle},
+            {l:'Em análise',   v:pulso.meta?.analise||0,     cor:T.amber,  spk:'analise',     icon:Clock},
+            {l:'Não enviados', v:pulso.meta?.naoEnviados||0, cor:T.ink2,   spk:'naoEnviados', icon:Minus},
+            {l:'Rejeitados',   v:pulso.meta?.rejeitados||0,  cor:T.red,    spk:'rejeitados',  icon:AlertCircle},
+            {l:'Disparos hoje',v:pulso.disparosHoje||0,      cor:T.blue,   spk:'disparos',    icon:Zap},
+            {l:'Em rota',      v:pulso.clientesEmRota||0,    cor:T.purple, spk:'emRota',      icon:Truck},
+          ].map((c,i)=>(
+            <KpiCard key={i} label={c.l} value={c.v} cor={c.cor} spk={c.spk} icon={c.icon}/>
           ))}
         </div>
       )}
 
-      {/* Insights */}
-      {insightsGat.filter(i=>!insDismiss.has(i.id)).length>0&&(
-        <div style={{margin:'16px 20px 0',padding:'14px 16px',borderRadius:13,
-          background:T.bg2,border:`1px solid ${T.sep2}`,boxShadow:'0 4px 20px rgba(0,0,0,.25)'}}>
-          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
-            <Activity size={14} style={{color:T.amber}}/>
-            <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>Inteligência dos Gatilhos</span>
-            <span style={{fontSize:10,padding:'1px 7px',borderRadius:99,
-              background:T.redDim,color:T.red,border:`1px solid ${T.redBor}`,fontWeight:700}}>
-              {insightsGat.filter(i=>!insDismiss.has(i.id)&&i.tipo==='critico').length>0
-                ?`${insightsGat.filter(i=>!insDismiss.has(i.id)&&i.tipo==='critico').length} crítico${insightsGat.filter(i=>!insDismiss.has(i.id)&&i.tipo==='critico').length>1?'s':''}`
-                :`${insightsGat.filter(i=>!insDismiss.has(i.id)).length} alertas`}
-            </span>
-            <button onClick={()=>setInsDismiss(new Set(insightsGat.map(i=>i.id)))}
-              style={{marginLeft:'auto',fontSize:10,color:T.ink4,background:'transparent',
-                cursor:'pointer',padding:'3px 8px',borderRadius:6,border:`1px solid ${T.sep}`}}>
-              Dispensar todos
-            </button>
-          </div>
-          <div style={{display:'flex',flexDirection:'column',gap:9}}>
-            {insightsGat.filter(i=>!insDismiss.has(i.id)).map(ins=>(
-              <InsightCardGat key={ins.id} ins={ins}
-                onDismiss={()=>setInsDismiss(d=>new Set([...d,ins.id]))}
-                onGoto={onGoto}/>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* ── 2. GRÁFICO DE EVOLUÇÃO + INSIGHTS ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 340px',gap:14,
+        animation:'gat-fadeUp .4s ease .06s both'}}>
 
-      {/* Jornada */}
-      {jornada && (
-        <div style={{margin:'16px 20px 0',padding:'14px 18px',borderRadius:13,
-          background:T.bg2,border:`1px solid ${T.sep2}`}}>
-          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
-            <Navigation size={13} style={{color:T.blue}}/>
-            <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>Jornada do Cliente — agora</span>
-            <span style={{fontSize:11,color:T.ink3,marginLeft:'auto'}}>
-              {Object.values(jornada.etapas||{}).reduce((a,b)=>a+b,0)} em andamento
-            </span>
-          </div>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:4}}>
-            {[
-              {id:'compra',  lbl:'Compra',    icon:ShoppingBag, cor:T.purple},
-              {id:'preparo', lbl:'Preparo',   icon:Package,     cor:T.blue},
-              {id:'envio',   lbl:'Envio',     icon:Truck,       cor:T.green},
-              {id:'pos',     lbl:'Pós-venda', icon:RefreshCw,   cor:T.amber},
-              {id:'ia',      lbl:'IA',        icon:Brain,       cor:T.purple},
-            ].map((e,i,arr)=>{
-              const n = jornada.etapas?.[e.id]||0
-              const ativo = n>0
-              const EIcon = e.icon
-              return (
-                <div key={e.id} style={{display:'flex',alignItems:'center',flex:i<arr.length-1?1:'0 0 auto'}}>
-                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,flexShrink:0}}>
-                    <div style={{width:36,height:36,borderRadius:'50%',flexShrink:0,
-                      background:ativo?`linear-gradient(135deg,${e.cor}40,${e.cor}20)`:`${T.bg4}`,
-                      border:`2px solid ${ativo?e.cor:T.sep}`,
-                      display:'flex',alignItems:'center',justifyContent:'center',
-                      boxShadow:ativo?`0 4px 12px ${e.cor}30`:'none'}}>
-                      <EIcon size={16} style={{color:ativo?e.cor:T.ink4}}/>
-                    </div>
-                    <span style={{fontSize:18,fontWeight:700,color:ativo?e.cor:T.ink4,lineHeight:1}}>
-                      {n||'—'}
-                    </span>
-                    <span style={{fontSize:9,color:ativo?e.cor:T.ink4,textAlign:'center'}}>{e.lbl}</span>
-                  </div>
-                  {i<arr.length-1&&<div style={{flex:1,height:2,background:n>0?`linear-gradient(90deg,${e.cor}40,transparent)`:T.sep,margin:'0 4px',marginBottom:14}}/>}
+        {/* Area chart com glow */}
+        <div style={{
+          background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+          border:`1px solid ${T.sep2}`,borderRadius:16,padding:'16px 18px',
+          boxShadow:'0 10px 40px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.04) inset'
+        }}>
+          <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:14}}>
+            <div style={{width:30,height:30,borderRadius:9,
+              background:T.greenDim,border:`1px solid ${T.greenBor}`,
+              display:'flex',alignItems:'center',justifyContent:'center',
+              boxShadow:`0 3px 12px ${T.green}20`}}>
+              <TrendingUp size={14} style={{color:T.green}}/>
+            </div>
+            <div>
+              <div style={{fontSize:13,fontWeight:700,color:T.ink1,letterSpacing:'-.02em'}}>
+                Evolução de Disparos
+              </div>
+              <div style={{fontSize:10,color:T.ink4}}>Últimos 7 dias</div>
+            </div>
+            <div style={{marginLeft:'auto',display:'flex',gap:10,alignItems:'center'}}>
+              {[{cor:T.green,lbl:'Enviados'},{cor:T.amber,lbl:'Ignorados'}].map(s=>(
+                <div key={s.lbl} style={{display:'flex',alignItems:'center',gap:4}}>
+                  <div style={{width:16,height:2,borderRadius:99,background:s.cor,
+                    boxShadow:`0 0 5px ${s.cor}`}}/>
+                  <span style={{fontSize:9.5,color:T.ink3,fontWeight:600}}>{s.lbl}</span>
                 </div>
-              )
-            })}
+              ))}
+            </div>
           </div>
+          {evolucao.length<2?(
+            <div style={{height:140,display:'flex',alignItems:'center',justifyContent:'center',
+              color:T.ink4,fontSize:11,flexDirection:'column',gap:6}}>
+              <Activity size={20} style={{opacity:.2}}/>
+              Aguardando dados de evolução...
+            </div>
+          ):(
+            <ResponsiveContainer width="100%" height={140}>
+              <AreaChart data={evolucao} margin={{top:6,right:4,left:-22,bottom:0}}>
+                <defs>
+                  <linearGradient id="gg-env" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%"   stopColor={T.green} stopOpacity={0.35}/>
+                    <stop offset="100%" stopColor={T.green} stopOpacity={0.02}/>
+                  </linearGradient>
+                  <linearGradient id="gg-ign" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%"   stopColor={T.amber} stopOpacity={0.25}/>
+                    <stop offset="100%" stopColor={T.amber} stopOpacity={0.01}/>
+                  </linearGradient>
+                  <filter id="gg-glow-env">
+                    <feGaussianBlur stdDeviation="2" result="b"/>
+                    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+                  </filter>
+                </defs>
+                <CartesianGrid strokeDasharray="2 6" stroke="rgba(255,255,255,.04)" vertical={false}/>
+                <XAxis dataKey="d" tick={{fontSize:9,fill:T.ink4}} axisLine={false} tickLine={false}/>
+                <YAxis tick={{fontSize:9,fill:T.ink4}} axisLine={false} tickLine={false} allowDecimals={false}/>
+                <Tooltip contentStyle={{background:T.bg3,border:`1px solid ${T.sep2}`,
+                  borderRadius:10,fontSize:11,boxShadow:'0 8px 24px rgba(0,0,0,.5)'}}
+                  labelStyle={{color:T.ink2,fontWeight:700}}
+                  itemStyle={{color:T.ink2}}
+                  formatter={(v,n)=>[v,n==='enviados'?'Enviados':'Ignorados']}/>
+                <Area dataKey="ignorados" type="monotone"
+                  stroke={T.amber} strokeWidth={1.5} strokeOpacity={0.7}
+                  fill="url(#gg-ign)" fillOpacity={1} dot={false}/>
+                <Area dataKey="enviados" type="monotone"
+                  stroke={T.green} strokeWidth={2.5}
+                  fill="url(#gg-env)" fillOpacity={1}
+                  dot={false} activeDot={{r:4,fill:T.green,stroke:T.bg0,strokeWidth:2}}
+                  filter="url(#gg-glow-env)"/>
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
-      )}
 
-      {/* Grid: Feed Atividade + Custos */}
-      <div style={{margin:'16px 20px 20px',display:'grid',
-        gridTemplateColumns:'1fr 320px',gap:12}}>
-
-        {/* Feed de atividade ao vivo */}
-        <div style={{background:T.bg2,borderRadius:13,border:`1px solid ${T.sep2}`,
-          overflow:'hidden'}}>
-          <div style={{padding:'12px 16px',borderBottom:`1px solid ${T.sep}`,
+        {/* Insights panel */}
+        <div style={{
+          background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+          border:`1px solid ${T.sep2}`,borderRadius:16,overflow:'hidden',
+          boxShadow:'0 10px 40px rgba(0,0,0,.3)'
+        }}>
+          <div style={{padding:'12px 14px',borderBottom:`1px solid ${T.sep}`,
             display:'flex',alignItems:'center',gap:8}}>
-            <div style={{width:7,height:7,borderRadius:'50%',background:T.green,
-              animation:'pulse 2s ease infinite'}}/>
+            <div style={{width:8,height:8,borderRadius:'50%',background:T.amber,
+              animation:'gat-pulse 2s ease infinite'}}/>
+            <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>Inteligência dos Gatilhos</span>
+            {insightsGat.filter(i=>!insDismiss.has(i.id)).length>0&&(
+              <span style={{fontSize:9,padding:'1px 7px',borderRadius:99,marginLeft:'auto',
+                background:T.redDim,color:T.red,border:`1px solid ${T.redBor}`,fontWeight:700}}>
+                {insightsGat.filter(i=>!insDismiss.has(i.id)&&i.tipo==='critico').length>0
+                  ?`${insightsGat.filter(i=>!insDismiss.has(i.id)&&i.tipo==='critico').length} crítico${insightsGat.filter(i=>!insDismiss.has(i.id)&&i.tipo==='critico').length>1?'s':''}`
+                  :`${insightsGat.filter(i=>!insDismiss.has(i.id)).length} alertas`}
+              </span>
+            )}
+          </div>
+          <div style={{overflowY:'auto',maxHeight:174}}>
+            {insightsGat.filter(i=>!insDismiss.has(i.id)).length===0?(
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',
+                justifyContent:'center',padding:'28px 16px',gap:8}}>
+                <div style={{width:36,height:36,borderRadius:10,background:T.greenDim,
+                  border:`1px solid ${T.greenBor}`,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  <CheckCircle size={16} style={{color:T.green}}/>
+                </div>
+                <span style={{fontSize:11,color:T.ink4,textAlign:'center'}}>
+                  Tudo em ordem!
+                </span>
+              </div>
+            ):(
+              <div style={{padding:'8px 10px',display:'flex',flexDirection:'column',gap:7}}>
+                {insightsGat.filter(i=>!insDismiss.has(i.id)).map(ins=>(
+                  <InsightCardGat key={ins.id} ins={ins}
+                    onDismiss={()=>setInsDismiss(d=>new Set([...d,ins.id]))}
+                    onGoto={onGoto}/>
+                ))}
+              </div>
+            )}
+          </div>
+          {insightsGat.filter(i=>!insDismiss.has(i.id)).length>0&&(
+            <div style={{padding:'8px 14px',borderTop:`1px solid ${T.sep}`}}>
+              <button onClick={()=>setInsDismiss(new Set(insightsGat.map(i=>i.id)))}
+                style={{fontSize:10,color:T.ink4,background:'transparent',cursor:'pointer',
+                  padding:'3px 8px',borderRadius:6,border:`1px solid ${T.sep}`,width:'100%'}}>
+                Dispensar todos
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── 3. MATRIZ DE PERFORMANCE + JORNADA ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,
+        animation:'gat-fadeUp .4s ease .12s both'}}>
+
+        {/* Matriz de gatilhos */}
+        <div style={{
+          background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+          border:`1px solid ${T.sep2}`,borderRadius:16,padding:'14px 16px',
+          boxShadow:'0 10px 40px rgba(0,0,0,.3)'
+        }}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+            <div style={{width:28,height:28,borderRadius:8,
+              background:T.purpleDim,border:`1px solid ${T.purpleBor}`,
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <Zap size={13} style={{color:T.purple}}/>
+            </div>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:T.ink1}}>Performance por Gatilho</div>
+              <div style={{fontSize:9.5,color:T.ink4}}>Taxa de entrega · volume</div>
+            </div>
+          </div>
+          {gatPerf.length===0?(
+            <div style={{textAlign:'center',padding:'20px 0',color:T.ink4,fontSize:11}}>
+              Nenhum disparo no período
+            </div>
+          ):(
+            <div style={{display:'flex',flexDirection:'column',gap:3}}>
+              {gatPerf.map(g=>{
+                const maxT = Math.max(...gatPerf.map(x=>x.total),1)
+                const pct  = Math.round(g.total/maxT*100)
+                const isCritico = g.taxa===null&&g.total>=3
+                const sc = g.taxa===null?T.ink4:g.taxa>=80?T.green:g.taxa>=50?T.amber:T.red
+                const GIco = GATILHOS.find(x=>x.id===g.id)?.icon||Zap
+                return (
+                  <div key={g.id} onClick={()=>onGoto(g.id)}
+                    style={{display:'flex',alignItems:'center',gap:8,padding:'7px 8px',
+                      borderRadius:9,cursor:'pointer',transition:'background .12s',
+                      background:isCritico?'rgba(255,71,87,.04)':'transparent',
+                      border:`1px solid ${isCritico?'rgba(255,71,87,.12)':'transparent'}`}}
+                    onMouseEnter={e=>e.currentTarget.style.background=isCritico?'rgba(255,71,87,.08)':T.bg4}
+                    onMouseLeave={e=>e.currentTarget.style.background=isCritico?'rgba(255,71,87,.04)':'transparent'}>
+                    <div style={{width:24,height:24,borderRadius:7,flexShrink:0,
+                      background:`${g.cor}18`,border:`1px solid ${g.cor}28`,
+                      display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      <GIco size={11} style={{color:g.cor}}/>
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+                        <span style={{fontSize:11,fontWeight:600,color:T.ink1,
+                          overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:130}}>
+                          {g.label}
+                        </span>
+                        <div style={{display:'flex',alignItems:'center',gap:5,flexShrink:0}}>
+                          <span style={{fontSize:11,fontWeight:700,color:T.ink2}}>{g.total}</span>
+                          <span style={{fontSize:9,padding:'1px 6px',borderRadius:99,fontWeight:700,
+                            background:`${sc}18`,color:sc,border:`0.5px solid ${sc}35`,letterSpacing:'.03em'}}>
+                            {g.taxa===null?'—':`${g.taxa}%`}
+                          </span>
+                          {isCritico&&(
+                            <span style={{fontSize:8,padding:'1px 6px',borderRadius:99,
+                              background:T.redDim,color:T.red,border:`1px solid ${T.redBor}`,fontWeight:700}}>
+                              ATIVAR
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{height:4,borderRadius:99,background:T.bg4,overflow:'hidden',position:'relative'}}>
+                        <div style={{position:'absolute',left:0,top:0,height:'100%',
+                          width:`${pct}%`,borderRadius:99,
+                          background:`linear-gradient(90deg,${g.cor},${g.cor}70)`,
+                          boxShadow:`0 0 6px ${g.cor}40`,
+                          transition:'width .8s cubic-bezier(.4,0,.2,1)'}}/>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Jornada do cliente */}
+        {jornada&&(
+          <div style={{
+            background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+            border:`1px solid ${T.sep2}`,borderRadius:16,padding:'14px 16px',
+            boxShadow:'0 10px 40px rgba(0,0,0,.3)'
+          }}>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16}}>
+              <div style={{width:28,height:28,borderRadius:8,
+                background:T.blueDim,border:`1px solid ${T.blueBor}`,
+                display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <Navigation size={13} style={{color:T.blue}}/>
+              </div>
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:T.ink1}}>Jornada — agora</div>
+                <div style={{fontSize:9.5,color:T.ink4}}>
+                  {Object.values(jornada.etapas||{}).reduce((a,b)=>a+b,0)} clientes em andamento
+                </div>
+              </div>
+            </div>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              {[
+                {id:'compra',  lbl:'Compra',    icon:ShoppingBag, cor:T.purple},
+                {id:'preparo', lbl:'Preparo',   icon:Package,     cor:T.blue},
+                {id:'envio',   lbl:'Envio',     icon:Truck,       cor:T.green},
+                {id:'pos',     lbl:'Pós-venda', icon:RefreshCw,   cor:T.amber},
+                {id:'ia',      lbl:'IA',        icon:Brain,       cor:T.purple},
+              ].map((e,i,arr)=>{
+                const n    = jornada.etapas?.[e.id]||0
+                const ativ = n>0
+                const EIc  = e.icon
+                const maxE = Math.max(...arr.map(a=>jornada.etapas?.[a.id]||0),1)
+                const pctH = Math.round(n/maxE*100)
+                return (
+                  <div key={e.id} style={{display:'flex',alignItems:'center',flex:i<arr.length-1?1:'0 0 auto'}}>
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5,flexShrink:0}}>
+                      {/* Node com glow */}
+                      <div style={{width:44,height:44,borderRadius:'50%',flexShrink:0,
+                        background:ativ?`linear-gradient(135deg,${e.cor}40,${e.cor}18)`:T.bg4,
+                        border:`2px solid ${ativ?e.cor:T.sep}`,
+                        display:'flex',alignItems:'center',justifyContent:'center',
+                        boxShadow:ativ?`0 0 20px ${e.cor}35,0 4px 16px rgba(0,0,0,.3)`:'0 4px 12px rgba(0,0,0,.2)',
+                        animation:ativ?'gat-glow 3s ease-in-out infinite':undefined,
+                        transition:'all .3s'}}>
+                        <EIc size={18} style={{color:ativ?e.cor:T.ink4}}/>
+                      </div>
+                      <span style={{fontSize:20,fontWeight:800,color:ativ?e.cor:T.ink4,
+                        lineHeight:1,textShadow:ativ?`0 0 20px ${e.cor}50`:undefined}}>
+                        {n||'—'}
+                      </span>
+                      <span style={{fontSize:9,color:ativ?e.cor:T.ink4,textAlign:'center',
+                        fontWeight:ativ?700:400}}>{e.lbl}</span>
+                    </div>
+                    {i<arr.length-1&&(
+                      <div style={{flex:1,height:2.5,margin:'0 3px',marginBottom:32,borderRadius:99,
+                        background:n>0
+                          ?`linear-gradient(90deg,${e.cor}70,${arr[i+1].cor}40)`
+                          :T.sep,
+                        boxShadow:n>0?`0 0 6px ${e.cor}30`:undefined,
+                        transition:'background .5s'}}/>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── 4. FEED AO VIVO + CUSTOS ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 300px',gap:14,
+        animation:'gat-fadeUp .4s ease .18s both'}}>
+
+        {/* Feed ao vivo */}
+        <div style={{
+          background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+          border:`1px solid ${T.sep2}`,borderRadius:16,overflow:'hidden',
+          boxShadow:'0 10px 40px rgba(0,0,0,.3)'
+        }}>
+          <div style={{padding:'12px 16px',borderBottom:`1px solid ${T.sep}`,
+            display:'flex',alignItems:'center',gap:8,
+            background:`linear-gradient(90deg,${T.bg3},${T.bg2})`}}>
+            <div style={{width:8,height:8,borderRadius:'50%',background:T.green,flexShrink:0,
+              boxShadow:`0 0 8px ${T.green}`,animation:'gat-glow 2s ease infinite'}}/>
             <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>Atividade ao vivo</span>
             <span style={{fontSize:10,color:T.ink4,marginLeft:'auto'}}>últimos 15 disparos</span>
           </div>
-          <div style={{maxHeight:320,overflowY:'auto'}}>
+          <div style={{maxHeight:240,overflowY:'auto'}}>
             {atividadeRecente.length===0?(
               <div style={{padding:'32px',textAlign:'center',color:T.ink4}}>
                 <Activity size={20} style={{opacity:.2,display:'block',margin:'0 auto 8px'}}/>
@@ -1956,16 +1830,19 @@ function GatilhoDashboard({ pulso, sparks, jornada, insightsGat, insDismiss, set
                 return (
                   <div key={i} onClick={()=>onGoto(d.gatilho)}
                     style={{display:'flex',alignItems:'center',gap:10,padding:'9px 16px',
-                      borderBottom:`1px solid ${T.sep}`,cursor:'pointer',
-                      transition:'background .1s'}}
+                      borderBottom:`1px solid ${T.sep}`,cursor:'pointer',transition:'background .1s'}}
                     onMouseEnter={e=>e.currentTarget.style.background=T.bg3}
                     onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                    {/* Status dot */}
-                    <div style={{width:6,height:6,borderRadius:'50%',flexShrink:0,background:sCor,
-                      boxShadow:d.status==='enviado'?`0 0 4px ${T.green}60`:'none'}}/>
-                    {/* Cliente */}
+                    <div style={{width:4,alignSelf:'stretch',flexShrink:0,borderRadius:99,
+                      background:sCor,boxShadow:d.status==='enviado'?`0 0 6px ${T.green}50`:undefined}}/>
+                    <div style={{width:26,height:26,borderRadius:7,flexShrink:0,
+                      background:gat?`${gat.cor}18`:'rgba(255,255,255,.04)',
+                      border:`0.5px solid ${gat?gat.cor+'28':'rgba(255,255,255,.06)'}`,
+                      display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      {GIco&&<GIco size={11} style={{color:gat.cor}}/>}
+                    </div>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{display:'flex',alignItems:'center',gap:6}}>
+                      <div style={{display:'flex',alignItems:'center',gap:5}}>
                         <span style={{fontSize:11.5,fontWeight:600,color:T.ink1,
                           overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
                           {d.nome_cliente||'—'}
@@ -1976,18 +1853,17 @@ function GatilhoDashboard({ pulso, sparks, jornada, insightsGat, insDismiss, set
                       </div>
                       {gat&&(
                         <div style={{display:'flex',alignItems:'center',gap:4,marginTop:1}}>
-                          {GIco&&<GIco size={9} style={{color:gat.cor,flexShrink:0}}/>}
                           <span style={{fontSize:9.5,color:T.ink3}}>{gat.label}</span>
                         </div>
                       )}
                     </div>
-                    {/* Status badge */}
-                    <span style={{fontSize:9,padding:'1px 6px',borderRadius:99,flexShrink:0,
-                      background:`${sCor}18`,color:sCor,fontWeight:600}}>
-                      {d.status==='enviado'?'Enviado':d.status==='erro'?'Erro':'Ignorado'}
-                    </span>
-                    {/* Tempo */}
-                    <span style={{fontSize:9,color:T.ink4,flexShrink:0}}>{tempoRel(d.criado_em)}</span>
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:2,flexShrink:0}}>
+                      <span style={{fontSize:9,padding:'1.5px 6px',borderRadius:99,
+                        background:`${sCor}18`,color:sCor,fontWeight:700,border:`0.5px solid ${sCor}35`}}>
+                        {d.status==='enviado'?'Enviado':d.status==='erro'?'Erro':'Ignorado'}
+                      </span>
+                      <span style={{fontSize:9,color:T.ink4}}>{tempoRel(d.criado_em)}</span>
+                    </div>
                   </div>
                 )
               })
@@ -1995,172 +1871,2154 @@ function GatilhoDashboard({ pulso, sparks, jornada, insightsGat, insDismiss, set
           </div>
         </div>
 
-        {/* Custos */}
-        <div style={{background:T.bg2,borderRadius:13,border:`1px solid ${T.sep2}`,
-          overflow:'hidden',display:'flex',flexDirection:'column'}}>
-          <div style={{padding:'12px 16px',borderBottom:`1px solid ${T.sep}`,
-            display:'flex',alignItems:'center',gap:8,flexShrink:0,
+        {/* Custos elevado */}
+        <div style={{
+          background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+          border:`1px solid ${T.sep2}`,borderRadius:16,overflow:'hidden',
+          display:'flex',flexDirection:'column',
+          boxShadow:'0 10px 40px rgba(0,0,0,.3)'
+        }}>
+          <div style={{padding:'12px 14px',borderBottom:`1px solid ${T.sep}`,flexShrink:0,
             background:`linear-gradient(90deg,${T.bg3},${T.bg2})`}}>
-            <div style={{width:28,height:28,borderRadius:8,background:T.amberDim,
-              border:`1px solid ${T.amberBor}`,display:'flex',alignItems:'center',
-              justifyContent:'center',flexShrink:0}}>
-              <CreditCard size={13} style={{color:T.amber}}/>
-            </div>
-            <div>
-              <span style={{fontSize:12,fontWeight:700,color:T.ink1,display:'block'}}>Custos</span>
-              <span style={{fontSize:9,color:T.ink4}}>estimativa Meta (US$0,0085/msg)</span>
-            </div>
-            <div style={{marginLeft:'auto',display:'flex',gap:4}}>
-              {['7d','30d','90d'].map(p=>(
-                <button key={p} onClick={()=>onSetPeriodo(p)}
-                  style={{fontSize:9,padding:'2px 7px',borderRadius:6,border:'none',cursor:'pointer',
-                    fontWeight:600,
-                    background:custosPeriodo===p?T.amber:T.bg4,
-                    color:custosPeriodo===p?T.bg0:T.ink4}}>
-                  {p}
-                </button>
-              ))}
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <div style={{width:28,height:28,borderRadius:8,
+                background:T.amberDim,border:`1px solid ${T.amberBor}`,
+                display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,
+                boxShadow:`0 3px 10px ${T.amber}20`}}>
+                <CreditCard size={13} style={{color:T.amber}}/>
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <span style={{fontSize:12,fontWeight:700,color:T.ink1,display:'block'}}>Custos Meta</span>
+                <span style={{fontSize:9,color:T.ink4}}>US$0,0085 por mensagem</span>
+              </div>
+              <div style={{display:'flex',gap:3}}>
+                {['7d','30d','90d'].map(p=>(
+                  <button key={p} onClick={()=>onSetPeriodo(p)}
+                    style={{fontSize:9,padding:'2px 7px',borderRadius:6,border:'none',cursor:'pointer',
+                      fontWeight:600,
+                      background:custosPeriodo===p?T.amber:T.bg4,
+                      color:custosPeriodo===p?T.bg0:T.ink4,
+                      boxShadow:custosPeriodo===p?`0 2px 8px ${T.amber}40`:undefined}}>
+                    {p}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           {custos?(
             <div style={{flex:1,overflowY:'auto'}}>
-              {/* Total */}
-              <div style={{padding:'14px 16px',borderBottom:`1px solid ${T.sep}`}}>
-                <p style={{fontSize:9,color:T.ink4,textTransform:'uppercase',letterSpacing:'.07em',margin:'0 0 4px'}}>
+              <div style={{padding:'12px 14px',borderBottom:`1px solid ${T.sep}`,
+                background:`radial-gradient(ellipse at 80% 0%,${T.amberDim},transparent 70%)`}}>
+                <p style={{fontSize:9,color:T.ink4,textTransform:'uppercase',letterSpacing:'.07em',margin:'0 0 3px'}}>
                   Total — {custosPeriodo}
                 </p>
-                <p style={{fontSize:24,fontWeight:700,color:T.amber,margin:0,letterSpacing:'-.03em'}}>
+                <p style={{fontSize:26,fontWeight:800,color:T.amber,margin:0,
+                  letterSpacing:'-.04em',textShadow:`0 0 28px ${T.amber}40`}}>
                   US${custos.totalCusto}
                 </p>
                 <p style={{fontSize:10,color:T.ink3,margin:'3px 0 0'}}>
                   {custos.totalEnviados} mensagens entregues
                 </p>
               </div>
-              {/* Por gatilho */}
               {Object.entries(custos.porGatilho||{})
                 .sort((a,b)=>b[1].enviados-a[1].enviados)
-                .slice(0,8)
+                .slice(0,7)
                 .map(([id,c])=>{
                   const gat=GATILHOS.find(x=>x.id===id)
                   const GIco=gat?.icon
+                  const maxC=Math.max(...Object.values(custos.porGatilho||{}).map(x=>parseFloat(x.custo)||0),0.01)
+                  const pctC=Math.round((parseFloat(c.custo)||0)/maxC*100)
                   return (
                     <div key={id} onClick={()=>onGoto(id)}
-                      style={{display:'flex',alignItems:'center',gap:8,padding:'7px 16px',
-                        borderBottom:`1px solid ${T.sep}`,cursor:'pointer',transition:'background .1s'}}
+                      style={{padding:'7px 14px',borderBottom:`1px solid ${T.sep}`,
+                        cursor:'pointer',transition:'background .1s'}}
                       onMouseEnter={e=>e.currentTarget.style.background=T.bg3}
                       onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                      {GIco&&<GIco size={11} style={{color:gat.cor,flexShrink:0}}/>}
-                      <span style={{flex:1,fontSize:11,color:T.ink2,overflow:'hidden',
-                        textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                        {gat?.label||id}
-                      </span>
-                      <span style={{fontSize:10,color:T.amber,fontWeight:600,flexShrink:0}}>
-                        US${c.custo}
-                      </span>
-                      <span style={{fontSize:9,color:T.ink4,flexShrink:0}}>
-                        {c.enviados} env.
-                      </span>
+                      <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:4}}>
+                        {GIco&&<GIco size={10} style={{color:gat.cor,flexShrink:0}}/>}
+                        <span style={{flex:1,fontSize:10.5,color:T.ink2,overflow:'hidden',
+                          textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                          {gat?.label||id}
+                        </span>
+                        <span style={{fontSize:10,color:T.amber,fontWeight:700,flexShrink:0}}>
+                          US${c.custo}
+                        </span>
+                      </div>
+                      <div style={{height:3,borderRadius:99,background:T.bg4,overflow:'hidden'}}>
+                        <div style={{height:'100%',borderRadius:99,width:`${pctC}%`,
+                          background:`linear-gradient(90deg,${T.amber},${T.amber}80)`,
+                          boxShadow:`0 0 6px ${T.amber}40`,
+                          transition:'width .8s cubic-bezier(.4,0,.2,1)'}}/>
+                      </div>
                     </div>
                   )
-              })}
+                })
+              }
             </div>
           ):(
             <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
-              <p style={{fontSize:11,color:T.ink4,textAlign:'center'}}>
-                Configure o backend para ver os custos
+              <p style={{fontSize:11,color:T.ink4,textAlign:'center',lineHeight:1.5}}>
+                Configure o backend para<br/>ver os custos
               </p>
             </div>
           )}
+        </div>
+      </div>
+      {/* ══════════════════════════════════════════════════════════════════
+          MONITORAMENTO AVANÇADO — 10 Métricas
+      ══════════════════════════════════════════════════════════════════ */}
+      {monitorLoad && !monitor && (
+        <div style={{display:'flex',alignItems:'center',justifyContent:'center',
+          gap:10,padding:'32px 0',color:T.ink4,animation:'gat-fadeUp .4s ease .3s both'}}>
+          <RefreshCw size={16} style={{color:T.purple,animation:'gat-pulse 1s linear infinite'}}/>
+          <span style={{fontSize:12}}>Carregando métricas avançadas...</span>
+        </div>
+      )}
+
+      {monitor && (<>
+
+      {/* ── M1: Health Score + Anomalias (destaque se crítico) ── */}
+      <div style={{display:'grid',gridTemplateColumns:'280px 1fr',gap:14,
+        animation:'gat-fadeUp .4s ease .28s both'}}>
+
+        {/* Health Score */}
+        {(() => {
+          const s = monitor.health
+          const sc = s?.score
+          const cor = sc===null?T.ink4:sc>=85?T.green:sc>=60?T.amber:T.red
+          const CIRC = 176  // 2π×28
+          const dashOff = sc!==null ? Math.round(CIRC*(1-sc/100)) : CIRC
+          return (
+            <div style={{
+              background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+              border:`1.5px solid ${sc!==null&&sc<60?T.redBor:T.sep2}`,
+              borderRadius:16, padding:'16px',
+              boxShadow:sc!==null&&sc<60
+                ?`0 8px 32px rgba(0,0,0,.3),0 0 0 1px ${T.red}18 inset`
+                :'0 8px 32px rgba(0,0,0,.25)',
+            }}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+                <div style={{width:28,height:28,borderRadius:8,
+                  background:`${cor}20`,border:`1px solid ${cor}35`,
+                  display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  <Activity size={13} style={{color:cor}}/>
+                </div>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:T.ink1}}>Health Score WA</div>
+                  <div style={{fontSize:9.5,color:T.ink4}}>conta WhatsApp Business</div>
+                </div>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:14}}>
+                <div style={{position:'relative',width:70,height:70,flexShrink:0}}>
+                  <svg width="70" height="70" viewBox="0 0 70 70">
+                    <circle cx="35" cy="35" r="28" fill="none" stroke={T.bg4} strokeWidth="7"/>
+                    <circle cx="35" cy="35" r="28" fill="none"
+                      stroke={cor} strokeWidth="7" strokeLinecap="round"
+                      strokeDasharray={`${CIRC}`}
+                      strokeDashoffset={dashOff}
+                      transform="rotate(-90 35 35)"
+                      style={{transition:'stroke-dashoffset 1.5s ease',
+                        filter:`drop-shadow(0 0 6px ${cor})`}}/>
+                  </svg>
+                  <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
+                    alignItems:'center',justifyContent:'center'}}>
+                    <span style={{fontSize:18,fontWeight:800,color:cor,lineHeight:1}}>
+                      {sc??'—'}
+                    </span>
+                    <span style={{fontSize:7.5,color:T.ink4,marginTop:1}}>score</span>
+                  </div>
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:11.5,fontWeight:700,color:cor,marginBottom:6}}>{s?.label}</div>
+                  {[
+                    {l:'Taxa entrega 7d',v:s?.taxa7!==null?`${s.taxa7}%`:'—',c:s?.taxa7>=80?T.green:T.amber},
+                    {l:'Taxa erro',      v:s?.errRate!==null?`${s.errRate}%`:'—',c:s?.errRate<5?T.green:T.red},
+                    {l:'Clientes 7d',   v:s?.clientesAlcancados??'—',c:T.ink2},
+                  ].map(i=>(
+                    <div key={i.l} style={{display:'flex',justifyContent:'space-between',
+                      marginBottom:3}}>
+                      <span style={{fontSize:10,color:T.ink4}}>{i.l}</span>
+                      <span style={{fontSize:10,fontWeight:700,color:i.c}}>{i.v}</span>
+                    </div>
+                  ))}
+                  {sc!==null&&sc<60&&(
+                    <div style={{marginTop:6,padding:'4px 8px',borderRadius:6,
+                      background:T.redDim,border:`1px solid ${T.redBor}`,
+                      fontSize:9,color:T.red,fontWeight:700}}>
+                      ⚠️ Risco de suspensão da conta
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Anomalias detectadas */}
+        <div style={{
+          background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+          border:`1.5px solid ${monitor.anomalias?.length?T.redBor:T.sep2}`,
+          borderRadius:16, padding:'14px 16px',
+          boxShadow:'0 8px 32px rgba(0,0,0,.25)',
+        }}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+            <div style={{width:28,height:28,borderRadius:8,
+              background:monitor.anomalias?.length?T.redDim:T.greenDim,
+              border:`1px solid ${monitor.anomalias?.length?T.redBor:T.greenBor}`,
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+              {monitor.anomalias?.length
+                ?<AlertTriangle size={13} style={{color:T.red}}/>
+                :<CheckCircle size={13} style={{color:T.green}}/>}
+            </div>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:T.ink1}}>Detecção de Anomalias</div>
+              <div style={{fontSize:9.5,color:T.ink4}}>comparando últimas 4h com média histórica</div>
+            </div>
+            {monitor.anomalias?.length>0&&(
+              <span style={{marginLeft:'auto',fontSize:9,padding:'2px 8px',borderRadius:99,
+                background:T.redDim,color:T.red,border:`1px solid ${T.redBor}`,fontWeight:700}}>
+                {monitor.anomalias.length} alerta{monitor.anomalias.length>1?'s':''}
+              </span>
+            )}
+          </div>
+          {monitor.anomalias?.length===0?(
+            <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0'}}>
+              <div style={{width:8,height:8,borderRadius:'50%',background:T.green,
+                boxShadow:`0 0 8px ${T.green}`,animation:'gat-pulse 2s infinite'}}/>
+              <span style={{fontSize:11.5,color:T.ink3}}>Todos os gatilhos operando normalmente</span>
+            </div>
+          ):(
+            <div style={{display:'flex',flexDirection:'column',gap:6}}>
+              {monitor.anomalias.map((a,i)=>{
+                const isQueda = a.tipo==='queda'
+                const gat = GATILHOS.find(g=>g.id===a.gatilho)
+                const GIc = gat?.icon||Zap
+                return (
+                  <div key={i} onClick={()=>onGoto(a.gatilho)}
+                    style={{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',
+                      borderRadius:9,cursor:'pointer',transition:'background .1s',
+                      background:isQueda?'rgba(255,71,87,.05)':'rgba(255,179,0,.05)',
+                      border:`1px solid ${isQueda?'rgba(255,71,87,.2)':'rgba(255,179,0,.2)'}`}}
+                    onMouseEnter={e=>e.currentTarget.style.background=isQueda?'rgba(255,71,87,.1)':'rgba(255,179,0,.1)'}
+                    onMouseLeave={e=>e.currentTarget.style.background=isQueda?'rgba(255,71,87,.05)':'rgba(255,179,0,.05)'}>
+                    <div style={{width:26,height:26,borderRadius:8,flexShrink:0,
+                      background:`${gat?.cor||T.ink3}18`,border:`1px solid ${gat?.cor||T.ink3}30`,
+                      display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      <GIc size={12} style={{color:gat?.cor||T.ink3}}/>
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:11.5,fontWeight:600,color:T.ink1,marginBottom:2}}>
+                        {gat?.label||a.gatilho}
+                      </div>
+                      <div style={{fontSize:10,color:T.ink3}}>
+                        {isQueda?'Queda':'Pico'} de {Math.abs(a.variacaoPct)}% vs média
+                        · {a.volume4h} disparos em 4h (esperado: {a.esperado4h})
+                      </div>
+                    </div>
+                    <span style={{fontSize:14,fontWeight:800,flexShrink:0,
+                      color:isQueda?T.red:T.amber}}>
+                      {a.variacaoPct>0?'+':''}{a.variacaoPct}%
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── M2: Cobertura + Volume perdido ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,
+        animation:'gat-fadeUp .4s ease .33s both'}}>
+
+        {/* Cobertura de gatilhos por pedido */}
+        <div style={{
+          background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+          border:`1px solid ${T.sep2}`,borderRadius:16,padding:'14px 16px',
+          boxShadow:'0 8px 32px rgba(0,0,0,.25)',
+        }}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+            <div style={{width:28,height:28,borderRadius:8,
+              background:T.blueDim,border:`1px solid ${T.blueBor}`,
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <Shield size={13} style={{color:T.blue}}/>
+            </div>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:T.ink1}}>Cobertura de Notificações</div>
+              <div style={{fontSize:9.5,color:T.ink4}}>pedidos rastreados últimos 30 dias</div>
+            </div>
+          </div>
+          {(() => {
+            const c = monitor.cobertura
+            const total = c?.totalRastreados||0
+            if (!total) return (
+              <p style={{fontSize:11,color:T.ink4,textAlign:'center',padding:'12px 0',margin:0}}>
+                Sem dados de rastreio ainda
+              </p>
+            )
+            const bars = [
+              {l:'Com disparo enviado', v:c.comDisparo, pct:Math.round(c.comDisparo/total*100), c:T.green},
+              {l:'Só ignorados',        v:c.soIgnorados,pct:Math.round(c.soIgnorados/total*100), c:T.amber},
+              {l:'Sem nenhuma notif.',  v:c.semNenhum,  pct:Math.round(c.semNenhum/total*100),  c:T.red},
+            ]
+            return (
+              <div>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+                  <div style={{position:'relative',width:60,height:60}}>
+                    <svg width="60" height="60" viewBox="0 0 60 60">
+                      <circle cx="30" cy="30" r="24" fill="none" stroke={T.bg4} strokeWidth="6"/>
+                      <circle cx="30" cy="30" r="24" fill="none"
+                        stroke={c.coberturaRate>=80?T.green:c.coberturaRate>=50?T.amber:T.red}
+                        strokeWidth="6" strokeLinecap="round"
+                        strokeDasharray="151"
+                        strokeDashoffset={Math.round(151*(1-(c.coberturaRate||0)/100))}
+                        transform="rotate(-90 30 30)"
+                        style={{transition:'stroke-dashoffset 1.2s ease',
+                          filter:`drop-shadow(0 0 5px ${c.coberturaRate>=80?T.green:T.amber})`}}/>
+                    </svg>
+                    <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
+                      alignItems:'center',justifyContent:'center'}}>
+                      <span style={{fontSize:15,fontWeight:800,
+                        color:c.coberturaRate>=80?T.green:c.coberturaRate>=50?T.amber:T.red,lineHeight:1}}>
+                        {c.coberturaRate??'—'}%
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:11,color:T.ink3,marginBottom:4}}>
+                      <strong style={{color:T.ink1}}>{total}</strong> pedidos rastreados
+                    </div>
+                    {bars.map(b=>(
+                      <div key={b.l} style={{marginBottom:5}}>
+                        <div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}>
+                          <span style={{fontSize:9.5,color:T.ink4}}>{b.l}</span>
+                          <span style={{fontSize:9.5,fontWeight:700,color:b.c}}>{b.v} ({b.pct}%)</span>
+                        </div>
+                        <div style={{height:3,borderRadius:99,background:T.bg4}}>
+                          <div style={{height:'100%',borderRadius:99,background:b.c,
+                            width:`${b.pct}%`,boxShadow:`0 0 6px ${b.c}40`,
+                            transition:'width .8s ease'}}/>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {c.semNenhum>=5&&(
+                  <div style={{padding:'7px 10px',borderRadius:8,
+                    background:T.redDim,border:`1px solid ${T.redBor}`,
+                    fontSize:10,color:T.red,fontWeight:600}}>
+                    ⚠️ {c.semNenhum} pedidos entregues sem nenhuma notificação WhatsApp
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+        </div>
+
+        {/* Volume perdido por templates inativos */}
+        <div style={{
+          background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+          border:`1px solid ${monitor.perdidos?.length?T.amberBor:T.sep2}`,
+          borderRadius:16,padding:'14px 16px',
+          boxShadow:'0 8px 32px rgba(0,0,0,.25)',
+        }}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+            <div style={{width:28,height:28,borderRadius:8,
+              background:T.amberDim,border:`1px solid ${T.amberBor}`,
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <AlertTriangle size={13} style={{color:T.amber}}/>
+            </div>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:T.ink1}}>Mensagens Perdidas</div>
+              <div style={{fontSize:9.5,color:T.ink4}}>templates inativos · últimos 7 dias</div>
+            </div>
+            {monitor.perdidos?.length>0&&(
+              <span style={{marginLeft:'auto',fontSize:11,fontWeight:800,color:T.amber}}>
+                {monitor.perdidos.reduce((a,r)=>a+r.totalIgnorados,0)} msgs
+              </span>
+            )}
+          </div>
+          {monitor.perdidos?.length===0?(
+            <div style={{padding:'12px 0',textAlign:'center',color:T.green,fontSize:11}}>
+              ✓ Nenhuma mensagem perdida por template inativo
+            </div>
+          ):(
+            <div style={{display:'flex',flexDirection:'column',gap:5}}>
+              {monitor.perdidos.map((p,i)=>{
+                const gat = GATILHOS.find(g=>g.id===p.gatilho)
+                const GIc = gat?.icon||Zap
+                return (
+                  <div key={i} onClick={()=>onGoto(p.gatilho)}
+                    style={{display:'flex',alignItems:'center',gap:8,padding:'7px 8px',
+                      borderRadius:9,cursor:'pointer',transition:'background .1s',
+                      background:'rgba(255,179,0,.04)'}}
+                    onMouseEnter={e=>e.currentTarget.style.background='rgba(255,179,0,.09)'}
+                    onMouseLeave={e=>e.currentTarget.style.background='rgba(255,179,0,.04)'}>
+                    <div style={{width:22,height:22,borderRadius:7,flexShrink:0,
+                      background:`${gat?.cor||T.amber}18`,border:`1px solid ${gat?.cor||T.amber}30`,
+                      display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      <GIc size={10} style={{color:gat?.cor||T.amber}}/>
+                    </div>
+                    <span style={{flex:1,fontSize:11,color:T.ink2,overflow:'hidden',
+                      textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                      {gat?.label||p.gatilho}
+                    </span>
+                    <div style={{textAlign:'right',flexShrink:0}}>
+                      <div style={{fontSize:12,fontWeight:700,color:T.amber}}>{p.totalIgnorados}</div>
+                      <div style={{fontSize:8.5,color:T.ink4}}>{p.pedidosAfetados} ped.</div>
+                    </div>
+                    <span style={{fontSize:9,padding:'2px 7px',borderRadius:99,flexShrink:0,
+                      background:T.redDim,color:T.red,border:`1px solid ${T.redBor}`,fontWeight:700}}>
+                      ATIVAR
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── M3: Comparativo + Funil Meta + Previsão Custo ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14,
+        animation:'gat-fadeUp .4s ease .38s both'}}>
+
+        {/* Comparativo semanas */}
+        <div style={{
+          background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+          border:`1px solid ${T.sep2}`,borderRadius:16,padding:'14px 16px',
+          boxShadow:'0 8px 32px rgba(0,0,0,.25)',
+        }}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+            <div style={{width:28,height:28,borderRadius:8,
+              background:T.purpleDim,border:`1px solid ${T.purpleBor}`,
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <TrendingUp size={13} style={{color:T.purple}}/>
+            </div>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:T.ink1}}>Semana Atual vs Anterior</div>
+            </div>
+          </div>
+          {[
+            {l:'Disparos',  v:monitor.comparativo?.atual?.total,  ant:monitor.comparativo?.anterior?.total,  delta:monitor.comparativo?.deltaTotal},
+            {l:'Enviados',  v:monitor.comparativo?.atual?.enviados,ant:monitor.comparativo?.anterior?.enviados,delta:null},
+            {l:'Taxa entrega',v:monitor.comparativo?.atual?.taxa!==null?`${monitor.comparativo.atual.taxa}%`:'—',
+              ant:monitor.comparativo?.anterior?.taxa!==null?`${monitor.comparativo.anterior.taxa}%`:'—',
+              delta:monitor.comparativo?.deltaTaxa, isPct:true},
+          ].map(row=>{
+            const deltaVal = row.delta
+            const deltaPos = deltaVal!==null&&deltaVal>0
+            const deltaNeg = deltaVal!==null&&deltaVal<0
+            return (
+              <div key={row.l} style={{display:'flex',alignItems:'center',
+                justifyContent:'space-between',padding:'7px 0',
+                borderBottom:`1px solid ${T.sep}`}}>
+                <span style={{fontSize:11,color:T.ink3}}>{row.l}</span>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:10,color:T.ink4}}>{row.ant??'—'}</span>
+                  <span style={{color:T.ink4,fontSize:10}}>→</span>
+                  <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>{row.v??'—'}</span>
+                  {deltaVal!==null&&(
+                    <span style={{fontSize:9,padding:'1px 6px',borderRadius:99,fontWeight:700,
+                      background:deltaPos?T.greenDim:deltaNeg?T.redDim:T.gray,
+                      color:deltaPos?T.green:deltaNeg?T.red:T.ink4,
+                      border:`0.5px solid ${deltaPos?T.greenBor:deltaNeg?T.redBor:T.grayBor}`}}>
+                      {deltaPos?'+':''}{deltaVal}{row.isPct?'pp':'%'}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Funil Meta */}
+        <div style={{
+          background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+          border:`1px solid ${T.sep2}`,borderRadius:16,padding:'14px 16px',
+          boxShadow:'0 8px 32px rgba(0,0,0,.25)',
+        }}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+            <div style={{width:28,height:28,borderRadius:8,
+              background:T.blueDim,border:`1px solid ${T.blueBor}`,
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <Radio size={13} style={{color:T.blue}}/>
+            </div>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:T.ink1}}>Funil de Templates Meta</div>
+              <div style={{fontSize:9.5,color:T.ink4}}>submissão → aprovação → disparo</div>
+            </div>
+          </div>
+          {(() => {
+            const f = monitor.funilMeta
+            const total = parseInt(f?.total||0)
+            if (!total) return <p style={{fontSize:11,color:T.ink4,textAlign:'center',padding:'12px 0',margin:0}}>Nenhum template</p>
+            const steps = [
+              {l:'Total templates',  v:total,                    cor:T.ink3,  pct:100},
+              {l:'Ativos',           v:parseInt(f?.ativos||0),   cor:T.blue,  pct:Math.round(parseInt(f?.ativos||0)/total*100)},
+              {l:'Aprovados Meta',   v:parseInt(f?.aprovados||0),cor:T.green, pct:Math.round(parseInt(f?.aprovados||0)/total*100)},
+              {l:'Em análise',       v:parseInt(f?.em_analise||0),cor:T.amber, pct:Math.round(parseInt(f?.em_analise||0)/total*100)},
+              {l:'Rejeitados',       v:parseInt(f?.rejeitados||0),cor:T.red,  pct:Math.round(parseInt(f?.rejeitados||0)/total*100)},
+            ]
+            return (
+              <div style={{display:'flex',flexDirection:'column',gap:7}}>
+                {steps.map((s,i)=>(
+                  <div key={s.l} style={{paddingLeft:i*8}}>
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                      <span style={{fontSize:10.5,color:T.ink3}}>{s.l}</span>
+                      <span style={{fontSize:11,fontWeight:700,color:s.cor}}>{s.v}</span>
+                    </div>
+                    <div style={{height:4,borderRadius:99,background:T.bg4}}>
+                      <div style={{height:'100%',borderRadius:99,background:s.cor,
+                        width:`${s.pct}%`,boxShadow:`0 0 6px ${s.cor}40`,
+                        transition:'width .8s ease'}}/>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
+        </div>
+
+        {/* Previsão de custo */}
+        <div style={{
+          background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+          border:`1px solid ${T.sep2}`,borderRadius:16,padding:'14px 16px',
+          boxShadow:'0 8px 32px rgba(0,0,0,.25)',
+          position:'relative',overflow:'hidden'
+        }}>
+          <div style={{position:'absolute',top:-24,right:-24,width:100,height:100,borderRadius:'50%',
+            background:`radial-gradient(circle,${T.amber}20,transparent 70%)`,
+            filter:'blur(12px)',pointerEvents:'none'}}/>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,position:'relative'}}>
+            <div style={{width:28,height:28,borderRadius:8,
+              background:T.amberDim,border:`1px solid ${T.amberBor}`,
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <CreditCard size={13} style={{color:T.amber}}/>
+            </div>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:T.ink1}}>Previsão de Custo</div>
+              <div style={{fontSize:9.5,color:T.ink4}}>mês atual · US$0,0085/msg</div>
+            </div>
+          </div>
+          {(() => {
+            const c = monitor.custo
+            if (!c) return null
+            const pctMes = Math.round(c.diaDoMes/c.diasNoMes*100)
+            return (
+              <div style={{position:'relative'}}>
+                <div style={{marginBottom:10}}>
+                  <div style={{fontSize:9,color:T.ink4,textTransform:'uppercase',
+                    letterSpacing:'.07em',marginBottom:3}}>Gasto até hoje</div>
+                  <div style={{fontSize:28,fontWeight:800,color:T.amber,letterSpacing:'-.04em',
+                    textShadow:`0 0 28px ${T.amber}40`}}>
+                    US${c.custoMes}
+                  </div>
+                  <div style={{fontSize:10,color:T.ink3,marginTop:2}}>
+                    {c.enviadosMes} mensagens · dia {c.diaDoMes}/{c.diasNoMes}
+                  </div>
+                </div>
+                <div style={{height:4,borderRadius:99,background:T.bg4,marginBottom:10,overflow:'hidden'}}>
+                  <div style={{height:'100%',borderRadius:99,
+                    background:`linear-gradient(90deg,${T.amber},${T.amber}80)`,
+                    width:`${pctMes}%`,transition:'width .8s ease',
+                    boxShadow:`0 0 8px ${T.amber}40`}}/>
+                </div>
+                {c.projecao&&(
+                  <div style={{padding:'8px 10px',borderRadius:9,
+                    background:'rgba(255,179,0,.08)',border:`1px solid ${T.amberBor}`}}>
+                    <div style={{fontSize:9,color:T.ink4,marginBottom:2}}>Projeção para fim do mês</div>
+                    <div style={{fontSize:18,fontWeight:800,color:T.amber}}>US${c.projecao}</div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+        </div>
+      </div>
+
+      {/* ── M4: Horário ótimo + Taxa de resposta + Transportadoras ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1.4fr 1fr 1fr',gap:14,
+        animation:'gat-fadeUp .4s ease .43s both'}}>
+
+        {/* Heatmap de horário */}
+        <div style={{
+          background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+          border:`1px solid ${T.sep2}`,borderRadius:16,padding:'14px 16px',
+          boxShadow:'0 8px 32px rgba(0,0,0,.25)',
+        }}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+            <div style={{width:28,height:28,borderRadius:8,
+              background:T.cyanDim,border:`1px solid ${T.cyanBor}`,
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <Clock size={13} style={{color:T.cyan}}/>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:12,fontWeight:700,color:T.ink1}}>Janela Ideal de Envio</div>
+              <div style={{fontSize:9.5,color:T.ink4}}>distribuição de disparos por hora</div>
+            </div>
+            {monitor.horario?.picoHora!==null&&(
+              <span style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:99,
+                background:T.cyanDim,color:T.cyan,border:`1px solid ${T.cyanBor}`}}>
+                Pico: {monitor.horario.picoHora}h
+              </span>
+            )}
+          </div>
+          <ResponsiveContainer width="100%" height={90}>
+            <BarChart data={monitor.horario?.horas||[]} margin={{top:2,right:2,left:-28,bottom:0}}>
+              <defs>
+                <linearGradient id="horaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={T.cyan} stopOpacity={0.9}/>
+                  <stop offset="100%" stopColor={T.cyan} stopOpacity={0.3}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="2 6" stroke="rgba(255,255,255,.04)" vertical={false}/>
+              <XAxis dataKey="hora" tick={{fontSize:8,fill:T.ink4}}
+                tickFormatter={h=>h%4===0?`${h}h`:''} axisLine={false} tickLine={false}/>
+              <YAxis tick={{fontSize:8,fill:T.ink4}} axisLine={false} tickLine={false} allowDecimals={false}/>
+              <Tooltip contentStyle={{background:T.bg3,border:`1px solid ${T.sep2}`,
+                borderRadius:8,fontSize:10,boxShadow:'0 4px 16px rgba(0,0,0,.4)'}}
+                labelFormatter={h=>`${h}:00h`} formatter={v=>[v,'disparos']}/>
+              <Bar dataKey="enviados" radius={[3,3,0,0]} maxBarSize={10}>
+                {(monitor.horario?.horas||[]).map((h,i)=>(
+                  <Cell key={i}
+                    fill={h.hora===monitor.horario?.picoHora?T.cyan:`${T.cyan}55`}
+                    style={{filter:h.hora===monitor.horario?.picoHora?`drop-shadow(0 0 5px ${T.cyan})`:undefined}}/>
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          {monitor.horario?.picoHora!==null&&(
+            <div style={{marginTop:8,padding:'5px 8px',borderRadius:7,
+              background:T.cyanDim,border:`1px solid ${T.cyanBor}`,
+              fontSize:10,color:T.cyan}}>
+              💡 Configure delays para que os disparos caiam próximos das {monitor.horario.picoHora}h
+            </div>
+          )}
+        </div>
+
+        {/* Taxa de resposta por gatilho */}
+        <div style={{
+          background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+          border:`1px solid ${T.sep2}`,borderRadius:16,padding:'14px 16px',
+          boxShadow:'0 8px 32px rgba(0,0,0,.25)',
+        }}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+            <div style={{width:28,height:28,borderRadius:8,
+              background:T.greenDim,border:`1px solid ${T.greenBor}`,
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <MessageSquare size={13} style={{color:T.green}}/>
+            </div>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:T.ink1}}>Taxa de Resposta</div>
+              <div style={{fontSize:9.5,color:T.ink4}}>clientes que responderam em 24h</div>
+            </div>
+          </div>
+          {monitor.taxaResposta?.length===0?(
+            <p style={{fontSize:11,color:T.ink4,textAlign:'center',padding:'12px 0',margin:0}}>
+              Sem dados de resposta ainda
+            </p>
+          ):(
+            <div style={{display:'flex',flexDirection:'column',gap:5}}>
+              {monitor.taxaResposta?.slice(0,6).map((r,i)=>{
+                const gat = GATILHOS.find(g=>g.id===r.gatilho)
+                const GIc = gat?.icon||Zap
+                const tx  = parseFloat(r.taxaResposta||0)
+                const cor = tx>=20?T.green:tx>=10?T.amber:T.red
+                return (
+                  <div key={i} style={{display:'flex',alignItems:'center',gap:7}}>
+                    <div style={{width:20,height:20,borderRadius:6,flexShrink:0,
+                      background:`${gat?.cor||T.ink3}15`,
+                      display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      <GIc size={10} style={{color:gat?.cor||T.ink3}}/>
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}>
+                        <span style={{fontSize:10,color:T.ink3,overflow:'hidden',
+                          textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:90}}>
+                          {gat?.label||r.gatilho}
+                        </span>
+                        <span style={{fontSize:10,fontWeight:700,color:cor,flexShrink:0}}>
+                          {tx}%
+                        </span>
+                      </div>
+                      <div style={{height:3,borderRadius:99,background:T.bg4}}>
+                        <div style={{height:'100%',borderRadius:99,background:cor,
+                          width:`${Math.min(tx*3,100)}%`,transition:'width .8s ease'}}/>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Transportadoras */}
+        <div style={{
+          background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+          border:`1px solid ${T.sep2}`,borderRadius:16,padding:'14px 16px',
+          boxShadow:'0 8px 32px rgba(0,0,0,.25)',
+        }}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+            <div style={{width:28,height:28,borderRadius:8,
+              background:T.purpleDim,border:`1px solid ${T.purpleBor}`,
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <Truck size={13} style={{color:T.purple}}/>
+            </div>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:T.ink1}}>Tempo por Transportadora</div>
+              <div style={{fontSize:9.5,color:T.ink4}}>média dias envio → entrega</div>
+            </div>
+          </div>
+          {monitor.transportadoras?.length===0?(
+            <p style={{fontSize:11,color:T.ink4,textAlign:'center',padding:'12px 0',margin:0}}>
+              Dados insuficientes ainda
+            </p>
+          ):(
+            <div style={{display:'flex',flexDirection:'column',gap:6}}>
+              {monitor.transportadoras?.map((t,i)=>{
+                const maxDias = Math.max(...(monitor.transportadoras||[]).map(x=>x.diasMedio),1)
+                const pct = Math.round(t.diasMedio/maxDias*100)
+                const cor = t.diasMedio<=3?T.green:t.diasMedio<=7?T.amber:T.red
+                return (
+                  <div key={i}>
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                      <div style={{display:'flex',alignItems:'center',gap:5}}>
+                        <span style={{fontSize:11,color:T.ink1,fontWeight:600}}>{t.transportadora}</span>
+                        <span style={{fontSize:9,color:T.ink4}}>({t.pedidos} ped.)</span>
+                      </div>
+                      <div style={{textAlign:'right'}}>
+                        <span style={{fontSize:12,fontWeight:800,color:cor}}>{t.diasMedio}d</span>
+                        <span style={{fontSize:9,color:T.ink4,marginLeft:4}}>
+                          {t.diasMin}-{t.diasMax}d
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{height:4,borderRadius:99,background:T.bg4}}>
+                      <div style={{height:'100%',borderRadius:99,background:cor,
+                        width:`${pct}%`,boxShadow:`0 0 6px ${cor}40`,
+                        transition:'width .8s ease'}}/>
+                    </div>
+                  </div>
+                )
+              })}
+              <div style={{marginTop:4,padding:'5px 8px',borderRadius:7,
+                background:'rgba(255,255,255,.03)',border:`1px solid ${T.sep}`,
+                fontSize:9.5,color:T.ink4,lineHeight:1.5}}>
+                💡 Use estes tempos para configurar os delays dos gatilhos de rastreio
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      </>)}
+
+    </div>
+  )
+}
+
+// ─── META ANALYTICS CARD — NIVELMAX ─────────────────────────────────────────
+function MetaAnalyticsCard({ stats }) {
+  if (!stats) return (
+    <div style={{padding:'14px 16px',borderRadius:12,background:T.bg2,
+      border:`1px solid ${T.sep}`,marginTop:12}}>
+      <p style={{fontSize:11,color:T.ink4,margin:0,textAlign:'center'}}>
+        Sem dados Meta ainda
+      </p>
+    </div>
+  )
+
+  const CIRC  = 100
+  const tx    = stats.taxa ?? 0
+  const dashOff = Math.round(CIRC*(1-(tx/100)))
+  const rCor  = tx>=90?T.green:tx>=70?T.amber:T.red
+
+  const items = [
+    { lbl:'Aprovados',   v:stats.aprovados||0,    cor:T.green  },
+    { lbl:'Em análise',  v:stats.emAnalise||0,    cor:T.amber  },
+    { lbl:'Rejeitados',  v:stats.rejeitados||0,   cor:T.red    },
+    { lbl:'Disparados',  v:stats.disparados||0,   cor:T.blue   },
+  ]
+
+  return (
+    <div style={{marginTop:12,padding:'12px 14px',borderRadius:12,
+      background:`linear-gradient(135deg,${T.bg2},${T.bg3})`,
+      border:`1px solid ${T.sep2}`,
+      boxShadow:'0 8px 28px rgba(0,0,0,.25), 0 1px 0 rgba(255,255,255,.04) inset'}}>
+
+      <div style={{fontSize:10,color:T.ink4,textTransform:'uppercase',
+        letterSpacing:'.08em',fontWeight:600,marginBottom:11,
+        display:'flex',alignItems:'center',gap:6}}>
+        <Radio size={10} style={{color:T.purple}}/>
+        Meta Analytics
+      </div>
+
+      {/* Ring gauge + stats */}
+      <div style={{display:'flex',alignItems:'center',gap:12}}>
+        {/* Ring SVG */}
+        <div style={{position:'relative',width:56,height:56,flexShrink:0}}>
+          <svg width="56" height="56" viewBox="0 0 56 56">
+            <circle cx="28" cy="28" r="22" fill="none"
+              stroke="rgba(255,255,255,.06)" strokeWidth="5"/>
+            <circle cx="28" cy="28" r="22" fill="none"
+              stroke={rCor} strokeWidth="5"
+              strokeLinecap="round"
+              strokeDasharray={`${CIRC}`}
+              strokeDashoffset={dashOff}
+              transform="rotate(-90 28 28)"
+              style={{
+                transition:'stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1)',
+                filter:`drop-shadow(0 0 5px ${rCor})`
+              }}/>
+          </svg>
+          <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
+            alignItems:'center',justifyContent:'center'}}>
+            <span style={{fontSize:14,fontWeight:800,color:rCor,lineHeight:1}}>{tx}%</span>
+            <span style={{fontSize:7,color:T.ink4,marginTop:1}}>taxa</span>
+          </div>
+        </div>
+
+        {/* Grid 2×2 */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4,flex:1}}>
+          {items.map(s=>(
+            <div key={s.lbl} style={{padding:'5px 8px',borderRadius:8,
+              background:'rgba(255,255,255,.03)',border:`0.5px solid rgba(255,255,255,.06)`}}>
+              <div style={{fontSize:16,fontWeight:800,color:s.cor,letterSpacing:'-.03em',lineHeight:1,
+                textShadow:`0 0 16px ${s.cor}50`}}>{s.v}</div>
+              <div style={{fontSize:8.5,color:T.ink4,marginTop:2}}>{s.lbl}</div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
   )
 }
 
-// ─── META ANALYTICS CARD — no preview column ─────────────────────────────────
-function MetaAnalyticsCard({ stats }) {
-  if (!stats) return null
-  if (!stats.disponivel) return (
-    <div style={{padding:'12px 16px',borderTop:`1px solid ${T.sep}`,background:T.bg2}}>
-      <p style={{fontSize:9,color:T.ink4,textAlign:'center',margin:0}}>
-        {stats.erro||'Meta Analytics não configurado'}
-      </p>
+// ─── EDITOR DE BLOCOS ─────────────────────────────────────────────────────────
+const EMOJI_CATS = [
+  { label:'🚀', title:'Pedido & Entrega',  list:['📦','🚚','🛵','✈️','📍','🏠','🏪','📋','🧾','🔖','🗓️','⏰','📅','🔑','🏷️'] },
+  { label:'💰', title:'Pagamento',         list:['💰','💳','💵','🏦','🤑','💸','🎁','🛒','🛍️','🏷️','📊','💹','✅','🔐','🔓'] },
+  { label:'🔔', title:'Comunicação',       list:['📱','📞','💬','📣','📢','🔔','✉️','📩','💌','👋','🤝','🫱','📲','🗣️','📡'] },
+  { label:'🎉', title:'Celebração',        list:['🎉','🏆','⭐','🌟','💫','🔥','❤️','💚','💙','🥳','🎊','🎯','✨','💎','🥇'] },
+  { label:'😊', title:'Expressões',        list:['😊','🙏','😍','👍','🫶','😎','😄','🫡','🤩','😌','🤗','😇','🥰','💪','👌'] },
+  { label:'⚠️', title:'Status & Aviso',    list:['⏳','⚡','🔧','⚠️','❌','🔴','🟡','🟢','ℹ️','❓','🚨','🛑','⛔','✅','🔄'] },
+]
+
+// ─── AUTOCOMPLETE DE VARIÁVEIS — dispara com {{ ───────────────────────────────
+function VarDropdown({ query, vars, onSelect, anchorRect, onClose }) {
+  const [idx, setIdx] = useState(0)
+  const listRef = useRef(null)
+
+  // Lista flat filtrada pela query
+  const filtrado = Object.entries(vars).flatMap(([cat, list]) =>
+    list.filter(v => !query || v.replace(/[{}]/g,'').toLowerCase().includes(query.toLowerCase()))
+      .map(v => ({ cat, v }))
+  )
+
+  useEffect(() => { setIdx(0) }, [query])
+
+  // Scroll para o item ativo
+  useEffect(() => {
+    const el = listRef.current?.querySelector(`[data-ac-idx="${idx}"]`)
+    el?.scrollIntoView({ block:'nearest' })
+  }, [idx])
+
+  // Navegação por teclado
+  useEffect(() => {
+    const fn = e => {
+      if (e.key === 'ArrowDown')  { e.preventDefault(); e.stopPropagation(); setIdx(i => Math.min(i+1, filtrado.length-1)) }
+      if (e.key === 'ArrowUp')    { e.preventDefault(); e.stopPropagation(); setIdx(i => Math.max(i-1, 0)) }
+      if (e.key === 'Enter')      { e.preventDefault(); e.stopPropagation(); if (filtrado[idx]) onSelect(filtrado[idx].v) }
+      if (e.key === 'Escape')     { e.preventDefault(); onClose() }
+      if (e.key === 'Tab')        { e.preventDefault(); if (filtrado[idx]) onSelect(filtrado[idx].v) }
+    }
+    document.addEventListener('keydown', fn, true)
+    return () => document.removeEventListener('keydown', fn, true)
+  }, [idx, filtrado, onSelect, onClose])
+
+  if (!filtrado.length) return null
+
+  // Posiciona abaixo do campo, alinhado à esquerda
+  const top  = Math.min(anchorRect.bottom + 6, window.innerHeight - 260)
+  const left = Math.min(anchorRect.left, window.innerWidth - 268)
+
+  // Agrupa por categoria para exibição
+  const porCat = Object.entries(vars).map(([cat, list]) => ({
+    cat,
+    items: list.filter(v => !query || v.replace(/[{}]/g,'').toLowerCase().includes(query.toLowerCase()))
+  })).filter(({ items }) => items.length > 0)
+
+  return (
+    <div ref={listRef}
+      style={{ position:'fixed', top, left, zIndex:9999, width:260, maxHeight:248,
+        overflowY:'auto', background:T.bg2, border:`1px solid ${T.purpleBor}`,
+        borderRadius:10, boxShadow:`0 12px 40px rgba(0,0,0,.7), 0 0 0 1px ${T.purpleBor}`,
+        animation:'gat-fadeUp .12s ease' }}>
+
+      {/* Header */}
+      <div style={{ padding:'6px 12px 5px', borderBottom:`1px solid ${T.sep}`,
+        background:T.bg3, display:'flex', alignItems:'center', gap:6 }}>
+        <Hash size={10} style={{ color:T.purple }}/>
+        <span style={{ fontSize:9.5, fontWeight:700, color:T.purple, letterSpacing:'.04em' }}>
+          {query ? `Filtrando: ${query}` : 'Selecione ou continue digitando'}
+        </span>
+        <span style={{ marginLeft:'auto', fontSize:9, color:T.ink4 }}>
+          ↑↓ navegar · Enter inserir · Esc fechar
+        </span>
+      </div>
+
+      {porCat.map(({ cat, items }) => (
+        <div key={cat}>
+          <div style={{ padding:'5px 12px 3px', fontSize:9, fontWeight:700,
+            color:T.ink4, textTransform:'uppercase', letterSpacing:'.05em',
+            background:T.bg3, borderBottom:`1px solid ${T.sep}`,
+            position:'sticky', top:0 }}>
+            {cat}
+          </div>
+          {items.map(v => {
+            const gi = filtrado.findIndex(x => x.v === v)
+            const ativo = gi === idx
+            // Highlight da query dentro da variável
+            const partes = query
+              ? v.split(new RegExp(`(${query.replace(/[{}]/g,'')})`, 'i'))
+              : [v]
+            return (
+              <div key={v} data-ac-idx={gi}
+                onMouseDown={e => { e.preventDefault(); onSelect(v) }}
+                onMouseEnter={() => setIdx(gi)}
+                style={{ padding:'7px 12px 7px 14px', cursor:'pointer',
+                  fontSize:11, fontFamily:'monospace', fontWeight:500,
+                  color: ativo ? '#fff' : T.cyan,
+                  background: ativo ? `linear-gradient(90deg,${T.purple}40,${T.purple}20)` : 'transparent',
+                  borderLeft:`2px solid ${ativo ? T.purple : 'transparent'}`,
+                  transition:'background .06s' }}>
+                {partes.map((p, i) =>
+                  query && p.toLowerCase() === query.replace(/[{}]/g,'').toLowerCase()
+                    ? <mark key={i} style={{ background:`${T.purple}50`, color:T.purple,
+                        borderRadius:2, fontWeight:700 }}>{p}</mark>
+                    : <span key={i}>{p}</span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      ))}
     </div>
   )
-  const CIRC = 94  // 2π × 15
-  const rd = stats.taxaLeitura!==null ? Math.round(CIRC*(1-(stats.taxaLeitura||0)/100)) : CIRC
-  const rb = stats.benchmarkLeitura!==null ? Math.round(CIRC*(1-(stats.benchmarkLeitura||73)/100)) : CIRC
-  const lCor = stats.taxaLeitura>=stats.benchmarkLeitura?T.green:stats.taxaLeitura>=60?T.amber:T.red
-  return (
-    <div style={{flexShrink:0,borderTop:`1px solid ${T.sep}`,background:T.bg2,padding:'12px 16px'}}>
-      <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10}}>
-        <Star size={11} style={{color:T.amber}}/>
-        <span style={{fontSize:9,fontWeight:700,textTransform:'uppercase',
-          letterSpacing:'.07em',color:T.ink3}}>Meta Analytics — 7 dias</span>
-      </div>
-      {/* Stats grid */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:10}}>
-        {[
-          {l:'Enviadas',  v:stats.totalSent||0,       cor:T.ink2},
-          {l:'Entregues', v:stats.totalDelivered||0,   cor:T.blue},
-          {l:'Lidas',     v:stats.totalRead||0,        cor:T.green},
-          {l:'Custo/msg', v:stats.custoPorMsg?`$${stats.custoPorMsg}`:'—', cor:T.amber},
-        ].map(s=>(
-          <div key={s.l} style={{textAlign:'center',background:T.bg3,borderRadius:8,padding:'7px 4px',
-            border:`1px solid ${T.sep}`}}>
-            <p style={{fontSize:15,fontWeight:700,color:s.cor,margin:0,lineHeight:1,
-              letterSpacing:'-.02em'}}>{s.v}</p>
-            <p style={{fontSize:8,color:T.ink4,margin:'3px 0 0',textTransform:'uppercase',
-              letterSpacing:'.06em'}}>{s.l}</p>
-          </div>
+}
+
+function EmojiPicker({ onInsert, floating = false }) {
+  const [aberto, setAberto] = useState(false)
+  const [cat,    setCat]    = useState(0)
+  const [pos,    setPos]    = useState({ top:0, left:0 })
+  const btnRef   = useRef(null)
+  const panelRef = useRef(null)
+
+  const toggle = () => {
+    if (!aberto && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - r.bottom
+      setPos({
+        top:  spaceBelow > 240 ? r.bottom + 6 : r.top - 246,
+        left: Math.min(r.right - 276, window.innerWidth - 284),
+      })
+    }
+    setAberto(v => !v)
+  }
+
+  useEffect(() => {
+    if (!aberto) return
+    const fn = e => {
+      if (!btnRef.current?.contains(e.target) && !panelRef.current?.contains(e.target))
+        setAberto(false)
+    }
+    document.addEventListener('mousedown', fn)
+    return () => document.removeEventListener('mousedown', fn)
+  }, [aberto])
+
+  const panel = aberto && (
+    <div ref={panelRef}
+      style={{ position:'fixed', top:pos.top, left:pos.left, zIndex:9999,
+        background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:12,
+        boxShadow:'0 12px 40px rgba(0,0,0,.7)', width:276,
+        overflow:'hidden', animation:'gat-fadeUp .15s ease' }}>
+      <div style={{ display:'flex', borderBottom:`1px solid ${T.sep}`, background:T.bg3 }}>
+        {EMOJI_CATS.map((c,i) => (
+          <button key={i} onClick={() => setCat(i)} title={c.title}
+            style={{ flex:1, padding:'7px 4px', border:'none', cursor:'pointer',
+              background: cat===i ? T.bg2 : 'transparent', fontSize:15,
+              borderBottom: cat===i ? `2px solid ${T.purple}` : '2px solid transparent',
+              transition:'background .1s' }}>
+            {c.label}
+          </button>
         ))}
       </div>
-      {/* Taxa leitura vs benchmark */}
-      {stats.taxaLeitura!==null&&(
-        <div style={{display:'flex',alignItems:'center',gap:10}}>
-          {/* Ring */}
-          <div style={{position:'relative',width:44,height:44,flexShrink:0}}>
-            <svg width="44" height="44" viewBox="0 0 44 44">
-              <circle cx="22" cy="22" r="15" fill="none" stroke={T.bg4} strokeWidth="3"/>
-              {/* benchmark */}
-              <circle cx="22" cy="22" r="15" fill="none" stroke={`${T.ink4}50`}
-                strokeWidth="3" strokeDasharray={`${CIRC}`} strokeDashoffset={`${rb}`}
-                strokeLinecap="round" transform="rotate(-90 22 22)"/>
-              {/* você */}
-              <circle cx="22" cy="22" r="15" fill="none" stroke={lCor}
-                strokeWidth="3" strokeDasharray={`${CIRC}`} strokeDashoffset={`${rd}`}
-                strokeLinecap="round" transform="rotate(-90 22 22)"
-                style={{transition:'stroke-dashoffset .8s ease'}}/>
-            </svg>
-            <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
-              <span style={{fontSize:10,fontWeight:700,color:lCor}}>{stats.taxaLeitura}%</span>
-            </div>
+      <div style={{ padding:'5px 10px 3px', fontSize:9, fontWeight:700,
+        color:T.ink4, letterSpacing:'.06em', textTransform:'uppercase' }}>
+        {EMOJI_CATS[cat].title}
+      </div>
+      <div style={{ padding:'4px 8px 10px',
+        display:'grid', gridTemplateColumns:'repeat(15,1fr)', gap:1 }}>
+        {EMOJI_CATS[cat].list.map(e => (
+          <button key={e}
+            onMouseDown={ev => { ev.preventDefault(); onInsert(e); setAberto(false) }}
+            style={{ fontSize:17, padding:'5px 2px', border:'none', borderRadius:5,
+              background:'transparent', cursor:'pointer', lineHeight:1,
+              transition:'background .08s', display:'flex', alignItems:'center',
+              justifyContent:'center' }}
+            onMouseEnter={ev => ev.currentTarget.style.background = T.bg4}
+            onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
+            {e}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
+  return (
+    <>
+      <button ref={btnRef} onMouseDown={e => e.preventDefault()} onClick={toggle}
+        title="Inserir emoji"
+        style={ floating ? {
+          position:'absolute', bottom:7, right:7, width:22, height:22,
+          borderRadius:6, border:'none', cursor:'pointer', fontSize:14,
+          lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center',
+          background: aberto ? T.purpleDim : 'transparent',
+          color: aberto ? T.purple : T.ink4,
+          boxShadow: aberto ? `0 0 0 1px ${T.purpleBor}` : 'none',
+          transition:'all .15s', zIndex:2,
+        } : {
+          display:'inline-flex', alignItems:'center', gap:4,
+          padding:'3px 9px', borderRadius:6, cursor:'pointer', fontSize:11,
+          border:`1px solid ${aberto ? T.purpleBor : T.sep2}`,
+          background: aberto ? T.purpleDim : T.bg3,
+          color: aberto ? T.purple : T.ink3,
+          fontWeight: aberto ? 600 : 400, transition:'all .15s',
+        }}>
+        <span style={{ fontSize: floating ? 14 : 13 }}>😊</span>
+        {!floating && <span style={{marginLeft:3}}>Emoji</span>}
+      </button>
+      {panel}
+    </>
+  )
+}
+
+function VarChips({ vars, onInsert }) {
+  const [aberto, setAberto] = useState(false)
+
+  // Aceita array simples OU objeto { Categoria: [vars] }
+  if (!vars) return null
+  const isObj = !Array.isArray(vars)
+  const entries = isObj ? Object.entries(vars) : null
+  const flat    = isObj ? null : vars
+
+  if (isObj) {
+    const total = entries.reduce((s,[,l]) => s + l.length, 0)
+    if (!total) return null
+    return (
+      <div style={{ marginTop:5 }}>
+        {/* Toggle header */}
+        <button onClick={() => setAberto(v=>!v)}
+          style={{ display:'inline-flex', alignItems:'center', gap:5,
+            padding:'3px 9px', borderRadius:6, cursor:'pointer',
+            background: aberto ? T.bg4 : 'transparent',
+            border:`1px solid ${aberto ? T.sep2 : T.sep}`,
+            color: aberto ? T.cyan : T.ink4, fontSize:10, fontWeight:600,
+            transition:'all .15s' }}>
+          <Hash size={10}/>
+          Variáveis ({total})
+          {aberto ? <ChevronUp size={10}/> : <ChevronDown size={10}/>}
+        </button>
+
+        {/* Conteúdo expansível */}
+        {aberto && (
+          <div style={{ marginTop:6, display:'flex', flexDirection:'column', gap:5,
+            padding:'8px 10px', borderRadius:8, background:T.bg3,
+            border:`1px solid ${T.sep}`, animation:'gat-fadeUp .15s ease' }}>
+            {entries.map(([cat, list]) => (
+              <div key={cat} style={{ display:'flex', alignItems:'flex-start', gap:8 }}>
+                <span style={{ fontSize:9, color:T.ink4, fontWeight:700, minWidth:68,
+                  paddingTop:3, letterSpacing:'.04em', textTransform:'uppercase',
+                  flexShrink:0 }}>
+                  {cat}
+                </span>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:3 }}>
+                  {list.map(v => (
+                    <button key={v} onMouseDown={e=>{e.preventDefault();onInsert(v);setAberto(false)}}
+                      style={{ fontSize:9, padding:'2px 7px', borderRadius:99, cursor:'pointer',
+                        background:T.bg4, border:`1px solid ${T.sep2}`, color:T.cyan,
+                        fontFamily:'monospace', fontWeight:600, transition:'all .1s' }}
+                      onMouseEnter={e=>{e.currentTarget.style.borderColor=T.cyan;e.currentTarget.style.background=T.bg1}}
+                      onMouseLeave={e=>{e.currentTarget.style.borderColor=T.sep2;e.currentTarget.style.background=T.bg4}}>
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-          <div style={{flex:1}}>
-            <p style={{fontSize:11,fontWeight:600,color:T.ink1,margin:'0 0 3px'}}>
-              Taxa de leitura
+        )}
+      </div>
+    )
+  }
+
+  if (!flat?.length) return null
+  return (
+    <div style={{ display:'flex', flexWrap:'wrap', gap:3, marginTop:6 }}>
+      {flat.map(v => (
+        <button key={v} onMouseDown={e=>{e.preventDefault();onInsert(v)}}
+          style={{ fontSize:9, padding:'2px 7px', borderRadius:99, cursor:'pointer',
+            background:T.bg4, border:`1px solid ${T.sep2}`, color:T.cyan,
+            fontFamily:'monospace', fontWeight:600, transition:'border-color .1s' }}
+          onMouseEnter={e=>e.currentTarget.style.borderColor=T.cyan}
+          onMouseLeave={e=>e.currentTarget.style.borderColor=T.sep2}>
+          {v}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function Bloco({ b, idx, total, vars, onChange, onDelete, onMove, onDuplicate }) {
+  const [aberto, setAberto] = useState(true)
+  const [ac, setAc] = useState(null)   // { field, query, start, end, rect }
+  const tipo = TIPOS_BLOCO.find(t => t.tipo === b.tipo)
+  const Ic = tipo?.icon || FileText
+  const cor = tipo?.cor || T.ink3
+
+  // Cache da última posição do cursor
+  const selCache = useRef({})
+
+  const onFieldSel = (field, e) => {
+    selCache.current[field] = { s: e.target.selectionStart, e: e.target.selectionEnd }
+  }
+
+  // Handler de change com detecção de {{ para autocomplete
+  const handleChange = (field, newVal, e) => {
+    onChange({ ...b, [field]: newVal })
+    const pos = e.target.selectionStart
+    selCache.current[field] = { s: pos, e: pos }
+    const before = newVal.slice(0, pos)
+    const match = before.match(/\{\{([^{}]*)$/)
+    if (match) {
+      setAc({ field, query: match[1], start: pos - match[0].length, end: pos,
+        rect: e.target.getBoundingClientRect() })
+    } else {
+      setAc(null)
+    }
+  }
+
+  // Inserir variável do autocomplete — substitui o {{parcial já digitado
+  const insertFromAC = (variable) => {
+    if (!ac) return
+    const cur = b[ac.field] || ''
+    const next = cur.slice(0, ac.start) + variable + cur.slice(ac.end)
+    onChange({ ...b, [ac.field]: next })
+    selCache.current[ac.field] = { s: ac.start + variable.length, e: ac.start + variable.length }
+    setAc(null)
+  }
+
+  // Inserir sem autocomplete (emoji, VarChips flat)
+  const insertInto = (field, v) => {
+    const cur = b[field] || ''
+    const { s = cur.length, e = cur.length } = selCache.current[field] || {}
+    onChange({ ...b, [field]: cur.slice(0, s) + v + cur.slice(e) })
+    selCache.current[field] = { s: s + v.length, e: s + v.length }
+  }
+
+  const inputStyle = {
+    width:'100%', padding:'7px 10px', borderRadius:8, fontSize:12,
+    background:T.bg1, border:`1px solid ${T.sep2}`, color:T.ink1,
+    outline:'none', boxSizing:'border-box'
+  }
+  const labelStyle = { fontSize:10, color:T.ink3, marginBottom:3, display:'block', fontWeight:600 }
+  const toolbarStyle = { display:'flex', alignItems:'center', gap:4, marginTop:5 }
+
+  // Vars do gatilho organizadas por categoria (apenas as ativas neste gatilho)
+  const varsPorCat = Object.fromEntries(
+    Object.entries(TODAS_VARIAVEIS)
+      .map(([cat, all]) => [cat, all.filter(v => vars.includes(v))])
+      .filter(([, list]) => list.length > 0)
+  )
+  // Vars de URL disponíveis neste gatilho
+  const varsUrlAtivas = VARS_URL.filter(v => vars.includes(v))
+
+  return (
+    <div style={{ borderRadius:12, border:`1px solid ${T.sep}`,
+      background:T.bg2, marginBottom:8 }}>
+
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px',
+        background:T.bg3, borderBottom: aberto ? `1px solid ${T.sep}` : 'none' }}>
+        <GripVertical size={13} style={{ color:T.ink4, cursor:'grab', flexShrink:0 }}/>
+        <div style={{ width:22, height:22, borderRadius:6, display:'flex',
+          alignItems:'center', justifyContent:'center', background:`${cor}18`,
+          border:`1px solid ${cor}30`, flexShrink:0 }}>
+          <Ic size={11} style={{ color:cor }}/>
+        </div>
+        <span style={{ flex:1, fontSize:11, fontWeight:600, color:T.ink2 }}>
+          {tipo?.label || b.tipo}
+          {b.tipo==='texto' && b.conteudo && (
+            <span style={{ fontWeight:400, color:T.ink4, marginLeft:6 }}>
+              — {b.conteudo.slice(0,35).replace(/\n/g,' ')}{b.conteudo.length>35?'…':''}
+            </span>
+          )}
+          {b.tipo==='cabecalho' && b.conteudo && (
+            <span style={{ fontWeight:400, color:T.ink4, marginLeft:6 }}>
+              {b.conteudo.slice(0,30)}{b.conteudo.length>30?'…':''}
+            </span>
+          )}
+        </span>
+        <div style={{ display:'flex', alignItems:'center', gap:2 }}>
+          <button onClick={() => onMove(idx,-1)} disabled={idx===0}
+            style={{ padding:'3px 4px', borderRadius:5, border:'none', cursor:idx===0?'not-allowed':'pointer',
+              background:'transparent', color:T.ink3, opacity:idx===0?.3:1 }}>
+            <ChevronUp size={11}/>
+          </button>
+          <button onClick={() => onMove(idx,1)} disabled={idx===total-1}
+            style={{ padding:'3px 4px', borderRadius:5, border:'none', cursor:idx===total-1?'not-allowed':'pointer',
+              background:'transparent', color:T.ink3, opacity:idx===total-1?.3:1 }}>
+            <ChevronDown size={11}/>
+          </button>
+          {onDuplicate && (
+            <button onClick={onDuplicate} title="Duplicar"
+              style={{ padding:'3px 4px', borderRadius:5, border:'none', cursor:'pointer',
+                background:'transparent', color:T.ink3 }}>
+              <Copy size={11}/>
+            </button>
+          )}
+          <button onClick={() => setAberto(v=>!v)}
+            style={{ padding:'3px 4px', borderRadius:5, border:'none', cursor:'pointer',
+              background:'transparent', color:T.ink3 }}>
+            {aberto ? <ChevronUp size={11}/> : <ChevronDown size={11}/>}
+          </button>
+          <button onClick={onDelete}
+            style={{ padding:'3px 4px', borderRadius:5, border:'none', cursor:'pointer',
+              background:'transparent', color:T.red }}>
+            <X size={11}/>
+          </button>
+        </div>
+      </div>
+
+      {/* Conteúdo */}
+      {aberto && (
+        <div style={{ padding:'10px 12px' }}>
+
+          {/* CABEÇALHO */}
+          {b.tipo==='cabecalho' && (
+            <div>
+              <label style={labelStyle}>
+                Texto do cabeçalho
+                <span style={{color:T.ink4,fontWeight:400}}> ({60-(b.conteudo||'').length} restantes)</span>
+              </label>
+              <div style={{ position:'relative' }}>
+                <input
+                  value={b.conteudo||''} maxLength={60}
+                  onChange={e => handleChange('conteudo', e.target.value, e)}
+                  onSelect={e => onFieldSel('conteudo', e)}
+                  onFocus={e  => onFieldSel('conteudo', e)}
+                  placeholder="Ex: 📦 Seu pedido foi enviado!"
+                  style={{...inputStyle, paddingRight:34}}/>
+                <EmojiPicker floating onInsert={v => insertInto('conteudo', v)}/>
+              </div>
+            </div>
+          )}
+
+          {/* TEXTO */}
+          {b.tipo==='texto' && (
+            <div>
+              <label style={labelStyle}>Texto da mensagem</label>
+              <div style={{ position:'relative' }}>
+                <textarea
+                  value={b.conteudo||''} rows={4}
+                  onChange={e => handleChange('conteudo', e.target.value, e)}
+                  onSelect={e => onFieldSel('conteudo', e)}
+                  onFocus={e  => onFieldSel('conteudo', e)}
+                  placeholder="Digite o texto. Use *negrito*, _itálico_, ~tachado~"
+                  style={{...inputStyle, resize:'vertical', fontFamily:'inherit', lineHeight:1.5, paddingRight:34}}/>
+                <EmojiPicker floating onInsert={v => insertInto('conteudo', v)}/>
+              </div>
+            </div>
+          )}
+
+          {/* RODAPÉ */}
+          {b.tipo==='rodape' && (
+            <div>
+              <label style={labelStyle}>
+                Rodapé
+                <span style={{color:T.ink4,fontWeight:400}}> (aparece em itálico — comportamento padrão do WhatsApp)</span>
+              </label>
+              <div style={{ position:'relative' }}>
+                <input
+                  value={b.conteudo||''} maxLength={60}
+                  onChange={e => handleChange('conteudo', e.target.value, e)}
+                  onSelect={e => onFieldSel('conteudo', e)}
+                  onFocus={e  => onFieldSel('conteudo', e)}
+                  placeholder="Ex: Só Strass • sostrass.com.br"
+                  style={{...inputStyle, paddingRight:34}}/>
+                <EmojiPicker floating onInsert={v => insertInto('conteudo', v)}/>
+              </div>
+            </div>
+          )}
+
+          {/* IMAGEM */}
+          {b.tipo==='imagem' && (
+            <div>
+              <label style={labelStyle}>URL da imagem</label>
+              <input value={b.url||''} onChange={e => onChange({...b, url:e.target.value})}
+                placeholder="https://... ou {{foto_produto}}"
+                style={{...inputStyle, fontFamily:'monospace', fontSize:11}}/>
+              <label style={{...labelStyle, marginTop:8}}>Legenda (opcional)</label>
+              <input value={b.legenda||''} onChange={e => onChange({...b, legenda:e.target.value})}
+                placeholder="Legenda da imagem"
+                style={inputStyle}/>
+              <VarChips vars={VARS_URL.filter(v=>v.includes('foto')||v.includes('link')||v.includes('produto'))} onInsert={v => insertInto('url', v)}/>
+            </div>
+          )}
+
+          {/* VÍDEO */}
+          {b.tipo==='video' && (
+            <div>
+              <label style={labelStyle}>URL do vídeo</label>
+              <input value={b.url||''} onChange={e => onChange({...b, url:e.target.value})}
+                placeholder="https://... (MP4 público)"
+                style={{...inputStyle, fontFamily:'monospace', fontSize:11}}/>
+            </div>
+          )}
+
+          {/* ÁUDIO */}
+          {b.tipo==='audio' && (
+            <div>
+              <label style={labelStyle}>URL do áudio</label>
+              <input value={b.url||''} onChange={e => onChange({...b, url:e.target.value})}
+                placeholder="https://... (OGG ou MP3 público)"
+                style={{...inputStyle, fontFamily:'monospace', fontSize:11}}/>
+            </div>
+          )}
+
+          {/* BOTÃO — acao: reply | url | phone */}
+          {b.tipo==='botao' && (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <div>
+                <label style={labelStyle}>Tipo de botão</label>
+                <select value={b.acao||'reply'} onChange={e => onChange({...b, acao:e.target.value})}
+                  style={{...inputStyle}}>
+                  <option value="reply">Resposta rápida</option>
+                  <option value="url">Abrir URL</option>
+                  <option value="phone">Ligar</option>
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Texto do botão <span style={{color:T.ink4,fontWeight:400}}>(máx. 20 caracteres)</span></label>
+                <input value={b.texto||''} maxLength={20}
+                  onChange={e => onChange({...b, texto:e.target.value})}
+                  placeholder="Ex: Rastrear pedido"
+                  style={inputStyle}/>
+              </div>
+              {/* URL: armazenado em b.valor (não b.url) */}
+              {b.acao==='url' && (
+                <div>
+                  <label style={labelStyle}>URL de destino</label>
+                  <input value={b.valor||''} onChange={e => onChange({...b, valor:e.target.value})}
+                    placeholder="https://... ou {{link_rastreio}}"
+                    style={{...inputStyle, fontFamily:'monospace', fontSize:11}}/>
+                  <VarChips vars={varsUrlAtivas} onInsert={v => onChange({...b, valor:(b.valor||'')+v})}/>
+                </div>
+              )}
+              {/* Telefone: armazenado em b.valor */}
+              {b.acao==='phone' && (
+                <div>
+                  <label style={labelStyle}>Telefone</label>
+                  <input value={b.valor||''} onChange={e => onChange({...b, valor:e.target.value})}
+                    placeholder="+5519XXXXXXXXX"
+                    style={inputStyle}/>
+                </div>
+              )}
+              {/* Reply: payload em b.valor */}
+              {(!b.acao || b.acao==='reply') && (
+                <div>
+                  <label style={labelStyle}>Payload (opcional)</label>
+                  <input value={b.valor||''} onChange={e => onChange({...b, valor:e.target.value})}
+                    placeholder="valor interno enviado ao clicar"
+                    style={{...inputStyle, fontFamily:'monospace', fontSize:11}}/>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* LINK — URL em b.url, texto em b.texto */}
+          {b.tipo==='link' && (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <div>
+                <label style={labelStyle}>Texto do botão <span style={{color:T.ink4,fontWeight:400}}>(máx. 20 caracteres)</span></label>
+                <input value={b.texto||''} maxLength={20}
+                  onChange={e => onChange({...b, texto:e.target.value})}
+                  placeholder="Ex: Ver pedido"
+                  style={inputStyle}/>
+              </div>
+              <div>
+                <label style={labelStyle}>URL</label>
+                <input value={b.url||''} onChange={e => onChange({...b, url:e.target.value})}
+                  placeholder="https://... ou {{link_acompanhamento}}"
+                  style={{...inputStyle, fontFamily:'monospace', fontSize:11}}/>
+                <VarChips vars={varsUrlAtivas} onInsert={v => onChange({...b, url:(b.url||'')+v})}/>
+              </div>
+            </div>
+          )}
+
+          {/* LIGAR */}
+          {b.tipo==='ligar' && (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              <div>
+                <label style={labelStyle}>Texto do botão <span style={{color:T.ink4,fontWeight:400}}>(máx. 20 caracteres)</span></label>
+                <input value={b.texto||''} maxLength={20}
+                  onChange={e => onChange({...b, texto:e.target.value})}
+                  placeholder="Ex: Falar com suporte"
+                  style={inputStyle}/>
+              </div>
+              <div>
+                <label style={labelStyle}>Telefone</label>
+                <input value={b.valor||''} onChange={e => onChange({...b, valor:e.target.value})}
+                  placeholder="+5519XXXXXXXXX"
+                  style={inputStyle}/>
+              </div>
+            </div>
+          )}
+
+          {/* QUEBRA / NOVA MENSAGEM */}
+          {b.tipo==='quebra' && (
+            <div style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 0',
+              color:T.ink4, fontSize:11 }}>
+              <div style={{ flex:1, height:1, background:T.sep }}/>
+              <span>Nova mensagem separada</span>
+              <div style={{ flex:1, height:1, background:T.sep }}/>
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* Autocomplete {{ — dropdown flutuante de variáveis */}
+      {ac && varsPorCat && Object.keys(varsPorCat).length > 0 && (
+        <VarDropdown
+          query={ac.query}
+          vars={varsPorCat}
+          anchorRect={ac.rect}
+          onSelect={insertFromAC}
+          onClose={() => setAc(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── PLANO DE DISPAROS ────────────────────────────────────────────────────────
+// ─── GERENCIAR VARIÁVEIS DO GATILHO ──────────────────────────────────────────
+function GerenciarVars({ gatilhoId, varsList, onSave, api }) {
+  const [aberto,  setAberto]  = useState(false)
+  const [adicionando, setAdd] = useState(false)
+  const [salvando, setSalv]   = useState(false)
+
+  // Variáveis disponíveis para adicionar (não estão na lista atual)
+  const todasFlat = Object.values(TODAS_VARIAVEIS).flat()
+  const disponiveis = todasFlat.filter(v => !varsList.includes(v))
+
+  const salvar = async (novaLista) => {
+    setSalv(true)
+    await fetch(`${api}/api/ia/config`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ chave:`variaveis_${gatilhoId}`, valor:JSON.stringify(novaLista) })
+    }).catch(() => {})
+    onSave(novaLista)
+    setSalv(false)
+  }
+
+  const remover = (v) => salvar(varsList.filter(x => x !== v))
+  const adicionar = (v) => { salvar([...varsList, v]); setAdd(false) }
+  const resetar = () => {
+    const padrao = GATILHOS.find(g => g.id === gatilhoId)?.variaveis || []
+    salvar(padrao)
+  }
+
+  // Organiza varsList por categoria para exibição
+  const porCat = Object.entries(TODAS_VARIAVEIS).map(([cat, all]) => ({
+    cat, vars: all.filter(v => varsList.includes(v))
+  })).filter(e => e.vars.length > 0)
+
+  return (
+    <div style={{ borderRadius:10, border:`1px solid ${T.sep}`, background:T.bg2, overflow:'hidden' }}>
+      {/* Header clicável */}
+      <button onClick={() => setAberto(v=>!v)}
+        style={{ width:'100%', display:'flex', alignItems:'center', gap:8, padding:'10px 14px',
+          background:'transparent', border:'none', cursor:'pointer',
+          borderBottom: aberto ? `1px solid ${T.sep}` : 'none' }}>
+        <Hash size={13} style={{ color:T.purple }}/>
+        <span style={{ flex:1, fontSize:12, fontWeight:600, color:T.ink1, textAlign:'left' }}>
+          Variáveis deste gatilho
+        </span>
+        <span style={{ fontSize:10, color:T.ink4 }}>{varsList.length} ativas</span>
+        {aberto ? <ChevronUp size={12} style={{ color:T.ink4 }}/> : <ChevronDown size={12} style={{ color:T.ink4 }}/>}
+      </button>
+
+      {aberto && (
+        <div style={{ padding:'12px 14px' }}>
+          <p style={{ fontSize:10, color:T.ink4, margin:'0 0 10px', lineHeight:1.5 }}>
+            Variáveis ativas aparecem nos chips do editor de blocos deste gatilho. Remova as que não fazem sentido para manter o editor limpo.
+          </p>
+
+          {/* Lista por categoria */}
+          {porCat.map(({ cat, vars }) => (
+            <div key={cat} style={{ marginBottom:8 }}>
+              <div style={{ fontSize:9, fontWeight:700, color:T.ink4, letterSpacing:'.05em',
+                textTransform:'uppercase', marginBottom:4 }}>{cat}</div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                {vars.map(v => (
+                  <div key={v} style={{ display:'inline-flex', alignItems:'center', gap:4,
+                    padding:'3px 8px 3px 10px', borderRadius:99,
+                    background:T.bg4, border:`1px solid ${T.sep2}` }}>
+                    <span style={{ fontSize:10, color:T.cyan, fontFamily:'monospace', fontWeight:600 }}>{v}</span>
+                    <button onClick={() => remover(v)} disabled={salvando}
+                      style={{ width:14, height:14, borderRadius:'50%', border:'none',
+                        background:T.redDim, cursor:'pointer', display:'flex',
+                        alignItems:'center', justifyContent:'center', padding:0,
+                        color:T.red, flexShrink:0 }}>
+                      <X size={9}/>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {varsList.length === 0 && (
+            <p style={{ fontSize:11, color:T.ink4, fontStyle:'italic', margin:'0 0 10px' }}>
+              Nenhuma variável ativa. Clique em + Adicionar para incluir.
             </p>
-            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-              <span style={{fontSize:10,color:lCor,fontWeight:600}}>
-                {stats.taxaLeitura}% você
-              </span>
-              <span style={{fontSize:10,color:T.ink4}}>
-                vs {stats.benchmarkLeitura}% mercado
-              </span>
+          )}
+
+          {/* Painel de adição */}
+          {adicionando && disponiveis.length > 0 && (
+            <div style={{ borderRadius:8, border:`1px solid ${T.sep2}`, background:T.bg3,
+              padding:'8px 10px', marginBottom:8 }}>
+              <p style={{ fontSize:10, color:T.ink4, margin:'0 0 6px', fontWeight:600 }}>
+                Clique para adicionar:
+              </p>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                {disponiveis.map(v => (
+                  <button key={v} onClick={() => adicionar(v)}
+                    style={{ fontSize:10, padding:'3px 8px', borderRadius:99, cursor:'pointer',
+                      background:T.bg1, border:`1px solid ${T.purpleBor}`, color:T.purple,
+                      fontFamily:'monospace', fontWeight:600, transition:'all .12s' }}
+                    onMouseEnter={e => { e.currentTarget.style.background=T.purpleDim }}
+                    onMouseLeave={e => { e.currentTarget.style.background=T.bg1 }}>
+                    + {v}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div style={{marginTop:5,height:4,borderRadius:99,background:T.bg4,position:'relative'}}>
-              <div style={{position:'absolute',left:0,top:0,height:'100%',borderRadius:99,
-                background:lCor,width:`${Math.min(100,stats.taxaLeitura)}%`,
-                transition:'width .8s ease'}}/>
-              <div style={{position:'absolute',top:0,height:'100%',width:2,background:T.ink4,
-                left:`${stats.benchmarkLeitura}%`,transform:'translateX(-50%)'}}/>
-            </div>
+          )}
+
+          {/* Ações */}
+          <div style={{ display:'flex', gap:6, marginTop:8 }}>
+            <button onClick={() => setAdd(v=>!v)}
+              style={{ display:'inline-flex', alignItems:'center', gap:5,
+                padding:'5px 12px', borderRadius:7, cursor:'pointer', fontSize:11,
+                background: adicionando ? T.purpleDim : T.bg3,
+                border:`1px solid ${adicionando ? T.purpleBor : T.sep}`,
+                color: adicionando ? T.purple : T.ink2, fontWeight:600 }}>
+              <Plus size={11}/> Adicionar
+            </button>
+            <button onClick={resetar} disabled={salvando}
+              style={{ display:'inline-flex', alignItems:'center', gap:5,
+                padding:'5px 12px', borderRadius:7, cursor:'pointer', fontSize:11,
+                background:'transparent', border:`1px solid ${T.sep}`, color:T.ink4 }}>
+              <RefreshCw size={10}/> Restaurar padrão
+            </button>
+            {salvando && <span style={{ fontSize:10, color:T.ink4, alignSelf:'center' }}>Salvando…</span>}
           </div>
         </div>
       )}
     </div>
   )
 }
+
+function PlanodeDisparos({ gatilhos, configs, atividade, onSelect, api }) {
+  const [delays,    setDelays]  = useState({})
+  const [ordemGrupo,setOrdemGrupo] = useState({})
+  const [salvando,  setSalv]    = useState(null)
+  const [hoveredId, setHovered] = useState(null)
+  const [colapsados,setColaps]  = useState(new Set())
+  const [delayOpen, setDelayOpen] = useState(null)
+
+  // ── Carregar delays ────────────────────────────────────────────────────────
+  useEffect(() => {
+    fetch(`${api}/api/ia/config`)
+      .then(r => r.json())
+      .then(d => {
+        const dl = {}
+        for (const g of gatilhos) {
+          const v = d[`delay_${g.id}`]
+          if (v !== undefined) dl[g.id] = Number(v)
+        }
+        setDelays(dl)
+      }).catch(() => {})
+  }, [api, gatilhos])
+
+  // ── Ordem inicial por grupo ────────────────────────────────────────────────
+  useEffect(() => {
+    const og = {}
+    for (const grupo of GRUPOS_ORDEM)
+      og[grupo] = gatilhos.filter(g => g.grupo === grupo).map(g => g.id)
+    // Aplica a ordem salva no Plano (motor do webhook lê os mesmos níveis)
+    fetch(`${api}/api/dashboard/gatilhos/plano`)
+      .then(r => r.ok ? r.json() : null)
+      .then(plano => {
+        if (plano?.niveis && Object.keys(plano.niveis).length) {
+          const nv = plano.niveis
+          og['Envio & Rastreio'] = [...og['Envio & Rastreio']]
+            .sort((a, b) => (nv[a] ?? 99) - (nv[b] ?? 99))
+        }
+        setOrdemGrupo({ ...og })
+      })
+      .catch(() => setOrdemGrupo(og))
+  }, [gatilhos, api])
+
+  // ── Jornada principal (ordem cronológica para score e preview) ─────────────
+  const JORNADA_CORE = [
+    'pedido_criado','pagamento_aprovado','em_separacao','produto_embalado',
+    'pedido_enviado','pedido_coletado','rastreio_em_transito','saiu_entrega','pedido_entregue'
+  ]
+  const JORNADA_PREVIEW = [
+    'pedido_criado','pagamento_aprovado','em_separacao','produto_embalado',
+    'pedido_enviado','pedido_coletado','rastreio_em_transito','saiu_entrega','pedido_entregue',
+    'tentativa_entrega','cancelamento','avaliar_pedido'
+  ]
+
+  // ── Journey Score ──────────────────────────────────────────────────────────
+  const score = useMemo(() => {
+    const total    = JORNADA_CORE.length
+    const ativos   = JORNADA_CORE.filter(id => configs[id]?.ativo).length
+    const aprovados= JORNADA_CORE.filter(id => configs[id]?.meta_template_status==='APPROVED').length
+    const semTpl   = JORNADA_CORE.filter(id => !configs[id]).length
+    return { total, ativos, aprovados, semTpl, pct: Math.round(ativos/total*100) }
+  }, [configs])
+
+  // ── Gap Intelligence ───────────────────────────────────────────────────────
+  const gaps = useMemo(() => {
+    const result = []
+    for (let i = 0; i < JORNADA_CORE.length - 1; i++) {
+      const curr = JORNADA_CORE[i], next = JORNADA_CORE[i+1]
+      if (configs[curr]?.ativo && !configs[next]?.ativo)
+        result.push({ after: curr, missing: next })
+    }
+    return result
+  }, [configs])
+
+  const gatilhoMap = Object.fromEntries(gatilhos.map(g => [g.id, g]))
+
+  // ── Extrair preview real do template (com dados de exemplo) ───────────────
+  const SAMPLE = {
+    '{{nome_cliente}}':'Maria Silva','{{primeiro_nome}}':'Maria',
+    '{{numero_pedido}}':'#4521','{{valor_total}}':'R$ 89,90',
+    '{{transportadora}}':'Correios','{{codigo_rastreio}}':'AA123456789BR',
+    '{{previsao_entrega}}':'3 dias úteis','{{nome_loja}}':'Só Strass',
+    '{{forma_pagamento}}':'PIX','{{link_acompanhamento}}':'rastreio.link',
+    '{{data_pedido}}':'08/06/2026','{{numero_nfe}}':'004521',
+  }
+  const rv = txt => {
+    if (!txt) return txt
+    return Object.entries(SAMPLE).reduce(
+      (s,[k,v]) => s.replace(new RegExp(k.replace(/[{}]/g,'\\$&'),'g'), v), txt
+    )
+  }
+  const getPreview = (gId) => {
+    const cfg = configs[gId]
+    if (!cfg?.blocos?.length) return null
+    const cab = cfg.blocos.find(b=>b.tipo==='cabecalho')?.conteudo
+    const txt = cfg.blocos.find(b=>b.tipo==='texto')?.conteudo
+    const rod = cfg.blocos.find(b=>b.tipo==='rodape')?.conteudo
+    const bts = cfg.blocos.filter(b=>b.tipo==='botao'&&b.texto).slice(0,3)
+    const hasImg = cfg.blocos.some(b=>b.tipo==='imagem')
+    return { cab, txt, rod, bts, hasImg }
+  }
+
+  // Mensagens da jornada com template e ativas para o preview
+  const previewMsgs = useMemo(() =>
+    JORNADA_PREVIEW
+      .filter(id => configs[id]?.ativo && getPreview(id))
+      .map(id => ({ id, g: gatilhoMap[id], delay: delays[id]||0, preview: getPreview(id) }))
+      .filter(x => x.g)
+  , [configs, delays, gatilhoMap])
+
+  // ── Ações ──────────────────────────────────────────────────────────────────
+  const salvarDelay = async (gId, min) => {
+    setSalv(gId); setDelays(p=>({...p,[gId]:min})); setDelayOpen(null)
+    await fetch(`${api}/api/ia/config`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chave:`delay_${gId}`,valor:String(min)})}).catch(()=>{})
+    setSalv(null)
+  }
+  const moverNoGrupo = (grupo, idx, dir) => {
+    setOrdemGrupo(prev=>{
+      const lista=[...(prev[grupo]||[])]; const t=idx+dir
+      if(t<0||t>=lista.length) return prev
+      ;[lista[idx],lista[t]]=[lista[t],lista[idx]]
+      const novo={...prev,[grupo]:lista}
+      // Persiste a esteira de rastreio no Plano — o webhook lê estes níveis
+      // como política real (anti-atropelamento). Reordenar aqui = mudar o motor.
+      if (grupo==='Envio & Rastreio') {
+        const ESTEIRA=['pedido_enviado','pedido_coletado','rastreio_em_transito','saiu_entrega','pedido_entregue']
+        const niveis={}; let n=0
+        for (const id of lista) if (ESTEIRA.includes(id)) niveis[id]=n++
+        fetch(`${api}/api/dashboard/gatilhos/plano`,{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({niveis})
+        }).catch(()=>{})
+      }
+      return novo
+    })
+  }
+  const toggleColaps = grupo =>
+    setColaps(prev=>{ const s=new Set(prev); s.has(grupo)?s.delete(grupo):s.add(grupo); return s })
+
+  const GRUPO_META = {
+    'Compra & Pagamento': {icon:ShoppingBag, cor:T.cyan,   desc:'Eventos de compra e pagamento'},
+    'Preparação & Nota':  {icon:Package,     cor:T.amber,  desc:'Separação, embalagem e nota fiscal'},
+    'Envio & Rastreio':   {icon:Truck,       cor:T.purple, desc:'Jornada física do pacote'},
+    'Pós-venda':          {icon:Star,        cor:T.green,  desc:'Cancelamentos, devoluções e avaliações'},
+    'Inteligência':       {icon:Brain,       cor:T.blue,   desc:'Gatilhos automáticos da Bia IA'},
+  }
+
+  const delayLabel = min => {
+    if (!min) return 'Imediato'
+    if (min < 60) return `${min}min`
+    if (min % 60 === 0) return `${min/60}h`
+    return `${Math.floor(min/60)}h${min%60}m`
+  }
+
+  // Fechar delay popover ao clicar fora
+  useEffect(() => {
+    if (!delayOpen) return
+    const fn = e => {
+      if (!e.target.closest('[data-delay-pop]')) setDelayOpen(null)
+    }
+    document.addEventListener('mousedown', fn)
+    return () => document.removeEventListener('mousedown', fn)
+  }, [delayOpen])
+
+  return (
+    <div style={{display:'flex',flex:1,overflow:'hidden',minHeight:0}}>
+
+      {/* ══════════════════════════════════════════════════════════════
+          PAINEL ESQUERDO — Journey Builder
+      ══════════════════════════════════════════════════════════════ */}
+      <div style={{width:'54%',display:'flex',flexDirection:'column',
+        borderRight:`1px solid ${T.sep}`,overflow:'hidden'}}>
+
+        {/* Journey Score */}
+        <div style={{flexShrink:0,padding:'14px 16px 12px',borderBottom:`1px solid ${T.sep}`,
+          background:T.bg1}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+            <div style={{flex:1}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}>
+                <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>Cobertura da jornada</span>
+                <span style={{fontSize:18,fontWeight:800,
+                  color:score.pct>=80?T.green:score.pct>=50?T.amber:T.red}}>
+                  {score.pct}%
+                </span>
+              </div>
+              {/* Barra de progresso segmentada */}
+              <div style={{height:6,borderRadius:99,background:T.bg4,overflow:'hidden',position:'relative'}}>
+                <div style={{position:'absolute',left:0,top:0,height:'100%',
+                  width:`${score.pct}%`,borderRadius:99,transition:'width .6s ease',
+                  background:score.pct>=80
+                    ?`linear-gradient(90deg,${T.green},${T.cyan})`
+                    :score.pct>=50
+                    ?`linear-gradient(90deg,${T.amber},${T.green})`
+                    :`linear-gradient(90deg,${T.red},${T.amber})`}}/>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:12,fontSize:10}}>
+              {[
+                {v:score.ativos,   l:'Ativos',   c:T.green},
+                {v:score.aprovados,l:'Meta ✓',   c:T.blue},
+                {v:score.semTpl,   l:'Sem tpl',  c:T.red},
+              ].map(({v,l,c})=>(
+                <div key={l} style={{textAlign:'center'}}>
+                  <div style={{fontSize:16,fontWeight:800,color:c}}>{v}</div>
+                  <div style={{color:T.ink4,fontSize:9}}>{l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Gap alerts */}
+          {gaps.length>0&&(
+            <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+              {gaps.map(({after,missing})=>{
+                const gm=gatilhoMap[missing]
+                return gm?(
+                  <button key={missing} onClick={()=>onSelect(missing)}
+                    style={{display:'inline-flex',alignItems:'center',gap:5,
+                      padding:'3px 9px',borderRadius:99,cursor:'pointer',fontSize:10,
+                      background:T.amberDim,border:`1px solid ${T.amberBor}`,color:T.amber,
+                      fontWeight:600}}>
+                    <AlertTriangle size={9}/>
+                    Gap: {gm.label} sem template
+                  </button>
+                ):null
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Lista de grupos */}
+        <div style={{flex:1,overflowY:'auto',padding:'10px 12px 20px'}}>
+          {GRUPOS_ORDEM.map(grupo=>{
+            const meta=GRUPO_META[grupo]||{icon:Zap,cor:T.ink3,desc:''}
+            const GIc=meta.icon
+            const ids=ordemGrupo[grupo]||[]
+            if(!ids.length) return null
+            const colapsado=colapsados.has(grupo)
+            const ativos=ids.filter(id=>configs[id]?.ativo).length
+
+            return(
+              <div key={grupo} style={{marginBottom:10}}>
+                {/* Header do grupo */}
+                <button onClick={()=>toggleColaps(grupo)}
+                  style={{width:'100%',display:'flex',alignItems:'center',gap:8,
+                    padding:'7px 10px',borderRadius:8,border:`1px solid ${T.sep}`,
+                    background:T.bg3,cursor:'pointer',marginBottom:colapsado?0:6,
+                    transition:'background .12s'}}
+                  onMouseEnter={e=>e.currentTarget.style.background=T.bg4}
+                  onMouseLeave={e=>e.currentTarget.style.background=T.bg3}>
+                  <div style={{width:22,height:22,borderRadius:6,flexShrink:0,
+                    background:`${meta.cor}18`,border:`1px solid ${meta.cor}30`,
+                    display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <GIc size={11} style={{color:meta.cor}}/>
+                  </div>
+                  <span style={{flex:1,fontSize:11,fontWeight:700,color:T.ink1,textAlign:'left'}}>
+                    {grupo}
+                  </span>
+                  <span style={{fontSize:9,padding:'2px 7px',borderRadius:99,
+                    background:ativos>0?T.greenDim:T.bg4,
+                    border:`1px solid ${ativos>0?T.greenBor:T.sep}`,
+                    color:ativos>0?T.green:T.ink4}}>
+                    {ativos}/{ids.length}
+                  </span>
+                  {colapsado
+                    ?<ChevronDown size={11} style={{color:T.ink4,flexShrink:0}}/>
+                    :<ChevronUp size={11} style={{color:T.ink4,flexShrink:0}}/>
+                  }
+                </button>
+
+                {/* Itens do grupo */}
+                {!colapsado&&(
+                  <div style={{borderRadius:10,border:`1px solid ${T.sep}`,
+                    background:T.bg2,overflow:'hidden'}}>
+                    {ids.map((gId,idx)=>{
+                      const g=gatilhoMap[gId]; if(!g) return null
+                      const cfg=configs[gId]
+                      const ativo=cfg?.ativo??false
+                      const temTpl=!!cfg
+                      const metaOk=cfg?.meta_template_status==='APPROVED'
+                      const metaRej=cfg?.meta_template_status==='REJECTED'
+                      const delay=delays[gId]??0
+                      const disp=atividade?.[gId]||0
+                      const Ic=g.icon||Zap
+                      const isHov=hoveredId===gId
+                      const isLast=idx===ids.length-1
+
+                      return(
+                        <div key={gId}
+                          onMouseEnter={()=>setHovered(gId)}
+                          onMouseLeave={()=>setHovered(null)}
+                          style={{display:'flex',alignItems:'center',gap:8,
+                            padding:'8px 10px',
+                            borderBottom:isLast?'none':`1px solid ${T.sep}`,
+                            background:isHov?T.bg3:'transparent',
+                            transition:'background .1s',
+                            borderLeft:`2px solid ${ativo?g.cor:T.sep}`}}>
+
+                          {/* Ícone */}
+                          <div style={{width:26,height:26,borderRadius:7,flexShrink:0,
+                            background:ativo?`${g.cor}15`:T.bg3,
+                            border:`1px solid ${ativo?g.cor+'30':T.sep}`,
+                            display:'flex',alignItems:'center',justifyContent:'center'}}>
+                            <Ic size={12} style={{color:ativo?g.cor:T.ink4}}/>
+                          </div>
+
+                          {/* Nome + badges */}
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{display:'flex',alignItems:'center',gap:5,
+                              flexWrap:'wrap'}}>
+                              <span style={{fontSize:11,fontWeight:600,
+                                color:ativo?T.ink1:T.ink4,
+                                whiteSpace:'nowrap',overflow:'hidden',
+                                textOverflow:'ellipsis',maxWidth:110}}>
+                                {g.label}
+                              </span>
+                              {metaOk&&<span style={{fontSize:8,padding:'1px 5px',
+                                borderRadius:99,background:T.blueDim,
+                                border:`1px solid ${T.blueBor}`,color:T.blue,
+                                fontWeight:700,flexShrink:0}}>META ✓</span>}
+                              {metaRej&&<span style={{fontSize:8,padding:'1px 5px',
+                                borderRadius:99,background:T.redDim,
+                                border:`1px solid ${T.redBor}`,color:T.red,
+                                fontWeight:700,flexShrink:0}}>REJEIT.</span>}
+                              {!temTpl&&<span style={{fontSize:8,padding:'1px 5px',
+                                borderRadius:99,background:T.bg4,
+                                border:`1px solid ${T.sep}`,color:T.ink4,
+                                flexShrink:0}}>sem tpl</span>}
+                              {disp>0&&<span style={{fontSize:8,color:T.blue,flexShrink:0}}>
+                                {disp}/7d
+                              </span>}
+                            </div>
+                          </div>
+
+                          {/* Delay badge clicável */}
+                          <div data-delay-pop style={{position:'relative',flexShrink:0}}>
+                            <button data-delay-pop
+                              onClick={()=>setDelayOpen(delayOpen===gId?null:gId)}
+                              style={{padding:'3px 8px',borderRadius:6,cursor:'pointer',
+                                fontSize:9,fontWeight:700,
+                                border:`1px solid ${delay>0?T.amberBor:T.sep}`,
+                                background:delay>0?T.amberDim:T.bg3,
+                                color:delay>0?T.amber:T.ink4,
+                                transition:'all .12s',display:'flex',
+                                alignItems:'center',gap:3}}>
+                              {delay>0&&<Timer size={8}/>}
+                              {delayLabel(delay)}
+                            </button>
+                            {delayOpen===gId&&(
+                              <div data-delay-pop
+                                style={{position:'absolute',top:'calc(100% + 4px)',
+                                  right:0,zIndex:200,background:T.bg2,
+                                  border:`1px solid ${T.sep2}`,borderRadius:9,
+                                  padding:'6px 8px',boxShadow:'0 8px 24px rgba(0,0,0,.6)',
+                                  minWidth:160,animation:'gat-fadeUp .12s ease'}}>
+                                <div style={{fontSize:9,color:T.ink4,fontWeight:700,
+                                  marginBottom:5,textTransform:'uppercase',
+                                  letterSpacing:'.04em'}}>
+                                  Delay de envio
+                                </div>
+                                <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                                  {DELAY_OPCOES.map(op=>{
+                                    const sel=delay===op.valor
+                                    return(
+                                      <button key={op.valor} data-delay-pop
+                                        onClick={()=>salvarDelay(gId,op.valor)}
+                                        disabled={salvando===gId}
+                                        style={{padding:'4px 9px',borderRadius:6,
+                                          fontSize:10,cursor:'pointer',fontWeight:sel?700:400,
+                                          border:`1px solid ${sel?g.cor+'80':T.sep}`,
+                                          background:sel?`${g.cor}15`:'transparent',
+                                          color:sel?g.cor:T.ink4,transition:'all .1s'}}>
+                                        {salvando===gId&&sel?'…':op.label}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Reordenar */}
+                          <div style={{display:'flex',gap:1,flexShrink:0}}>
+                            <button onClick={()=>moverNoGrupo(grupo,idx,-1)}
+                              disabled={idx===0}
+                              style={{padding:'3px',border:'none',borderRadius:4,
+                                background:'transparent',color:T.ink4,cursor:'pointer',
+                                opacity:idx===0?.25:1}}>
+                              <ChevronUp size={10}/>
+                            </button>
+                            <button onClick={()=>moverNoGrupo(grupo,idx,1)}
+                              disabled={isLast}
+                              style={{padding:'3px',border:'none',borderRadius:4,
+                                background:'transparent',color:T.ink4,cursor:'pointer',
+                                opacity:isLast?.25:1}}>
+                              <ChevronDown size={10}/>
+                            </button>
+                          </div>
+
+                          {/* Editar */}
+                          <button onClick={()=>onSelect(gId)}
+                            style={{padding:'4px 8px',borderRadius:6,flexShrink:0,
+                              border:`1px solid ${isHov?T.purpleBor:T.sep}`,
+                              background:isHov?T.purpleDim:'transparent',
+                              color:isHov?T.purple:T.ink4,
+                              cursor:'pointer',fontSize:10,fontWeight:isHov?600:400,
+                              transition:'all .12s',whiteSpace:'nowrap'}}>
+                            Editar →
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          PAINEL DIREITO — Customer Preview
+      ══════════════════════════════════════════════════════════════ */}
+      <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',
+        background:T.bg0}}>
+
+        {/* Header do preview */}
+        <div style={{flexShrink:0,padding:'12px 14px',borderBottom:`1px solid ${T.sep}`,
+          background:T.bg1,display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:32,height:32,borderRadius:99,background:'#128C7E',
+            display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <span style={{fontSize:14}}>👤</span>
+          </div>
+          <div>
+            <div style={{fontSize:12,fontWeight:700,color:T.ink1}}>Maria Silva</div>
+            <div style={{fontSize:9,color:T.green}}>● Simulação de jornada</div>
+          </div>
+          <div style={{marginLeft:'auto',fontSize:9,color:T.ink4,
+            padding:'3px 8px',borderRadius:99,background:T.bg3,
+            border:`1px solid ${T.sep}`}}>
+            {previewMsgs.length} mensagens
+          </div>
+        </div>
+
+        {/* Mensagens */}
+        <div style={{flex:1,overflowY:'auto',padding:'12px 14px',
+          background:'#0a1628',display:'flex',flexDirection:'column',gap:8}}>
+
+          {previewMsgs.length===0&&(
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',
+              justifyContent:'center',height:'100%',gap:10,color:T.ink4}}>
+              <MessageSquare size={28} style={{opacity:.3}}/>
+              <span style={{fontSize:12}}>Nenhuma mensagem ativa com template</span>
+              <span style={{fontSize:10,textAlign:'center',maxWidth:200,lineHeight:1.5}}>
+                Ative os gatilhos e adicione templates para ver a jornada do cliente aqui
+              </span>
+            </div>
+          )}
+
+          {previewMsgs.map(({id,g,delay,preview})=>{
+            if(!preview) return null
+            const isHov=hoveredId===id
+            const delayLbl=delay===0?'Imediato':`Após ${delayLabel(delay)}`
+
+            return(
+              <div key={id}
+                onMouseEnter={()=>setHovered(id)}
+                onMouseLeave={()=>setHovered(null)}
+                style={{display:'flex',flexDirection:'column',gap:3,
+                  transition:'transform .15s',
+                  transform:isHov?'translateX(-3px)':'translateX(0)'}}>
+
+                {/* Label do gatilho */}
+                <div style={{display:'flex',alignItems:'center',gap:5,
+                  paddingLeft:2}}>
+                  <div style={{width:5,height:5,borderRadius:99,
+                    background:isHov?g.cor:T.ink4,
+                    boxShadow:isHov?`0 0 6px ${g.cor}`:undefined,
+                    transition:'all .2s',flexShrink:0}}/>
+                  <span style={{fontSize:9,color:isHov?g.cor:T.ink4,
+                    fontWeight:isHov?700:400,transition:'color .2s'}}>
+                    {g.label}
+                  </span>
+                  <span style={{fontSize:8,color:T.ink4,
+                    padding:'1px 5px',borderRadius:99,
+                    background:T.bg3,border:`1px solid ${T.sep}`}}>
+                    {delayLbl}
+                  </span>
+                </div>
+
+                {/* Bolha WhatsApp */}
+                <div style={{maxWidth:'86%',borderRadius:'12px 12px 12px 3px',
+                  overflow:'hidden',background:isHov?'#1f2f3d':'#202c33',
+                  boxShadow:isHov?`0 0 0 1px ${g.cor}40,0 4px 16px rgba(0,0,0,.4)`
+                    :'0 1px 4px rgba(0,0,0,.3)',
+                  transition:'all .2s'}}>
+
+                  {/* Imagem placeholder */}
+                  {preview.hasImg&&(
+                    <div style={{height:60,background:'#1a2733',
+                      display:'flex',alignItems:'center',justifyContent:'center',
+                      borderBottom:'1px solid #2a3942'}}>
+                      <span style={{fontSize:20}}>🖼️</span>
+                    </div>
+                  )}
+
+                  {/* Cabeçalho */}
+                  {preview.cab&&(
+                    <div style={{padding:'8px 12px 4px',
+                      borderBottom:'1px solid rgba(255,255,255,.05)'}}>
+                      <p style={{fontSize:12.5,fontWeight:700,color:'#e9edef',
+                        margin:0,lineHeight:1.35}}>
+                        {rv(preview.cab)}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Texto */}
+                  {preview.txt&&(
+                    <div style={{padding:`${preview.cab?'4px':'8px'} 12px 4px`}}>
+                      <p style={{fontSize:11.5,color:'#e9edef',margin:0,
+                        lineHeight:1.6,whiteSpace:'pre-wrap',
+                        maxHeight:72,overflow:'hidden'}}
+                        dangerouslySetInnerHTML={{__html:
+                          rv(preview.txt).slice(0,200)
+                            .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                            .replace(/\n/g,'<br/>')
+                            .replace(/\*([^*\n]+)\*/g,'<strong>$1</strong>')
+                            .replace(/_([^_\n]+)_/g,'<em>$1</em>')
+                          +(preview.txt.length>200?'<span style="color:#8696a0"> …</span>':'')
+                        }}/>
+                    </div>
+                  )}
+
+                  {/* Rodapé */}
+                  {preview.rod&&(
+                    <div style={{padding:'2px 12px 5px'}}>
+                      <p style={{fontSize:9.5,color:'#8696a0',margin:0}}>
+                        {rv(preview.rod)}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Horário */}
+                  <div style={{padding:'2px 10px 7px',display:'flex',
+                    justifyContent:'flex-end',alignItems:'center',gap:3}}>
+                    <span style={{fontSize:9,color:'#8696a0'}}>
+                      {new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
+                    </span>
+                    <span style={{fontSize:10,color:'#53bdeb'}}>✓✓</span>
+                  </div>
+
+                  {/* Botões */}
+                  {preview.bts?.length>0&&(
+                    <div style={{borderTop:'1px solid #2a3942'}}>
+                      {preview.bts.map((b,i)=>(
+                        <div key={i} style={{display:'flex',alignItems:'center',
+                          justifyContent:'center',gap:5,padding:'9px 12px',
+                          borderTop:i>0?'1px solid #2a3942':'none',
+                          color:'#00a884',fontSize:11.5,fontWeight:500}}>
+                          <MousePointer size={10}/>
+                          {rv(b.texto||'')}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function PageGatilhos({ api }) {
   // ── Estado ─────────────────────────────────────────────────────────────────
   const [selId,       setSelId]     = useState(null)
@@ -2172,6 +4030,7 @@ export default function PageGatilhos({ api }) {
   const [gerando,     setGerando]   = useState(false)
   const [erroIA,      setErroIA]    = useState('')
   const [delays,      setDelays]    = useState({})
+  const [varsCustom,  setVarsCustom] = useState({})  // { gatilhoId: string[] } — null = usa padrão do GATILHOS
   const [telTeste,    setTelTeste]  = useState('')
   const [enviandoT,   setEnviandoT] = useState(false)
   const [resTeste,    setResTeste]  = useState(null)
@@ -2191,6 +4050,8 @@ export default function PageGatilhos({ api }) {
   const [sugestoesFechadas, setSugFechadas] = useState({})  // dispensadas pelo usuário (sessão)
   const [sparks, setSparks] = useState(null)  // séries históricas pros sparklines
   const [atividade, setAtividade] = useState({})  // envios por gatilho (7 dias)
+  const [monitor, setMonitor]   = useState(null)  // 10 métricas de monitoramento avançado
+  const [monitorLoad, setMonLoad] = useState(true) // carregando monitoramento
   const [indicadores, setIndicadores] = useState({})  // indicadores ricos por gatilho
   const [molisesAberta, setMoliseAberta] = useState(false)  // painel de sugestões on/off
   const [sugFechMap, setSugFechMap] = useState({})  // { id: true } — sugestões dispensadas
@@ -2411,16 +4272,18 @@ export default function PageGatilhos({ api }) {
       const r = await fetch(`${api}/api/ia/config`)
       if (r.ok) {
         const d = await r.json()
-        const dl = {}
-        const nm = {}
+        const dl = {}, nm = {}, vc = {}
         for (const g of GATILHOS) {
           const chave = `delay_${g.id}`
           if (d[chave] !== undefined) dl[g.id] = Number(d[chave])
           const chaveNome = `nome_${g.id}`
           if (d[chaveNome]) nm[g.id] = d[chaveNome]
+          const chaveVars = `variaveis_${g.id}`
+          if (d[chaveVars]) { try { vc[g.id] = JSON.parse(d[chaveVars]) } catch {} }
         }
         setDelays(dl)
         setNomesCustom(nm)
+        setVarsCustom(vc)
       }
     } catch {}
   }, [api])
@@ -2442,6 +4305,10 @@ export default function PageGatilhos({ api }) {
   // responder, o painel simplesmente não aparece — não quebra a página.
   useEffect(() => {
     let vivo = true
+    fetch(`${api}/api/dashboard/monitoramento`)
+      .then(r => r.json())
+      .then(d => { if (vivo) { if (d && !d.erro) setMonitor(d); setMonLoad(false) } })
+      .catch(() => { if (vivo) setMonLoad(false) })
     fetch(`${api}/api/operacao/pulso`)
       .then(r => r.json())
       .then(d => { if (vivo && d && d.meta) setPulso(d) })
@@ -2610,13 +4477,24 @@ export default function PageGatilhos({ api }) {
     setSubmetendo(true); setMetaErro('')
     try {
       const r = await fetch(`${api}/api/meta-templates/submeter/${c.id}`, { method:'POST' })
+
+      // Verifica se a resposta é JSON antes de tentar parsear
+      // (Railway pode devolver HTML em caso de timeout/502)
+      const ct = r.headers.get('content-type') || ''
+      if (!ct.includes('application/json')) {
+        setMetaErro(`Erro HTTP ${r.status} — o servidor retornou uma resposta inesperada. Tente novamente.`)
+        setSubmetendo(false); return
+      }
+
       const d = await r.json()
       if (d.ok) {
         setMetaStatus(d.status || 'PENDING')
       } else {
-        setMetaErro(`${d.erro || 'Erro desconhecido'}${d.dica ? ' — ' + d.dica : ''}${d.payload_debug ? ' | ' + d.payload_debug : ''}`)
+        setMetaErro([d.erro, d.dica, d.payload_debug].filter(Boolean).join(' — '))
       }
-    } catch { setMetaErro('Erro de conexão') }
+    } catch(e) {
+      setMetaErro(`Erro de conexão: ${e?.message || 'verifique se o servidor está online e tente novamente'}`)
+    }
     setSubmetendo(false)
   }
 
@@ -2762,6 +4640,8 @@ export default function PageGatilhos({ api }) {
               custos={custos}
               custosPeriodo={custosPeriodo}
               onSetPeriodo={p=>{setCustosPer(p)}}
+              monitor={monitor}
+              monitorLoad={monitorLoad}
             />
           )}
 
@@ -2971,12 +4851,15 @@ export default function PageGatilhos({ api }) {
 
                     {/* Blocos */}
                     <div>
-                      {blocos.map((b,i) => (
-                        <Bloco key={b.id||i} b={b} idx={i} total={blocos.length}
-                          vars={gatilho?.variaveis||[]}
+                      {blocos.map((b,i) => {
+                        const _gDef = GATILHOS.find(g => g.id === selId)
+                        const _varsEf = varsCustom[selId] ?? (_gDef?.variaveis || [])
+                        return <Bloco key={b.id||i} b={b} idx={i} total={blocos.length}
+                          vars={_varsEf}
                           onChange={nb=>updBloco(i,nb)} onDelete={()=>delBloco(i)}
                           onMove={moveBloco} onDuplicate={()=>dupBloco(i)}/>
-                      ))}
+                      })}
+
                     </div>
 
                     {/* Paleta de blocos */}
@@ -3087,6 +4970,20 @@ export default function PageGatilhos({ api }) {
                         ))}
                       </div>
                     </div>
+
+                    {/* ── Variáveis do gatilho ── */}
+                    {selId && (() => {
+                      const gDef = GATILHOS.find(g => g.id === selId)
+                      const varsEf = varsCustom[selId] ?? (gDef?.variaveis || [])
+                      return (
+                        <GerenciarVars
+                          gatilhoId={selId}
+                          varsList={varsEf}
+                          api={api}
+                          onSave={novaLista => setVarsCustom(p => ({...p, [selId]: novaLista}))}
+                        />
+                      )
+                    })()}
 
                     {/* ── Fluxo completo de disparos (timeline) ── */}
                     {(() => {
