@@ -78,6 +78,79 @@ const CANAL_META = {
   rastreio_job: { label:'Rastreio',   cor:'#06b6d4', emoji:'📡' },
 }
 
+// ── TransportadoraSVG — badge visual da transportadora ───────────────────────
+function TransportadoraSVG({ nome, size=14 }) {
+  const n = String(nome||'').toLowerCase()
+  const s = size
+  // Correios — envelope azul com faixa amarela
+  if (n.includes('correio')) return (
+    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
+      <rect width="24" height="24" rx="5" fill="#003087"/>
+      <rect y="14" width="24" height="4" fill="#FFCC00"/>
+      <path d="M4 7h16v9H4z" fill="#fff" opacity=".15"/>
+      <text x="12" y="12.5" textAnchor="middle" fill="#fff" fontSize="6" fontWeight="800" fontFamily="sans-serif">CORREIOS</text>
+    </svg>
+  )
+  // Loggi — "L" laranja
+  if (n.includes('loggi')) return (
+    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
+      <rect width="24" height="24" rx="5" fill="#FF5A00"/>
+      <text x="12" y="17" textAnchor="middle" fill="#fff" fontSize="14" fontWeight="900" fontFamily="sans-serif">L</text>
+    </svg>
+  )
+  // Jadlog — "JD" azul escuro
+  if (n.includes('jadlog')) return (
+    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
+      <rect width="24" height="24" rx="5" fill="#003F87"/>
+      <text x="12" y="16" textAnchor="middle" fill="#fff" fontSize="9" fontWeight="800" fontFamily="sans-serif">JD</text>
+    </svg>
+  )
+  // J&T Express — vermelho
+  if (n.includes('j&t')||n.includes('jt ')) return (
+    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
+      <rect width="24" height="24" rx="5" fill="#E30613"/>
+      <text x="12" y="16" textAnchor="middle" fill="#fff" fontSize="9" fontWeight="800" fontFamily="sans-serif">J&T</text>
+    </svg>
+  )
+  // Total Express — verde
+  if (n.includes('total')) return (
+    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
+      <rect width="24" height="24" rx="5" fill="#00833E"/>
+      <text x="12" y="16" textAnchor="middle" fill="#fff" fontSize="9" fontWeight="800" fontFamily="sans-serif">TE</text>
+    </svg>
+  )
+  // Azul Cargo — azul claro
+  if (n.includes('azul')) return (
+    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
+      <rect width="24" height="24" rx="5" fill="#0078D7"/>
+      <text x="12" y="16" textAnchor="middle" fill="#fff" fontSize="9" fontWeight="800" fontFamily="sans-serif">AZ</text>
+    </svg>
+  )
+  // Melhor Envio — genérico verde
+  if (n.includes('melhor')) return (
+    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
+      <rect width="24" height="24" rx="5" fill="#16a34a"/>
+      <text x="12" y="16" textAnchor="middle" fill="#fff" fontSize="9" fontWeight="800" fontFamily="sans-serif">ME</text>
+    </svg>
+  )
+  // Moto Expressa — laranja
+  if (n.includes('moto')) return (
+    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
+      <rect width="24" height="24" rx="5" fill="#ea580c"/>
+      <text x="12" y="16" textAnchor="middle" fill="#fff" fontSize="9" fontWeight="800" fontFamily="sans-serif">MT</text>
+    </svg>
+  )
+  // Desconhecida — ícone de caixa
+  if (!nome) return null
+  return (
+    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
+      <rect width="24" height="24" rx="5" fill="rgba(255,255,255,.08)"/>
+      <text x="12" y="15.5" textAnchor="middle" fill="rgba(255,255,255,.4)" fontSize="8" fontWeight="700" fontFamily="sans-serif"
+        style={{textTransform:'uppercase'}}>{String(nome).slice(0,3).toUpperCase()}</text>
+    </svg>
+  )
+}
+
 function PlataformaSVG({ canal, size=14 }) {
   const c = canal==='shopee'?'#f97316':canal==='mercadolivre'?'#f59e0b':canal==='shein'?'#ec4899':canal==='tiktokshop'?'#94a3b8':canal==='nuvemshop'?'#4a9fff':'#00d4aa'
   if (canal==='shopee') return <svg width={size} height={size} viewBox="0 0 24 24" fill={c}><path d="M12 2C9.5 2 7.5 4 7.5 6.5h-3l-1 15h17l-1-15h-3C16.5 4 14.5 2 12 2zm0 2c1.4 0 2.5 1.1 2.5 2.5h-5C9.5 5.1 10.6 4 12 4z"/></svg>
@@ -875,6 +948,11 @@ function SaindoAgora({fila=[], recentes=[], onVerDisparo}) {
               {r.nome_cliente||'Cliente'}
             </span>
             {r.canal && <PlataformaSVG canal={r.canal} size={11}/>}
+            {(()=>{
+              let v=r.variaveis; if(typeof v==='string'){try{v=JSON.parse(v)}catch{v=null}}
+              const transp=v?.transportadora; if(!transp) return null
+              return <TransportadoraSVG nome={transp} size={11}/>
+            })()}
           </div>
           <div style={{display:'flex',alignItems:'center',gap:5,fontSize:9,color:T.ink4,minWidth:0}}>
             <span style={{color:gm.cor||T.ink3,fontWeight:600,overflow:'hidden',
@@ -1157,6 +1235,20 @@ function EventoCard({d, onReenviar, reenviados, setReenviados}) {
             {React.createElement(s.icon,{size:8,style:{color:s.cor}})}
             <span style={{fontSize:9,fontWeight:700,color:s.cor,textTransform:'uppercase',letterSpacing:'.04em'}}>{s.label}</span>
           </span>
+          {/* badge transportadora — derivado das variaveis salvas */}
+          {(()=>{
+            let v = d.variaveis
+            if (typeof v==='string') { try{v=JSON.parse(v)}catch{v=null} }
+            const transp = v?.transportadora
+            if (!transp) return null
+            return (
+              <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 7px',
+                borderRadius:99,background:'rgba(255,255,255,.04)',border:'0.5px solid rgba(255,255,255,.1)'}}>
+                <TransportadoraSVG nome={transp} size={12}/>
+                <span style={{fontSize:9,color:'rgba(255,255,255,.5)',fontWeight:600}}>{transp}</span>
+              </span>
+            )
+          })()}
           {/* reenviar (erro) */}
           {falhou && (
             <button disabled={jaReenv||enviando} onClick={doReenviar} style={{
@@ -1588,6 +1680,17 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                     <CopyChip valor={dados.numero_pedido} label="pedido" cor="#a78bfa"/>
                     <CopyChip valor={fmtTel(dados.telefone)} copiar={dados.telefone} label="tel" cor="#4f8ef7"/>
                     {pedLive?.rastreio?.codigo && <CopyChip valor={pedLive.rastreio.codigo} label="rastreio" cor="#06b6d4"/>}
+                    {(()=>{
+                      let v=dados.variaveis; if(typeof v==='string'){try{v=JSON.parse(v)}catch{v=null}}
+                      const transp=v?.transportadora; if(!transp) return null
+                      return (
+                        <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'3px 8px',
+                          borderRadius:8,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.1)'}}>
+                          <TransportadoraSVG nome={transp} size={13}/>
+                          <span style={{fontSize:10,color:'rgba(255,255,255,.55)',fontWeight:600}}>{transp}</span>
+                        </span>
+                      )
+                    })()}
                     <div style={{flex:1}}/>
                     <BotaoWhats tel={dados.telefone}/>
                   </div>
