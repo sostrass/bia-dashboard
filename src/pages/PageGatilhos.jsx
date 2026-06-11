@@ -3563,19 +3563,13 @@ function PlanodeDisparos({ gatilhos, configs, atividade, onSelect, api }) {
     setOrdemGrupo(prev=>{
       const lista=[...(prev[grupo]||[])]; const t=idx+dir
       if(t<0||t>=lista.length) return prev
-      ;[lista[idx],lista[t]]=[lista[t],lista[idx]]
       const novo={...prev,[grupo]:lista}
-      // Persiste a esteira de rastreio no Plano — o webhook lê estes níveis
-      // como política real (anti-atropelamento). Reordenar aqui = mudar o motor.
-      if (grupo==='Envio & Rastreio') {
-        const ESTEIRA=['pedido_enviado','pedido_coletado','rastreio_em_transito','saiu_entrega','pedido_entregue']
-        const niveis={}; let n=0
-        for (const id of lista) if (ESTEIRA.includes(id)) niveis[id]=n++
-        fetch(`${api}/api/dashboard/gatilhos/plano`,{
-          method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({niveis})
-        }).catch(()=>{})
-      }
+      ;[lista[idx],lista[t]]=[lista[t],lista[idx]]
+      // v4.2: reordenar aqui é APENAS visual. O POST que gravava esta ordem
+      // como níveis do Plano foi removido: ele permitia salvar coletado=0 /
+      // enviado=1 e o anti-regressão passava a suprimir o pedido_coletado
+      // para sempre ("suprimido: nível 0 < atual 1"). A esteira física
+      // (enviado→coletado→trânsito→saiu→entregue) é fixa no motor.
       return novo
     })
   }
