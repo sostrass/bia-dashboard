@@ -17,7 +17,7 @@ import {
   Clock, Inbox, ArrowLeft, Trash2, ExternalLink, Radio,
   Lightbulb, Paperclip, Camera, Volume2, Film, Tag,
   RotateCcw, TrendingUp, Hash, Users, Filter,
-  BellOff, BellRing, VolumeX,
+  BellOff, BellRing, VolumeX, Settings,
 } from 'lucide-react'
 
 // ── T system ──────────────────────────────────────────────────────────────────
@@ -133,6 +133,7 @@ function WaAvatar({ nome='', foto='', size=38, cor }) {
 function getMediaType(c='') {
   const s=c.toLowerCase()
   if(!c) return 'text'
+  if(s.startsWith('media:')) return 'media'
   if(s.includes('[imagem]')||s.includes('[image]')) return 'img_ph'
   if(s.includes('[áudio]')||s.includes('[audio]'))  return 'aud_ph'
   if(s.includes('[vídeo]')||s.includes('[video]'))  return 'vid_ph'
@@ -144,10 +145,86 @@ function getMediaType(c='') {
   return 'text'
 }
 
-function MediaContent({ content, tipo }) {
+// Parse de media:{id}:{mime} {caption}
+function parseMedia(s) {
+  const m = String(s||'').match(/^media:([\w-]+):([\w.+\/-]+)\s*([\s\S]*)$/)
+  if (!m) return null
+  return { id:m[1], mime:m[2], caption:(m[3]||'').trim() }
+}
+
+// Lightbox simples para ampliar imagens
+function Lightbox({ src, onClose }) {
+  useEffect(()=>{
+    const esc = e => { if(e.key==='Escape') onClose() }
+    window.addEventListener('keydown', esc)
+    return ()=>window.removeEventListener('keydown', esc)
+  },[onClose])
+  return (
+    <div onClick={onClose} style={{ position:'fixed',inset:0,zIndex:9000,
+      background:'rgba(0,0,0,.88)',display:'flex',alignItems:'center',justifyContent:'center',
+      cursor:'zoom-out',animation:'cv-bg .15s ease' }}>
+      <img src={src} alt="" style={{ maxWidth:'92vw',maxHeight:'92vh',borderRadius:12,
+        boxShadow:'0 24px 80px rgba(0,0,0,.7)' }} onClick={e=>e.stopPropagation()}/>
+      <button onClick={onClose} style={{ position:'fixed',top:18,right:18,width:34,height:34,
+        borderRadius:10,border:'1px solid rgba(255,255,255,.2)',background:'rgba(0,0,0,.5)',
+        color:'#fff',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>
+        <X size={16}/>
+      </button>
+    </div>
+  )
+}
+
+// Mídia real do WhatsApp via proxy /api/dashboard/midia/:id
+function MidiaWA({ media, api }) {
+  const [zoom,setZoom]=useState(false)
+  const [err,setErr]=useState(false)
+  const src = `${api}/api/dashboard/midia/${media.id}`
+  const ph={fontSize:11.5,color:T.ink3,display:'flex',alignItems:'center',gap:7,
+    padding:'8px 11px',borderRadius:9,background:T.bg4,border:`1px solid ${T.sep}`,marginTop:4}
+
+  if (media.mime.startsWith('image/')) return (
+    <>
+      {err
+        ? <div style={ph}><Image size={13} style={{ color:T.cyan }}/> Imagem indisponível</div>
+        : <img src={src} alt="" onError={()=>setErr(true)} onClick={()=>setZoom(true)}
+            style={{ maxWidth:230,maxHeight:200,borderRadius:10,display:'block',marginTop:4,
+              border:`1px solid ${T.sep}`,cursor:'zoom-in',objectFit:'cover' }}/>}
+      {media.caption && <div style={{ fontSize:12,color:T.ink2,marginTop:4 }}>{media.caption}</div>}
+      {zoom && <Lightbox src={src} onClose={()=>setZoom(false)}/>}
+    </>
+  )
+  if (media.mime.startsWith('audio/')) return (
+    <audio controls src={src} preload="metadata" style={{ width:230,height:36,marginTop:5 }}/>
+  )
+  if (media.mime.startsWith('video/')) return (
+    <>
+      <video controls src={src} preload="metadata"
+        style={{ maxWidth:240,maxHeight:220,borderRadius:10,marginTop:4,display:'block' }}/>
+      {media.caption && <div style={{ fontSize:12,color:T.ink2,marginTop:4 }}>{media.caption}</div>}
+    </>
+  )
+  // Documento — card com download
+  return (
+    <a href={src} target="_blank" rel="noreferrer" download
+      style={{ ...ph,color:T.blue,textDecoration:'none',cursor:'pointer' }}>
+      <FileText size={14}/>
+      <span style={{ overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160 }}>
+        {media.caption || 'Documento'}
+      </span>
+      <ExternalLink size={10} style={{ flexShrink:0,opacity:.6 }}/>
+    </a>
+  )
+}
+
+function MediaContent({ content, tipo, api }) {
   const [err,setErr]=useState(false)
   const ph={fontSize:11.5,color:T.ink3,display:'flex',alignItems:'center',gap:7,
     padding:'8px 11px',borderRadius:9,background:T.bg4,border:`1px solid ${T.sep}`,marginTop:4}
+  if(tipo==='media'){
+    const m = parseMedia(content)
+    if (m) return <MidiaWA media={m} api={api||''}/>
+    return <div style={ph}><Image size={13} style={{ color:T.cyan }}/> Mídia</div>
+  }
   if(tipo==='image'&&!err) return <img src={content} alt="" onError={()=>setErr(true)}
     style={{ maxWidth:220,maxHeight:180,borderRadius:9,display:'block',marginTop:4,
       border:`1px solid ${T.sep}`,cursor:'pointer' }} onClick={()=>window.open(content,'_blank')}/>
@@ -238,7 +315,7 @@ function WaPreview({ content='', gatilhoLabel='' }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // BOLHA DE MENSAGEM
 // ─────────────────────────────────────────────────────────────────────────────
-function MsgBubble({ msg }) {
+function MsgBubble({ msg, api }) {
   const [open, setOpen] = useState(false)   // gatilho: expandido?
   const isEntrada = msg.direcao==='entrada'
   const isManual  = msg.modo==='manual'
@@ -299,7 +376,7 @@ function MsgBubble({ msg }) {
               whiteSpace:'pre-wrap',wordBreak:'break-word' }}>
               {isEntrada ? msg.conteudo : <WaText text={msg.conteudo}/>}
             </p>
-          : <MediaContent content={msg.conteudo} tipo={tipo}/>}
+          : <MediaContent content={msg.conteudo} tipo={tipo} api={api}/>}
         <div style={{ display:'flex',alignItems:'center',justifyContent:'flex-end',gap:4,marginTop:4 }}>
           <span style={{ fontSize:9.5,color:T.ink4 }}>{hora}</span>
           {!isEntrada&&<Check size={10} style={{ color:T.ink4 }}/>}
@@ -359,7 +436,7 @@ const RAPIDAS = [
   'Pagando via PIX você tem 10% de desconto automático! 💰',
 ]
 
-function InputBar({ api, tel, onEnviar, onEnviarMidia, enviando, disabled }) {
+function InputBar({ api, tel, onEnviar, onEnviarMidia, enviando, disabled, gravando, gravSeg, onGravar, onPararGravar }) {
   const [txt,    setTxt]    = useState('')
   const [rp,     setRp]     = useState(false)
   const [sug,    setSug]    = useState([])     // sugestões da IA
@@ -498,16 +575,47 @@ function InputBar({ api, tel, onEnviar, onEnviarMidia, enviando, disabled }) {
         </button>
 
         {/* Upload de mídia */}
-        <input ref={fileRef} type="file" accept="image/*,video/*,audio/*"
+        <input ref={fileRef} type="file" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip"
           style={{ display:'none' }} onChange={onFileChange}/>
         <button onClick={()=>fileRef.current?.click()}
           style={{ width:32,height:32,borderRadius:9,border:`1px solid ${T.sep2}`,
             background:'transparent',cursor:'pointer',
             display:'flex',alignItems:'center',justifyContent:'center',
             color:T.ink4,flexShrink:0,transition:'all .14s' }}
-          title="Enviar imagem, vídeo ou áudio">
+          title="Enviar imagem, vídeo, áudio ou documento">
           <Paperclip size={12}/>
         </button>
+
+        {/* Gravador de áudio */}
+        {!gravando ? (
+          <button onClick={onGravar} disabled={!tel}
+            style={{ width:32,height:32,borderRadius:9,border:`1px solid ${T.sep2}`,
+              background:'transparent',cursor:'pointer',
+              display:'flex',alignItems:'center',justifyContent:'center',
+              color:T.ink4,flexShrink:0,transition:'all .14s' }}
+            title="Gravar áudio">
+            <Mic size={12}/>
+          </button>
+        ) : (
+          <div style={{ display:'flex',alignItems:'center',gap:6,padding:'0 8px',height:32,
+            borderRadius:9,background:'rgba(255,71,87,.12)',border:`1px solid rgba(255,71,87,.35)`,flexShrink:0 }}>
+            <span style={{ width:7,height:7,borderRadius:'50%',background:'#ff4757',
+              animation:'cv-ping 1.2s ease infinite' }}/>
+            <span style={{ fontSize:11,fontFamily:'monospace',color:'#ff4757',fontWeight:700 }}>
+              {String(Math.floor(gravSeg/60)).padStart(1,'0')}:{String(gravSeg%60).padStart(2,'0')}
+            </span>
+            <button onClick={()=>onPararGravar(false)} title="Cancelar"
+              style={{ width:22,height:22,border:'none',background:'transparent',cursor:'pointer',
+                color:T.ink3,display:'flex',alignItems:'center',justifyContent:'center' }}>
+              <X size={12}/>
+            </button>
+            <button onClick={()=>onPararGravar(true)} title="Enviar áudio"
+              style={{ width:24,height:24,borderRadius:7,border:'none',cursor:'pointer',
+                background:'#ff4757',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center' }}>
+              <Send size={11}/>
+            </button>
+          </div>
+        )}
 
         {/* Textarea */}
         <textarea ref={ref} value={txt}
@@ -725,10 +833,64 @@ function ModalPedido({ pedido, tel, api, onClose, pixKey }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // ABAS DO PAINEL DIREITO
 // ─────────────────────────────────────────────────────────────────────────────
-function AbaContato({ conv, onModoChange }) {
+// Linha de dado com cópia em 1 clique
+function DadoLinha({ icon:Ic, label, valor, copiavel=true, href=null, mono=false }) {
+  const [ok,setOk]=useState(false)
+  if(!valor) return null
+  const copiar=()=>{ try{navigator.clipboard.writeText(String(valor))}catch{}; setOk(true); setTimeout(()=>setOk(false),1300) }
+  return (
+    <div style={{ display:'flex',alignItems:'flex-start',gap:8,padding:'7px 0',
+      borderBottom:`1px solid ${T.sep}` }}>
+      <Ic size={11} style={{ color:T.ink4,flexShrink:0,marginTop:2 }}/>
+      <div style={{ flex:1,minWidth:0 }}>
+        <div style={{ fontSize:9,color:T.ink4,textTransform:'uppercase',letterSpacing:'.05em',marginBottom:1 }}>{label}</div>
+        {href
+          ? <a href={href} target="_blank" rel="noreferrer" style={{ fontSize:11.5,color:T.cyan,
+              textDecoration:'none',wordBreak:'break-word' }}>{valor}</a>
+          : <div style={{ fontSize:11.5,color:T.ink1,wordBreak:'break-word',
+              fontFamily:mono?'monospace':'inherit' }}>{valor}</div>}
+      </div>
+      {copiavel && (
+        <button onClick={copiar} title="Copiar"
+          style={{ width:22,height:22,borderRadius:6,border:`1px solid ${ok?T.greenBor:T.sep}`,
+            background:ok?T.greenDim:'transparent',cursor:'pointer',flexShrink:0,
+            display:'flex',alignItems:'center',justifyContent:'center',
+            color:ok?T.green:T.ink4,transition:'all .15s' }}>
+          {ok?<Check size={10}/>:<Copy size={10}/>}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function AbaContato({ conv, api, onModoChange }) {
   const cor=avatarCor(conv.nome||conv.telefone)
   const isIA=conv.modo_ia!=='manual'
   const sc=STATUS_CFG[conv.status_atendimento]||STATUS_CFG.pendente
+
+  // ── Dados completos do Bling (CPF, email, endereço) ──
+  const [perfil, setPerfil]     = useState(null)
+  const [loadPerf, setLoadPerf] = useState(true)
+  const [errPerf, setErrPerf]   = useState(false)
+
+  const carregarPerfil = useCallback(()=>{
+    setLoadPerf(true); setErrPerf(false)
+    fetch(`${api}/api/dashboard/contatos/${conv.telefone}`,{signal:AbortSignal.timeout(15000)})
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{ if(d&&d.nome!==null) setPerfil(d); else setErrPerf(true) })
+      .catch(()=>setErrPerf(true))
+      .finally(()=>setLoadPerf(false))
+  },[api,conv.telefone])
+
+  useEffect(()=>{ setPerfil(null); carregarPerfil() },[carregarPerfil])
+
+  const endCompleto = perfil && perfil.logradouro
+    ? `${perfil.logradouro}${perfil.numero?', '+perfil.numero:''}${perfil.complemento?' - '+perfil.complemento:''}${perfil.bairro?' — '+perfil.bairro:''}${perfil.cidade?' — '+perfil.cidade:''}${perfil.uf?'/'+perfil.uf:''}${perfil.cep?' · CEP '+perfil.cep:''}`
+    : null
+  const mapsUrl = endCompleto
+    ? `https://www.google.com/maps/search/${encodeURIComponent(endCompleto.replace(/·.*$/,''))}`
+    : null
+
   return (
     <div style={{ padding:'14px 13px',overflowY:'auto',flex:1 }}>
       <div style={{ textAlign:'center',marginBottom:12 }}>
@@ -766,6 +928,65 @@ function AbaContato({ conv, onModoChange }) {
             <div style={{ fontSize:9.5,color:T.ink4,marginTop:2 }}>{s.l}</div>
           </div>
         ))}
+      </div>
+
+      {/* ── Dados completos (Bling) ── */}
+      <div style={{ marginTop:14 }}>
+        <div style={{ display:'flex',alignItems:'center',gap:6,marginBottom:6 }}>
+          <FileText size={11} style={{ color:T.purple }}/>
+          <span style={{ fontSize:10.5,fontWeight:700,color:T.ink2,
+            textTransform:'uppercase',letterSpacing:'.05em' }}>Cadastro Bling</span>
+          <button onClick={carregarPerfil} title="Recarregar"
+            style={{ marginLeft:'auto',width:20,height:20,borderRadius:6,
+              border:`1px solid ${T.sep}`,background:'transparent',cursor:'pointer',
+              display:'flex',alignItems:'center',justifyContent:'center',color:T.ink4 }}>
+            <RefreshCw size={9} style={loadPerf?{animation:'cv-spin 1s linear infinite'}:undefined}/>
+          </button>
+        </div>
+
+        {loadPerf && (
+          <div style={{ display:'flex',flexDirection:'column',gap:8,padding:'4px 0' }}>
+            {[60,80,70].map((w,i)=>(
+              <div key={i} style={{ height:11,width:`${w}%`,borderRadius:5,
+                background:`linear-gradient(90deg,${T.bg4} 25%,${T.sep2} 50%,${T.bg4} 75%)`,
+                backgroundSize:'200% 100%',animation:'cv-shimmer 1.4s ease infinite' }}/>
+            ))}
+          </div>
+        )}
+
+        {!loadPerf && errPerf && (
+          <div style={{ padding:'10px 12px',borderRadius:10,background:T.bg4,
+            border:`1px solid ${T.sep}`,textAlign:'center' }}>
+            <div style={{ fontSize:11,color:T.ink3,marginBottom:4 }}>Cliente não encontrado no Bling</div>
+            <button onClick={carregarPerfil}
+              style={{ fontSize:10,color:T.cyan,background:'none',border:'none',
+                cursor:'pointer',fontFamily:'inherit' }}>Tentar novamente</button>
+          </div>
+        )}
+
+        {!loadPerf && perfil && (
+          <div>
+            {perfil.nome && perfil.nome!==(conv.nome_wa||conv.nome) && (
+              <DadoLinha icon={User} label="Nome no Bling" valor={perfil.nome}/>
+            )}
+            <DadoLinha icon={Hash}     label="CPF/CNPJ" valor={perfil.cpf}   mono/>
+            <DadoLinha icon={Send}     label="E-mail"   valor={perfil.email}
+              href={perfil.email?`mailto:${perfil.email}`:null}/>
+            <DadoLinha icon={Bell}     label="Celular"  valor={perfil.celular} mono/>
+            {endCompleto && (
+              <DadoLinha icon={Truck}  label="Endereço de entrega" valor={endCompleto}/>
+            )}
+            {mapsUrl && (
+              <a href={mapsUrl} target="_blank" rel="noreferrer"
+                style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:5,
+                  marginTop:8,padding:'6px 0',borderRadius:9,fontSize:10.5,fontWeight:700,
+                  background:T.cyanDim,border:`1px solid ${T.cyanBor}`,color:T.cyan,
+                  textDecoration:'none' }}>
+                <ExternalLink size={10}/>Ver no Google Maps
+              </a>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -987,7 +1208,7 @@ function PainelDireito({ conv, api, pixKey, carrinho, onModoChange }) {
         ))}
       </div>
       <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}>
-        {aba==='contato' &&<AbaContato conv={conv} onModoChange={onModoChange}/>}
+        {aba==='contato' &&<AbaContato conv={conv} api={api} onModoChange={onModoChange}/>}
         {aba==='catalogo'&&<AbaCatalogo tel={conv.telefone} api={api}/>}
         {aba==='pedidos' &&<AbaPedidos  tel={conv.telefone} api={api} pixKey={pixKey}/>}
         {aba==='carrinho'&&<AbaCarrinho carrinho={carrinho}/>}
@@ -1103,15 +1324,36 @@ function _beepNotif() {
   } catch {}
 }
 
+const PUSH_CFG_DEFAULT = {
+  novasMsgs:    true,   // notificar novas mensagens de clientes
+  pendentes:    true,   // notificar conversa que voltou a 'pendente' (precisa de humano)
+  previa:       true,   // mostrar prévia do texto (off = só "Nova mensagem")
+  som:          true,   // beep sonoro
+  apenasBg:     false,  // notificar SÓ com a aba em segundo plano
+}
+
+function lerPushCfg() {
+  try {
+    const raw = localStorage.getItem('bia_push_cfg')
+    return raw ? { ...PUSH_CFG_DEFAULT, ...JSON.parse(raw) } : { ...PUSH_CFG_DEFAULT }
+  } catch { return { ...PUSH_CFG_DEFAULT } }
+}
+
 function useNotifPush({ onAbrirConversa }) {
   const [permissao, setPermissao] = useState(
     typeof Notification!=='undefined' ? Notification.permission : 'unsupported')
   const [pushAtivo, setPushAtivo] = useState(()=>{
     try { return localStorage.getItem('bia_push_ativo')==='1' } catch { return false }
   })
-  const [somAtivo, setSomAtivo] = useState(()=>{
-    try { return localStorage.getItem('bia_push_som')!=='0' } catch { return true }
-  })
+  const [cfg, setCfg] = useState(lerPushCfg)
+  const setCfgItem = useCallback((k,v)=>{
+    setCfg(c=>{
+      const novo = { ...c, [k]:v }
+      try { localStorage.setItem('bia_push_cfg', JSON.stringify(novo)) } catch {}
+      return novo
+    })
+  },[])
+  const somAtivo = cfg.som
   const naoVistasRef = useRef(0)
   const tituloRef    = useRef(document.title)
 
@@ -1146,12 +1388,7 @@ function useNotifPush({ onAbrirConversa }) {
     try { localStorage.setItem('bia_push_ativo','0') } catch {}
   },[])
 
-  const toggleSom = useCallback(()=>{
-    setSomAtivo(v=>{
-      try { localStorage.setItem('bia_push_som', v?'0':'1') } catch {}
-      return !v
-    })
-  },[])
+  const toggleSom = useCallback(()=>setCfgItem('som', !cfg.som),[cfg.som,setCfgItem])
 
   const notificar = useCallback(({ tel, nome, msg, foto })=>{
     if (!pushAtivo || typeof Notification==='undefined' || Notification.permission!=='granted') return
@@ -1159,7 +1396,7 @@ function useNotifPush({ onAbrirConversa }) {
     atualizarTitulo()
     try {
       const n = new Notification(`${nome||tel} — nova mensagem`, {
-        body: (msg||'').slice(0,120) || 'Nova mensagem recebida',
+        body: cfg.previa ? ((msg||'').slice(0,120) || 'Nova mensagem recebida') : 'Nova mensagem recebida',
         tag: `bia-conv-${tel}`,           // substitui notificação anterior do mesmo cliente
         icon: foto || undefined,
         badge: foto || undefined,
@@ -1173,9 +1410,9 @@ function useNotifPush({ onAbrirConversa }) {
       setTimeout(()=>n.close(), 12000)
     } catch {}
     if (somAtivo) _beepNotif()
-  },[pushAtivo, somAtivo, onAbrirConversa, atualizarTitulo])
+  },[pushAtivo, somAtivo, cfg.previa, onAbrirConversa, atualizarTitulo])
 
-  return { permissao, pushAtivo, somAtivo, ativar, desativar, toggleSom, notificar }
+  return { permissao, pushAtivo, somAtivo, cfg, setCfgItem, ativar, desativar, toggleSom, notificar }
 }
 
 export default function PageConversas({ api='' }) {
@@ -1201,6 +1438,9 @@ export default function PageConversas({ api='' }) {
   // ── Notificador push ──
   const selRef = useRef(null)
   const push = useNotifPush({ onAbrirConversa: tel => { setSel(tel) } })
+  const pushRef = useRef(push)
+  useEffect(()=>{ pushRef.current = push },[push])
+  const [pushCfgOpen, setPushCfgOpen] = useState(false)
   const prevEntradasRef = useRef(null)   // null = primeira carga (não notifica)
 
   useEffect(()=>{ selRef.current = sel },[sel])
@@ -1219,8 +1459,12 @@ export default function PageConversas({ api='' }) {
       const prev = prevEntradasRef.current[c.telefone]
       const curr = parseInt(c.msgs_entrada||0)
       const novaMsg = prev!==undefined && curr>prev
-      // Notifica se: msg nova E (aba oculta OU conversa não está aberta)
-      if (novaMsg && (document.hidden || c.telefone!==selRef.current)) {
+      // Regra de escopo: apenasBg=true → só notifica com a aba oculta;
+      // senão → aba oculta OU conversa diferente da aberta
+      const escopoOk = push.cfg.apenasBg
+        ? document.hidden
+        : (document.hidden || c.telefone!==selRef.current)
+      if (novaMsg && push.cfg.novasMsgs && escopoOk) {
         push.notificar({
           tel:  c.telefone,
           nome: c.nome_wa||c.nome||c.telefone,
@@ -1247,6 +1491,13 @@ export default function PageConversas({ api='' }) {
         if(prev&&['resolvido','encerrado'].includes(prev)&&curr==='pendente'){
           setToast({tel:c.telefone,nome:c.nome_wa||c.nome||c.telefone})
           setTimeout(()=>setToast(null),5000)
+          // push de atendimento pendente (configurável)
+          if (pushRef.current?.cfg?.pendentes) {
+            pushRef.current.notificar({
+              tel:c.telefone, nome:c.nome_wa||c.nome||c.telefone,
+              msg:'Cliente aguardando atendimento humano', foto:c.foto_perfil,
+            })
+          }
         }
         prevStatusRef.current[c.telefone]=curr
       })
@@ -1286,14 +1537,69 @@ export default function PageConversas({ api='' }) {
     setEnviando(false)
   }
 
-  const enviarMidia=async(file, tipo)=>{
+  const enviarMidia=async(file, tipo, caption='')=>{
     if(!sel) return; setEnviando(true)
     try {
-      const fd=new FormData(); fd.append('arquivo',file); fd.append('telefone',sel); fd.append('tipo',tipo)
-      await fetch(`${api}/api/dashboard/mensagem-media`,{method:'POST',body:fd})
-      setTimeout(()=>fetchMensagens(sel,false),2000)
-    } catch {}
+      // v2: binário puro + headers (a rota usa express.raw — sem multer)
+      const r = await fetch(`${api}/api/dashboard/mensagem-media`,{
+        method:'POST',
+        headers:{
+          'Content-Type':  file.type||'application/octet-stream',
+          'x-telefone':    sel,
+          'x-mime':        file.type||'application/octet-stream',
+          'x-filename':    encodeURIComponent(file.name||'arquivo'),
+          'x-caption':     encodeURIComponent(caption||''),
+        },
+        body: file,
+      })
+      if (!r.ok) {
+        const e = await r.json().catch(()=>({}))
+        console.warn('[mensagem-media]', e.erro||r.status)
+      }
+      setTimeout(()=>fetchMensagens(sel,false),1500)
+    } catch(e) { console.warn('[mensagem-media]', e.message) }
     setEnviando(false)
+  }
+
+  // ── Gravador de áudio (MediaRecorder) ──
+  const [gravando, setGravando]   = useState(false)
+  const [gravSeg, setGravSeg]     = useState(0)
+  const recRef     = useRef(null)
+  const chunksRef  = useRef([])
+  const gravTimerRef = useRef(null)
+
+  const iniciarGravacao = async()=>{
+    if (!sel || gravando) return
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio:true })
+      const mime = MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
+        ? 'audio/ogg;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus' : 'audio/webm'
+      const rec = new MediaRecorder(stream, { mimeType:mime })
+      chunksRef.current = []
+      rec.ondataavailable = e => { if(e.data.size) chunksRef.current.push(e.data) }
+      rec.onstop = () => stream.getTracks().forEach(t=>t.stop())
+      rec.start()
+      recRef.current = rec
+      setGravando(true); setGravSeg(0)
+      gravTimerRef.current = setInterval(()=>setGravSeg(x=>x+1),1000)
+    } catch(e) { console.warn('mic negado:', e.message) }
+  }
+
+  const pararGravacao = async(enviar=true)=>{
+    const rec = recRef.current
+    if (!rec) return
+    clearInterval(gravTimerRef.current)
+    await new Promise(res=>{ rec.onstop = ()=>{ rec.stream?.getTracks?.().forEach(t=>t.stop()); res() }; rec.stop() })
+    setGravando(false)
+    if (enviar && chunksRef.current.length) {
+      const mime = rec.mimeType.split(';')[0] || 'audio/ogg'
+      const blob = new Blob(chunksRef.current, { type:mime })
+      const file = new File([blob], `audio-${Date.now()}.${mime.includes('ogg')?'ogg':'webm'}`, { type:mime })
+      await enviarMidia(file, 'audio')
+    }
+    chunksRef.current = []
   }
 
   const toggleModo=async(ativarIA)=>{
@@ -1354,6 +1660,7 @@ export default function PageConversas({ api='' }) {
         @keyframes cv-fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
         @keyframes cv-slideIn{ from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
         @keyframes cv-bg     { from{opacity:0} to{opacity:1} }
+        @keyframes cv-shimmer{ 0%{background-position:200% 0} 100%{background-position:-200% 0} }
       `}</style>
 
       {/* Toast */}
@@ -1419,16 +1726,63 @@ export default function PageConversas({ api='' }) {
                  : push.pushAtivo ? <BellRing size={11}/>
                  : <Bell size={11}/>}
               </button>
-              {/* Som on/off (só quando push ativo) */}
+              {/* Configurações do push (só quando ativo) */}
               {push.pushAtivo && (
-                <button onClick={push.toggleSom}
-                  title={push.somAtivo?'Som ativado':'Som desativado'}
-                  style={{ width:26,height:26,borderRadius:7,cursor:'pointer',
-                    border:`1px solid ${T.sep}`,background:'rgba(255,255,255,.04)',
-                    display:'flex',alignItems:'center',justifyContent:'center',
-                    color:push.somAtivo?T.cyan:T.ink4,transition:'all .2s' }}>
-                  {push.somAtivo ? <Volume2 size={11}/> : <VolumeX size={11}/>}
-                </button>
+                <div style={{ position:'relative' }}>
+                  <button onClick={()=>setPushCfgOpen(v=>!v)}
+                    title="Configurar notificações"
+                    style={{ width:26,height:26,borderRadius:7,cursor:'pointer',
+                      border:`1px solid ${pushCfgOpen?'rgba(251,146,60,.4)':T.sep}`,
+                      background:pushCfgOpen?'rgba(251,146,60,.12)':'rgba(255,255,255,.04)',
+                      display:'flex',alignItems:'center',justifyContent:'center',
+                      color:pushCfgOpen?'#fb923c':T.ink4,transition:'all .2s' }}>
+                    <Settings size={11}/>
+                  </button>
+
+                  {pushCfgOpen && (
+                    <>
+                      <div onClick={()=>setPushCfgOpen(false)}
+                        style={{ position:'fixed',inset:0,zIndex:998 }}/>
+                      <div style={{ position:'absolute',top:32,right:0,zIndex:999,width:230,
+                        background:T.bg2,border:`1px solid ${T.sep2}`,borderRadius:13,
+                        boxShadow:'0 16px 48px rgba(0,0,0,.55)',padding:'11px 12px',
+                        animation:'cv-fadeUp .15s ease' }}>
+                        <div style={{ fontSize:10.5,fontWeight:800,color:T.ink1,marginBottom:9,
+                          display:'flex',alignItems:'center',gap:6 }}>
+                          <BellRing size={11} style={{ color:'#fb923c' }}/>Notificações
+                        </div>
+                        {[
+                          { k:'novasMsgs', lbl:'Novas mensagens',        desc:'Cliente enviou mensagem'      },
+                          { k:'pendentes', lbl:'Atendimento pendente',   desc:'Conversa precisa de humano'   },
+                          { k:'previa',    lbl:'Prévia do texto',        desc:'Mostra o conteúdo na notificação' },
+                          { k:'som',       lbl:'Som',                    desc:'Beep ao notificar'            },
+                          { k:'apenasBg',  lbl:'Só em segundo plano',    desc:'Silencia com a aba aberta'    },
+                        ].map(o=>(
+                          <div key={o.k} style={{ display:'flex',alignItems:'center',gap:8,
+                            padding:'6px 0',borderBottom:`1px solid ${T.sep}` }}>
+                            <div style={{ flex:1,minWidth:0 }}>
+                              <div style={{ fontSize:11,fontWeight:600,color:T.ink1 }}>{o.lbl}</div>
+                              <div style={{ fontSize:9,color:T.ink4 }}>{o.desc}</div>
+                            </div>
+                            <Toggle value={!!push.cfg[o.k]}
+                              onChange={v=>push.setCfgItem(o.k,v)}
+                              cor={'#fb923c'}/>
+                          </div>
+                        ))}
+                        <button onClick={()=>{
+                            push.notificar({ tel:'teste', nome:'Bia — teste',
+                              msg:'As notificações estão funcionando ✓', foto:null })
+                          }}
+                          style={{ width:'100%',marginTop:9,padding:'6px 0',borderRadius:8,
+                            fontSize:10.5,fontWeight:700,cursor:'pointer',fontFamily:'inherit',
+                            background:'rgba(251,146,60,.12)',border:'1px solid rgba(251,146,60,.35)',
+                            color:'#fb923c' }}>
+                          Testar notificação
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
               <button onClick={fetchConversas} style={{ width:26,height:26,borderRadius:7,
                 border:`1px solid ${T.sep}`,background:'rgba(255,255,255,.04)',cursor:'pointer',
@@ -1588,12 +1942,13 @@ export default function PageConversas({ api='' }) {
               ):grouped.map((item,i)=>(
                 item.type==='date'
                   ?<DateSep key={`d${i}`} date={item.date}/>
-                  :<MsgBubble key={item.msg.id||i} msg={item.msg}/>
+                  :<MsgBubble key={item.msg.id||i} msg={item.msg} api={api}/>
               ))}
               <div ref={bottomRef}/>
             </div>
 
             <InputBar api={api} tel={sel} onEnviar={enviar} onEnviarMidia={enviarMidia}
+              gravando={gravando} gravSeg={gravSeg} onGravar={iniciarGravacao} onPararGravar={pararGravacao}
               enviando={enviando} disabled={isIA}/>
           </>
         )}
