@@ -79,78 +79,197 @@ const CANAL_META = {
 }
 
 // ── TransportadoraSVG — badge visual da transportadora ───────────────────────
-function TransportadoraSVG({ nome, size=14 }) {
+// ─── keyframes da timeline (injetado no <style> global do render) ─────────────
+// @keyframes jflow gerado inline — ver JOURNEY_CSS
+
+// ─── Logo SVG REAL da transportadora ─────────────────────────────────────────
+function LogoTransp({ nome, size=26 }) {
   const n = String(nome||'').toLowerCase()
-  const s = size
-  // Correios — envelope azul com faixa amarela
   if (n.includes('correio')) return (
-    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
-      <rect width="24" height="24" rx="5" fill="#003087"/>
-      <rect y="14" width="24" height="4" fill="#FFCC00"/>
-      <path d="M4 7h16v9H4z" fill="#fff" opacity=".15"/>
-      <text x="12" y="12.5" textAnchor="middle" fill="#fff" fontSize="6" fontWeight="800" fontFamily="sans-serif">CORREIOS</text>
-    </svg>
-  )
-  // Loggi — "L" laranja
+    <svg width={size} height={size} viewBox="0 0 40 40">
+      <rect width="40" height="40" fill="#003087"/>
+      <rect y="28" width="40" height="12" fill="#FFCC00"/>
+      <path d="M7 12 L20 21 L33 12" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round"/>
+      <rect x="7" y="12" width="26" height="16" rx="1.5" fill="none" stroke="#ffffff80" strokeWidth="1.2"/>
+      <text x="20" y="36.5" textAnchor="middle" fill="#003087" fontSize="5.5" fontWeight="900" fontFamily="Arial,sans-serif">CORREIOS</text>
+    </svg>)
   if (n.includes('loggi')) return (
-    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
-      <rect width="24" height="24" rx="5" fill="#FF5A00"/>
-      <text x="12" y="17" textAnchor="middle" fill="#fff" fontSize="14" fontWeight="900" fontFamily="sans-serif">L</text>
-    </svg>
-  )
-  // Jadlog — "JD" azul escuro
+    <svg width={size} height={size} viewBox="0 0 40 40">
+      <rect width="40" height="40" fill="#FF6600"/>
+      <path d="M14 8 L14 27 Q14 33 20 33 Q26 33 26 27 L26 23 L20 23 L20 27 Q20 28.2 19 28.2 Q18 28.2 18 27 L18 8 Z" fill="#fff"/>
+    </svg>)
   if (n.includes('jadlog')) return (
-    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
-      <rect width="24" height="24" rx="5" fill="#003F87"/>
-      <text x="12" y="16" textAnchor="middle" fill="#fff" fontSize="9" fontWeight="800" fontFamily="sans-serif">JD</text>
-    </svg>
-  )
-  // J&T Express — vermelho
-  if (n.includes('j&t')||n.includes('jt ')) return (
-    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
-      <rect width="24" height="24" rx="5" fill="#E30613"/>
-      <text x="12" y="16" textAnchor="middle" fill="#fff" fontSize="9" fontWeight="800" fontFamily="sans-serif">J&T</text>
-    </svg>
-  )
-  // Total Express — verde
+    <svg width={size} height={size} viewBox="0 0 40 40">
+      <rect width="40" height="40" fill="#1A3A6C"/>
+      <text x="20" y="23" textAnchor="middle" fill="#fff" fontSize="10" fontWeight="900" fontFamily="Arial Black,sans-serif" letterSpacing="0.4">JADLOG</text>
+      <rect x="6" y="26.5" width="28" height="2.5" rx="1.25" fill="#F5A623"/>
+    </svg>)
+  if (n.includes('j&t')||n.includes('jt express')) return (
+    <svg width={size} height={size} viewBox="0 0 40 40">
+      <rect width="40" height="40" fill="#E30613"/>
+      <text x="20" y="18" textAnchor="middle" fill="#fff" fontSize="13" fontWeight="900" fontFamily="Arial Black,sans-serif">J&amp;T</text>
+      <text x="20" y="28" textAnchor="middle" fill="#fff" fontSize="6" fontWeight="700" fontFamily="Arial,sans-serif" opacity=".9" letterSpacing="1.2">EXPRESS</text>
+    </svg>)
   if (n.includes('total')) return (
-    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
-      <rect width="24" height="24" rx="5" fill="#00833E"/>
-      <text x="12" y="16" textAnchor="middle" fill="#fff" fontSize="9" fontWeight="800" fontFamily="sans-serif">TE</text>
-    </svg>
-  )
-  // Azul Cargo — azul claro
+    <svg width={size} height={size} viewBox="0 0 40 40">
+      <rect width="40" height="40" fill="#00833E"/>
+      <text x="20" y="18" textAnchor="middle" fill="#fff" fontSize="8.5" fontWeight="900" fontFamily="Arial,sans-serif">TOTAL</text>
+      <text x="20" y="28" textAnchor="middle" fill="#fff" fontSize="7.5" fontWeight="700" fontFamily="Arial,sans-serif">EXPRESS</text>
+    </svg>)
   if (n.includes('azul')) return (
-    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
-      <rect width="24" height="24" rx="5" fill="#0078D7"/>
-      <text x="12" y="16" textAnchor="middle" fill="#fff" fontSize="9" fontWeight="800" fontFamily="sans-serif">AZ</text>
-    </svg>
-  )
-  // Melhor Envio — genérico verde
-  if (n.includes('melhor')) return (
-    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
-      <rect width="24" height="24" rx="5" fill="#16a34a"/>
-      <text x="12" y="16" textAnchor="middle" fill="#fff" fontSize="9" fontWeight="800" fontFamily="sans-serif">ME</text>
-    </svg>
-  )
-  // Moto Expressa — laranja
+    <svg width={size} height={size} viewBox="0 0 40 40">
+      <rect width="40" height="40" fill="#0078D7"/>
+      <text x="20" y="25" textAnchor="middle" fill="#fff" fontSize="16" fontWeight="900" fontFamily="Arial Black,sans-serif">AZ</text>
+    </svg>)
+  if (n.includes('melhor')||n.includes('me ')) return (
+    <svg width={size} height={size} viewBox="0 0 40 40">
+      <rect width="40" height="40" fill="#00A650"/>
+      <path d="M10 26 L10 18 L20 14 L30 18 L30 26 Z" fill="none" stroke="#fff" strokeWidth="2" strokeLinejoin="round"/>
+      <path d="M10 18 L20 22 L30 18" fill="none" stroke="#fff" strokeWidth="2"/>
+      <path d="M20 22 L20 26" stroke="#fff" strokeWidth="2"/>
+    </svg>)
   if (n.includes('moto')) return (
-    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
-      <rect width="24" height="24" rx="5" fill="#ea580c"/>
-      <text x="12" y="16" textAnchor="middle" fill="#fff" fontSize="9" fontWeight="800" fontFamily="sans-serif">MT</text>
-    </svg>
-  )
-  // Desconhecida — ícone de caixa
-  if (!nome) return null
+    <svg width={size} height={size} viewBox="0 0 40 40">
+      <rect width="40" height="40" fill="#EA580C"/>
+      <text x="20" y="25" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="900" fontFamily="Arial Black,sans-serif">MOTO</text>
+    </svg>)
+  const ini = String(nome||'?').slice(0,2).toUpperCase()
   return (
-    <svg width={s} height={s} viewBox="0 0 24 24" style={{flexShrink:0}}>
-      <rect width="24" height="24" rx="5" fill="rgba(255,255,255,.08)"/>
-      <text x="12" y="15.5" textAnchor="middle" fill="rgba(255,255,255,.4)" fontSize="8" fontWeight="700" fontFamily="sans-serif"
-        style={{textTransform:'uppercase'}}>{String(nome).slice(0,3).toUpperCase()}</text>
-    </svg>
+    <svg width={size} height={size} viewBox="0 0 40 40">
+      <rect width="40" height="40" fill="rgba(255,255,255,.1)"/>
+      <text x="20" y="25" textAnchor="middle" fill="rgba(255,255,255,.5)" fontSize="12" fontWeight="800" fontFamily="Arial,sans-serif">{ini}</text>
+    </svg>)
+}
+
+function corTransp(nome) {
+  const n = String(nome||'').toLowerCase()
+  if (n.includes('correio'))              return '#003087'
+  if (n.includes('loggi'))               return '#FF6600'
+  if (n.includes('jadlog'))              return '#1A3A6C'
+  if (n.includes('j&t')||n.includes('jt')) return '#E30613'
+  if (n.includes('total'))               return '#00833E'
+  if (n.includes('azul'))                return '#0078D7'
+  if (n.includes('melhor'))              return '#00A650'
+  if (n.includes('moto'))                return '#EA580C'
+  return '#6b7294'
+}
+
+// ─── Anel de frescor: progresso circular em volta do logo ─────────────────────
+function FreshnessRing({ ultimaAtualizacao, transp, size=38 }) {
+  const cor   = corTransp(transp)
+  const mins  = ultimaAtualizacao
+    ? Math.round((Date.now()-new Date(ultimaAtualizacao).getTime())/60000) : null
+  const pct   = mins===null?0.5:mins<60?0.97:mins<720?0.54:0.11
+  const sCor  = mins===null?'#6b7294':mins<60?T.green:mins<720?T.amber:T.red
+  const R     = size/2-3
+  const circ  = Math.PI*2*R
+  const dash  = pct*circ
+  const label = mins===null?'—':mins<60?`${mins}min`:mins<1440?`${Math.round(mins/60)}h`:`${Math.round(mins/1440)}d`
+  return (
+    <div style={{position:'relative',width:size,height:size,flexShrink:0}}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{position:'absolute',inset:0}}>
+        <circle cx={size/2} cy={size/2} r={R} fill="none" stroke={T.sep2} strokeWidth="2.2"/>
+        <circle cx={size/2} cy={size/2} r={R} fill="none" stroke={sCor}
+          strokeWidth="2.2" strokeDasharray={`${dash} ${circ}`}
+          strokeDashoffset={circ*0.25} strokeLinecap="round"
+          style={{transition:'stroke-dasharray .6s'}}/>
+      </svg>
+      <div style={{position:'absolute',inset:5,borderRadius:'50%',overflow:'hidden',
+        display:'flex',alignItems:'center',justifyContent:'center'}}>
+        <LogoTransp nome={transp} size={size-12}/>
+      </div>
+    </div>
   )
 }
 
+// ─── Mini timeline com degradê animado da transportadora ─────────────────────
+function MiniTimeline({ etapa, total=5, transp, status }) {
+  const cor  = corTransp(transp)
+  const dots = Array.from({length:total},(_,i)=>i)
+  return (
+    <div style={{display:'flex',alignItems:'center',height:12}}>
+      {dots.map((i)=>{
+        const done    = i < etapa
+        const current = i === etapa
+        const isLast  = i === total-1
+        const dCor    = done||current?(current&&status==='erro'?T.red:T.green):T.sep2
+        return (
+          <React.Fragment key={i}>
+            <div style={{width:8,height:8,borderRadius:'50%',flexShrink:0,
+              background:dCor,
+              outline:current?`2.5px solid ${T.bg2}`:undefined,
+            }}/>
+            {!isLast && (
+              <div style={{flex:1,height:2,borderRadius:1,overflow:'hidden',
+                minWidth:8,position:'relative'}}>
+                {done ? (
+                  <div style={{position:'absolute',inset:0,background:T.green,borderRadius:1}}/>
+                ) : current ? (
+                  <div style={{position:'absolute',inset:0,borderRadius:1,
+                    background:`linear-gradient(90deg,${T.green},${cor},${cor},${T.green})`,
+                    backgroundSize:'200% 100%',
+                    animation:'jflow 2s linear infinite'}}/>
+                ) : (
+                  <div style={{position:'absolute',inset:0,background:T.sep2,borderRadius:1}}/>
+                )}
+              </div>
+            )}
+          </React.Fragment>
+        )
+      })}
+    </div>
+  )
+}
+
+const ETAPA_GATILHO = {
+  pedido_criado:0,pagamento_aprovado:0,pagamento_pendente:0,pix_pendente:0,
+  em_separacao:1,produto_embalado:1,nfe_emitida:1,
+  pedido_enviado:2,pedido_coletado:2,
+  rastreio_em_transito:3,saiu_entrega:3,tentativa_entrega:3,
+  pedido_entregue:4,nao_entregue:4,pacote_devolvido:4,
+}
+
+function SvcBadge({ codigo, servico }) {
+  const c = String(codigo||'').toUpperCase()
+  const svc = servico
+    ||(c.startsWith('AD')||c.startsWith('AA')?'SEDEX'
+      :c.startsWith('SS')||c.startsWith('SE')?'SEDEX 10'
+      :c.startsWith('PB')||c.startsWith('PC')||c.startsWith('PN')?'PAC'
+      :c.includes('ESR')?'Express'
+      :c.includes('EPA')?'.Package'
+      :c.startsWith('888')?'Standard'
+      :null)
+  if (!svc) return null
+  const col = svc==='SEDEX'||svc.includes('SEDEX')?{bg:'#E6F1FB',fg:'#0C447C'}
+    :svc.includes('PAC')?{bg:'#EAF3DE',fg:'#3B6D11'}
+    :svc.includes('Expr')?{bg:'#FAECE7',fg:'#712B13'}
+    :{bg:T.bg3,fg:T.ink3}
+  return <span style={{fontSize:9.5,padding:'1px 7px',borderRadius:99,fontWeight:700,
+    background:col.bg,color:col.fg,flexShrink:0}}>{svc}</span>
+}
+
+function MotivoIgnorado({ msg }) {
+  if (!msg) return null
+  const m = String(msg).toLowerCase()
+  const r = m.includes('template')||m.includes('inativ')
+    ? {txt:'template inativo',bg:'rgba(255,179,0,.12)',cor:T.amber,Ic:AlertTriangle}
+    : m.includes('anti-regress')||m.includes('nível')
+    ? {txt:'anti-regressão — motor ok',bg:'rgba(167,139,250,.12)',cor:T.purple,Ic:ShieldCheck}
+    : m.includes('marketplace')
+    ? {txt:'marketplace — ok',bg:T.bg3,cor:T.ink3,Ic:null}
+    : {txt:msg.slice(0,42),bg:T.redDim,cor:T.red,Ic:AlertCircle}
+  return (
+    <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:9.5,
+      padding:'2px 8px',borderRadius:99,fontWeight:600,
+      background:r.bg,color:r.cor,flexShrink:0}}>
+      {r.Ic && <r.Ic size={9}/>}{r.txt}
+    </span>)
+}
+
+// ─── TransportadoraSVG (compatibilidade — usa LogoTransp internamente) ─────────
+function TransportadoraSVG({ nome, size=14 }) {
+  return <LogoTransp nome={nome} size={size}/>
+}
 function PlataformaSVG({ canal, size=14 }) {
   const c = canal==='shopee'?'#f97316':canal==='mercadolivre'?'#f59e0b':canal==='shein'?'#ec4899':canal==='tiktokshop'?'#94a3b8':canal==='nuvemshop'?'#4a9fff':'#00d4aa'
   if (canal==='shopee') return <svg width={size} height={size} viewBox="0 0 24 24" fill={c}><path d="M12 2C9.5 2 7.5 4 7.5 6.5h-3l-1 15h17l-1-15h-3C16.5 4 14.5 2 12 2zm0 2c1.4 0 2.5 1.1 2.5 2.5h-5C9.5 5.1 10.6 4 12 4z"/></svg>
@@ -923,57 +1042,59 @@ function PrecisaDeAcao({painel, onErros, onParados}) {
 function SaindoAgora({fila=[], recentes=[], onVerDisparo}) {
   const [,setTick] = useState(0)
   useEffect(()=>{ const t=setInterval(()=>setTick(x=>x+1),30000); return ()=>clearInterval(t) },[])
-  const eta = (iso) => {
+  const eta = iso => {
     const s = Math.round((new Date(iso).getTime()-Date.now())/1000)
-    if (s <= 0)   return {txt:'agora',   cor:T.green}
-    if (s < 3600) return {txt:`em ${Math.max(1,Math.round(s/60))}m`, cor:T.amber}
-    return {txt:`em ${Math.round(s/3600)}h`, cor:T.ink3}
+    if (s<=0) return {txt:'agora',cor:T.green}
+    if (s<3600) return {txt:`em ${Math.max(1,Math.round(s/60))}m`,cor:T.amber}
+    return {txt:`em ${Math.round(s/3600)}h`,cor:T.ink3}
   }
   const Linha = ({r, dir}) => {
     const gm = GATILHO_META[r.gatilho]||{}
     const sm = STATUS_META[r.status]||{}
+    let vars=r.variaveis; if(typeof vars==='string'){try{vars=JSON.parse(vars)}catch{vars=null}}
+    const transp  = vars?.transportadora||r.transportadora||''
+    const etapa   = ETAPA_GATILHO[r.gatilho]??2
+    const cTransp = corTransp(transp)
     const SIc = sm.icon
     return (
-      <div onClick={()=>onVerDisparo?.(r)} style={{display:'flex',alignItems:'center',gap:8,
-        padding:'7px 9px',borderRadius:9,background:T.bg3,cursor:'pointer',
-        border:'1px solid transparent',transition:'border .15s'}}
-        onMouseEnter={e=>e.currentTarget.style.border=`1px solid ${T.sep2}`}
+      <div onClick={()=>onVerDisparo?.(r)}
+        style={{display:'flex',alignItems:'flex-start',gap:8,padding:'8px 9px',
+          borderRadius:9,background:T.bg3,cursor:'pointer',
+          border:'1px solid transparent',transition:'border .15s'}}
+        onMouseEnter={e=>e.currentTarget.style.border=`1px solid ${cTransp}50`}
         onMouseLeave={e=>e.currentTarget.style.border='1px solid transparent'}>
-        <span style={{width:7,height:7,borderRadius:'50%',background:gm.cor||T.ink3,flexShrink:0,
-          boxShadow:dir==='out'?`0 0 6px ${gm.cor||T.ink3}`:'none'}}/>
+        {transp ? (
+          <div style={{width:26,height:26,borderRadius:7,overflow:'hidden',flexShrink:0,marginTop:1}}>
+            <LogoTransp nome={transp} size={26}/>
+          </div>
+        ) : (
+          <span style={{width:7,height:7,borderRadius:'50%',marginTop:5,flexShrink:0,
+            background:gm.cor||T.ink3,boxShadow:dir==='out'?`0 0 6px ${gm.cor||T.ink3}`:'none'}}/>
+        )}
         <div style={{flex:1,minWidth:0}}>
-          <div style={{display:'flex',alignItems:'center',gap:6,minWidth:0}}>
-            <span style={{fontSize:10.5,color:T.ink1,fontWeight:600,
+          <div style={{display:'flex',alignItems:'center',gap:5,marginBottom:3}}>
+            <span style={{fontSize:10.5,color:T.ink1,fontWeight:700,
               overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
               {r.nome_cliente||'Cliente'}
             </span>
             {r.canal && <PlataformaSVG canal={r.canal} size={11}/>}
-            {(()=>{
-              let v=r.variaveis; if(typeof v==='string'){try{v=JSON.parse(v)}catch{v=null}}
-              const transp=v?.transportadora; if(!transp) return null
-              return <TransportadoraSVG nome={transp} size={11}/>
-            })()}
           </div>
-          <div style={{display:'flex',alignItems:'center',gap:5,fontSize:9,color:T.ink4,minWidth:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:5,fontSize:9,color:T.ink4,marginBottom:4}}>
             <span style={{color:gm.cor||T.ink3,fontWeight:600,overflow:'hidden',
               textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{gm.label||r.gatilho}</span>
-            {r.numero_pedido && <span style={{flexShrink:0}}>· #{r.numero_pedido}</span>}
-            {r.telefone && <span style={{fontFamily:'monospace',flexShrink:0}}>· {fmtTel(r.telefone)}</span>}
+            {r.numero_pedido&&<span style={{flexShrink:0}}>· #{r.numero_pedido}</span>}
           </div>
+          <MiniTimeline etapa={etapa} total={5} transp={transp} status={r.status||'aguardando'}/>
         </div>
-        <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:2,flexShrink:0}}>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:3,flexShrink:0}}>
           {dir==='out'
             ? <span style={{fontSize:10,fontWeight:700,color:eta(r.agendado_para).cor,whiteSpace:'nowrap'}}>{eta(r.agendado_para).txt}</span>
             : <span style={{fontSize:9,color:T.ink4,whiteSpace:'nowrap'}}>{tempoRel(r.criado_em)||''}</span>}
-          {dir!=='out' && sm.label && (
-            <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:8.5,fontWeight:700,
-              color:sm.cor,textTransform:'uppercase',letterSpacing:'.03em'}}>
-              {SIc && <SIc size={8}/>}{sm.label}
-            </span>
+          {dir!=='out'&&sm.label&&SIc&&(
+            <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:8.5,
+              fontWeight:700,color:sm.cor}}><SIc size={8}/>{sm.label}</span>
           )}
-          {dir==='out' && (
-            <span style={{fontSize:8.5,fontWeight:700,color:T.amber,textTransform:'uppercase',letterSpacing:'.03em'}}>agendado</span>
-          )}
+          {dir==='out'&&<span style={{fontSize:8.5,fontWeight:700,color:T.amber}}>agendado</span>}
         </div>
       </div>
     )
@@ -987,15 +1108,13 @@ function SaindoAgora({fila=[], recentes=[], onVerDisparo}) {
       </div>
       <div style={{display:'flex',flexDirection:'column',gap:5}}>
         {fila.slice(0,4).map(r=><Linha key={`f${r.id}`} r={r} dir="out"/>)}
-        {fila.length>0 && recentes.length>0 &&
+        {fila.length>0&&recentes.length>0&&(
           <div style={{display:'flex',alignItems:'center',gap:8,padding:'2px 0'}}>
-            <div style={{flex:1,height:1,background:T.sep2}}/>
-            <span style={{fontSize:8.5,color:T.ink4}}>enviados</span>
-            <div style={{flex:1,height:1,background:T.sep2}}/>
-          </div>}
+            <div style={{flex:1,height:1,background:T.sep2}}/><span style={{fontSize:8.5,color:T.ink4}}>enviados</span><div style={{flex:1,height:1,background:T.sep2}}/>
+          </div>)}
         {recentes.slice(0,4).map(r=><Linha key={`r${r.id}`} r={r} dir="in"/>)}
-        {fila.length===0 && recentes.length===0 &&
-          <div style={{fontSize:10.5,color:T.ink4,padding:'12px 0',textAlign:'center'}}>Sem movimentação recente</div>}
+        {fila.length===0&&recentes.length===0&&(
+          <div style={{fontSize:10.5,color:T.ink4,padding:'12px 0',textAlign:'center'}}>Sem movimentação recente</div>)}
       </div>
     </div>
   )
@@ -1190,11 +1309,10 @@ function DadosClienteLive({ped}) {
 }
 
 function EventoCard({d, onReenviar, reenviados, setReenviados}) {
-  const m = GATILHO_META[d.gatilho]||{label:d.gatilho,icon:Zap,cor:'#6b7280'}
-  const s = STATUS_META[d.status]||STATUS_META.ignorado
-  const DIc = m.icon||Zap
-  const falhou = d.status==='erro'
-  const ignorado = d.status==='ignorado'
+  const m       = GATILHO_META[d.gatilho]||{label:d.gatilho,icon:Zap,cor:'#6b7280'}
+  const sm      = STATUS_META[d.status]||STATUS_META.ignorado
+  const falhou  = d.status==='erro'
+  const ignorado= d.status==='ignorado'
   const jaReenv = reenviados.includes(d.id)
   const [enviando, setEnviando] = useState(false)
   const doReenviar = async () => {
@@ -1202,82 +1320,95 @@ function EventoCard({d, onReenviar, reenviados, setReenviados}) {
     try { await onReenviar?.(d.id); setReenviados(r=>[...r,d.id]) } catch {}
     setEnviando(false)
   }
+  let vars = d.variaveis
+  if (typeof vars==='string'){try{vars=JSON.parse(vars)}catch{vars=null}}
+  const transp  = vars?.transportadora||''
+  const codRas  = vars?.codigo_rastreio||''
+  const cTransp = corTransp(transp)
+  const etapa   = ETAPA_GATILHO[d.gatilho]??2
+  const locEvt  = d.ultimo_evento_local||''
   return (
-    <div style={{display:'flex',gap:12,padding:'12px 14px',borderRadius:12,
-      background:falhou?'rgba(239,68,68,.04)':ignorado?'var(--bg-3)':'var(--bg-3)',
-      border:`0.5px solid ${falhou?'rgba(239,68,68,.2)':'var(--sep)'}`,
-      marginBottom:10}}>
-      {/* ícone */}
-      <div style={{width:36,height:36,borderRadius:10,flexShrink:0,
-        background:`linear-gradient(135deg,${m.cor}25,${m.cor}10)`,
-        border:`1.5px solid ${m.cor}35`,
-        display:'flex',alignItems:'center',justifyContent:'center'}}>
-        <DIc size={16} style={{color:m.cor}}/>
+    <div style={{display:'flex',borderRadius:14,overflow:'hidden',
+      background:T.bg2,border:`0.5px solid ${falhou?T.redBor:ignorado?T.sep:T.sep2}`,
+      marginBottom:7,transition:'border-color .15s,transform .15s',cursor:'pointer'}}
+      onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-1px)';e.currentTarget.style.borderColor=falhou?T.redBor:cTransp?cTransp+'60':T.sep2}}
+      onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.borderColor=falhou?T.redBor:ignorado?T.sep:T.sep2}}>
+
+      <div style={{width:3,flexShrink:0,background:transp?cTransp:T.ink4}}/>
+
+      <div style={{width:56,flexShrink:0,display:'flex',flexDirection:'column',
+        alignItems:'center',justifyContent:'center',gap:4,padding:'10px 0',
+        borderRight:`0.5px solid ${T.sep}`}}>
+        <FreshnessRing ultimaAtualizacao={d.ultimo_evento_em||d.criado_em} transp={transp} size={38}/>
+        {transp&&<span style={{fontSize:8,color:T.ink4,textAlign:'center',
+          maxWidth:48,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{transp}</span>}
       </div>
-      {/* conteúdo */}
-      <div style={{flex:1,minWidth:0}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
-          <span style={{fontSize:12.5,fontWeight:600,color:'var(--label)',lineHeight:1.3}}>{m.label}</span>
-          <span style={{fontSize:10,color:'var(--label-4)',flexShrink:0,marginTop:1}}>{fmtDH(d.criado_em)}</span>
+
+      <div style={{flex:1,padding:'9px 11px',minWidth:0,display:'flex',flexDirection:'column',gap:5}}>
+        <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+          <m.icon size={13} style={{color:m.cor,flexShrink:0}}/>
+          <span style={{fontSize:12,fontWeight:700,color:T.ink1}}>{m.label}</span>
+          {d.numero_pedido&&<span style={{fontSize:11,color:T.ink3}}>#{d.numero_pedido}</span>}
+          <SvcBadge codigo={codRas}/>
+          {codRas&&<span style={{fontSize:9.5,fontFamily:'monospace',color:T.ink4}}>{codRas}</span>}
         </div>
-        <div style={{fontSize:10.5,color:'var(--label-4)',marginTop:3}}>
-          {d.template_nome&&d.template_nome!==d.gatilho?d.template_nome:d.gatilho}
-          {d.numero_pedido&&<span style={{marginLeft:6,color:'var(--label-3)',fontWeight:500}}>· #{d.numero_pedido}</span>}
-        </div>
-        {d.erro_msg&&(
-          <div style={{marginTop:6,padding:'5px 8px',borderRadius:6,background:'rgba(239,68,68,.08)',
-            fontSize:10.5,color:'#ef4444',lineHeight:1.4}}>{d.erro_msg}</div>
-        )}
-        <div style={{display:'flex',alignItems:'center',gap:6,marginTop:7}}>
-          {/* badge status */}
-          <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 8px',
-            borderRadius:99,background:s.bg,border:`0.5px solid ${s.cor}30`}}>
-            {React.createElement(s.icon,{size:8,style:{color:s.cor}})}
-            <span style={{fontSize:9,fontWeight:700,color:s.cor,textTransform:'uppercase',letterSpacing:'.04em'}}>{s.label}</span>
+
+        <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
+          <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:10,fontWeight:700,
+            padding:'2px 8px',borderRadius:99,background:sm.bg,border:`0.5px solid ${sm.cor}30`,color:sm.cor,flexShrink:0}}>
+            <sm.icon size={9}/>{sm.label}
           </span>
-          {/* badge transportadora — derivado das variaveis salvas */}
-          {(()=>{
-            let v = d.variaveis
-            if (typeof v==='string') { try{v=JSON.parse(v)}catch{v=null} }
-            const transp = v?.transportadora
-            if (!transp) return null
-            return (
-              <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 7px',
-                borderRadius:99,background:'rgba(255,255,255,.04)',border:'0.5px solid rgba(255,255,255,.1)'}}>
-                <TransportadoraSVG nome={transp} size={12}/>
-                <span style={{fontSize:9,color:'rgba(255,255,255,.5)',fontWeight:600}}>{transp}</span>
-              </span>
-            )
-          })()}
-          {/* reenviar (erro) */}
-          {falhou && (
-            <button disabled={jaReenv||enviando} onClick={doReenviar} style={{
-              display:'inline-flex',alignItems:'center',gap:4,padding:'2px 10px',borderRadius:99,
-              border:`0.5px solid ${jaReenv?'#22c55e60':'#a78bfa60'}`,
-              background:jaReenv?'rgba(34,197,94,.08)':'rgba(167,139,250,.08)',
-              color:jaReenv?'#22c55e':'#a78bfa',cursor:jaReenv?'default':'pointer',
-              fontSize:9.5,fontWeight:600}}>
-              {enviando?<><RefreshCw size={9} style={{animation:'spin .7s linear infinite'}}/>Enviando...</>
-               :jaReenv?<><CheckCircle size={9}/>Reenviado</>
-               :<><RotateCcw size={9}/>Reenviar</>}
-            </button>
-          )}
-          {/* enviar (ignorado) */}
-          {ignorado && !jaReenv && (
-            <button onClick={doReenviar} disabled={enviando} style={{
-              display:'inline-flex',alignItems:'center',gap:4,padding:'2px 10px',borderRadius:99,
-              border:'0.5px solid rgba(245,158,11,.5)',background:'rgba(245,158,11,.08)',
-              color:'#f59e0b',cursor:'pointer',fontSize:9.5,fontWeight:600}}>
-              {enviando?<><RefreshCw size={9} style={{animation:'spin .7s linear infinite'}}/>Enviando...</>
-               :<><Send size={9}/>Enviar agora</>}
-            </button>
-          )}
-          {ignorado && jaReenv && (
-            <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:9.5,color:'#22c55e'}}>
-              <CheckCircle size={9}/>Enviado
-            </span>
-          )}
+          {ignorado&&<MotivoIgnorado msg={d.erro_msg}/>}
+          {falhou&&d.erro_msg&&<span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:9.5,
+            padding:'2px 8px',borderRadius:99,fontWeight:600,background:T.redDim,color:T.red,flexShrink:0}}>
+            <AlertCircle size={9}/>{d.erro_msg?.slice(0,36)}</span>}
+          {locEvt&&<span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:10,
+            color:T.ink2,padding:'2px 8px',borderRadius:99,background:T.bg3,border:`0.5px solid ${T.sep2}`,flexShrink:0}}>
+            <MapPin size={9}/>{locEvt}</span>}
+          {vars?.valor_total&&(falhou||ignorado)&&<span style={{display:'inline-flex',alignItems:'center',
+            gap:3,fontSize:10,padding:'2px 7px',borderRadius:99,fontWeight:600,
+            background:falhou?T.redDim:'rgba(255,179,0,.1)',color:falhou?T.red:T.amber,flexShrink:0}}>
+            R$ {vars.valor_total} sem contato</span>}
+          {vars?.valor_total&&!falhou&&!ignorado&&<span style={{fontSize:10,color:T.green,fontWeight:600}}>R$ {vars.valor_total}</span>}
         </div>
+
+        <div style={{display:'flex',alignItems:'center',gap:6,paddingTop:5,
+          borderTop:`0.5px solid ${T.sep}`,flexWrap:'wrap'}}>
+          {d.nome_cliente&&<span style={{fontSize:11,color:T.ink2,maxWidth:160,
+            overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.nome_cliente}</span>}
+          {d.telefone&&<span style={{fontSize:10,fontFamily:'monospace',color:T.ink4}}>{fmtTel(d.telefone)}</span>}
+          {d.canal&&<PlataformaSVG canal={d.canal} size={11}/>}
+          <div style={{flex:1,minWidth:60,maxWidth:90}}>
+            <MiniTimeline etapa={etapa} total={5} transp={transp} status={d.status}/>
+          </div>
+          <span style={{fontSize:10,color:T.ink4,marginLeft:'auto',whiteSpace:'nowrap'}}>{fmtDH(d.criado_em)}</span>
+        </div>
+      </div>
+
+      <div style={{width:108,flexShrink:0,display:'flex',flexDirection:'column',
+        alignItems:'stretch',justifyContent:'center',gap:5,
+        padding:'9px 10px 9px 6px',borderLeft:`0.5px solid ${T.sep}`}}>
+        {(falhou||ignorado)&&(
+          <button disabled={jaReenv||enviando} onClick={doReenviar}
+            style={{display:'flex',alignItems:'center',justifyContent:'center',gap:4,
+              padding:'5px 0',borderRadius:8,fontSize:10,fontWeight:700,cursor:'pointer',
+              border:`0.5px solid ${jaReenv?T.greenBor:T.orangeBor}`,
+              background:jaReenv?T.greenDim:T.orangeDim,
+              color:jaReenv?T.green:T.amber,fontFamily:'inherit',transition:'all .15s'}}>
+            {enviando?<RefreshCw size={10} style={{animation:'spin .7s linear infinite'}}/>
+             :jaReenv?<Check size={10}/>:<Send size={10}/>}
+            {enviando?'Enviando':jaReenv?'Enviado':'Enviar'}
+          </button>)}
+        <button style={{display:'flex',alignItems:'center',justifyContent:'center',gap:4,
+          padding:'5px 0',borderRadius:8,fontSize:10,fontWeight:600,cursor:'pointer',
+          border:`0.5px solid ${T.sep2}`,background:'transparent',color:T.ink2,fontFamily:'inherit'}}>
+          <Eye size={10}/>Detalhes
+        </button>
+        <button style={{display:'flex',alignItems:'center',justifyContent:'center',gap:4,
+          padding:'5px 0',borderRadius:8,fontSize:10,fontWeight:600,cursor:'pointer',
+          border:`0.5px solid ${T.sep2}`,background:'transparent',color:T.ink2,fontFamily:'inherit'}}>
+          <Users size={10}/>Perfil
+        </button>
       </div>
     </div>
   )
@@ -3880,6 +4011,7 @@ export default function PageDisparos({api: apiProp}) {
         @keyframes fadeIn   { from{opacity:0} to{opacity:1} }
         @keyframes chartIn  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
         @keyframes shimmer  { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        @keyframes jflow    { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
         ::-webkit-scrollbar       { width:4px; height:4px }
         ::-webkit-scrollbar-track { background:transparent }
         ::-webkit-scrollbar-thumb { background:rgba(255,255,255,.1); border-radius:99px }
