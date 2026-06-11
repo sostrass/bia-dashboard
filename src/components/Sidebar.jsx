@@ -12,7 +12,7 @@ import {
   LayoutDashboard, ShoppingCart, Users, CreditCard,
   MessageSquare, Bot, Settings, Zap, Send, Package,
   AlertCircle, Activity, Search, Brain, Truck, BarChart2,
-  Sun, Moon, ChevronDown, ChevronRight,
+  Sun, Moon, ChevronDown, ChevronRight, Bell,
 } from 'lucide-react'
 import { useTheme } from '../App'
 import { logout } from '../pages/PageLogin'
@@ -27,6 +27,7 @@ const T = {
   purple:'#a78bfa',purpleDim:'rgba(167,139,250,.09)',purpleBor:'rgba(167,139,250,.25)',
   blue:'#4f8ef7', blueDim:'rgba(79,142,247,.08)',  blueBor:'rgba(79,142,247,.25)',
   cyan:'#06b6d4', cyanDim:'rgba(6,182,212,.08)',   cyanBor:'rgba(6,182,212,.22)',
+  orange:'#fb923c',
   sep:'rgba(255,255,255,.05)', sep2:'rgba(255,255,255,.08)',
   gray:'rgba(255,255,255,.04)',
 }
@@ -43,6 +44,7 @@ export const NAV = [
   { id:'gatilhos',        icon:Zap,             label:'Gatilhos',        group:'tools',  cor:T.amber,  desc:'Automações e templates'       },
   { id:'rastreio-config', icon:Truck,           label:'Rastreio',        group:'tools',  cor:T.green,  desc:'Canais de rastreio'           },
   { id:'campanhas',       icon:Send,            label:'Campanhas',       group:'tools',  cor:T.cyan,   desc:'Disparos em massa'            },
+  { id:'avise-me',        icon:Bell,            label:'Avise-me',        group:'tools',  cor:T.orange, desc:'Fila de reposição de estoque' },
   { id:'disparos',        icon:BarChart2,       label:'Monitor Disparos',group:'tools',  cor:T.blue,   desc:'Histórico e analytics'        },
   { id:'ocorrencias',     icon:AlertCircle,     label:'Ocorrências',     group:'tools',  cor:T.red,    desc:'Tickets e problemas'          },
   { id:'iaconfig',        icon:Bot,             label:'Config IA',       group:'config', cor:T.purple, desc:'Personalidade e integrações'  },
