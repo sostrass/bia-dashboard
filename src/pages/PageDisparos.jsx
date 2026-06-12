@@ -12,7 +12,7 @@ import {
   RotateCcw, ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
   Eye, X, Navigation, Hash, Timer, AlertTriangle, ShieldCheck, MapPin,
   ToggleLeft, ToggleRight, Download, Info, MessageSquare,
-  ExternalLink, Radio, Settings, MoreVertical, Brain, Phone,
+  ExternalLink, Radio, Settings, MoreVertical, Brain, Phone, ShoppingCart,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -58,6 +58,9 @@ const GATILHO_META = {
   pix_pendente:             { label:'PIX Pendente',             icon:CreditCard,    cor:'#22c55e' },
   // Gatilhos de rastreio adicionais
   pagamento_pendente:       { label:'Pag. Pendente',            icon:CreditCard,    cor:'#f59e0b' },
+  avaliacao_pos_entrega:    { label:'Avaliação D+2',            icon:Star,          cor:'#f59e0b' },
+  pix_lembrete:             { label:'Lembrete PIX',             icon:CreditCard,    cor:'#22c55e' },
+  carrinho_abandonado:      { label:'Carrinho Abandonado',      icon:ShoppingCart,  cor:'#fb923c' },
   pedido_coletado:          { label:'Pedido Coletado',          icon:Package,       cor:'#4a9fff' },
   nao_entrou_unidade:       { label:'Não Entrou Unidade',       icon:AlertTriangle, cor:'#f97316' },
   tentativa_entrega:        { label:'Tentativa Entrega',        icon:Clock,         cor:'#f59e0b' },
@@ -227,6 +230,7 @@ const ETAPA_GATILHO = {
   pedido_enviado:2,pedido_coletado:2,
   rastreio_em_transito:3,saiu_entrega:3,tentativa_entrega:3,
   pedido_entregue:4,nao_entregue:4,pacote_devolvido:4,
+  avaliacao_pos_entrega:4,pix_lembrete:0,carrinho_abandonado:0,
 }
 
 function SvcBadge({ codigo, servico }) {
