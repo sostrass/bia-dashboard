@@ -183,7 +183,7 @@ function ProductThumb({item,size=28,api}) {
   const cor=colors[(name.charCodeAt(0)||0)%colors.length]
   const [err,setErr]=useState(false)
   const [url,setUrl]=useState(item?.foto||null)
-  React.useEffect(()=>{
+  useEffect(()=>{
     if(url||!api||!item)return
     const q=(item.descricao||item.nome||'').slice(0,80)
     if(q.length<3)return
