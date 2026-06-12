@@ -11,7 +11,7 @@ import {
   ArrowRight, SlidersHorizontal, Tag, Repeat, Activity,
   GripVertical, Timer, Edit3, Send as SendIcon,
   Search, Users, Download, Minus, CheckCircle as CheckCircleIc,
-  Navigation, ArrowUpRight, History, TrendingUp, ChevronLeft, MapPin,
+  Navigation, ArrowUpRight, History, TrendingUp, ChevronLeft, MapPin, ShoppingCart,
 } from 'lucide-react'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -64,6 +64,9 @@ const GATILHOS = [
   { id:'endereco_incorreto',  label:'Endereço Incorreto',    grupo:'Envio & Rastreio', tipo:'bling', icon:AlertCircle, cor:'#ef4444', situacao:'auto',    desc:'Endereço com problema — precisa revisar', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{endereco_entrega}}','{{link_acompanhamento}}'] },
   { id:'nao_entrou_unidade',  label:'Não Entrou na Unidade', grupo:'Envio & Rastreio', tipo:'bling', icon:AlertTriangle,cor:'#dc2626', situacao:'auto',   desc:'Objeto não chegou na unidade de destino (Jadlog)', variaveis:['{{nome_cliente}}','{{numero_pedido}}','{{nome_loja}}','{{codigo_rastreio}}','{{transportadora}}','{{status_rastreio}}','{{link_acompanhamento}}'] },
   { id:'pedido_entregue',     label:'Pedido Entregue',       grupo:'Envio & Rastreio', tipo:'bling', icon:Package,     cor:'#22c55e', situacao:'sit=30 / auto',  desc:'Entrega confirmada', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{valor_total}}','{{transportadora}}','{{codigo_rastreio}}','{{status_rastreio}}','{{historico_rastreio}}','{{historico_rastreio_citar}}','{{link_acompanhamento}}'] },
+  { id:'avaliacao_pos_entrega', label:'Avaliação Pós-Entrega', grupo:'Pós-venda', tipo:'job', icon:Star, cor:'#f59e0b', situacao:'D+2 entrega', desc:'Job automático: pede a nota de 1 a 5 dois dias após a entrega', variaveis:['{{nome_cliente}}','{{numero_pedido}}'] },
+  { id:'pix_lembrete',          label:'Lembrete de PIX',       grupo:'Pós-venda', tipo:'job', icon:CreditCard, cor:'#22c55e', situacao:'3-20h sit 6', desc:'Job automático: reenvia o código PIX de pedido ainda não pago (mensagem livre — sem template)', variaveis:[] },
+  { id:'carrinho_abandonado',   label:'Carrinho Abandonado',   grupo:'Pós-venda', tipo:'job', icon:ShoppingCart, cor:'#fb923c', situacao:'3-20h parado', desc:'Job automático: lembra o cliente do carrinho cheio (mensagem livre — sem template)', variaveis:[] },
   { id:'nao_entregue',        label:'Não Entregue',          grupo:'Envio & Rastreio', tipo:'bling', icon:AlertCircle, cor:'#ef4444', situacao:'sit=33',  desc:'Tentativa de entrega falhou', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{link_rastreio}}','{{link_acompanhamento}}'] },
   { id:'pacote_devolvido',    label:'Pacote Devolvido',      grupo:'Envio & Rastreio', tipo:'bling', icon:RefreshCw,   cor:'#f87171', situacao:'auto',    desc:'Pacote retornou ao remetente', variaveis:['{{nome_cliente}}','{{primeiro_nome}}','{{numero_pedido}}','{{nome_loja}}','{{transportadora}}','{{codigo_rastreio}}','{{link_acompanhamento}}'] },
 
