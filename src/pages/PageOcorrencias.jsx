@@ -35,12 +35,29 @@ const TIPOS = {
   outro:     { label:'Outro',      icon:Tag,         color:T.ink3,   dim:T.bg3,       bor:T.sep2      },
 }
 const STATUS = {
-  aberta:       { label:'Aberta',      color:T.amber, dim:T.amberDim, bor:T.amberBor, icon:Circle      },
-  em_andamento: { label:'Em análise',  color:T.blue,  dim:T.blueDim,  bor:T.blueBor,  icon:RefreshCcw  },
-  resolvida:    { label:'Resolvida',   color:T.green, dim:T.greenDim, bor:T.greenBor, icon:CheckCircle },
-  encerrada:    { label:'Encerrada',   color:T.ink3,  dim:T.bg3,      bor:T.sep2,     icon:XCircle     },
+  aberta:       { label:'Aberta',       color:T.amber,  dim:T.amberDim,  bor:T.amberBor,  icon:Circle,      acaoHint:'O ticket volta para a fila de triagem. Por quê?' },
+  em_analise:   { label:'Em análise',   color:T.blue,   dim:T.blueDim,   bor:T.blueBor,   icon:Search,      acaoHint:'O que está sendo apurado? (ex.: abrimos verificação com a transportadora)' },
+  em_andamento: { label:'Em andamento', color:T.purple, dim:T.purpleDim, bor:T.purpleBor, icon:RefreshCcw,  acaoHint:'Qual ação concreta está em execução? (ex.: reenvio postado, etiqueta emitida)' },
+  resolvida:    { label:'Resolvida',    color:T.green,  dim:T.greenDim,  bor:T.greenBor,  icon:CheckCircle, acaoHint:'Como foi resolvido? Essa nota encerra o caso para o cliente.' },
+  encerrada:    { label:'Encerrada',    color:T.ink3,   dim:T.bg3,       bor:T.sep2,      icon:XCircle,     acaoHint:'Motivo do encerramento sem resolução (ex.: cliente não retornou).' },
 }
-const ESTEIRA = ['aberta', 'em_andamento', 'resolvida']
+const ESTEIRA = ['aberta', 'em_analise', 'em_andamento', 'resolvida']
+const CANAIS = {
+  whatsapp:     { label:'WhatsApp',      color:'#25d366', emoji:'💬' },
+  site:         { label:'Site',          color:T.blue,    emoji:'🌐' },
+  mercadolivre: { label:'Mercado Livre', color:'#ffe600', emoji:'🛒' },
+  shopee:       { label:'Shopee',        color:'#ee4d2d', emoji:'🛍️' },
+  shein:        { label:'Shein',         color:'#c8c8d0', emoji:'👗' },
+  tiktokshop:   { label:'TikTok Shop',   color:T.cyan,    emoji:'🎵' },
+  email:        { label:'E-mail',        color:T.purple,  emoji:'✉️' },
+  telefone:     { label:'Telefone',      color:T.orange,  emoji:'📞' },
+}
+const slaInfo = criadoEm => {
+  const h = (Date.now() - new Date(criadoEm)) / 3600000
+  if (h < 24)  return { pct: h/24*100,  color:T.green,  label:`${Math.floor(h)}h — dentro do SLA` }
+  if (h < 72)  return { pct: h/72*100,  color:T.amber,  label:`${Math.floor(h)}h — atenção` }
+  return { pct: 100, color:T.red, label:`${Math.floor(h/24)}d — SLA estourado` }
+}
 const PRIO = {
   baixa:   { label:'Baixa',   color:T.ink4   },
   normal:  { label:'Normal',  color:T.blue   },
@@ -128,6 +145,8 @@ function Modal360({ oc, onAtualizado, onClose }) {
   const [mudando,setMudando]= useState(false)
   const [copiado,setCopiado]= useState(false)
   const [erro,   setErro]   = useState('')
+  const [acaoModal, setAcaoModal] = useState(null)   // { status alvo }
+  const [acaoTxt,   setAcaoTxt]   = useState('')
 
   const carregar = useCallback(() => {
     setLoading(true)
@@ -155,10 +174,15 @@ function Modal360({ oc, onAtualizado, onClose }) {
     carregar()
     return d
   }
-  async function mudarStatus(novo) {
+  // Transição de status SEMPRE pede a AÇÃO executada — vira evento na timeline
+  function pedirAcao(novo) { setAcaoTxt(''); setAcaoModal(novo) }
+  async function confirmarAcao() {
+    if (!acaoTxt.trim()) return
     setMudando(true); setErro('')
-    try { await patch({ status: novo, por: 'agente' }) }
-    catch(e) { setErro(e.message) } finally { setMudando(false) }
+    try {
+      await patch({ status: acaoModal, nota: acaoTxt.trim(), por: 'agente' })
+      setAcaoModal(null); setAcaoTxt('')
+    } catch(e) { setErro(e.message) } finally { setMudando(false) }
   }
   async function addNota() {
     if (!nota.trim()) return
@@ -234,7 +258,7 @@ function Modal360({ oc, onAtualizado, onClose }) {
                 const passou = ESTEIRA.indexOf(tk.status) > i || tk.status==='encerrada'
                 return (
                   <div key={sk} style={{display:'flex', alignItems:'center'}}>
-                    <button onClick={()=>!mudando && tk.status!==sk && mudarStatus(sk)} disabled={mudando}
+                    <button onClick={()=>!mudando && tk.status!==sk && pedirAcao(sk)} disabled={mudando}
                       title={`Mover para ${sd.label}`}
                       style={{display:'flex', alignItems:'center', gap:6, padding:'7px 13px', borderRadius:999, cursor:'pointer',
                         fontSize:12, fontWeight:800, transition:'all .2s',
@@ -250,9 +274,27 @@ function Modal360({ oc, onAtualizado, onClose }) {
               })}
             </div>
           </div>
+          {/* SLA */}
+          {(() => { const sla = slaInfo(tk.criado_em); return ['resolvida','encerrada'].includes(tk.status) ? null : (
+            <div style={{marginTop:12}}>
+              <div style={{display:'flex', justifyContent:'space-between', fontSize:10.5, fontWeight:800, color:sla.color, marginBottom:4, textTransform:'uppercase', letterSpacing:0.6}}>
+                <span>SLA do ticket</span><span>{sla.label}</span>
+              </div>
+              <div style={{height:5, borderRadius:99, background:T.bg3, overflow:'hidden'}}>
+                <div style={{width:`${Math.min(100,sla.pct)}%`, height:'100%', borderRadius:99, background:`linear-gradient(90deg, ${sla.color}aa, ${sla.color})`, boxShadow:`0 0 12px ${sla.color}88`, transition:'width .5s'}}/>
+              </div>
+            </div>
+          )})()}
           {/* Ticket meta */}
           <div style={{display:'flex', gap:8, marginTop:14, alignItems:'center', flexWrap:'wrap'}}>
             <Bdg color={T.ink2} dim={T.bg3} bor={T.sep2} icon={FileText} size="sm">{tk.ticket_id || `#${tk.id}`}</Bdg>
+            {(() => { const cn = CANAIS[tk.canal] || CANAIS.whatsapp; return (
+              <span style={{display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:999, fontSize:12, fontWeight:800,
+                color:cn.color, background:`${cn.color}14`, border:`1px solid ${cn.color}44`}}>
+                {cn.emoji} {cn.label}
+              </span>
+            )})()}
+            {tk.cpf_cnpj && <Bdg color={T.ink2} dim={T.bg3} bor={T.sep2} icon={User} size="sm">{tk.cpf_cnpj}</Bdg>}
             <Bdg color={tipo.color} dim={tipo.dim} bor={tipo.bor} icon={tipo.icon} size="sm">{tipo.label}</Bdg>
             <Bdg color={PRIO[tk.prioridade]?.color||T.blue} dim={T.bg3} bor={T.sep2} icon={Zap} size="sm">{PRIO[tk.prioridade]?.label||tk.prioridade}</Bdg>
             {tk.numero_pedido && <Bdg color={T.cyan} dim={T.cyanDim} bor={T.cyanBor} icon={Package} size="sm">Pedido #{tk.numero_pedido}</Bdg>}
@@ -266,6 +308,7 @@ function Modal360({ oc, onAtualizado, onClose }) {
               { ic:BarChart3,  lb:'Ticket médio',    vl: loading?null:`R$ ${fmtBRL(share.ticket_medio)}`,    cl:T.purple},
               { ic:Truck,      lb:'Transp. favorita',vl: loading?null:(share.transportadora_favorita||'—'),  cl:T.amber },
               { ic:History,    lb:'Tickets antes',   vl: loading?null:String(ctx?.tickets_anteriores?.length ?? 0), cl:T.orange },
+              { ic:Activity,   lb:'Densidade',       vl: loading?null:`${histArr.length} interações`,        cl:T.cyan  },
             ].map((k,i)=>(
               <div key={i} style={{background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:12, padding:'10px 12px'}}>
                 <div style={{display:'flex',alignItems:'center',gap:6, fontSize:10.5, fontWeight:800, color:T.ink3, textTransform:'uppercase', letterSpacing:0.7}}><k.ic size={12} color={k.cl}/>{k.lb}</div>
@@ -444,6 +487,33 @@ function Modal360({ oc, onAtualizado, onClose }) {
             </div>
           </div>
         </div>
+
+        {/* ── MODAL DE AÇÃO — transição de status exige registrar o que foi feito ── */}
+        {acaoModal && (
+          <div onClick={()=>setAcaoModal(null)} style={{position:'absolute', inset:0, zIndex:5, background:'rgba(4,5,10,.7)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:20}}>
+            <div onClick={e=>e.stopPropagation()} style={{width:'min(480px,100%)', background:`linear-gradient(180deg, ${T.bg2}, ${T.bg1})`, border:`1px solid ${STATUS[acaoModal].bor}`, borderRadius:16, padding:20, boxShadow:`0 0 60px -16px ${STATUS[acaoModal].color}66`}}>
+              <div style={{display:'flex', alignItems:'center', gap:9, marginBottom:4}}>
+                {(() => { const Ic = STATUS[acaoModal].icon; return <Ic size={17} color={STATUS[acaoModal].color}/> })()}
+                <span style={{fontSize:15, fontWeight:900, color:T.ink1}}>Mover para “{STATUS[acaoModal].label}”</span>
+              </div>
+              <div style={{fontSize:12.5, color:T.ink3, marginBottom:12, lineHeight:1.5}}>
+                Toda transição registra a <b style={{color:T.ink2}}>ação executada</b> na timeline — é o que o próximo agente (e o cliente) vai ler.
+              </div>
+              <textarea autoFocus value={acaoTxt} onChange={e=>setAcaoTxt(e.target.value)} rows={3}
+                placeholder={STATUS[acaoModal].acaoHint}
+                style={{width:'100%', boxSizing:'border-box', background:T.bg0, border:`1px solid ${T.sep2}`, borderRadius:11, padding:'10px 12px', color:T.ink1, fontSize:13, lineHeight:1.5, outline:'none', resize:'vertical', fontFamily:'inherit'}}/>
+              <div style={{display:'flex', gap:8, marginTop:12}}>
+                <button onClick={confirmarAcao} disabled={!acaoTxt.trim() || mudando}
+                  style={{flex:1, background: acaoTxt.trim()?STATUS[acaoModal].dim:T.bg3, border:`1px solid ${acaoTxt.trim()?STATUS[acaoModal].bor:T.sep2}`,
+                    color: acaoTxt.trim()?STATUS[acaoModal].color:T.ink4, borderRadius:11, padding:'10px', cursor: acaoTxt.trim()?'pointer':'default',
+                    fontWeight:900, fontSize:13, boxShadow: acaoTxt.trim()?`0 0 22px -8px ${STATUS[acaoModal].color}88`:'none'}}>
+                  {mudando ? 'Registrando…' : `Confirmar — ${STATUS[acaoModal].label}`}
+                </button>
+                <button onClick={()=>setAcaoModal(null)} style={{background:T.bg3, border:`1px solid ${T.sep2}`, color:T.ink2, borderRadius:11, padding:'10px 16px', cursor:'pointer', fontWeight:700, fontSize:12.5}}>Cancelar</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -451,7 +521,7 @@ function Modal360({ oc, onAtualizado, onClose }) {
 
 // ═══ MODAL NOVA OCORRÊNCIA ════════════════════════════════════════════════════
 function ModalNova({ onSalvo, onClose }) {
-  const [f, setF] = useState({ telefone:'', nomeCliente:'', email:'', numeroPedido:'', titulo:'', tipo:'entrega', descricao:'', prioridade:'normal' })
+  const [f, setF] = useState({ telefone:'', nomeCliente:'', email:'', numeroPedido:'', titulo:'', tipo:'entrega', descricao:'', prioridade:'normal', canal:'whatsapp', cpfCnpj:'' })
   const [saving, setSaving] = useState(false)
   const [erro,   setErro]   = useState('')
   const [anexado,setAnexado]= useState(null)
@@ -499,6 +569,11 @@ function ModalNova({ onSalvo, onClose }) {
               <div><label style={lblSt}>Telefone *</label><input style={inputSt} value={f.telefone} onChange={e=>set('telefone',e.target.value)} placeholder="(19) 9…"/></div>
               <div><label style={lblSt}>Nome do cliente</label><input style={inputSt} value={f.nomeCliente} onChange={e=>set('nomeCliente',e.target.value)}/></div>
               <div><label style={lblSt}>E-mail</label><input style={inputSt} value={f.email} onChange={e=>set('email',e.target.value)}/></div>
+              <div><label style={lblSt}>CPF / CNPJ</label><input style={inputSt} value={f.cpfCnpj} onChange={e=>set('cpfCnpj',e.target.value)} placeholder="000.000.000-00"/></div>
+              <div><label style={lblSt}>Canal de origem</label>
+                <select style={inputSt} value={f.canal} onChange={e=>set('canal',e.target.value)}>
+                  {Object.entries(CANAIS).map(([k,v])=><option key={k} value={k}>{v.emoji} {v.label}</option>)}
+                </select></div>
               <div><label style={lblSt}>Nº do pedido</label><input style={inputSt} value={f.numeroPedido} onChange={e=>set('numeroPedido',e.target.value)}/></div>
               <div><label style={lblSt}>Tipo</label>
                 <select style={inputSt} value={f.tipo} onChange={e=>set('tipo',e.target.value)}>
@@ -543,7 +618,7 @@ export default function PageOcorrencias() {
 
   const lista = useMemo(() => {
     let l = dados.ocorrencias || []
-    if (filtro==='ativas')   l = l.filter(o=>['aberta','em_andamento'].includes(o.status))
+    if (filtro==='ativas')   l = l.filter(o=>['aberta','em_analise','em_andamento'].includes(o.status))
     else if (filtro!=='todas') l = l.filter(o=>o.status===filtro)
     if (busca.trim()) {
       const b = busca.toLowerCase()
@@ -554,11 +629,12 @@ export default function PageOcorrencias() {
 
   const st = dados.stats || {}
   const FILTROS = [
-    { k:'ativas',       lb:`Ativas`,       n:(parseInt(st.abertas||0)+parseInt(st.em_andamento||0)), cl:T.amber },
-    { k:'aberta',       lb:'Abertas',      n:st.abertas,      cl:T.amber  },
-    { k:'em_andamento', lb:'Em análise',   n:st.em_andamento, cl:T.blue   },
-    { k:'resolvida',    lb:'Resolvidas',   n:st.resolvidas,   cl:T.green  },
-    { k:'todas',        lb:'Todas',        n:st.total,        cl:T.ink3   },
+    { k:'ativas',       lb:`Ativas`,        n:(parseInt(st.abertas||0)+parseInt(st.em_analise||0)+parseInt(st.em_andamento||0)), cl:T.amber },
+    { k:'aberta',       lb:'Abertas',       n:st.abertas,      cl:T.amber  },
+    { k:'em_analise',   lb:'Em análise',    n:st.em_analise,   cl:T.blue   },
+    { k:'em_andamento', lb:'Em andamento',  n:st.em_andamento, cl:T.purple },
+    { k:'resolvida',    lb:'Resolvidas',    n:st.resolvidas,   cl:T.green  },
+    { k:'todas',        lb:'Todas',         n:st.total,        cl:T.ink3   },
   ]
 
   return (
@@ -575,7 +651,7 @@ export default function PageOcorrencias() {
           <div style={{fontSize:21, fontWeight:900, color:T.ink1, letterSpacing:-0.4, display:'flex', alignItems:'center', gap:10}}>
             <ShieldAlert size={21} color={T.amber}/>Central de Ocorrências
           </div>
-          <div style={{fontSize:12.5, color:T.ink3, marginTop:3}}>Tickets sensíveis · esteira: aberta → em análise → resolvida · 1 ticket aberto por cliente</div>
+          <div style={{fontSize:12.5, color:T.ink3, marginTop:3}}>Tickets sensíveis · esteira: aberta → em análise → em andamento → resolvida · 1 ticket aberto por cliente</div>
         </div>
         <div style={{display:'flex', gap:9}}>
           <button onClick={carregar} style={{display:'flex', alignItems:'center', gap:7, background:T.bg2, border:`1px solid ${T.sep2}`, color:T.ink2, borderRadius:11, padding:'9px 14px', cursor:'pointer', fontWeight:700, fontSize:12.5}}>
@@ -585,6 +661,27 @@ export default function PageOcorrencias() {
             <Plus size={14}/>Nova ocorrência
           </button>
         </div>
+      </div>
+
+      {/* Hero stats */}
+      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(170px, 1fr))', gap:12, marginBottom:18}}>
+        {[
+          { lb:'Tickets ativos',  vl:(parseInt(st.abertas||0)+parseInt(st.em_analise||0)+parseInt(st.em_andamento||0)), ic:Flame,       cl:T.amber,  sub:'aguardando ação' },
+          { lb:'Em análise',      vl:st.em_analise||0,    ic:Search,      cl:T.blue,   sub:'apuração em curso' },
+          { lb:'Em andamento',    vl:st.em_andamento||0,  ic:RefreshCcw,  cl:T.purple, sub:'ação em execução' },
+          { lb:'Urgentes',        vl:st.urgentes||0,      ic:Zap,         cl:T.red,    sub:'prioridade máxima' },
+          { lb:'Resolvidos',      vl:st.resolvidas||0,    ic:CheckCircle, cl:T.green,  sub:'histórico total' },
+        ].map((c,i)=>(
+          <div key={i} style={{position:'relative', overflow:'hidden', background:T.bg1, border:`1px solid ${T.sep2}`, borderRadius:16, padding:'15px 16px',
+            boxShadow: parseInt(c.vl)>0 && (c.cl===T.red||c.cl===T.amber) ? `0 0 32px -14px ${c.cl}99` : 'none'}}>
+            <div style={{position:'absolute', top:-30, right:-30, width:90, height:90, borderRadius:99, background:`radial-gradient(circle, ${c.cl}22, transparent 70%)`}}/>
+            <div style={{display:'flex', alignItems:'center', gap:7, fontSize:11, fontWeight:800, color:T.ink3, textTransform:'uppercase', letterSpacing:0.7}}>
+              <c.ic size={13} color={c.cl}/>{c.lb}
+            </div>
+            <div style={{fontSize:28, fontWeight:900, color: parseInt(c.vl)>0 ? c.cl : T.ink1, marginTop:6, lineHeight:1}}>{c.vl}</div>
+            <div style={{fontSize:10.5, color:T.ink4, marginTop:4}}>{c.sub}</div>
+          </div>
+        ))}
       </div>
 
       {/* Filtros + busca */}
@@ -637,6 +734,9 @@ export default function PageOcorrencias() {
                   <span style={{fontSize:14, fontWeight:800, color:T.ink1}}>{o.nome_cliente || fmtTel(o.telefone) || 'Cliente'}</span>
                   <span style={{fontSize:11, color:T.ink4, fontWeight:700}}>{o.ticket_id}</span>
                   <Bdg color={tp.color} dim={tp.dim} bor={tp.bor} icon={tp.icon}>{tp.label}</Bdg>
+                  {(() => { const cn = CANAIS[o.canal] || CANAIS.whatsapp; return (
+                    <span style={{fontSize:11, fontWeight:700, color:cn.color}}>{cn.emoji} {cn.label}</span>
+                  )})()}
                   {o.numero_pedido && <span style={{fontSize:11, color:T.cyan}}>#{o.numero_pedido}</span>}
                 </div>
                 <div style={{fontSize:12.5, color:T.ink3, marginTop:3, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>
