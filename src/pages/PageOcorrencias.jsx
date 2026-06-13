@@ -11,7 +11,7 @@ import {
   Globe, ShoppingCart, ShoppingBag, Music2, Smartphone, Image as ImageIc,
   PlusCircle, StickyNote, MessageCircle, UserPlus, Repeat, Inbox, BrainCircuit,
   Play, Download, GitMerge, PartyPopper, MapPin as MapPinIc, Hash, Pencil, Box,
-  Users,
+  Users, Bell, Settings, Zap as ZapIc, Smile, Frown, Meh, Wand2,
 } from 'lucide-react'
 
 // Identidade do agente (pedida 1x, fica no navegador)
@@ -294,6 +294,16 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
     try { await patch({ respostaCliente: resp.trim(), por: 'agente' }); setResp('') }
     catch(e) { setErro(e.message) } finally { setEnviando(false) }
   }
+  async function macroResolver() {
+    if (!resp.trim()) { setErro('Escreva a mensagem de resolução primeiro'); return }
+    setEnviando(true); setErro('')
+    try {
+      const r = await fetch(`${BASE}/api/ocorrencias/${oc.id}/macro-resolver`, {
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ mensagem:resp.trim(), por:getAgente() }) })
+      if (!r.ok) throw new Error('Falha na macro')
+      setResp(''); onAtualizado?.(); carregar()
+    } catch(e) { setErro(e.message) } finally { setEnviando(false) }
+  }
   async function resumirCaso() {
     setResumindo(true); setErro('')
     try {
@@ -502,6 +512,34 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
         </div>
 
         {/* ── CORPO: 2 colunas ─────────────────────────────────────────────── */}
+          {/* SLA preditivo + sentimento da última resposta */}
+          {!loading && (ctx?.sla || ctx?.sentimento_resposta) && !['resolvida','encerrada'].includes(tk.status) && (
+            <div style={{display:'flex', gap:10, padding:'0 24px 14px', flexWrap:'wrap', alignItems:'center'}}>
+              {ctx?.sla && (
+                <div style={{flex:1, minWidth:200}}>
+                  <div style={{display:'flex', justifyContent:'space-between', fontSize:10.5, fontWeight:800, marginBottom:4,
+                    color: ctx.sla.estado==='estourado'?T.red:ctx.sla.estado==='risco'?T.amber:T.green, textTransform:'uppercase', letterSpacing:0.6}}>
+                    <span>SLA {tk.prioridade} ({ctx.sla.prazo_h}h)</span>
+                    <span>{ctx.sla.restante_h < 0 ? `estourou há ${Math.abs(ctx.sla.restante_h)}h` : `restam ${ctx.sla.restante_h}h`}</span>
+                  </div>
+                  <div style={{height:5, borderRadius:99, background:T.bg3, overflow:'hidden'}}>
+                    <div style={{width:`${ctx.sla.pct}%`, height:'100%', borderRadius:99,
+                      background: ctx.sla.estado==='estourado'?T.red:ctx.sla.estado==='risco'?T.amber:T.green,
+                      boxShadow:`0 0 10px ${ctx.sla.estado==='estourado'?T.red:ctx.sla.estado==='risco'?T.amber:T.green}88`}}/>
+                  </div>
+                </div>
+              )}
+              {ctx?.sentimento_resposta && (
+                <Bdg color={ctx.sentimento_resposta==='positivo'?T.green:ctx.sentimento_resposta==='negativo'?T.red:T.ink3}
+                     dim={ctx.sentimento_resposta==='positivo'?T.greenDim:ctx.sentimento_resposta==='negativo'?T.redDim:T.bg3}
+                     bor={ctx.sentimento_resposta==='positivo'?T.greenBor:ctx.sentimento_resposta==='negativo'?T.redBor:T.sep2}
+                     icon={ctx.sentimento_resposta==='positivo'?Smile:ctx.sentimento_resposta==='negativo'?Frown:Meh} size="sm">
+                  Cliente {ctx.sentimento_resposta==='positivo'?'satisfeito':ctx.sentimento_resposta==='negativo'?'ainda insatisfeito':'respondeu'}
+                </Bdg>
+              )}
+            </div>
+          )}
+
         <div style={{flex:1, overflowY:'auto', padding:18, display:'grid', gridTemplateColumns:'1.25fr 1fr', gap:14, alignItems:'start'}}>
 
           {/* ════ COLUNA ESQUERDA — timeline + resposta ════ */}
@@ -596,9 +634,15 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
                 <button onClick={enviarWhats} disabled={enviando || !resp.trim()}
                   style={{display:'flex', alignItems:'center', gap:7, background: resp.trim()?T.greenDim:T.bg3,
                     border:`1px solid ${resp.trim()?T.greenBor:T.sep2}`, color: resp.trim()?T.green:T.ink4,
-                    borderRadius:11, padding:'9px 18px', cursor: resp.trim()?'pointer':'default', fontWeight:800, fontSize:13,
+                    borderRadius:11, padding:'9px 16px', cursor: resp.trim()?'pointer':'default', fontWeight:800, fontSize:13,
                     boxShadow: resp.trim()?`0 0 22px -8px ${T.green}77`:'none'}}>
-                  <Send size={14}/>{enviando ? 'Enviando…' : 'Enviar WhatsApp'}
+                  <Send size={14}/>{enviando ? 'Enviando…' : 'Enviar'}
+                </button>
+                <button onClick={macroResolver} disabled={enviando || !resp.trim()} title="Envia a resposta, marca como Resolvida e dispara a pesquisa de satisfação — tudo de uma vez"
+                  style={{display:'flex', alignItems:'center', gap:7, background: resp.trim()?`linear-gradient(135deg, ${T.green}26, ${T.cyan}22)`:T.bg3,
+                    border:`1px solid ${resp.trim()?T.greenBor:T.sep2}`, color: resp.trim()?T.green:T.ink4,
+                    borderRadius:11, padding:'9px 14px', cursor: resp.trim()?'pointer':'default', fontWeight:900, fontSize:12.5}}>
+                  <Wand2 size={13}/>Resolver em 1 clique
                 </button>
                 <button onClick={()=>{ navigator.clipboard?.writeText(resp); setCopiado(true); setTimeout(()=>setCopiado(false),1500) }}
                   disabled={!resp.trim()}
@@ -988,6 +1032,21 @@ function ModalNova({ onSalvo, onClose }) {
   const [busca,  setBusca]  = useState('')
   const [buscando,setBuscando]=useState(false)
   const [achado, setAchado] = useState(null)
+  const [sugestao, setSugestao] = useState(null)
+
+  useEffect(() => {
+    const txt = `${f.titulo} ${f.descricao}`.trim()
+    if (txt.length < 8) { setSugestao(null); return }
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch(`${BASE}/api/ocorrencias/sugerir-classificacao`, {
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ titulo:f.titulo, descricao:f.descricao }) })
+        const d = await r.json()
+        if (d.tipo && (d.tipo!==f.tipo || d.prioridade!==f.prioridade)) setSugestao(d); else setSugestao(null)
+      } catch {}
+    }, 700)
+    return () => clearTimeout(t)
+  }, [f.titulo, f.descricao])
 
   async function buscarCliente() {
     if (!busca.trim()) return
@@ -1122,6 +1181,16 @@ function ModalNova({ onSalvo, onClose }) {
             <div style={{marginTop:12}}><label style={lblSt}>Título</label><input style={inputSt} value={f.titulo} onChange={e=>set('titulo',e.target.value)} placeholder="Resumo em uma linha"/></div>
             <div style={{marginTop:12}}><label style={lblSt}>Descrição *</label>
               <textarea rows={4} style={{...inputSt, resize:'vertical', fontFamily:'inherit'}} value={f.descricao} onChange={e=>set('descricao',e.target.value)} placeholder="O que aconteceu?"/></div>
+            {sugestao && (
+              <div style={{marginTop:12, display:'flex', alignItems:'center', gap:10, padding:'10px 13px', background:T.purpleDim, border:`1px solid ${T.purpleBor}`, borderRadius:11}}>
+                <Wand2 size={15} color={T.purple} style={{flexShrink:0}}/>
+                <div style={{flex:1, fontSize:12.5, color:T.ink2}}>
+                  A IA sugere: <b style={{color:TIPOS[sugestao.tipo]?.color||T.purple}}>{TIPOS[sugestao.tipo]?.label||sugestao.tipo}</b> · prioridade <b style={{color:PRIO[sugestao.prioridade]?.color||T.purple}}>{PRIO[sugestao.prioridade]?.label||sugestao.prioridade}</b>
+                </div>
+                <button onClick={()=>{ set('tipo',sugestao.tipo); set('prioridade',sugestao.prioridade); setSugestao(null) }}
+                  style={{background:T.purpleDim, border:`1px solid ${T.purpleBor}`, color:T.purple, borderRadius:9, padding:'5px 13px', cursor:'pointer', fontWeight:800, fontSize:12}}>Aplicar</button>
+              </div>
+            )}
             {erro && <div style={{marginTop:10, fontSize:12.5, color:T.red}}>{erro}</div>}
             <button onClick={salvar} disabled={saving}
               style={{marginTop:16, width:'100%', background:`linear-gradient(135deg, ${T.amber}26, ${T.orange}26)`, border:`1px solid ${T.amberBor}`, color:T.amber, borderRadius:12, padding:'11px', cursor:'pointer', fontWeight:900, fontSize:13.5, boxShadow:`0 0 26px -10px ${T.amber}88`}}>
@@ -1145,6 +1214,12 @@ export default function PageOcorrencias() {
   const [met,    setMet]    = useState(null)
   const [aba,    setAba]    = useState('fila')          // fila | inteligencia
   const [intel,  setIntel]  = useState(null)
+  const [cont,   setCont]   = useState({})              // contadores do sino
+  const [novos,  setNovos]  = useState([])              // tickets novos não vistos
+  const [sino,   setSino]   = useState(false)
+  const [cfg,    setCfg]    = useState(null)
+  const [cfgOpen,setCfgOpen]= useState(false)
+  const ultimoCheckRef = (typeof window!=='undefined') ? (window.__ocUltCheck = window.__ocUltCheck || { t: new Date().toISOString() }) : { t:null }
 
   const carregar = useCallback(() => {
     setLoading(true)
@@ -1154,6 +1229,51 @@ export default function PageOcorrencias() {
   }, [])
   useEffect(()=>{ carregar(); const t=setInterval(carregar, 60000); return ()=>clearInterval(t) }, [carregar])
   useEffect(()=>{ fetch(`${BASE}/api/ocorrencias/metricas/resumo`).then(r=>r.json()).then(setMet).catch(()=>{}) }, [])
+  useEffect(()=>{ fetch(`${BASE}/api/ocorrencias/config`).then(r=>r.json()).then(setCfg).catch(()=>{}) }, [])
+
+  // SINO em tempo real: poll leve a cada 15s
+  useEffect(() => {
+    let parar = false
+    const beep = () => {
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx) return
+        const ac = new Ctx(); const o = ac.createOscillator(); const g = ac.createGain()
+        o.connect(g); g.connect(ac.destination); o.frequency.value = 880; o.type='sine'
+        g.gain.setValueAtTime(0.0001, ac.currentTime); g.gain.exponentialRampToValueAtTime(0.12, ac.currentTime+0.02)
+        g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime+0.4); o.start(); o.stop(ac.currentTime+0.42)
+      } catch {}
+    }
+    const tick = async () => {
+      try {
+        const r = await fetch(`${BASE}/api/ocorrencias/contadores?desde=${encodeURIComponent(ultimoCheckRef.t)}`)
+        const d = await r.json()
+        setCont(d)
+        if (d.novos?.length) {
+          setNovos(prev => {
+            const ids = new Set(prev.map(x=>x.id))
+            const add = d.novos.filter(x=>!ids.has(x.id))
+            if (add.length) {
+              const temUrgente = add.some(x=>x.prioridade==='urgente' || x.origem==='sistema')
+              if (cfg?.som_notificacao !== false && temUrgente) beep()
+              if (temUrgente && Notification?.permission==='granted')
+                new Notification('Ocorrências — atenção', { body: add[0].nome_cliente ? `Novo ticket: ${add[0].nome_cliente}` : 'Novo ticket urgente' })
+            }
+            return [...add, ...prev].slice(0, 12)
+          })
+          ultimoCheckRef.t = new Date().toISOString()
+        }
+      } catch {}
+      if (!parar) setTimeout(tick, 15000)
+    }
+    tick()
+    if (Notification?.permission === 'default') Notification.requestPermission?.()
+    return () => { parar = true }
+  }, [cfg])
+
+  async function salvarCfg(patch) {
+    const novo = { ...cfg, ...patch }; setCfg(novo)
+    await fetch(`${BASE}/api/ocorrencias/config`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch) }).catch(()=>{})
+  }
   useEffect(()=>{ if (aba==='inteligencia' && !intel)
     fetch(`${BASE}/api/ocorrencias/inteligencia/causa-raiz`).then(r=>r.json()).then(setIntel).catch(()=>{}) }, [aba, intel])
 
@@ -1238,6 +1358,40 @@ export default function PageOcorrencias() {
             style={{display:'flex', alignItems:'center', gap:6, background:T.bg2, border:`1px solid ${T.sep2}`, color:T.ink2, borderRadius:11, padding:'9px 13px', fontWeight:700, fontSize:12.5, textDecoration:'none'}}>
             <Download size={13}/>CSV
           </a>
+          <div style={{position:'relative'}}>
+            <button onClick={()=>{ setSino(!sino); if(!sino) setNovos([]) }}
+              style={{position:'relative', display:'flex', alignItems:'center', justifyContent:'center', width:40, height:40, background:T.bg2, border:`1px solid ${(cont.urgentes>0||novos.length>0)?T.redBor:T.sep2}`, color:(cont.urgentes>0||novos.length>0)?T.red:T.ink2, borderRadius:11, cursor:'pointer'}}>
+              <Bell size={16}/>
+              {(novos.length>0 || cont.urgentes>0) && (
+                <span style={{position:'absolute', top:-5, right:-5, minWidth:18, height:18, padding:'0 5px', borderRadius:99, background:T.red, color:'#fff', fontSize:10.5, fontWeight:900, display:'flex', alignItems:'center', justifyContent:'center', boxShadow:`0 0 10px ${T.red}`, animation: novos.length>0?'oc-pulse 1.4s infinite':'none'}}>
+                  {novos.length || cont.urgentes}
+                </span>
+              )}
+            </button>
+            {sino && (
+              <div style={{position:'absolute', top:48, right:0, width:300, zIndex:50, background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:14, boxShadow:'0 30px 80px -20px rgba(0,0,0,.85)', overflow:'hidden'}}>
+                <div style={{padding:'11px 14px', borderBottom:`1px solid ${T.sep}`, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                  <span style={{fontSize:12.5, fontWeight:800, color:T.ink1}}>Notificações</span>
+                  <span style={{fontSize:11, color:T.ink3}}>{cont.ativos||0} ativos · {cont.urgentes||0} urgentes</span>
+                </div>
+                <div style={{maxHeight:320, overflowY:'auto'}}>
+                  {novos.length===0 && <div style={{padding:'18px 14px', fontSize:12, color:T.ink3, textAlign:'center'}}>Nada novo. Você está em dia.</div>}
+                  {novos.map(n=>(
+                    <button key={n.id} onClick={()=>{ const o=(dados.ocorrencias||[]).find(x=>x.id===n.id); if(o){setSel(o); setSino(false)} }}
+                      style={{display:'flex', alignItems:'center', gap:9, width:'100%', padding:'10px 14px', textAlign:'left', cursor:'pointer', background:'transparent', border:'none', borderBottom:`1px solid ${T.sep}`}}>
+                      <Avatar nome={n.nome_cliente} size={28}/>
+                      <div style={{flex:1, minWidth:0}}>
+                        <div style={{fontSize:12, fontWeight:700, color:T.ink1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{n.nome_cliente || fmtTel(n.telefone)}</div>
+                        <div style={{fontSize:10.5, color:T.ink3}}>{n.origem==='sistema'?'🛰 proativo · ':''}{TIPOS[n.tipo]?.label||n.tipo} · {fmtRel(n.criado_em)}</div>
+                      </div>
+                      {n.prioridade==='urgente' && <ZapIc size={13} color={T.red}/>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <button onClick={()=>setCfgOpen(true)} style={{display:'flex', alignItems:'center', justifyContent:'center', width:40, height:40, background:T.bg2, border:`1px solid ${T.sep2}`, color:T.ink2, borderRadius:11, cursor:'pointer'}}><Settings size={16}/></button>
           <button onClick={carregar} style={{display:'flex', alignItems:'center', gap:7, background:T.bg2, border:`1px solid ${T.sep2}`, color:T.ink2, borderRadius:11, padding:'9px 14px', cursor:'pointer', fontWeight:700, fontSize:12.5}}>
             <RefreshCw size={13} style={loading?{animation:'spin 1s linear infinite'}:{}}/>Atualizar
           </button>
@@ -1498,6 +1652,41 @@ export default function PageOcorrencias() {
       )}
 
       {nova && <ModalNova onSalvo={()=>carregar()} onClose={()=>setNova(false)}/>}
+      {cfgOpen && cfg && (
+        <div onClick={()=>setCfgOpen(false)} style={{position:'fixed', inset:0, zIndex:95, background:'rgba(4,5,10,.78)', backdropFilter:'blur(6px)', display:'flex', alignItems:'center', justifyContent:'center', padding:18}}>
+          <div onClick={e=>e.stopPropagation()} style={{width:'min(520px,100%)', background:`linear-gradient(180deg, ${T.bg1}, ${T.bg0})`, border:`1px solid ${T.sep2}`, borderRadius:18, padding:22, boxShadow:'0 40px 100px -20px rgba(0,0,0,.85)'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16}}>
+              <span style={{fontSize:16, fontWeight:900, color:T.ink1, display:'flex', alignItems:'center', gap:8}}><Settings size={17} color={T.blue}/>Configurações do módulo</span>
+              <button onClick={()=>setCfgOpen(false)} style={{background:T.gray, border:`1px solid ${T.grayBor}`, color:T.ink2, borderRadius:9, width:30, height:30, cursor:'pointer'}}><X size={15}/></button>
+            </div>
+            {[
+              ['oferecer_compensacao','Oferecer reenvio / cupom de compensação', 'CUIDADO: atraso costuma ser da malha logística. Quando LIGADO, a Molise pode oferecer cupom/reenvio em casos de atraso. Padrão: DESLIGADO — trate por acompanhamento.'],
+              ['som_notificacao','Som ao chegar ticket urgente', 'Toca um aviso sonoro quando entra urgente ou proativo.'],
+              ['auto_sugerir_tipo','Sugerir tipo e prioridade na criação', 'A IA lê a descrição e já preenche tipo/prioridade.'],
+              ['sla_preditivo','SLA preditivo', 'Mostra quanto tempo resta antes de estourar, não só depois.'],
+            ].map(([k,lb,desc])=>(
+              <div key={k} style={{display:'flex', gap:12, alignItems:'flex-start', padding:'12px 0', borderBottom:`1px solid ${T.sep}`}}>
+                <button onClick={()=>salvarCfg({[k]: !cfg[k]})}
+                  style={{flexShrink:0, width:42, height:24, borderRadius:99, border:'none', cursor:'pointer', position:'relative', background: cfg[k]?T.green:T.bg4, transition:'all .2s'}}>
+                  <span style={{position:'absolute', top:3, left: cfg[k]?21:3, width:18, height:18, borderRadius:99, background:'#fff', transition:'all .2s'}}/>
+                </button>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13, fontWeight:800, color: k==='oferecer_compensacao'&&cfg[k]?T.amber:T.ink1}}>{lb}</div>
+                  <div style={{fontSize:11, color:T.ink3, marginTop:3, lineHeight:1.45}}>{desc}</div>
+                  {k==='oferecer_compensacao' && cfg[k] && (
+                    <div style={{marginTop:8, display:'flex', gap:6}}>
+                      {[['cupom','Cupom'],['reenvio','Reenvio'],['ambos','Ambos']].map(([v,l])=>(
+                        <button key={v} onClick={()=>salvarCfg({compensacao_tipo:v})}
+                          style={{background: cfg.compensacao_tipo===v?T.amberDim:T.bg3, border:`1px solid ${cfg.compensacao_tipo===v?T.amberBor:T.sep2}`, color: cfg.compensacao_tipo===v?T.amber:T.ink3, borderRadius:999, padding:'3px 11px', cursor:'pointer', fontSize:11, fontWeight:700}}>{l}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
