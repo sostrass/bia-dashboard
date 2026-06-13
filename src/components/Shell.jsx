@@ -44,7 +44,7 @@ const PageDisparos       = lazy(()=>import('../pages/PageDisparos'))
 const PageCampanhas      = lazy(()=>import('../pages/PageCampanhas'))
 const PageOcorrencias    = lazy(()=>import('../pages/PageOcorrencias'))
 const PageCupons         = lazy(()=>import('../pages/PageCupons'))
-const PageEstoque        = lazy(()=>import('../pages/PageEstoque'))
+const PageAviseMe        = lazy(()=>import('../pages/PageAviseMe'))
 const PageRastreioConfig = lazy(()=>import('../pages/PageRastreioConfig'))
 
 const API = import.meta.env.VITE_API_URL || ''
