@@ -12,6 +12,7 @@ import {
   PlusCircle, StickyNote, MessageCircle, UserPlus, Repeat, Inbox, BrainCircuit,
   Play, Download, GitMerge, PartyPopper, MapPin as MapPinIc, Hash, Pencil, Box,
   Users, Bell, Settings, Zap as ZapIc, Smile, Frown, Meh, Wand2,
+  PauseCircle, ListChecks, Square, CheckSquare, MessageSquarePlus,
 } from 'lucide-react'
 
 // Identidade do agente (pedida 1x, fica no navegador)
@@ -52,6 +53,7 @@ const STATUS = {
   aberta:       { label:'Aberta',       color:T.amber,  dim:T.amberDim,  bor:T.amberBor,  icon:Circle,      acaoHint:'O ticket volta para a fila de triagem. Por quê?' },
   em_analise:   { label:'Em análise',   color:T.blue,   dim:T.blueDim,   bor:T.blueBor,   icon:Search,      acaoHint:'O que está sendo apurado? (ex.: abrimos verificação com a transportadora)' },
   em_andamento: { label:'Em andamento', color:T.purple, dim:T.purpleDim, bor:T.purpleBor, icon:RefreshCcw,  acaoHint:'Qual ação concreta está em execução? (ex.: reenvio postado, etiqueta emitida)' },
+  aguardando_cliente: { label:'Aguardando cliente', color:T.cyan, dim:T.cyanDim, bor:T.cyanBor, icon:PauseCircle, acaoHint:'O que estamos esperando do cliente? (foto, resposta, documento) — o SLA pausa enquanto aguarda.' },
   resolvida:    { label:'Resolvida',    color:T.green,  dim:T.greenDim,  bor:T.greenBor,  icon:CheckCircle, acaoHint:'Como foi resolvido? Essa nota encerra o caso para o cliente.' },
   encerrada:    { label:'Encerrada',    color:T.ink3,   dim:T.bg3,       bor:T.sep2,      icon:XCircle,     acaoHint:'Motivo do encerramento sem resolução (ex.: cliente não retornou).' },
 }
@@ -176,6 +178,28 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
   const [resumindo, setResumindo] = useState(false)
   const [pedDet,    setPedDet]    = useState(null)   // pedido aberto p/ detalhe
   const [pedLoad,   setPedLoad]   = useState(false)
+  const [checklist, setChecklist] = useState(null)
+  const [compMsg,   setCompMsg]   = useState('')
+
+  useEffect(() => {
+    fetch(`${BASE}/api/ocorrencias/${oc.id}/checklist`).then(r=>r.json()).then(d=>setChecklist(d.itens||[])).catch(()=>{})
+  }, [oc.id])
+  async function toggleCheck(i) {
+    const novo = checklist.map((it,idx)=> idx===i ? {...it, ok:!it.ok} : it)
+    setChecklist(novo)
+    await fetch(`${BASE}/api/ocorrencias/${oc.id}/checklist`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ itens:novo }) }).catch(()=>{})
+  }
+  async function gerarCompensacao() {
+    setCompMsg('Gerando…')
+    try {
+      const r = await fetch(`${BASE}/api/ocorrencias/${oc.id}/gerar-compensacao`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ por:getAgente() }) })
+      const d = await r.json()
+      if (!r.ok) { setCompMsg(d.erro || 'Falha'); return }
+      setCompMsg(`Cupom ${d.codigo} gerado`)
+      setResp(r2 => (r2 ? r2 + '\n\n' : '') + `Como forma de desculpas, gerei um cupom pra você: *${d.codigo}*.\n${d.explicacao||''}`)
+      carregar()
+    } catch { setCompMsg('Falha ao gerar') }
+  }
   const [editNome,  setEditNome]  = useState(false)
   const [nomeNovo,  setNomeNovo]  = useState('')
 
@@ -452,6 +476,14 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
                   </div>
                 )
               })}
+              <div style={{width:18, height:1, background:T.sep2}}/>
+              <button onClick={()=>!mudando && pedirAcao('aguardando_cliente')} disabled={mudando}
+                title="Pausa o SLA enquanto espera o cliente"
+                style={{display:'flex', alignItems:'center', gap:6, padding:'7px 13px', borderRadius:999, cursor:'pointer', fontSize:12, fontWeight:800,
+                  color: tk.status==='aguardando_cliente'?T.cyan:T.ink4, background: tk.status==='aguardando_cliente'?T.cyanDim:'transparent',
+                  border:`1px solid ${tk.status==='aguardando_cliente'?T.cyanBor:T.sep}`, boxShadow: tk.status==='aguardando_cliente'?`0 0 18px -6px ${T.cyan}88`:'none'}}>
+                <PauseCircle size={12}/>Aguardando cliente
+              </button>
             </div>
           </div>
           {/* SLA */}
@@ -740,6 +772,21 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
               </div>
             </Sec>
 
+            {checklist && checklist.length > 0 && (
+              <Sec icon={ListChecks} color={T.blue} title="Checklist de resolução"
+                extra={<span style={{fontSize:11, color:T.ink3}}>{checklist.filter(i=>i.ok).length}/{checklist.length}</span>}>
+                <div style={{display:'flex', flexDirection:'column', gap:8}}>
+                  {checklist.map((it,i)=>(
+                    <button key={i} onClick={()=>toggleCheck(i)}
+                      style={{display:'flex', alignItems:'flex-start', gap:9, textAlign:'left', background:'none', border:'none', cursor:'pointer', padding:0}}>
+                      {it.ok ? <CheckSquare size={16} color={T.green} style={{flexShrink:0, marginTop:1}}/> : <Square size={16} color={T.ink4} style={{flexShrink:0, marginTop:1}}/>}
+                      <span style={{fontSize:12.5, color: it.ok?T.ink4:T.ink2, textDecoration: it.ok?'line-through':'none', lineHeight:1.4}}>{it.texto}</span>
+                    </button>
+                  ))}
+                </div>
+              </Sec>
+            )}
+
             {ctx?.cadastro && (
               <Sec icon={MapPinIc} color={T.cyan} title="Dados do cliente">
                 <div style={{display:'flex', flexDirection:'column', gap:6, fontSize:12.5, color:T.ink2}}>
@@ -777,10 +824,14 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
                   </div>
                   <div style={{flex:1, minWidth:0}}>
                     <div style={{fontSize:11.5, color:T.ink2, lineHeight:1.5}}>{ctx.compensacao.justificativa}</div>
-                    <button onClick={()=>navigator.clipboard?.writeText(ctx.compensacao.codigo_sugerido)}
-                      style={{marginTop:7, display:'inline-flex', alignItems:'center', gap:6, background:T.bg3, border:`1px dashed ${T.greenBor}`, color:T.green, borderRadius:9, padding:'5px 11px', cursor:'pointer', fontWeight:800, fontSize:11.5, fontFamily:'monospace'}}>
-                      <Copy size={11}/>{ctx.compensacao.codigo_sugerido}
-                    </button>
+                    <div style={{display:'flex', gap:7, marginTop:7, alignItems:'center', flexWrap:'wrap'}}>
+                      <button onClick={gerarCompensacao}
+                        style={{display:'inline-flex', alignItems:'center', gap:6, background:T.greenDim, border:`1px solid ${T.greenBor}`, color:T.green, borderRadius:9, padding:'6px 13px', cursor:'pointer', fontWeight:800, fontSize:12}}>
+                        <Gift size={13}/>Gerar cupom e inserir na resposta
+                      </button>
+                      {compMsg && <span style={{fontSize:11, color: /gerado/.test(compMsg)?T.green:T.amber}}>{compMsg}</span>}
+                    </div>
+                    <div style={{fontSize:10.5, color:T.ink4, marginTop:5}}>Requer o toggle de compensação ligado e um cupom-modelo "Compensação de atraso".</div>
                   </div>
                 </div>
               </Sec>
@@ -1048,6 +1099,16 @@ function ModalNova({ onSalvo, onClose }) {
     return () => clearTimeout(t)
   }, [f.titulo, f.descricao])
 
+  async function puxarConversa() {
+    const tel = (f.telefone||busca||'').replace(/\D/g,'')
+    if (!tel) { setErro('Informe o telefone primeiro'); return }
+    try {
+      const r = await fetch(`${BASE}/api/ocorrencias/da-conversa`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ telefone: tel }) })
+      const d = await r.json()
+      if (d.ticket_aberto) { setErro(`Cliente já tem o ticket ${d.ticket_aberto} aberto`); return }
+      if (d.descricao_sugerida) { set('descricao', d.descricao_sugerida); if(!f.titulo) set('titulo','Aberto a partir da conversa do WhatsApp') }
+    } catch { setErro('Falha ao puxar a conversa') }
+  }
   async function buscarCliente() {
     if (!busca.trim()) return
     setBuscando(true)
@@ -1143,10 +1204,21 @@ function ModalNova({ onSalvo, onClose }) {
                   {buscando?'Buscando…':'Buscar'}
                 </button>
               </div>
+              <button onClick={puxarConversa}
+                style={{marginTop:8, display:'flex', alignItems:'center', gap:7, width:'100%', justifyContent:'center', background:T.bg3, border:`1px dashed ${T.grayBor}`, color:T.ink2, borderRadius:10, padding:'8px', cursor:'pointer', fontWeight:700, fontSize:12}}>
+                <MessageSquarePlus size={14}/>Criar a partir da conversa do WhatsApp
+              </button>
+              {achado?.encontrado && achado.tickets_cliente?.aberto && (
+                <div style={{marginTop:10, display:'flex', gap:9, padding:'10px 12px', background:T.amberDim, border:`1px solid ${T.amberBor}`, borderRadius:11, fontSize:12, color:T.ink1}}>
+                  <AlertTriangle size={15} color={T.amber} style={{flexShrink:0, marginTop:1}}/>
+                  <span>Este cliente já tem o ticket <b style={{color:T.amber}}>{achado.tickets_cliente.aberto}</b> em aberto. Pela esteira, a nova informação será anexada a ele — não criamos ticket paralelo.</span>
+                </div>
+              )}
               {achado?.encontrado && (
                 <div style={{marginTop:10, fontSize:12, color:T.ink2}}>
                   <span style={{color:T.green, fontWeight:800}}>✓ {achado.cliente.nome}</span>
                   {achado.cliente.cidade && <span style={{color:T.ink3}}> · {achado.cliente.cidade}/{achado.cliente.uf}</span>}
+                  {achado.tickets_cliente?.total > 0 && <span style={{color: achado.tickets_cliente.total>=3?T.red:T.amber, fontWeight:700}}> · {achado.tickets_cliente.total} ticket{achado.tickets_cliente.total>1?'s':''} no histórico</span>}
                   {achado.pedidos?.length>0 && <div style={{marginTop:6, display:'flex', gap:5, flexWrap:'wrap'}}>
                     {achado.pedidos.map(p=>(
                       <button key={p.numero} onClick={()=>set('numeroPedido',String(p.numero))}
@@ -1310,7 +1382,7 @@ export default function PageOcorrencias() {
 
   const lista = useMemo(() => {
     let l = dados.ocorrencias || []
-    if (filtro==='ativas')   l = l.filter(o=>['aberta','em_analise','em_andamento'].includes(o.status))
+    if (filtro==='ativas')   l = l.filter(o=>['aberta','em_analise','em_andamento','aguardando_cliente'].includes(o.status))
     else if (filtro!=='todas') l = l.filter(o=>o.status===filtro)
     if (busca.trim()) {
       const b = busca.toLowerCase()
