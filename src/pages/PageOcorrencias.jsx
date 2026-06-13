@@ -11,6 +11,7 @@ import {
   Globe, ShoppingCart, ShoppingBag, Music2, Smartphone, Image as ImageIc,
   PlusCircle, StickyNote, MessageCircle, UserPlus, Repeat, Inbox, BrainCircuit,
   Play, Download, GitMerge, PartyPopper, MapPin as MapPinIc, Hash, Pencil, Box,
+  Users,
 } from 'lucide-react'
 
 // Identidade do agente (pedida 1x, fica no navegador)
