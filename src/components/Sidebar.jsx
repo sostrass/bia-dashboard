@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useTheme } from '../App'
 import { logout } from '../pages/PageLogin'
+import CommandPalette from './CommandPalette'
 
 // ── T system ──────────────────────────────────────────────────────────────────
 const T = {
@@ -46,6 +47,7 @@ export const NAV = [
   { id:'campanhas',       icon:Send,            label:'Campanhas',       group:'tools',  cor:T.cyan,   desc:'Disparos em massa'            },
   { id:'cupons',          icon:Ticket,          label:'Cupons',          group:'tools',  cor:T.amber,  desc:'Cupons e frete grátis'        },
   { id:'avise-me',        icon:Bell,            label:'Avise-me',        group:'tools',  cor:T.orange, desc:'Fila de reposição de estoque' },
+  { id:'estoque',         icon:Package,         label:'Estoque',         group:'tools',  cor:T.green,  desc:'Gestão de estoque do catálogo'} ,
   { id:'disparos',        icon:BarChart2,       label:'Monitor Disparos',group:'tools',  cor:T.blue,   desc:'Histórico e analytics'        },
   { id:'ocorrencias',     icon:AlertCircle,     label:'Ocorrências',     group:'tools',  cor:T.red,    desc:'Tickets e problemas'          },
   { id:'iaconfig',        icon:Bot,             label:'Config IA',       group:'config', cor:T.purple, desc:'Personalidade e integrações'  },
@@ -455,6 +457,14 @@ export default function Sidebar({ page, onNavigate, api='' }) {
           </div>
         </div>
       </aside>
+
+      {cmdOpen && (
+        <CommandPalette
+          api={api}
+          onNavigate={(dest)=>{ setCmdOpen(false); onNavigate?.(dest) }}
+          onClose={()=>setCmdOpen(false)}
+        />
+      )}
     </>
   )
 }
