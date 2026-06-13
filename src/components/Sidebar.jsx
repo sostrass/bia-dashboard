@@ -12,7 +12,7 @@ import {
   LayoutDashboard, ShoppingCart, Users, CreditCard,
   MessageSquare, Bot, Settings, Zap, Send, Package,
   AlertCircle, Activity, Search, Brain, Truck, BarChart2,
-  Sun, Moon, ChevronDown, ChevronRight, Bell,
+  Sun, Moon, ChevronDown, ChevronRight, Bell, Ticket,
 } from 'lucide-react'
 import { useTheme } from '../App'
 import { logout } from '../pages/PageLogin'
@@ -44,6 +44,7 @@ export const NAV = [
   { id:'gatilhos',        icon:Zap,             label:'Gatilhos',        group:'tools',  cor:T.amber,  desc:'Automações e templates'       },
   { id:'rastreio-config', icon:Truck,           label:'Rastreio',        group:'tools',  cor:T.green,  desc:'Canais de rastreio'           },
   { id:'campanhas',       icon:Send,            label:'Campanhas',       group:'tools',  cor:T.cyan,   desc:'Disparos em massa'            },
+  { id:'cupons',          icon:Ticket,          label:'Cupons',          group:'tools',  cor:T.amber,  desc:'Cupons e frete grátis'        },
   { id:'avise-me',        icon:Bell,            label:'Avise-me',        group:'tools',  cor:T.orange, desc:'Fila de reposição de estoque' },
   { id:'disparos',        icon:BarChart2,       label:'Monitor Disparos',group:'tools',  cor:T.blue,   desc:'Histórico e analytics'        },
   { id:'ocorrencias',     icon:AlertCircle,     label:'Ocorrências',     group:'tools',  cor:T.red,    desc:'Tickets e problemas'          },
