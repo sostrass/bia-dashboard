@@ -841,7 +841,57 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
                     {pedDet.transporte?.transportadora && <Bdg color={T.purple} dim={T.purpleDim} bor={T.purpleBor} icon={Truck} size="sm">{pedDet.transporte.transportadora}</Bdg>}
                     {pedDet.transporte?.frete!=null && <Bdg color={T.ink2} dim={T.bg3} bor={T.sep2} size="sm">Frete R$ {fmtBRL(pedDet.transporte.frete)}</Bdg>}
                   </div>
-                  {/* rastreio */}
+                  {/* TIMELINE de envio — marcos + atraso */}
+                  {pedDet.timeline && (
+                    <div style={{background:T.bg2, border:`1px solid ${pedDet.timeline.atrasado?T.redBor:T.sep2}`, borderRadius:12, padding:'12px 14px'}}>
+                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12}}>
+                        <span style={{fontSize:11, fontWeight:800, color:T.ink3, textTransform:'uppercase', letterSpacing:0.6, display:'flex', alignItems:'center', gap:6}}><Truck size={12} color={pedDet.timeline.atrasado?T.red:T.cyan}/>Status da entrega</span>
+                        {pedDet.timeline.atrasado && <Bdg color={T.red} dim={T.redDim} bor={T.redBor} icon={AlarmClock}>atraso</Bdg>}
+                      </div>
+                      <div style={{display:'flex', flexDirection:'column', gap:0}}>
+                        {pedDet.timeline.marcos.map((m,i)=>{
+                          const ult = i===pedDet.timeline.marcos.length-1
+                          const cor = m.ok ? (pedDet.timeline.atrasado && m.chave==='transito' ? T.red : T.green) : T.ink4
+                          return (
+                            <div key={i} style={{display:'flex', gap:11, position:'relative', paddingBottom: ult?0:16}}>
+                              {!ult && <div style={{position:'absolute', left:8, top:18, bottom:0, width:2, background: m.ok?cor:T.sep2}}/>}
+                              <div style={{width:18, height:18, borderRadius:99, flexShrink:0, marginTop:1, background: m.ok?cor:T.bg3, border:`2px solid ${m.ok?cor:T.sep2}`, boxShadow: m.ok?`0 0 10px ${cor}88`:'none', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                                {m.ok && <Check size={10} color={T.bg0}/>}
+                              </div>
+                              <div style={{flex:1}}>
+                                <div style={{fontSize:13, fontWeight: m.ok?800:600, color: m.ok?T.ink1:T.ink4}}>{m.label}</div>
+                                {m.data && <div style={{fontSize:11, color:T.ink3, marginTop:1}}>{fmtD(m.data)}</div>}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      {(pedDet.timeline.dias_postado!=null || pedDet.timeline.dias_sem_movimento!=null) && (
+                        <div style={{fontSize:11, color:T.ink4, marginTop:8, paddingTop:8, borderTop:`1px solid ${T.sep}`}}>
+                          {pedDet.timeline.dias_postado!=null && `${pedDet.timeline.dias_postado}d desde a postagem`}
+                          {pedDet.timeline.dias_sem_movimento!=null && ` · ${pedDet.timeline.dias_sem_movimento}d sem movimentação`}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {/* eventos detalhados da transportadora */}
+                  {pedDet.rastreio?.eventos?.length > 0 && (
+                    <div style={{background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:12, padding:'12px 14px'}}>
+                      <div style={{fontSize:11, fontWeight:800, color:T.ink3, textTransform:'uppercase', letterSpacing:0.6, marginBottom:10}}>Histórico da transportadora</div>
+                      <div style={{display:'flex', flexDirection:'column', gap:9, maxHeight:200, overflowY:'auto'}}>
+                        {pedDet.rastreio.eventos.map((e,i)=>(
+                          <div key={i} style={{display:'flex', gap:9, fontSize:12}}>
+                            <div style={{width:6, height:6, borderRadius:99, background: i===0?T.cyan:T.ink4, marginTop:5, flexShrink:0}}/>
+                            <div style={{flex:1}}>
+                              <div style={{color:T.ink1, fontWeight: i===0?700:500}}>{e.descricao || e.status}</div>
+                              <div style={{fontSize:10.5, color:T.ink4}}>{e.data?fmtD(e.data):''}{e.local?` · ${e.local}`:''}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* rastreio resumido (código) */}
                   {pedDet.rastreio && (
                     <div style={{background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:11, padding:'10px 12px'}}>
                       <div style={{fontSize:11, fontWeight:800, color:T.ink3, textTransform:'uppercase', letterSpacing:0.6, display:'flex', alignItems:'center', gap:6}}><Radio size={12} color={T.cyan}/>Rastreio</div>
@@ -1277,6 +1327,43 @@ export default function PageOcorrencias() {
                 </div>
               ))}
             </div>
+          </Sec>
+          <Sec icon={Users} color={T.red} title="Clientes que mais abrem ticket">
+            <div style={{display:'flex', flexDirection:'column', gap:7, maxHeight:280, overflowY:'auto'}}>
+              {(!intel.clientes_recorrentes || intel.clientes_recorrentes.length===0) && <div style={{fontSize:12, color:T.ink3}}>Nenhum cliente com 2+ tickets no período.</div>}
+              {(intel.clientes_recorrentes||[]).map((c,i)=>(
+                <button key={i} onClick={()=>setBusca(c.telefone)}
+                  title="Filtrar tickets deste cliente"
+                  style={{display:'flex', alignItems:'center', gap:10, padding:'8px 10px', textAlign:'left', cursor:'pointer', background:T.bg1, border:`1px solid ${c.tickets>=4?T.redBor:T.sep2}`, borderRadius:10}}>
+                  <Avatar nome={c.cliente} size={30}/>
+                  <div style={{flex:1, minWidth:0}}>
+                    <div style={{fontSize:12.5, fontWeight:800, color:T.ink1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{c.cliente}</div>
+                    <div style={{fontSize:10.5, color:T.ink3}}>{(c.tipos||[]).map(t=>TIPOS[t]?.label||t).join(' · ')}</div>
+                  </div>
+                  <div style={{textAlign:'right', flexShrink:0}}>
+                    <div style={{fontSize:15, fontWeight:900, color: c.tickets>=4?T.red:T.amber}}>{c.tickets}</div>
+                    <div style={{fontSize:9.5, color:T.ink4}}>{c.resolvidos} resolv.</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </Sec>
+          <Sec icon={Tag} color={T.amber} title="Tickets por tipo de problema">
+            {(() => { const max = Math.max(1, ...(intel.tipos_detalhe||[]).map(t=>t.n)); return (
+              <div style={{display:'flex', flexDirection:'column', gap:9}}>
+                {(intel.tipos_detalhe||[]).map((t,i)=>{ const ti = TIPOS[t.tipo]||TIPOS.outro; return (
+                  <div key={i}>
+                    <div style={{display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:4}}>
+                      <span style={{fontWeight:800, color:ti.color, display:'flex', alignItems:'center', gap:6}}>{(()=>{ const Ic=ti.icon; return <Ic size={13}/> })()}{ti.label}</span>
+                      <span style={{fontWeight:900, color:T.ink1}}>{t.n}</span>
+                    </div>
+                    <div style={{height:7, borderRadius:99, background:T.bg3, overflow:'hidden'}}>
+                      <div style={{width:`${t.n/max*100}%`, height:'100%', borderRadius:99, background:`linear-gradient(90deg, ${ti.color}99, ${ti.color})`, boxShadow:`0 0 10px ${ti.color}66`}}/>
+                    </div>
+                  </div>
+                )})}
+              </div>
+            )})()}
           </Sec>
           <Sec icon={Radio} color={T.purple} title="Proativos do sistema">
             <div style={{display:'flex', alignItems:'center', gap:14}}>
