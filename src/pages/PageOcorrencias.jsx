@@ -1214,6 +1214,7 @@ export default function PageOcorrencias() {
   const [met,    setMet]    = useState(null)
   const [aba,    setAba]    = useState('fila')          // fila | inteligencia
   const [intel,  setIntel]  = useState(null)
+  const [intelAv,setIntelAv]= useState(null)
   const [cont,   setCont]   = useState({})              // contadores do sino
   const [novos,  setNovos]  = useState([])              // tickets novos não vistos
   const [sino,   setSino]   = useState(false)
@@ -1276,6 +1277,8 @@ export default function PageOcorrencias() {
   }
   useEffect(()=>{ if (aba==='inteligencia' && !intel)
     fetch(`${BASE}/api/ocorrencias/inteligencia/causa-raiz`).then(r=>r.json()).then(setIntel).catch(()=>{}) }, [aba, intel])
+  useEffect(()=>{ if (aba==='inteligencia' && !intelAv)
+    fetch(`${BASE}/api/ocorrencias/inteligencia/avancado`).then(r=>r.json()).then(setIntelAv).catch(()=>{}) }, [aba, intelAv])
 
   // ── Modo fila: o sistema entrega o ticket mais crítico ──
   const proximoDaFila = useCallback(() => {
@@ -1404,7 +1407,98 @@ export default function PageOcorrencias() {
       {aba === 'inteligencia' ? (
         /* ════ ABA INTELIGÊNCIA — causa-raiz da operação ════ */
         !intel ? <div style={{display:'flex',flexDirection:'column',gap:10}}><Skel h={90} r={14}/><Skel h={220} r={14}/></div> : (
+        <>
+        {/* KPIs estratégicos */}
+        {intelAv && (
+          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:12, marginBottom:16}}>
+            {[
+              { lb:'Taxa de reincidência', vl:`${intelAv.taxa_reincidencia}%`, ic:Repeat, cl: intelAv.taxa_reincidencia>30?T.red:intelAv.taxa_reincidencia>15?T.amber:T.green, sub:`${intelAv.reincidentes}/${intelAv.clientes_unicos} clientes` },
+              { lb:'1ª resolução', vl: intelAv.taxa_primeira_resolucao==null?'—':`${intelAv.taxa_primeira_resolucao}%`, ic:BadgeCheck, cl: T.green, sub:`${intelAv.reabertos} reabertos` },
+              { lb:'CSAT médio', vl: intelAv.csat.media==null?'—':`${intelAv.csat.media} ★`, ic:Smile, cl: intelAv.csat.media>=4?T.green:intelAv.csat.media>=3?T.amber:T.red, sub:`${intelAv.csat.n} respostas` },
+              { lb:'Custo compensação', vl:`R$ ${fmtBRL(intelAv.compensacao.total)}`, ic:Wallet, cl:T.purple, sub:`${intelAv.compensacao.usos} cupons` },
+              { lb:'Tickets proativos', vl:intelAv.proativos, ic:Radio, cl:T.cyan, sub:'antes da reclamação' },
+            ].map((k,i)=>(
+              <div key={i} style={{position:'relative', overflow:'hidden', background:T.bg1, border:`1px solid ${T.sep2}`, borderRadius:15, padding:'14px 16px'}}>
+                <div style={{position:'absolute', top:-26, right:-26, width:80, height:80, borderRadius:99, background:`radial-gradient(circle, ${k.cl}22, transparent 70%)`}}/>
+                <div style={{display:'flex', alignItems:'center', gap:7, fontSize:10.5, fontWeight:800, color:T.ink3, textTransform:'uppercase', letterSpacing:0.6}}><k.ic size={13} color={k.cl}/>{k.lb}</div>
+                <div style={{fontSize:23, fontWeight:900, color:T.ink1, marginTop:5}}>{k.vl}</div>
+                <div style={{fontSize:10, color:T.ink4, marginTop:2}}>{k.sub}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Curva temporal */}
+        {intelAv?.curva?.length > 1 && (
+          <div style={{background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:14, padding:'14px 16px', marginBottom:16}}>
+            <div style={{fontSize:11, fontWeight:800, color:T.ink2, textTransform:'uppercase', letterSpacing:0.7, marginBottom:14, display:'flex', alignItems:'center', gap:7}}><TrendingUp size={13} color={T.cyan}/>Tickets por dia — abertos vs resolvidos ({intelAv.periodo_dias}d)</div>
+            {(() => {
+              const c = intelAv.curva.slice(-30)
+              const max = Math.max(1, ...c.map(d=>Math.max(d.abertos,d.resolvidos)))
+              return (
+                <div style={{display:'flex', alignItems:'flex-end', gap:3, height:120}}>
+                  {c.map((d,i)=>(
+                    <div key={i} title={`${d.dia}: ${d.abertos} abertos, ${d.resolvidos} resolvidos`} style={{flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', gap:2, height:'100%'}}>
+                      <div style={{display:'flex', gap:1, alignItems:'flex-end', height:'100%'}}>
+                        <div style={{flex:1, height:`${d.abertos/max*100}%`, background:`linear-gradient(180deg, ${T.amber}, ${T.amber}66)`, borderRadius:'3px 3px 0 0', minHeight: d.abertos?3:0}}/>
+                        <div style={{flex:1, height:`${d.resolvidos/max*100}%`, background:`linear-gradient(180deg, ${T.green}, ${T.green}66)`, borderRadius:'3px 3px 0 0', minHeight: d.resolvidos?3:0}}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+            <div style={{display:'flex', gap:16, marginTop:10, fontSize:11, color:T.ink3}}>
+              <span style={{display:'flex', alignItems:'center', gap:5}}><span style={{width:10, height:10, borderRadius:3, background:T.amber}}/>Abertos</span>
+              <span style={{display:'flex', alignItems:'center', gap:5}}><span style={{width:10, height:10, borderRadius:3, background:T.green}}/>Resolvidos</span>
+            </div>
+          </div>
+        )}
+
         <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(340px, 1fr))', gap:14}}>
+          {intelAv?.tempo_por_tipo?.length > 0 && (
+            <Sec icon={Clock} color={T.blue} title="Tempo médio de resolução por tipo">
+              <div style={{display:'flex', flexDirection:'column', gap:9}}>
+                {(() => { const max = Math.max(1, ...intelAv.tempo_por_tipo.map(t=>t.media_h)); return intelAv.tempo_por_tipo.map((t,i)=>{ const ti=TIPOS[t.tipo]||TIPOS.outro; return (
+                  <div key={i}>
+                    <div style={{display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:4}}>
+                      <span style={{fontWeight:800, color:ti.color}}>{ti.label}</span>
+                      <span style={{color: t.media_h>72?T.red:t.media_h>24?T.amber:T.green, fontWeight:800}}>{t.media_h}h <span style={{color:T.ink4, fontWeight:400}}>({t.n})</span></span>
+                    </div>
+                    <div style={{height:6, borderRadius:99, background:T.bg3, overflow:'hidden'}}><div style={{width:`${t.media_h/max*100}%`, height:'100%', borderRadius:99, background: t.media_h>72?T.red:t.media_h>24?T.amber:T.green}}/></div>
+                  </div>
+                )})})()}
+              </div>
+            </Sec>
+          )}
+          {intelAv?.regiao_atraso?.length > 0 && (
+            <Sec icon={MapPinIc} color={T.orange} title="Atraso/extravio por estado">
+              <div style={{display:'flex', flexDirection:'column', gap:7}}>
+                {(() => { const max=Math.max(1,...intelAv.regiao_atraso.map(r=>r.n)); return intelAv.regiao_atraso.map((r,i)=>(
+                  <div key={i} style={{display:'flex', alignItems:'center', gap:10}}>
+                    <span style={{width:28, fontSize:12.5, fontWeight:800, color:T.ink1}}>{r.uf}</span>
+                    <div style={{flex:1, height:18, borderRadius:6, background:T.bg3, overflow:'hidden', position:'relative'}}>
+                      <div style={{width:`${r.n/max*100}%`, height:'100%', background:`linear-gradient(90deg, ${T.orange}99, ${T.orange})`, borderRadius:6}}/>
+                    </div>
+                    <span style={{fontSize:12, fontWeight:800, color:T.orange, width:24, textAlign:'right'}}>{r.n}</span>
+                  </div>
+                ))})()}
+              </div>
+            </Sec>
+          )}
+          {intelAv?.csat?.n > 0 && (
+            <Sec icon={Smile} color={T.green} title="Distribuição do CSAT">
+              <div style={{display:'flex', flexDirection:'column', gap:7}}>
+                {[5,4,3,2,1].map(score=>{ const n=intelAv.csat.dist[score]||0; const pct=intelAv.csat.n?n/intelAv.csat.n*100:0; const cor=score>=4?T.green:score>=3?T.amber:T.red; return (
+                  <div key={score} style={{display:'flex', alignItems:'center', gap:10}}>
+                    <span style={{width:30, fontSize:12, fontWeight:800, color:cor}}>{score} ★</span>
+                    <div style={{flex:1, height:16, borderRadius:6, background:T.bg3, overflow:'hidden'}}><div style={{width:`${pct}%`, height:'100%', background:cor, borderRadius:6}}/></div>
+                    <span style={{fontSize:11, color:T.ink3, width:30, textAlign:'right'}}>{n}</span>
+                  </div>
+                )})}
+              </div>
+            </Sec>
+          )}
           <Sec icon={Truck} color={T.red} title={`Transportadoras × tickets (${intel.periodo_dias}d)`}>
             <div style={{display:'flex', flexDirection:'column', gap:10}}>
               {intel.transportadoras.length===0 && <div style={{fontSize:12, color:T.ink3}}>Sem tickets com transportadora no período.</div>}
@@ -1529,6 +1623,7 @@ export default function PageOcorrencias() {
             </div>
           </Sec>
         </div>
+        </>
         )
       ) : (
       <>
