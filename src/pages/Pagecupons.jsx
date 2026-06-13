@@ -24,6 +24,14 @@ const TIPOS = {
   frete_gratis: { label:'Frete grátis', icon:Truck,      color:T.purple, desc:'Cobre o custo de envio — total, até um teto ou um percentual.' },
 }
 const fmtBRL = v => (parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})
+const TRANSPORTADORAS = ['Correios','Jadlog','Loggi','J&T','Melhor Envio','Retirada na loja','Moto Expressa']
+const REGRAS_AUTO = {
+  '':                { label:'Manual (sem regra)',     desc:'Você cria e ativa. A Molise só usa se o cliente digitar o código.' },
+  vip:               { label:'Cliente VIP',            desc:'A Molise gera para clientes VIP automaticamente.' },
+  primeira_compra:   { label:'Primeira compra',        desc:'Gerado para quem nunca comprou.' },
+  ticket_atraso:     { label:'Compensação de atraso',  desc:'Gerado quando um ticket de atraso é aberto.' },
+  recorrente:        { label:'Cliente recorrente',     desc:'Gerado para quem já comprou 3+ vezes.' },
+}
 
 function Bdg({ color, dim, bor, icon:Ic, children }) {
   return <span style={{display:'inline-flex', alignItems:'center', gap:4, padding:'3px 9px', borderRadius:999, fontSize:11, fontWeight:700, color, background:dim, border:`1px solid ${bor||'transparent'}`}}>{Ic&&<Ic size={11}/>}{children}</span>
@@ -59,6 +67,7 @@ function Editor({ inicial, onSalvo, onClose }) {
     codigo:'', descricao:'', tipo:'percentual', valor:10,
     cobertura_tipo:'teto', cobertura_valor:30,
     pedido_minimo:120, limite_mes_cliente:1, limite_total:0, acumulativo:false,
+    transportadoras:[], telefone_alvo:'', regra_auto:'',
     inicio:'', fim:'',
   })
   const [erro, setErro] = useState(''); const [saving, setSaving] = useState(false)
@@ -142,6 +151,31 @@ function Editor({ inicial, onSalvo, onClose }) {
                     </Campo>
                   </div>
                 )}
+              </div>
+            )}
+
+            {f.tipo==='frete_gratis' && (
+              <Campo label="Transportadoras participantes" hint="Em quais meios de envio o frete grátis vale. Nenhuma marcada = todas.">
+                <div style={{display:'flex', flexWrap:'wrap', gap:6}}>
+                  {TRANSPORTADORAS.map(t=>{ const on=(f.transportadoras||[]).includes(t); return (
+                    <button key={t} onClick={()=>set('transportadoras', on?(f.transportadoras||[]).filter(x=>x!==t):[...(f.transportadoras||[]),t])}
+                      style={{display:'flex', alignItems:'center', gap:5, background: on?T.purpleDim:T.bg1, border:`1px solid ${on?T.purpleBor:T.sep2}`, color: on?T.purple:T.ink3, borderRadius:999, padding:'5px 12px', cursor:'pointer', fontWeight:700, fontSize:12}}>
+                      {on&&<Check size={11}/>}{t}
+                    </button>
+                  )})}
+                </div>
+              </Campo>
+            )}
+
+            <Campo label="Geração" hint={REGRAS_AUTO[f.regra_auto]?.desc}>
+              <select style={inp} value={f.regra_auto} onChange={e=>set('regra_auto',e.target.value)}>
+                {Object.entries(REGRAS_AUTO).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+              </select>
+            </Campo>
+            {f.regra_auto && (
+              <div style={{fontSize:11.5, color:T.cyan, background:T.cyanDim, border:`1px solid ${T.cyanBor}`, borderRadius:10, padding:'9px 12px', display:'flex', gap:7}}>
+                <Sparkles size={13} style={{flexShrink:0, marginTop:1}}/>
+                Este vira um <b>modelo</b>: a Molise clona um código único e pessoal para cada telefone que se encaixar na regra — vinculado ao número, válido por 30 dias.
               </div>
             )}
 
