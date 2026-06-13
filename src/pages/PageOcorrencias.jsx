@@ -8,6 +8,9 @@ import {
   ClipboardList, Lightbulb, BadgeCheck, Timer, Wallet, BarChart3,
   Paperclip, Upload, ExternalLink, Thermometer, MessagesSquare,
   Gift, AlarmClock, UserCheck, FileText as FileTextIc, Eye, TrendingDown,
+  Globe, ShoppingCart, ShoppingBag, Music2, Smartphone, Image as ImageIc,
+  PlusCircle, StickyNote, MessageCircle, UserPlus, Repeat, Inbox, BrainCircuit,
+  Play, Download, GitMerge, PartyPopper, MapPin as MapPinIc, Hash, Pencil, Box,
 } from 'lucide-react'
 
 // Identidade do agente (pedida 1x, fica no navegador)
@@ -53,14 +56,18 @@ const STATUS = {
 }
 const ESTEIRA = ['aberta', 'em_analise', 'em_andamento', 'resolvida']
 const CANAIS = {
-  whatsapp:     { label:'WhatsApp',      color:'#25d366', emoji:'💬' },
-  site:         { label:'Site',          color:T.blue,    emoji:'🌐' },
-  mercadolivre: { label:'Mercado Livre', color:'#ffe600', emoji:'🛒' },
-  shopee:       { label:'Shopee',        color:'#ee4d2d', emoji:'🛍️' },
-  shein:        { label:'Shein',         color:'#c8c8d0', emoji:'👗' },
-  tiktokshop:   { label:'TikTok Shop',   color:T.cyan,    emoji:'🎵' },
-  email:        { label:'E-mail',        color:T.purple,  emoji:'✉️' },
-  telefone:     { label:'Telefone',      color:T.orange,  emoji:'📞' },
+  whatsapp:     { label:'WhatsApp',      color:'#25d366', icon:MessageCircle },
+  site:         { label:'Site',          color:T.blue,    icon:Globe },
+  mercadolivre: { label:'Mercado Livre', color:'#f4c20d', icon:ShoppingCart },
+  shopee:       { label:'Shopee',        color:'#ee4d2d', icon:ShoppingBag },
+  shein:        { label:'Shein',         color:T.ink2,    icon:ShoppingBag },
+  tiktokshop:   { label:'TikTok Shop',   color:T.cyan,    icon:Music2 },
+  email:        { label:'E-mail',        color:T.purple,  icon:Mail },
+  telefone:     { label:'Telefone',      color:T.orange,  icon:Phone },
+}
+function CanalChip({ canal, size='sm' }) {
+  const c = CANAIS[canal] || CANAIS.whatsapp
+  return <Bdg color={c.color} dim={`${c.color}14`} bor={`${c.color}44`} icon={c.icon} size={size}>{c.label}</Bdg>
 }
 const slaInfo = criadoEm => {
   const h = (Date.now() - new Date(criadoEm)) / 3600000
@@ -79,7 +86,7 @@ const RESPOSTAS_RAPIDAS = [
   { id:'atraso',    label:'Pedido em atraso',    texto:'Você tem razão — o prazo passou e isso não é o padrão que queremos. Já abri verificação com a transportadora e te retorno até *{prazo}* com uma posição concreta.' },
   { id:'extravio',  label:'Possível extravio',   texto:'Abrimos a apuração de extravio junto à transportadora. Se não houver localização em *3 dias úteis*, reenviamos os itens ou devolvemos o valor integral — você escolhe.' },
   { id:'troca',     label:'Troca/devolução',     texto:'Sua troca está aprovada. Vou te enviar a etiqueta de postagem — é só embalar e levar a uma agência. Assim que o item chegar aqui, processamos em até *2 dias úteis*.' },
-  { id:'resolvido', label:'Encerramento',        texto:'Confirmando: seu caso foi resolvido. Qualquer coisa, é só chamar por aqui. Obrigada pela paciência e pela confiança. 💎' },
+  { id:'resolvido', label:'Encerramento',        texto:'Confirmando: seu caso foi resolvido. Qualquer coisa, é só chamar por aqui. Obrigada pela paciência e pela confiança.' },
 ]
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -166,6 +173,33 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
   const [tagInput,  setTagInput]  = useState('')
   const [resumo,    setResumo]    = useState('')
   const [resumindo, setResumindo] = useState(false)
+  const [pedDet,    setPedDet]    = useState(null)   // pedido aberto p/ detalhe
+  const [pedLoad,   setPedLoad]   = useState(false)
+  const [editNome,  setEditNome]  = useState(false)
+  const [nomeNovo,  setNomeNovo]  = useState('')
+
+  async function abrirPedido(num) {
+    setPedDet({ numero: num, _loading:true }); setPedLoad(true)
+    try {
+      const r = await fetch(`${BASE}/api/ocorrencias/pedido/${num}/detalhe`)
+      const d = await r.json()
+      setPedDet(r.ok ? d : { numero:num, erro:d.erro })
+    } catch { setPedDet({ numero:num, erro:'Falha ao carregar' }) } finally { setPedLoad(false) }
+  }
+  async function salvarNome() {
+    const nm = nomeNovo.trim()
+    if (!nm) { setEditNome(false); return }
+    await fetch(`${BASE}/api/ocorrencias/${oc.id}/cliente`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ nome:nm }) })
+    setEditNome(false); carregar()
+  }
+  async function sinalizarItem(it, situacao, motivo) {
+    await fetch(`${BASE}/api/ocorrencias/${oc.id}/item-pedido`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ numero_pedido: pedDet?.numero, item_codigo: it.codigo,
+        item_descricao: it.descricao, situacao, motivo, por: getAgente() }) })
+    carregar()
+  }
 
   const carregar = useCallback(() => {
     setLoading(true)
@@ -318,7 +352,9 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
   }
 
   const HIST_ICON = {
-    criada:'🆕', nota:'📝', whatsapp:'💬', cliente_adicionou:'👤',
+    criada:PlusCircle, nota:StickyNote, whatsapp:MessageCircle, cliente_adicionou:UserPlus,
+    anexo:Paperclip, anexo_enviado:Send, followup:AlarmClock, atribuido:UserCheck,
+    escalonado:TrendingUp, merge:GitMerge,
   }
 
   const painel = (
@@ -346,7 +382,21 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
             <Avatar nome={tk.nome_cliente} size={58} glow/>
             <div style={{flex:1, minWidth:240}}>
               <div style={{display:'flex', alignItems:'center', gap:10, flexWrap:'wrap'}}>
-                <span style={{fontSize:20, fontWeight:900, color:T.ink1, letterSpacing:-0.3}}>{tk.nome_cliente || 'Cliente'}</span>
+                {editNome ? (
+                  <span style={{display:'inline-flex', gap:6, alignItems:'center'}}>
+                    <input autoFocus value={nomeNovo} onChange={e=>setNomeNovo(e.target.value)} onKeyDown={e=>e.key==='Enter'&&salvarNome()}
+                      style={{background:T.bg1, border:`1px solid ${T.blueBor}`, borderRadius:8, padding:'4px 9px', color:T.ink1, fontSize:17, fontWeight:800, outline:'none'}}/>
+                    <button onClick={salvarNome} style={{background:T.greenDim, border:`1px solid ${T.greenBor}`, color:T.green, borderRadius:8, padding:'4px 9px', cursor:'pointer'}}><Check size={13}/></button>
+                  </span>
+                ) : (
+                  <span style={{display:'inline-flex', alignItems:'center', gap:7}}>
+                    <span style={{fontSize:18, fontWeight:900, color:T.ink1, letterSpacing:-0.3}}>{ctx?.cliente?.nome || tk.nome_cliente || fmtTel(tk.telefone) || 'Cliente'}</span>
+                    <button onClick={()=>{ setNomeNovo(ctx?.cliente?.nome||tk.nome_cliente||''); setEditNome(true) }}
+                      title="Editar nome" style={{background:'none', border:'none', color:T.ink4, cursor:'pointer', display:'flex', padding:0}}><Pencil size={12}/></button>
+                    {ctx?.cliente?.nome_origem === 'telefone' && <Bdg color={T.ink4} dim={T.bg3} bor={T.sep2}>sem cadastro</Bdg>}
+                    {ctx?.cliente?.nome_origem === 'cadastro' && <Bdg color={T.green} dim={T.greenDim} bor={T.greenBor} icon={BadgeCheck}>cadastro</Bdg>}
+                  </span>
+                )}
                 {flags.vip && <Bdg color={T.amber} dim={T.amberDim} bor={T.amberBor} icon={Crown} size="sm">VIP</Bdg>}
                 {flags.problematico && <Bdg color={T.red} dim={T.redDim} bor={T.redBor} icon={Flame} size="sm">Recorrente em tickets</Bdg>}
                 {flags.recorrente && !flags.vip && <Bdg color={T.cyan} dim={T.cyanDim} bor={T.cyanBor} icon={Star} size="sm">Cliente frequente</Bdg>}
@@ -407,12 +457,7 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
           {/* Ticket meta */}
           <div style={{display:'flex', gap:8, marginTop:14, alignItems:'center', flexWrap:'wrap'}}>
             <Bdg color={T.ink2} dim={T.bg3} bor={T.sep2} icon={FileText} size="sm">{tk.ticket_id || `#${tk.id}`}</Bdg>
-            {(() => { const cn = CANAIS[tk.canal] || CANAIS.whatsapp; return (
-              <span style={{display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:999, fontSize:12, fontWeight:800,
-                color:cn.color, background:`${cn.color}14`, border:`1px solid ${cn.color}44`}}>
-                {cn.emoji} {cn.label}
-              </span>
-            )})()}
+            <CanalChip canal={tk.canal}/>
             {tk.cpf_cnpj && <Bdg color={T.ink2} dim={T.bg3} bor={T.sep2} icon={User} size="sm">{tk.cpf_cnpj}</Bdg>}
             <Bdg color={tipo.color} dim={tipo.dim} bor={tipo.bor} icon={tipo.icon} size="sm">{tipo.label}</Bdg>
             <Bdg color={PRIO[tk.prioridade]?.color||T.blue} dim={T.bg3} bor={T.sep2} icon={Zap} size="sm">{PRIO[tk.prioridade]?.label||tk.prioridade}</Bdg>
@@ -420,7 +465,7 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
             <span style={{fontSize:13, color:T.ink2, fontWeight:600, marginLeft:4}}>{tk.titulo || tk.descricao?.slice(0,90)}</span>
             <button onClick={fundirTicket} title="Fundir este ticket em outro"
               style={{marginLeft:'auto', background:T.bg3, border:`1px solid ${T.sep2}`, color:T.ink3, borderRadius:999, padding:'4px 11px', cursor:'pointer', fontSize:11, fontWeight:700}}>
-              ⇄ Fundir
+              <GitMerge size={11}/> Fundir
             </button>
           </div>
           {/* Tags livres */}
@@ -482,8 +527,8 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
                 {[...histArr].reverse().map((h, i) => (
                   <div key={i} style={{display:'flex', gap:10, position:'relative', paddingBottom: i===histArr.length-1?0:14}}>
                     {i < histArr.length-1 && <div style={{position:'absolute', left:11, top:24, bottom:0, width:1, background:T.sep2}}/>}
-                    <div style={{width:23, height:23, borderRadius:8, flexShrink:0, background:T.bg3, border:`1px solid ${T.sep2}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:11}}>
-                      {HIST_ICON[h.acao] || (String(h.acao||'').startsWith('status') ? '🔁' : '•')}
+                    <div style={{width:23, height:23, borderRadius:8, flexShrink:0, background:T.bg3, border:`1px solid ${T.sep2}`, display:'flex', alignItems:'center', justifyContent:'center'}}>
+                      {(() => { const Ic = HIST_ICON[h.acao] || (String(h.acao||'').startsWith('status') ? Repeat : Circle); return <Ic size={12} color={T.ink3}/> })()}
                     </div>
                     <div style={{flex:1, minWidth:0}}>
                       <div style={{display:'flex', gap:8, alignItems:'baseline', flexWrap:'wrap'}}>
@@ -576,7 +621,7 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
                     const ehImg = /^image\//.test(ax.mime)
                     return (
                       <div key={ax.id} style={{display:'flex', alignItems:'center', gap:10, padding:'8px 11px', background:T.bg1, border:`1px solid ${T.sep}`, borderRadius:10}}>
-                        <span style={{fontSize:15}}>{ehImg ? '🖼️' : '📄'}</span>
+                        {ehImg ? <ImageIc size={15} color={T.cyan}/> : <FileTextIc size={15} color={T.ink3}/>}
                         <div style={{flex:1, minWidth:0}}>
                           <div style={{fontSize:12.5, fontWeight:700, color:T.ink1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{ax.nome}</div>
                           <div style={{fontSize:10.5, color:T.ink4}}>{(ax.tamanho/1024).toFixed(0)} KB · {fmtD(ax.criado_em)}{ax.enviado_em ? ' · enviado ao cliente ✓' : ''}</div>
@@ -634,7 +679,7 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
                 ))}
                 {tk.followup_em && (
                   <span style={{fontSize:11, color: new Date(tk.followup_em)<new Date()?T.red:T.ink2, fontWeight:700}}>
-                    ⏰ {new Date(tk.followup_em)<new Date()?'VENCIDO — cobrar agora':'agendado p/ '+fmtD(tk.followup_em)}
+                    <AlarmClock size={11} style={{verticalAlign:'-1px'}}/> {new Date(tk.followup_em)<new Date()?'VENCIDO — cobrar agora':'agendado p/ '+fmtD(tk.followup_em)}
                     <button onClick={()=>patch({ followupHoras:0, por:getAgente() }).catch(()=>{})} style={{marginLeft:6, background:'none', border:'none', color:T.ink4, cursor:'pointer', fontSize:11}}>limpar</button>
                   </span>
                 )}
@@ -649,6 +694,22 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
                 </button>
               </div>
             </Sec>
+
+            {ctx?.cadastro && (
+              <Sec icon={MapPinIc} color={T.cyan} title="Dados do cliente">
+                <div style={{display:'flex', flexDirection:'column', gap:6, fontSize:12.5, color:T.ink2}}>
+                  {ctx.cadastro.email && <div style={{display:'flex', gap:8}}><Mail size={13} color={T.ink4}/>{ctx.cadastro.email}</div>}
+                  {(ctx.cadastro.telefone) && <div style={{display:'flex', gap:8}}><Phone size={13} color={T.ink4}/>{fmtTel(ctx.cadastro.telefone)}</div>}
+                  {ctx.cadastro.documento && <div style={{display:'flex', gap:8}}><User size={13} color={T.ink4}/>{ctx.cadastro.documento}</div>}
+                  {ctx.cadastro.endereco && (
+                    <div style={{display:'flex', gap:8}}><MapPinIc size={13} color={T.ink4} style={{flexShrink:0, marginTop:2}}/>
+                      <span>{ctx.cadastro.endereco}{ctx.cadastro.complemento?` — ${ctx.cadastro.complemento}`:''}<br/>
+                      {[ctx.cadastro.bairro, ctx.cadastro.cidade && `${ctx.cadastro.cidade}/${ctx.cadastro.uf}`, ctx.cadastro.cep].filter(Boolean).join(' · ')}</span>
+                    </div>
+                  )}
+                </div>
+              </Sec>
+            )}
 
             <Sec icon={Lightbulb} color={T.amber} title="Plano de resposta">
               {loading ? <><Skel/><Skel w="85%" style={{marginTop:8}}/></> : (
@@ -715,14 +776,17 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
                 <div style={{display:'flex', flexDirection:'column', gap:7, maxHeight:210, overflowY:'auto'}}>
                   {(ctx?.pedidos||[]).length===0 && <div style={{fontSize:12.5, color:T.ink3}}>Nenhum pedido vinculado encontrado.</div>}
                   {(ctx?.pedidos||[]).map((p,i)=>(
-                    <div key={i} style={{display:'flex', alignItems:'center', gap:10, padding:'7px 10px', background:T.bg1, border:`1px solid ${String(p.numero_pedido)===String(tk.numero_pedido)?T.cyanBor:T.sep}`, borderRadius:10}}>
+                    <button key={i} onClick={()=>abrirPedido(p.numero_pedido)}
+                      style={{display:'flex', alignItems:'center', gap:10, padding:'7px 10px', textAlign:'left', cursor:'pointer',
+                        background:T.bg1, border:`1px solid ${String(p.numero_pedido)===String(tk.numero_pedido)?T.cyanBor:T.sep}`, borderRadius:10}}>
                       <span style={{fontSize:12, fontWeight:800, color: String(p.numero_pedido)===String(tk.numero_pedido)?T.cyan:T.ink2, minWidth:64}}>#{p.numero_pedido}</span>
                       <span style={{fontSize:11, color:T.ink3, flex:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>
                         {p.transportadora || '—'}{p.municipio ? ` · ${p.municipio}/${p.uf}` : ''}
                       </span>
                       <span style={{fontSize:11, color:T.ink3}}>{fmtD(p.data_pedido)}</span>
                       <span style={{fontSize:12.5, fontWeight:800, color:T.green}}>{p.total!=null?`R$ ${fmtBRL(p.total)}`:'—'}</span>
-                    </div>
+                      <ChevronRight size={13} color={T.ink4}/>
+                    </button>
                   ))}
                 </div>
               )}
@@ -745,7 +809,7 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
               <Sec icon={ClipboardList} color={T.orange} title="Tickets anteriores">
                 {loading ? <Skel/> : (
                   <div style={{display:'flex', flexDirection:'column', gap:5, maxHeight:150, overflowY:'auto'}}>
-                    {(ctx?.tickets_anteriores||[]).length===0 && <div style={{fontSize:12, color:T.ink3}}>Primeiro ticket. 🎉</div>}
+                    {(ctx?.tickets_anteriores||[]).length===0 && <div style={{fontSize:12, color:T.ink3, display:'flex', alignItems:'center', gap:6}}><PartyPopper size={13} color={T.green}/>Primeiro ticket do cliente.</div>}
                     {(ctx?.tickets_anteriores||[]).map((t,i)=>(
                       <div key={i} style={{display:'flex', justifyContent:'space-between', gap:8, fontSize:11.5}}>
                         <span style={{color:T.ink2}}>{t.ticket_id} · {TIPOS[t.tipo]?.label||t.tipo}</span>
@@ -758,6 +822,74 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
             </div>
           </div>
         </div>
+
+        {/* ── DRAWER DETALHE DO PEDIDO — itens, foto, NF, rastreio, sinalizar ── */}
+        {pedDet && (
+          <div onClick={()=>setPedDet(null)} style={{position:'absolute', inset:0, zIndex:6, background:'rgba(4,5,10,.75)', backdropFilter:'blur(4px)', display:'flex', justifyContent:'flex-end'}}>
+            <div onClick={e=>e.stopPropagation()} style={{width:'min(460px,92%)', height:'100%', overflowY:'auto', background:`linear-gradient(180deg, ${T.bg1}, ${T.bg0})`, borderLeft:`1px solid ${T.sep2}`, padding:20, boxShadow:'-20px 0 60px -20px rgba(0,0,0,.8)'}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14}}>
+                <span style={{fontSize:16, fontWeight:900, color:T.ink1, display:'flex', alignItems:'center', gap:8}}><Package size={17} color={T.cyan}/>Pedido #{pedDet.numero}</span>
+                <button onClick={()=>setPedDet(null)} style={{background:T.gray, border:`1px solid ${T.grayBor}`, color:T.ink2, borderRadius:9, width:30, height:30, cursor:'pointer'}}><X size={15}/></button>
+              </div>
+              {pedLoad ? <><Skel h={60}/><Skel h={60} style={{marginTop:8}}/></> : pedDet.erro ? (
+                <div style={{fontSize:13, color:T.red}}>{pedDet.erro}</div>
+              ) : (
+                <div style={{display:'flex', flexDirection:'column', gap:14}}>
+                  {/* resumo financeiro + transporte */}
+                  <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+                    <Bdg color={T.green} dim={T.greenDim} bor={T.greenBor} icon={Wallet} size="sm">Total R$ {fmtBRL(pedDet.total)}</Bdg>
+                    {pedDet.transporte?.transportadora && <Bdg color={T.purple} dim={T.purpleDim} bor={T.purpleBor} icon={Truck} size="sm">{pedDet.transporte.transportadora}</Bdg>}
+                    {pedDet.transporte?.frete!=null && <Bdg color={T.ink2} dim={T.bg3} bor={T.sep2} size="sm">Frete R$ {fmtBRL(pedDet.transporte.frete)}</Bdg>}
+                  </div>
+                  {/* rastreio */}
+                  {pedDet.rastreio && (
+                    <div style={{background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:11, padding:'10px 12px'}}>
+                      <div style={{fontSize:11, fontWeight:800, color:T.ink3, textTransform:'uppercase', letterSpacing:0.6, display:'flex', alignItems:'center', gap:6}}><Radio size={12} color={T.cyan}/>Rastreio</div>
+                      <div style={{fontSize:12.5, color:T.ink1, marginTop:5}}>{pedDet.rastreio.ultimo_status || 'Sem movimentação'}</div>
+                      {pedDet.rastreio.ultimo_evento && <div style={{fontSize:11.5, color:T.ink3, marginTop:2}}>"{pedDet.rastreio.ultimo_evento}"</div>}
+                      {pedDet.rastreio.codigo && <div style={{fontSize:11, color:T.ink4, marginTop:3}}>Código: <b style={{color:T.ink2}}>{pedDet.rastreio.codigo}</b></div>}
+                    </div>
+                  )}
+                  {/* nota fiscal */}
+                  {pedDet.nota_fiscal && (
+                    <a href={`${BASE}/api/dashboard/nfe/${pedDet.nota_fiscal.id}`} target="_blank" rel="noreferrer"
+                      style={{display:'flex', alignItems:'center', gap:8, padding:'9px 12px', background:T.blueDim, border:`1px solid ${T.blueBor}`, borderRadius:11, color:T.blue, fontWeight:800, fontSize:12.5, textDecoration:'none'}}>
+                      <FileTextIc size={14}/>Ver nota fiscal<ExternalLink size={12} style={{marginLeft:'auto'}}/>
+                    </a>
+                  )}
+                  {/* itens com foto + sinalizar */}
+                  <div>
+                    <div style={{fontSize:11, fontWeight:800, color:T.ink3, textTransform:'uppercase', letterSpacing:0.6, marginBottom:8}}>Itens do pedido</div>
+                    <div style={{display:'flex', flexDirection:'column', gap:8}}>
+                      {(pedDet.itens||[]).map((it,i)=>(
+                        <div key={i} style={{display:'flex', flexDirection:'column', gap:7, padding:10, background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:12}}>
+                          <div style={{display:'flex', gap:10, alignItems:'center'}}>
+                            {it.imagem
+                              ? <img src={it.imagem} alt="" style={{width:42, height:42, borderRadius:8, objectFit:'cover', flexShrink:0, border:`1px solid ${T.sep2}`}}/>
+                              : <div style={{width:42, height:42, borderRadius:8, background:T.bg3, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}><Box size={18} color={T.ink4}/></div>}
+                            <div style={{flex:1, minWidth:0}}>
+                              <div style={{fontSize:12.5, fontWeight:700, color:T.ink1, lineHeight:1.3}}>{it.descricao}</div>
+                              <div style={{fontSize:11, color:T.ink3, marginTop:2}}>{it.quantidade} {(it.unidade||'un').toLowerCase()} · R$ {fmtBRL(it.valor)} · cód {it.codigo}</div>
+                            </div>
+                          </div>
+                          <div style={{display:'flex', gap:5, flexWrap:'wrap'}}>
+                            {[['nao_enviado','Não enviado',T.red],['fora_estoque','Fora de estoque',T.orange],['estornado','Estornado',T.purple],['reenvio','Reenvio',T.blue]].map(([sit,lb,cl])=>(
+                              <button key={sit} onClick={()=>{ const motivo = sit==='nao_enviado'||sit==='fora_estoque' ? (prompt(`Motivo (${lb}):`)||'') : ''; sinalizarItem(it, sit, motivo) }}
+                                style={{background:`${cl}14`, border:`1px solid ${cl}44`, color:cl, borderRadius:999, padding:'3px 10px', cursor:'pointer', fontWeight:700, fontSize:10.5}}>
+                                {lb}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{fontSize:10.5, color:T.ink4, marginTop:8}}>Sinalizar um item registra o status na timeline do ticket e fica visível pra equipe.</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── MODAL DE AÇÃO — transição de status exige registrar o que foi feito ── */}
         {acaoModal && (
@@ -802,6 +934,24 @@ function ModalNova({ onSalvo, onClose }) {
   const [erro,   setErro]   = useState('')
   const [anexado,setAnexado]= useState(null)
   const [dup,    setDup]    = useState(null)
+  const [busca,  setBusca]  = useState('')
+  const [buscando,setBuscando]=useState(false)
+  const [achado, setAchado] = useState(null)
+
+  async function buscarCliente() {
+    if (!busca.trim()) return
+    setBuscando(true)
+    try {
+      const r = await fetch(`${BASE}/api/ocorrencias/buscar-cliente?q=${encodeURIComponent(busca.trim())}`)
+      const d = await r.json()
+      if (d.encontrado) {
+        setAchado(d)
+        setF(p=>({ ...p, nomeCliente:d.cliente.nome||p.nomeCliente, email:d.cliente.email||p.email,
+          telefone:d.cliente.telefone||p.telefone, cpfCnpj:d.cliente.documento||p.cpfCnpj,
+          numeroPedido:d.pedido_sugerido||p.numeroPedido }))
+      } else setAchado({ encontrado:false })
+    } catch { setAchado({ encontrado:false }) } finally { setBuscando(false) }
+  }
   const set = (k,v)=>setF(p=>({...p,[k]:v}))
 
   async function salvar() {
@@ -873,6 +1023,32 @@ function ModalNova({ onSalvo, onClose }) {
           </div>
         ) : (
           <>
+            {/* Busca inteligente: puxa cadastro e pedidos do Bling */}
+            <div style={{background:T.bg1, border:`1px solid ${T.blueBor}`, borderRadius:13, padding:13, marginBottom:14}}>
+              <label style={{...lblSt, color:T.blue}}>🔎 Localizar cliente (CPF, telefone ou nº do pedido)</label>
+              <div style={{display:'flex', gap:8}}>
+                <input style={{...inputSt, flex:1}} value={busca} onChange={e=>setBusca(e.target.value)} onKeyDown={e=>e.key==='Enter'&&buscarCliente()} placeholder="Ex.: 480.687.720-49 ou 233759"/>
+                <button onClick={buscarCliente} disabled={buscando}
+                  style={{background:T.blueDim, border:`1px solid ${T.blueBor}`, color:T.blue, borderRadius:10, padding:'0 16px', cursor:'pointer', fontWeight:800, fontSize:12.5}}>
+                  {buscando?'Buscando…':'Buscar'}
+                </button>
+              </div>
+              {achado?.encontrado && (
+                <div style={{marginTop:10, fontSize:12, color:T.ink2}}>
+                  <span style={{color:T.green, fontWeight:800}}>✓ {achado.cliente.nome}</span>
+                  {achado.cliente.cidade && <span style={{color:T.ink3}}> · {achado.cliente.cidade}/{achado.cliente.uf}</span>}
+                  {achado.pedidos?.length>0 && <div style={{marginTop:6, display:'flex', gap:5, flexWrap:'wrap'}}>
+                    {achado.pedidos.map(p=>(
+                      <button key={p.numero} onClick={()=>set('numeroPedido',String(p.numero))}
+                        style={{background: f.numeroPedido===String(p.numero)?T.cyanDim:T.bg3, border:`1px solid ${f.numeroPedido===String(p.numero)?T.cyanBor:T.sep2}`, color: f.numeroPedido===String(p.numero)?T.cyan:T.ink2, borderRadius:999, padding:'3px 10px', cursor:'pointer', fontSize:11, fontWeight:700}}>
+                        #{p.numero} · R$ {fmtBRL(p.total)}
+                      </button>
+                    ))}
+                  </div>}
+                </div>
+              )}
+              {achado && !achado.encontrado && <div style={{marginTop:8, fontSize:11.5, color:T.ink3}}>Nenhum cadastro encontrado — preencha manualmente abaixo.</div>}
+            </div>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
               <div><label style={lblSt}>Telefone *</label><input style={inputSt} value={f.telefone} onChange={e=>set('telefone',e.target.value)} placeholder="(19) 9…"/></div>
               <div><label style={lblSt}>Nome do cliente</label><input style={inputSt} value={f.nomeCliente} onChange={e=>set('nomeCliente',e.target.value)}/></div>
@@ -980,7 +1156,7 @@ export default function PageOcorrencias() {
   ]
 
   return (
-    <div style={{minHeight:'100vh', background:T.bg0, padding:'22px 26px', fontFamily:'Inter, system-ui, sans-serif'}}>
+    <div style={{minHeight:'100vh', height:'100vh', overflowY:'auto', background:T.bg0, padding:'22px 26px', fontFamily:'Inter, system-ui, sans-serif', fontSize:13}}>
       <style>{`
         @keyframes oc-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
         @keyframes oc-pulse   { 0%,100%{opacity:1} 50%{opacity:.35} }
@@ -997,19 +1173,19 @@ export default function PageOcorrencias() {
         </div>
         <div style={{display:'flex', gap:9, alignItems:'center'}}>
           <div style={{display:'flex', gap:4, background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:11, padding:4}}>
-            {[['fila','📥 Fila'],['inteligencia','🧠 Inteligência']].map(([k,lb])=>(
+            {[['fila',Inbox,'Fila'],['inteligencia',BrainCircuit,'Inteligência']].map(([k,Ic,lb])=>(
               <button key={k} onClick={()=>setAba(k)}
-                style={{background: aba===k?T.bg4:'transparent', border:'none', color: aba===k?T.ink1:T.ink3,
-                  borderRadius:8, padding:'7px 13px', cursor:'pointer', fontWeight:800, fontSize:12}}>{lb}</button>
+                style={{display:'flex', alignItems:'center', gap:6, background: aba===k?T.bg4:'transparent', border:'none', color: aba===k?T.ink1:T.ink3,
+                  borderRadius:8, padding:'7px 13px', cursor:'pointer', fontWeight:800, fontSize:12}}><Ic size={13}/>{lb}</button>
             ))}
           </div>
           <button onClick={proximoDaFila} title="Abre o ticket mais crítico (urgente → follow-up vencido → mais antigo)"
             style={{display:'flex', alignItems:'center', gap:7, background:T.purpleDim, border:`1px solid ${T.purpleBor}`, color:T.purple, borderRadius:11, padding:'9px 14px', cursor:'pointer', fontWeight:900, fontSize:12.5, boxShadow:`0 0 20px -8px ${T.purple}77`}}>
-            ▶ Próximo
+            <Play size={13}/>Próximo
           </button>
           <a href={`${BASE}/api/ocorrencias/export.csv`} title="Exportar CSV"
             style={{display:'flex', alignItems:'center', gap:6, background:T.bg2, border:`1px solid ${T.sep2}`, color:T.ink2, borderRadius:11, padding:'9px 13px', fontWeight:700, fontSize:12.5, textDecoration:'none'}}>
-            ⤓ CSV
+            <Download size={13}/>CSV
           </a>
           <button onClick={carregar} style={{display:'flex', alignItems:'center', gap:7, background:T.bg2, border:`1px solid ${T.sep2}`, color:T.ink2, borderRadius:11, padding:'9px 14px', cursor:'pointer', fontWeight:700, fontSize:12.5}}>
             <RefreshCw size={13} style={loading?{animation:'spin 1s linear infinite'}:{}}/>Atualizar
@@ -1051,7 +1227,7 @@ export default function PageOcorrencias() {
               {intel.tipo_canal.map((tc,i)=>(
                 <div key={i} style={{display:'flex', alignItems:'center', gap:8, fontSize:12}}>
                   <span style={{minWidth:90, fontWeight:800, color: TIPOS[tc.tipo]?.color || T.ink2}}>{TIPOS[tc.tipo]?.label || tc.tipo}</span>
-                  <span style={{color:T.ink3, flex:1}}>{CANAIS[tc.canal]?.emoji} {CANAIS[tc.canal]?.label || tc.canal}</span>
+                  <span style={{color:T.ink3, flex:1, display:'inline-flex', alignItems:'center', gap:5}}>{(()=>{ const Ic=CANAIS[tc.canal]?.icon||MessageCircle; return <Ic size={12}/> })()}{CANAIS[tc.canal]?.label || tc.canal}</span>
                   <span style={{fontWeight:900, color:T.ink1}}>{tc.n}</span>
                 </div>
               ))}
@@ -1143,7 +1319,7 @@ export default function PageOcorrencias() {
           <span style={{color:T.ink2}}>Resolução: <b style={{color: met.resolucao_h==null?T.ink3: met.resolucao_h<=48?T.green:T.amber}}>{met.resolucao_h==null?'—':met.resolucao_h+'h'}</b></span>
           <span style={{color:T.ink2}}>Resolvidos: <b style={{color:T.green}}>{met.resolvidos}</b>/{met.tickets}</span>
           <span style={{color:T.ink2}}>CSAT: <b style={{color: met.csat_media==null?T.ink3: met.csat_media>=4?T.green:met.csat_media>=3?T.amber:T.red}}>{met.csat_media==null?'—':`${met.csat_media} ★`}</b>{met.csat_n>0 && <span style={{color:T.ink4}}> ({met.csat_n})</span>}</span>
-          <span style={{color:T.ink4, marginLeft:'auto'}}>{Object.entries(met.por_canal||{}).map(([k,v])=>`${CANAIS[k]?.emoji||'•'} ${v}`).join('  ')}</span>
+          <span style={{color:T.ink4, marginLeft:'auto', display:'flex', gap:10}}>{Object.entries(met.por_canal||{}).map(([k,v])=>{ const Ic=CANAIS[k]?.icon||MessageCircle; return <span key={k} style={{display:'inline-flex',alignItems:'center',gap:4}}><Ic size={11}/>{v}</span> })}</span>
         </div>
       )}
 
@@ -1172,12 +1348,12 @@ export default function PageOcorrencias() {
       {/* Lista — split view quando há ticket aberto (lista compacta + painel) */}
       <div style={{display: sel ? 'grid' : 'flex', gridTemplateColumns: sel ? '340px 1fr' : undefined,
         flexDirection: sel ? undefined : 'column', gap: sel ? 14 : 9, alignItems: sel ? 'start' : undefined}}>
-      <div style={{display:'flex', flexDirection:'column', gap:9, maxHeight: sel ? 'calc(100vh - 130px)' : 'none', overflowY: sel ? 'auto' : 'visible', paddingRight: sel ? 4 : 0}}>
+      <div style={{display:'flex', flexDirection:'column', gap:9, maxHeight: sel ? 'calc(100vh - 150px)' : 'none', overflowY: sel ? 'auto' : 'visible', paddingRight: sel ? 4 : 0}}>
         {loading && [1,2,3].map(i=><Skel key={i} h={74} r={14}/>)}
         {!loading && lista.length===0 && (
           <div style={{textAlign:'center', padding:'60px 0', color:T.ink3, fontSize:13.5}}>
             <CheckCircle size={36} color={T.green} style={{marginBottom:10}}/>
-            <div>Nenhum ticket {filtro==='ativas'?'ativo':'aqui'}. Tudo em dia. 💎</div>
+            <div>Nenhum ticket {filtro==='ativas'?'ativo':'aqui'}. Tudo em dia.</div>
           </div>
         )}
         {!loading && lista.map(o => {
@@ -1200,9 +1376,7 @@ export default function PageOcorrencias() {
                   <span style={{fontSize:14, fontWeight:800, color:T.ink1}}>{o.nome_cliente || fmtTel(o.telefone) || 'Cliente'}</span>
                   <span style={{fontSize:11, color:T.ink4, fontWeight:700}}>{o.ticket_id}</span>
                   <Bdg color={tp.color} dim={tp.dim} bor={tp.bor} icon={tp.icon}>{tp.label}</Bdg>
-                  {(() => { const cn = CANAIS[o.canal] || CANAIS.whatsapp; return (
-                    <span style={{fontSize:11, fontWeight:700, color:cn.color}}>{cn.emoji} {cn.label}</span>
-                  )})()}
+                  <CanalChip canal={o.canal}/>
                   {o.numero_pedido && <span style={{fontSize:11, color:T.cyan}}>#{o.numero_pedido}</span>}
                 </div>
                 <div style={{fontSize:12.5, color:T.ink3, marginTop:3, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>
@@ -1224,7 +1398,7 @@ export default function PageOcorrencias() {
       </div>
 
       {sel && (
-        <div style={{position:'sticky', top:14, height:'calc(100vh - 130px)'}}>
+        <div style={{position:'sticky', top:14, height:'calc(100vh - 150px)', overflow:'hidden'}}>
           <Modal360 key={sel.id} inline oc={sel} onAtualizado={()=>carregar()} onClose={()=>setSel(null)}/>
         </div>
       )}
