@@ -6,7 +6,17 @@ import {
   Circle, XCircle, Sparkles, History, MapPin, Star, Copy, Check,
   RefreshCcw, TrendingUp, Crown, Flame, Activity, Gauge, Radio,
   ClipboardList, Lightbulb, BadgeCheck, Timer, Wallet, BarChart3,
+  Paperclip, Upload, ExternalLink, Thermometer, MessagesSquare,
+  Gift, AlarmClock, UserCheck, FileText as FileTextIc, Eye, TrendingDown,
 } from 'lucide-react'
+
+// Identidade do agente (pedida 1x, fica no navegador)
+function getAgente() {
+  let a = localStorage.getItem('oc_agente') || ''
+  if (!a) { a = (prompt('Seu nome (para atribuição e presença nos tickets):') || 'agente').trim().slice(0,40)
+    localStorage.setItem('oc_agente', a) }
+  return a
+}
 
 const BASE = import.meta.env.VITE_API_URL || ''
 
@@ -135,7 +145,7 @@ function Sec({ icon:Ic, color, title, extra, children }) {
 }
 
 // ═══ MODAL 360 — dossiê completo do cliente para o atendimento ═══════════════
-function Modal360({ oc, onAtualizado, onClose }) {
+function Modal360({ oc, onAtualizado, onClose, inline = false }) {
   const [ctx,    setCtx]    = useState(null)
   const [loading,setLoading]= useState(true)
   const [nota,   setNota]   = useState('')
@@ -147,14 +157,67 @@ function Modal360({ oc, onAtualizado, onClose }) {
   const [erro,   setErro]   = useState('')
   const [acaoModal, setAcaoModal] = useState(null)   // { status alvo }
   const [acaoTxt,   setAcaoTxt]   = useState('')
+  const [anexos,    setAnexos]    = useState([])
+  const [subindo,   setSubindo]   = useState(false)
+  const [enviandoAx,setEnviandoAx]= useState(null)
+  const [tom,       setTom]       = useState('empático e resolutivo')
+  const [colisao,   setColisao]   = useState(null)
+  const [templates, setTemplates] = useState([])
+  const [tagInput,  setTagInput]  = useState('')
+  const [resumo,    setResumo]    = useState('')
+  const [resumindo, setResumindo] = useState(false)
 
   const carregar = useCallback(() => {
     setLoading(true)
     fetch(`${BASE}/api/ocorrencias/${oc.id}/contexto360`)
       .then(r=>r.json()).then(d=>{ setCtx(d); setLoading(false) })
       .catch(()=>{ setErro('Falha ao carregar o dossiê'); setLoading(false) })
+    fetch(`${BASE}/api/ocorrencias/${oc.id}/anexos`)
+      .then(r=>r.json()).then(d=>setAnexos(d.anexos||[])).catch(()=>{})
+    fetch(`${BASE}/api/ocorrencias/templates/lista`)
+      .then(r=>r.json()).then(d=>setTemplates(d.templates||[])).catch(()=>{})
   }, [oc.id])
+  async function salvarTemplate() {
+    if (!resp.trim()) return
+    const label = prompt('Nome do template:')
+    if (!label) return
+    const r = await fetch(`${BASE}/api/ocorrencias/templates/lista`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ label, texto: resp.trim() }) })
+    const d = await r.json()
+    if (d.template) setTemplates(t=>[...t, d.template])
+  }
+  async function delTemplate(tid) {
+    await fetch(`${BASE}/api/ocorrencias/templates/lista/${tid}`, { method:'DELETE' })
+    setTemplates(t=>t.filter(x=>x.id!==tid))
+  }
+  async function addTag() {
+    const tg = tagInput.trim().toLowerCase()
+    if (!tg) return
+    const novas = [...(tk.tags||[]), tg].filter((v,i,a)=>a.indexOf(v)===i)
+    setTagInput('')
+    await patch({ tags: novas, por: getAgente() }).catch(e=>setErro(e.message))
+  }
+  async function fundirTicket() {
+    const alvo = prompt('Fundir este ticket em qual? (informe o TK-ID, ex.: TK-0042)')
+    if (!alvo) return
+    const r = await fetch(`${BASE}/api/ocorrencias/${oc.id}/merge`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ alvo: alvo.trim(), por: getAgente() }) })
+    const d = await r.json()
+    if (!r.ok) { setErro(d.erro || 'Falha na fusão'); return }
+    onAtualizado?.(); onClose?.()
+  }
   useEffect(() => { carregar() }, [carregar])
+  useEffect(() => {
+    const agente = getAgente()
+    const ping = () => fetch(`${BASE}/api/ocorrencias/${oc.id}/presenca`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ agente }),
+    }).then(r=>r.json()).then(d=>setColisao(d.colisao ? d.com : null)).catch(()=>{})
+    ping()
+    const t = setInterval(ping, 45000)
+    return () => clearInterval(t)
+  }, [oc.id])
 
   const tk     = ctx?.ticket || oc
   const st     = STATUS[tk.status] || STATUS.aberta
@@ -196,12 +259,51 @@ function Modal360({ oc, onAtualizado, onClose }) {
     try { await patch({ respostaCliente: resp.trim(), por: 'agente' }); setResp('') }
     catch(e) { setErro(e.message) } finally { setEnviando(false) }
   }
+  async function resumirCaso() {
+    setResumindo(true); setErro('')
+    try {
+      const r = await fetch(`${BASE}/api/ocorrencias/${oc.id}/resumir`, { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' })
+      const d = await r.json()
+      if (d.resumo) setResumo(d.resumo); else setErro(d.erro || 'Sem resumo')
+    } catch { setErro('Falha ao resumir') } finally { setResumindo(false) }
+  }
+  async function subirArquivo(file) {
+    if (!file) return
+    if (file.size > 5*1024*1024) { setErro('Arquivo acima de 5MB'); return }
+    setSubindo(true); setErro('')
+    try {
+      const base64 = await new Promise((res, rej) => {
+        const fr = new FileReader()
+        fr.onload  = () => res(String(fr.result).split(',')[1])
+        fr.onerror = rej
+        fr.readAsDataURL(file)
+      })
+      const r = await fetch(`${BASE}/api/ocorrencias/${oc.id}/anexos`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ nome: file.name, mime: file.type || 'application/octet-stream', base64 }),
+      })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.erro || 'Falha no upload')
+      setAnexos(a => [d.anexo, ...a]); carregar()
+    } catch(e) { setErro(e.message) } finally { setSubindo(false) }
+  }
+  async function enviarAnexo(ax) {
+    setEnviandoAx(ax.id); setErro('')
+    try {
+      const r = await fetch(`${BASE}/api/ocorrencias/${oc.id}/anexos/${ax.id}/enviar`, {
+        method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.erro || 'Falha ao enviar')
+      setAnexos(list => list.map(a => a.id===ax.id ? {...a, enviado_em: new Date().toISOString()} : a))
+      carregar()
+    } catch(e) { setErro(e.message) } finally { setEnviandoAx(null) }
+  }
   async function gerarIA() {
     setGerando(true); setErro('')
     try {
       const r = await fetch(`${BASE}/api/ocorrencias/${oc.id}/sugerir-resposta`, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ contexto_extra: ras ? `Rastreio: ${ras.ultimo_status||''} — ${ras.ultimo_evento||''} ${ras.atrasado?'(EM ATRASO)':''}` : '' }),
+        body: JSON.stringify({ tom, contexto_extra: ras ? `Rastreio: ${ras.ultimo_status||''} — ${ras.ultimo_evento||''} ${ras.atrasado?'(EM ATRASO)':''}` : '' }),
       })
       const d = await r.json()
       if (d.resposta) setResp(d.resposta)
@@ -219,14 +321,23 @@ function Modal360({ oc, onAtualizado, onClose }) {
     criada:'🆕', nota:'📝', whatsapp:'💬', cliente_adicionou:'👤',
   }
 
-  return (
-    <div onClick={onClose} style={{position:'fixed', inset:0, zIndex:90, background:'rgba(4,5,10,.78)', backdropFilter:'blur(6px)', display:'flex', alignItems:'center', justifyContent:'center', padding:18}}>
+  const painel = (
       <div onClick={e=>e.stopPropagation()} style={{
-        width:'min(1180px, 100%)', maxHeight:'92vh', display:'flex', flexDirection:'column',
+        width: inline ? '100%' : 'min(1180px, 100%)',
+        maxHeight: inline ? 'none' : '92vh',
+        height: inline ? '100%' : 'auto',
+        display:'flex', flexDirection:'column', position:'relative',
         background:`linear-gradient(180deg, ${T.bg1}, ${T.bg0})`,
-        border:`1px solid ${T.sep2}`, borderRadius:22, overflow:'hidden',
-        boxShadow:`0 0 0 1px rgba(255,255,255,.03), 0 40px 120px -24px rgba(0,0,0,.9), 0 0 80px -30px ${tipo.color}55`,
+        border:`1px solid ${T.sep2}`, borderRadius: inline ? 18 : 22, overflow:'hidden',
+        boxShadow: inline
+          ? `0 0 50px -24px ${tipo.color}44`
+          : `0 0 0 1px rgba(255,255,255,.03), 0 40px 120px -24px rgba(0,0,0,.9), 0 0 80px -30px ${tipo.color}55`,
       }}>
+        {colisao && (
+          <div style={{display:'flex', alignItems:'center', gap:9, padding:'9px 18px', background:T.redDim, borderBottom:`1px solid ${T.redBor}`, fontSize:12.5, fontWeight:800, color:T.red}}>
+            <Eye size={14}/>⚠️ {colisao} está neste ticket AGORA — combinem antes de responder o cliente.
+          </div>
+        )}
         {/* ── HERO ─────────────────────────────────────────────────────────── */}
         <div style={{position:'relative', padding:'20px 24px 16px', borderBottom:`1px solid ${T.sep}`,
           background:`radial-gradient(1200px 280px at 12% -40%, ${tipo.color}1c, transparent 60%), radial-gradient(900px 240px at 95% -50%, ${T.blue}14, transparent 60%)`}}>
@@ -239,6 +350,14 @@ function Modal360({ oc, onAtualizado, onClose }) {
                 {flags.vip && <Bdg color={T.amber} dim={T.amberDim} bor={T.amberBor} icon={Crown} size="sm">VIP</Bdg>}
                 {flags.problematico && <Bdg color={T.red} dim={T.redDim} bor={T.redBor} icon={Flame} size="sm">Recorrente em tickets</Bdg>}
                 {flags.recorrente && !flags.vip && <Bdg color={T.cyan} dim={T.cyanDim} bor={T.cyanBor} icon={Star} size="sm">Cliente frequente</Bdg>}
+                {ctx?.temperatura && ctx.temperatura!=='neutro' && (
+                  <Bdg color={ctx.temperatura==='exaltado'?T.red:T.orange}
+                       dim={ctx.temperatura==='exaltado'?T.redDim:T.orangeDim}
+                       bor={ctx.temperatura==='exaltado'?T.redBor:T.orangeBor}
+                       icon={Thermometer} size="sm">
+                    {ctx.temperatura==='exaltado'?'Cliente exaltado':ctx.temperatura==='insatisfeito'?'Insatisfeito':'Atenção ao tom'}
+                  </Bdg>
+                )}
                 <Bdg color={flags.risco==='alto'?T.red:flags.risco==='medio'?T.orange:T.green}
                      dim={flags.risco==='alto'?T.redDim:flags.risco==='medio'?T.orangeDim:T.greenDim}
                      bor={flags.risco==='alto'?T.redBor:flags.risco==='medio'?T.orangeBor:T.greenBor}
@@ -299,6 +418,23 @@ function Modal360({ oc, onAtualizado, onClose }) {
             <Bdg color={PRIO[tk.prioridade]?.color||T.blue} dim={T.bg3} bor={T.sep2} icon={Zap} size="sm">{PRIO[tk.prioridade]?.label||tk.prioridade}</Bdg>
             {tk.numero_pedido && <Bdg color={T.cyan} dim={T.cyanDim} bor={T.cyanBor} icon={Package} size="sm">Pedido #{tk.numero_pedido}</Bdg>}
             <span style={{fontSize:13, color:T.ink2, fontWeight:600, marginLeft:4}}>{tk.titulo || tk.descricao?.slice(0,90)}</span>
+            <button onClick={fundirTicket} title="Fundir este ticket em outro"
+              style={{marginLeft:'auto', background:T.bg3, border:`1px solid ${T.sep2}`, color:T.ink3, borderRadius:999, padding:'4px 11px', cursor:'pointer', fontSize:11, fontWeight:700}}>
+              ⇄ Fundir
+            </button>
+          </div>
+          {/* Tags livres */}
+          <div style={{display:'flex', gap:6, marginTop:9, alignItems:'center', flexWrap:'wrap'}}>
+            <Tag size={11} color={T.ink4}/>
+            {(tk.tags||[]).map((tg,i)=>(
+              <span key={i} style={{display:'inline-flex', alignItems:'center', gap:4, fontSize:10.5, fontWeight:700, color:T.cyan, background:T.cyanDim, border:`1px solid ${T.cyanBor}`, borderRadius:999, padding:'2px 9px'}}>
+                {tg}
+                <button onClick={()=>patch({ tags:(tk.tags||[]).filter(x=>x!==tg), por:getAgente() }).catch(()=>{})}
+                  style={{background:'none', border:'none', color:T.ink4, cursor:'pointer', padding:0, display:'flex'}}><X size={9}/></button>
+              </span>
+            ))}
+            <input value={tagInput} onChange={e=>setTagInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addTag()}
+              placeholder="+ tag" style={{width:74, background:'transparent', border:`1px dashed ${T.grayBor}`, borderRadius:999, padding:'2px 9px', color:T.ink2, fontSize:10.5, outline:'none'}}/>
           </div>
           {/* KPIs do cliente */}
           <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:10, marginTop:14}}>
@@ -326,7 +462,21 @@ function Modal360({ oc, onAtualizado, onClose }) {
           <div style={{display:'flex', flexDirection:'column', gap:14}}>
 
             <Sec icon={History} color={T.blue} title="Timeline do ticket"
-              extra={<span style={{fontSize:11, color:T.ink3}}>{histArr.length} eventos</span>}>
+              extra={
+                <div style={{display:'flex', alignItems:'center', gap:8}}>
+                  <button onClick={resumirCaso} disabled={resumindo}
+                    style={{display:'flex', alignItems:'center', gap:5, background:T.bg3, border:`1px solid ${T.sep2}`, color:T.ink2, borderRadius:999, padding:'4px 11px', cursor:'pointer', fontWeight:700, fontSize:11}}>
+                    <FileTextIc size={11}/>{resumindo?'Resumindo…':'Resumir caso'}
+                  </button>
+                  <span style={{fontSize:11, color:T.ink3}}>{histArr.length} eventos</span>
+                </div>
+              }>
+              {resumo && (
+                <div style={{marginBottom:12, padding:'11px 13px', background:T.blueDim, border:`1px solid ${T.blueBor}`, borderRadius:11, fontSize:12.5, color:T.ink1, lineHeight:1.6, whiteSpace:'pre-wrap'}}>
+                  {resumo}
+                  <button onClick={()=>navigator.clipboard?.writeText(resumo)} style={{marginLeft:8, background:'none', border:'none', color:T.blue, cursor:'pointer', fontSize:11, fontWeight:800}}>copiar</button>
+                </div>
+              )}
               <div style={{display:'flex', flexDirection:'column', gap:0, maxHeight:300, overflowY:'auto', paddingRight:4}}>
                 {histArr.length === 0 && <div style={{fontSize:12.5, color:T.ink3}}>Sem eventos ainda.</div>}
                 {[...histArr].reverse().map((h, i) => (
@@ -365,6 +515,16 @@ function Modal360({ oc, onAtualizado, onClose }) {
                   <Sparkles size={12}/>{gerando ? 'Gerando…' : 'Gerar com IA'}
                 </button>
               }>
+              <div style={{display:'flex', gap:6, alignItems:'center', marginBottom:8}}>
+                <span style={{fontSize:10.5, fontWeight:800, color:T.ink4, textTransform:'uppercase', letterSpacing:0.6}}>Tom da IA:</span>
+                {[['empático e resolutivo','Empático'],['objetivo e direto','Objetivo'],['firme porém cordial','Firme']].map(([v,lb])=>(
+                  <button key={v} onClick={()=>setTom(v)}
+                    style={{background: tom===v?T.purpleDim:'transparent', border:`1px solid ${tom===v?T.purpleBor:T.sep2}`,
+                      color: tom===v?T.purple:T.ink3, borderRadius:999, padding:'3px 10px', cursor:'pointer', fontSize:11, fontWeight:700}}>
+                    {lb}
+                  </button>
+                ))}
+              </div>
               <div style={{display:'flex', gap:6, flexWrap:'wrap', marginBottom:10}}>
                 {RESPOSTAS_RAPIDAS.map(rr => (
                   <button key={rr.id} onClick={()=>usarRapida(rr)}
@@ -372,8 +532,18 @@ function Modal360({ oc, onAtualizado, onClose }) {
                     {rr.label}
                   </button>
                 ))}
+                {templates.map(tp => (
+                  <span key={tp.id} style={{display:'inline-flex', alignItems:'center', gap:5, background:T.purpleDim, border:`1px solid ${T.purpleBor}`, borderRadius:999, padding:'4px 6px 4px 11px'}}>
+                    <button onClick={()=>setResp(tp.texto)} style={{background:'none', border:'none', color:T.purple, cursor:'pointer', fontSize:11.5, fontWeight:700, padding:0}}>{tp.label}</button>
+                    <button onClick={()=>delTemplate(tp.id)} style={{background:'none', border:'none', color:T.ink4, cursor:'pointer', padding:0, display:'flex'}}><X size={10}/></button>
+                  </span>
+                ))}
+                <button onClick={salvarTemplate} disabled={!resp.trim()} title="Salvar a resposta atual como template"
+                  style={{background:'transparent', border:`1px dashed ${T.grayBor}`, color: resp.trim()?T.ink2:T.ink4, borderRadius:999, padding:'4px 11px', cursor:'pointer', fontSize:11.5, fontWeight:700}}>
+                  + salvar template
+                </button>
               </div>
-              <textarea value={resp} onChange={e=>setResp(e.target.value)} rows={5}
+              <textarea id="oc-resposta" value={resp} onChange={e=>setResp(e.target.value)} rows={5}
                 placeholder="Escreva a resposta, use uma resposta rápida ou gere com IA…"
                 style={{width:'100%', boxSizing:'border-box', background:T.bg1, border:`1px solid ${T.sep2}`, borderRadius:12, padding:'11px 13px', color:T.ink1, fontSize:13.5, lineHeight:1.5, outline:'none', resize:'vertical', fontFamily:'inherit'}}/>
               <div style={{display:'flex', gap:8, marginTop:10, alignItems:'center'}}>
@@ -389,13 +559,96 @@ function Modal360({ oc, onAtualizado, onClose }) {
                   style={{display:'flex', alignItems:'center', gap:6, background:T.bg3, border:`1px solid ${T.sep2}`, color:T.ink2, borderRadius:11, padding:'9px 13px', cursor:'pointer', fontWeight:700, fontSize:12.5}}>
                   {copiado ? <Check size={13} color={T.green}/> : <Copy size={13}/>}{copiado?'Copiado':'Copiar'}
                 </button>
+                <label style={{display:'flex', alignItems:'center', gap:6, background:T.bg3, border:`1px dashed ${T.grayBor}`, color:T.ink2, borderRadius:11, padding:'9px 13px', cursor:'pointer', fontWeight:700, fontSize:12.5}}>
+                  {subindo ? <Upload size={13} style={{animation:'oc-pulse 1s infinite'}}/> : <Paperclip size={13}/>}
+                  {subindo ? 'Subindo…' : 'Anexar'}
+                  <input type="file" hidden accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                    onChange={e=>{ subirArquivo(e.target.files?.[0]); e.target.value='' }}/>
+                </label>
                 {erro && <span style={{fontSize:12, color:T.red}}>{erro}</span>}
               </div>
+
+              {/* Anexos do ticket */}
+              {anexos.length > 0 && (
+                <div style={{marginTop:12, display:'flex', flexDirection:'column', gap:6}}>
+                  <div style={{fontSize:10.5, fontWeight:800, color:T.ink4, textTransform:'uppercase', letterSpacing:0.6}}>Anexos ({anexos.length})</div>
+                  {anexos.map(ax => {
+                    const ehImg = /^image\//.test(ax.mime)
+                    return (
+                      <div key={ax.id} style={{display:'flex', alignItems:'center', gap:10, padding:'8px 11px', background:T.bg1, border:`1px solid ${T.sep}`, borderRadius:10}}>
+                        <span style={{fontSize:15}}>{ehImg ? '🖼️' : '📄'}</span>
+                        <div style={{flex:1, minWidth:0}}>
+                          <div style={{fontSize:12.5, fontWeight:700, color:T.ink1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{ax.nome}</div>
+                          <div style={{fontSize:10.5, color:T.ink4}}>{(ax.tamanho/1024).toFixed(0)} KB · {fmtD(ax.criado_em)}{ax.enviado_em ? ' · enviado ao cliente ✓' : ''}</div>
+                        </div>
+                        <a href={`${BASE}/api/ocorrencias/anexo/${ax.id}`} target="_blank" rel="noreferrer"
+                          style={{display:'flex', alignItems:'center', color:T.ink3}}><ExternalLink size={14}/></a>
+                        <button onClick={()=>enviarAnexo(ax)} disabled={enviandoAx===ax.id}
+                          style={{display:'flex', alignItems:'center', gap:5, background: ax.enviado_em?T.bg3:T.greenDim,
+                            border:`1px solid ${ax.enviado_em?T.sep2:T.greenBor}`, color: ax.enviado_em?T.ink3:T.green,
+                            borderRadius:9, padding:'5px 11px', cursor:'pointer', fontWeight:800, fontSize:11}}>
+                          <Send size={11}/>{enviandoAx===ax.id?'Enviando…':ax.enviado_em?'Reenviar':'Enviar ao cliente'}
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </Sec>
+
+            {/* Conversa recente do WhatsApp — o diálogo sem sair do modal */}
+            <Sec icon={MessagesSquare} color={T.cyan} title="Conversa recente (WhatsApp)"
+              extra={!loading && <span style={{fontSize:11, color:T.ink3}}>últimas {ctx?.conversa?.length||0}</span>}>
+              {loading ? <><Skel/><Skel w="70%" style={{marginTop:8}}/></> : (
+                <div style={{display:'flex', flexDirection:'column', gap:6, maxHeight:240, overflowY:'auto', paddingRight:4}}>
+                  {(ctx?.conversa||[]).length===0 && <div style={{fontSize:12, color:T.ink3}}>Sem mensagens registradas.</div>}
+                  {(ctx?.conversa||[]).map((m,i)=>{
+                    const saida = m.direcao==='saida'
+                    return (
+                      <div key={i} style={{display:'flex', justifyContent: saida?'flex-end':'flex-start'}}>
+                        <div style={{maxWidth:'82%', padding:'7px 11px', borderRadius: saida?'12px 12px 3px 12px':'12px 12px 12px 3px',
+                          background: saida?'rgba(0,230,118,.09)':T.bg3, border:`1px solid ${saida?T.greenBor:T.sep2}`,
+                          fontSize:12, color:T.ink1, lineHeight:1.45}}>
+                          <div style={{whiteSpace:'pre-wrap', wordBreak:'break-word'}}>{String(m.conteudo||'').slice(0,280)}</div>
+                          <div style={{fontSize:9.5, color:T.ink4, marginTop:3, textAlign: saida?'right':'left'}}>{fmtRel(m.criado_em)}</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </Sec>
           </div>
 
           {/* ════ COLUNA DIREITA — dossiê ════ */}
           <div style={{display:'flex', flexDirection:'column', gap:14}}>
+
+            <Sec icon={AlarmClock} color={T.orange} title="Follow-up & atribuição">
+              <div style={{display:'flex', gap:6, flexWrap:'wrap', alignItems:'center'}}>
+                <span style={{fontSize:11, color:T.ink3, fontWeight:700}}>Cobrar cliente em:</span>
+                {[24,48,72].map(h=>(
+                  <button key={h} onClick={()=>patch({ followupHoras:h, por:getAgente() }).catch(e=>setErro(e.message))}
+                    style={{background:T.orangeDim, border:`1px solid ${T.orangeBor}`, color:T.orange, borderRadius:999, padding:'4px 12px', cursor:'pointer', fontWeight:800, fontSize:11.5}}>
+                    {h}h
+                  </button>
+                ))}
+                {tk.followup_em && (
+                  <span style={{fontSize:11, color: new Date(tk.followup_em)<new Date()?T.red:T.ink2, fontWeight:700}}>
+                    ⏰ {new Date(tk.followup_em)<new Date()?'VENCIDO — cobrar agora':'agendado p/ '+fmtD(tk.followup_em)}
+                    <button onClick={()=>patch({ followupHoras:0, por:getAgente() }).catch(()=>{})} style={{marginLeft:6, background:'none', border:'none', color:T.ink4, cursor:'pointer', fontSize:11}}>limpar</button>
+                  </span>
+                )}
+              </div>
+              <div style={{display:'flex', gap:8, alignItems:'center', marginTop:10}}>
+                <UserCheck size={13} color={T.cyan}/>
+                <span style={{fontSize:11, color:T.ink3, fontWeight:700}}>Atribuído a:</span>
+                <span style={{fontSize:12.5, color:T.ink1, fontWeight:800}}>{tk.atribuido_a || tk.atribuidoA || '—'}</span>
+                <button onClick={()=>patch({ atribuirA:getAgente(), por:getAgente() }).catch(e=>setErro(e.message))}
+                  style={{background:T.cyanDim, border:`1px solid ${T.cyanBor}`, color:T.cyan, borderRadius:999, padding:'4px 12px', cursor:'pointer', fontWeight:800, fontSize:11.5}}>
+                  Assumir ticket
+                </button>
+              </div>
+            </Sec>
 
             <Sec icon={Lightbulb} color={T.amber} title="Plano de resposta">
               {loading ? <><Skel/><Skel w="85%" style={{marginTop:8}}/></> : (
@@ -408,6 +661,24 @@ function Modal360({ oc, onAtualizado, onClose }) {
                 </div>
               )}
             </Sec>
+
+            {!loading && ctx?.compensacao && (
+              <Sec icon={Gift} color={T.green} title="Compensação sugerida">
+                <div style={{display:'flex', alignItems:'center', gap:14}}>
+                  <div style={{textAlign:'center', padding:'10px 16px', background:T.greenDim, border:`1px solid ${T.greenBor}`, borderRadius:13, boxShadow:`0 0 24px -10px ${T.green}77`}}>
+                    <div style={{fontSize:24, fontWeight:900, color:T.green, lineHeight:1}}>{ctx.compensacao.percentual}%</div>
+                    <div style={{fontSize:10, color:T.ink3, marginTop:3}}>≈ R$ {fmtBRL(ctx.compensacao.valor_sugerido)}</div>
+                  </div>
+                  <div style={{flex:1, minWidth:0}}>
+                    <div style={{fontSize:11.5, color:T.ink2, lineHeight:1.5}}>{ctx.compensacao.justificativa}</div>
+                    <button onClick={()=>navigator.clipboard?.writeText(ctx.compensacao.codigo_sugerido)}
+                      style={{marginTop:7, display:'inline-flex', alignItems:'center', gap:6, background:T.bg3, border:`1px dashed ${T.greenBor}`, color:T.green, borderRadius:9, padding:'5px 11px', cursor:'pointer', fontWeight:800, fontSize:11.5, fontFamily:'monospace'}}>
+                      <Copy size={11}/>{ctx.compensacao.codigo_sugerido}
+                    </button>
+                  </div>
+                </div>
+              </Sec>
+            )}
 
             {(loading || ras) && (
               <Sec icon={Radio} color={ras?.atrasado ? T.red : T.green} title="Rastreio em curso"
@@ -515,6 +786,11 @@ function Modal360({ oc, onAtualizado, onClose }) {
           </div>
         )}
       </div>
+  )
+  if (inline) return painel
+  return (
+    <div onClick={onClose} style={{position:'fixed', inset:0, zIndex:90, background:'rgba(4,5,10,.78)', backdropFilter:'blur(6px)', display:'flex', alignItems:'center', justifyContent:'center', padding:18}}>
+      {painel}
     </div>
   )
 }
@@ -525,6 +801,7 @@ function ModalNova({ onSalvo, onClose }) {
   const [saving, setSaving] = useState(false)
   const [erro,   setErro]   = useState('')
   const [anexado,setAnexado]= useState(null)
+  const [dup,    setDup]    = useState(null)
   const set = (k,v)=>setF(p=>({...p,[k]:v}))
 
   async function salvar() {
@@ -537,6 +814,7 @@ function ModalNova({ onSalvo, onClose }) {
       const d = await r.json()
       if (!r.ok) throw new Error(d.erro || 'Falha ao salvar')
       if (d.anexado) { setAnexado(d.ocorrencia); onSalvo?.(d.ocorrencia); return }
+      if (d.duplicado_potencial) { setDup(d.duplicado_potencial); return }
       onSalvo?.(d.ocorrencia || d); onClose()
     } catch(e) { setErro(e.message) } finally { setSaving(false) }
   }
@@ -552,7 +830,37 @@ function ModalNova({ onSalvo, onClose }) {
           <button onClick={onClose} style={{background:T.gray, border:`1px solid ${T.grayBor}`, color:T.ink2, borderRadius:9, width:30, height:30, cursor:'pointer'}}><X size={15}/></button>
         </div>
 
-        {anexado ? (
+        {dup ? (
+          <div>
+            <div style={{background:T.blueDim, border:`1px solid ${T.blueBor}`, borderRadius:13, padding:16, display:'flex', gap:11}}>
+              <History size={19} color={T.blue} style={{flexShrink:0, marginTop:2}}/>
+              <div style={{fontSize:13, color:T.ink1, lineHeight:1.55}}>
+                O pedido <b>#{f.numeroPedido}</b> já teve o ticket <b style={{color:T.blue}}>{dup.ticket_id}</b> ({dup.titulo || 'sem título'}) <b>{STATUS[dup.status]?.label?.toLowerCase()}</b> nos últimos 30 dias.
+                <br/>É o mesmo problema voltando ou um caso novo?
+              </div>
+            </div>
+            <div style={{display:'flex', gap:8, marginTop:14}}>
+              <button onClick={async()=>{
+                  await fetch(`${BASE}/api/ocorrencias/${dup.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ status:'aberta', nota:`Reaberto: ${f.descricao||'cliente retornou com o mesmo problema'}`, por:getAgente() }) })
+                  onSalvo?.(); onClose()
+                }}
+                style={{flex:1, background:T.blueDim, border:`1px solid ${T.blueBor}`, color:T.blue, borderRadius:11, padding:'10px', cursor:'pointer', fontWeight:800, fontSize:12.5}}>
+                Reabrir {dup.ticket_id}
+              </button>
+              <button onClick={async()=>{
+                  setDup(null); setSaving(true)
+                  try {
+                    const r = await fetch(`${BASE}/api/ocorrencias`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({...f, forcar:true}) })
+                    const d = await r.json(); onSalvo?.(d.ocorrencia || d); onClose()
+                  } finally { setSaving(false) }
+                }}
+                style={{flex:1, background:T.bg3, border:`1px solid ${T.sep2}`, color:T.ink2, borderRadius:11, padding:'10px', cursor:'pointer', fontWeight:800, fontSize:12.5}}>
+                É um caso novo — criar
+              </button>
+            </div>
+          </div>
+        ) : anexado ? (
           <div>
             <div style={{background:T.amberDim, border:`1px solid ${T.amberBor}`, borderRadius:13, padding:16, display:'flex', gap:11}}>
               <AlertTriangle size={19} color={T.amber} style={{flexShrink:0, marginTop:2}}/>
@@ -607,6 +915,9 @@ export default function PageOcorrencias() {
   const [busca,  setBusca]  = useState('')
   const [sel,    setSel]    = useState(null)
   const [nova,   setNova]   = useState(false)
+  const [met,    setMet]    = useState(null)
+  const [aba,    setAba]    = useState('fila')          // fila | inteligencia
+  const [intel,  setIntel]  = useState(null)
 
   const carregar = useCallback(() => {
     setLoading(true)
@@ -615,6 +926,37 @@ export default function PageOcorrencias() {
       .catch(()=>setLoading(false))
   }, [])
   useEffect(()=>{ carregar(); const t=setInterval(carregar, 60000); return ()=>clearInterval(t) }, [carregar])
+  useEffect(()=>{ fetch(`${BASE}/api/ocorrencias/metricas/resumo`).then(r=>r.json()).then(setMet).catch(()=>{}) }, [])
+  useEffect(()=>{ if (aba==='inteligencia' && !intel)
+    fetch(`${BASE}/api/ocorrencias/inteligencia/causa-raiz`).then(r=>r.json()).then(setIntel).catch(()=>{}) }, [aba, intel])
+
+  // ── Modo fila: o sistema entrega o ticket mais crítico ──
+  const proximoDaFila = useCallback(() => {
+    const ativos = (dados.ocorrencias||[]).filter(o=>['aberta','em_analise','em_andamento'].includes(o.status))
+    const score = o => (o.followup_vencido?1000:0) + (o.prioridade==='urgente'?500:o.prioridade==='alta'?200:0)
+      + Math.min(199, Math.floor((Date.now()-new Date(o.criado_em))/3600000))
+    const ordenados = [...ativos].sort((a,b)=>score(b)-score(a))
+    if (ordenados.length) setSel(ordenados[0])
+  }, [dados])
+
+  // ── Atalhos de teclado: J/K navegam, R foca resposta, E resolve, N novo ──
+  useEffect(() => {
+    const h = (e) => {
+      const tag = document.activeElement?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      const k = e.key.toLowerCase()
+      if (k === 'n') { setNova(true); e.preventDefault(); return }
+      if (!['j','k','r','escape'].includes(k === 'escape' ? 'escape' : k)) {}
+      const visiveis = lista
+      const idx = sel ? visiveis.findIndex(o=>o.id===sel.id) : -1
+      if (k === 'j') { const n = visiveis[Math.min(idx+1, visiveis.length-1)]; if (n) setSel(n); e.preventDefault() }
+      if (k === 'k') { const p = visiveis[Math.max(idx-1, 0)]; if (p) setSel(p); e.preventDefault() }
+      if (k === 'r' && sel) { document.querySelector('#oc-resposta')?.focus(); e.preventDefault() }
+      if (e.key === 'Escape' && sel) setSel(null)
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  })
 
   const lista = useMemo(() => {
     let l = dados.ocorrencias || []
@@ -624,7 +966,7 @@ export default function PageOcorrencias() {
       const b = busca.toLowerCase()
       l = l.filter(o => [o.nome_cliente,o.telefone,o.ticket_id,o.titulo,o.descricao,o.numero_pedido].join(' ').toLowerCase().includes(b))
     }
-    return l
+    return [...l].sort((a,b) => (b.followup_vencido?1:0) - (a.followup_vencido?1:0))
   }, [dados, filtro, busca])
 
   const st = dados.stats || {}
@@ -653,7 +995,22 @@ export default function PageOcorrencias() {
           </div>
           <div style={{fontSize:12.5, color:T.ink3, marginTop:3}}>Tickets sensíveis · esteira: aberta → em análise → em andamento → resolvida · 1 ticket aberto por cliente</div>
         </div>
-        <div style={{display:'flex', gap:9}}>
+        <div style={{display:'flex', gap:9, alignItems:'center'}}>
+          <div style={{display:'flex', gap:4, background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:11, padding:4}}>
+            {[['fila','📥 Fila'],['inteligencia','🧠 Inteligência']].map(([k,lb])=>(
+              <button key={k} onClick={()=>setAba(k)}
+                style={{background: aba===k?T.bg4:'transparent', border:'none', color: aba===k?T.ink1:T.ink3,
+                  borderRadius:8, padding:'7px 13px', cursor:'pointer', fontWeight:800, fontSize:12}}>{lb}</button>
+            ))}
+          </div>
+          <button onClick={proximoDaFila} title="Abre o ticket mais crítico (urgente → follow-up vencido → mais antigo)"
+            style={{display:'flex', alignItems:'center', gap:7, background:T.purpleDim, border:`1px solid ${T.purpleBor}`, color:T.purple, borderRadius:11, padding:'9px 14px', cursor:'pointer', fontWeight:900, fontSize:12.5, boxShadow:`0 0 20px -8px ${T.purple}77`}}>
+            ▶ Próximo
+          </button>
+          <a href={`${BASE}/api/ocorrencias/export.csv`} title="Exportar CSV"
+            style={{display:'flex', alignItems:'center', gap:6, background:T.bg2, border:`1px solid ${T.sep2}`, color:T.ink2, borderRadius:11, padding:'9px 13px', fontWeight:700, fontSize:12.5, textDecoration:'none'}}>
+            ⤓ CSV
+          </a>
           <button onClick={carregar} style={{display:'flex', alignItems:'center', gap:7, background:T.bg2, border:`1px solid ${T.sep2}`, color:T.ink2, borderRadius:11, padding:'9px 14px', cursor:'pointer', fontWeight:700, fontSize:12.5}}>
             <RefreshCw size={13} style={loading?{animation:'spin 1s linear infinite'}:{}}/>Atualizar
           </button>
@@ -663,6 +1020,100 @@ export default function PageOcorrencias() {
         </div>
       </div>
 
+      {aba === 'inteligencia' ? (
+        /* ════ ABA INTELIGÊNCIA — causa-raiz da operação ════ */
+        !intel ? <div style={{display:'flex',flexDirection:'column',gap:10}}><Skel h={90} r={14}/><Skel h={220} r={14}/></div> : (
+        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(340px, 1fr))', gap:14}}>
+          <Sec icon={Truck} color={T.red} title={`Transportadoras × tickets (${intel.periodo_dias}d)`}>
+            <div style={{display:'flex', flexDirection:'column', gap:10}}>
+              {intel.transportadoras.length===0 && <div style={{fontSize:12, color:T.ink3}}>Sem tickets com transportadora no período.</div>}
+              {intel.transportadoras.map((t,i)=>(
+                <div key={i}>
+                  <div style={{display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:4}}>
+                    <span style={{fontWeight:800, color:T.ink1}}>{t.nome}</span>
+                    <span style={{color:T.ink3}}>
+                      {t.tickets} tickets · {t.pct_tickets}% dos casos{t.pct_envios!=null && ` vs ${t.pct_envios}% dos envios`}
+                      {t.indice!=null && <b style={{marginLeft:6, color: t.indice>1.3?T.red:t.indice<0.8?T.green:T.amber}}>×{t.indice}</b>}
+                    </span>
+                  </div>
+                  <div style={{height:7, borderRadius:99, background:T.bg3, overflow:'hidden'}}>
+                    <div style={{width:`${t.pct_tickets}%`, height:'100%', borderRadius:99,
+                      background:`linear-gradient(90deg, ${t.indice>1.3?T.red:T.amber}99, ${t.indice>1.3?T.red:T.amber})`,
+                      boxShadow:`0 0 10px ${t.indice>1.3?T.red:T.amber}66`}}/>
+                  </div>
+                </div>
+              ))}
+              <div style={{fontSize:10.5, color:T.ink4, marginTop:2}}>×índice = % dos tickets ÷ % dos envios. Acima de ×1.3 = transportadora problemática (dado p/ renegociar ou bloquear no menu de frete).</div>
+            </div>
+          </Sec>
+          <Sec icon={Tag} color={T.purple} title="Tipo × canal">
+            <div style={{display:'flex', flexDirection:'column', gap:6, maxHeight:260, overflowY:'auto'}}>
+              {intel.tipo_canal.map((tc,i)=>(
+                <div key={i} style={{display:'flex', alignItems:'center', gap:8, fontSize:12}}>
+                  <span style={{minWidth:90, fontWeight:800, color: TIPOS[tc.tipo]?.color || T.ink2}}>{TIPOS[tc.tipo]?.label || tc.tipo}</span>
+                  <span style={{color:T.ink3, flex:1}}>{CANAIS[tc.canal]?.emoji} {CANAIS[tc.canal]?.label || tc.canal}</span>
+                  <span style={{fontWeight:900, color:T.ink1}}>{tc.n}</span>
+                </div>
+              ))}
+            </div>
+          </Sec>
+          <Sec icon={Package} color={T.amber} title="Produtos que mais geram tickets">
+            <div style={{display:'flex', flexDirection:'column', gap:7}}>
+              {intel.produtos.length===0 && <div style={{fontSize:12, color:T.ink3}}>Sem dados de produto no período.</div>}
+              {intel.produtos.map((p,i)=>(
+                <div key={i} style={{display:'flex', justifyContent:'space-between', gap:8, fontSize:12}}>
+                  <span style={{color:T.ink2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{i+1}. {p.nome}</span>
+                  <span style={{fontWeight:900, color:T.amber, flexShrink:0}}>{p.n}</span>
+                </div>
+              ))}
+            </div>
+          </Sec>
+          <Sec icon={Clock} color={T.cyan} title="Quando os tickets nascem (dia × hora)">
+            {(() => {
+              const max = Math.max(1, ...Object.values(intel.heatmap||{}))
+              const dias = ['D','S','T','Q','Q','S','S']
+              return (
+                <div style={{display:'flex', flexDirection:'column', gap:3}}>
+                  {dias.map((d,di)=>(
+                    <div key={di} style={{display:'flex', gap:2, alignItems:'center'}}>
+                      <span style={{width:14, fontSize:9.5, color:T.ink4, fontWeight:800}}>{d}</span>
+                      {Array.from({length:24},(_,h)=>{
+                        const v = intel.heatmap?.[`${di}-${h}`]||0
+                        return <div key={h} title={`${v} tickets`} style={{flex:1, height:13, borderRadius:3,
+                          background: v ? `rgba(34,211,238,${0.15+0.85*(v/max)})` : T.bg3}}/>
+                      })}
+                    </div>
+                  ))}
+                  <div style={{display:'flex', gap:2, marginLeft:16}}>
+                    {[0,6,12,18,23].map(h=><span key={h} style={{flex: h===23?0:6, fontSize:9, color:T.ink4}}>{h}h</span>)}
+                  </div>
+                </div>
+              )
+            })()}
+          </Sec>
+          <Sec icon={UserCheck} color={T.green} title="Resolução por agente">
+            <div style={{display:'flex', flexDirection:'column', gap:7}}>
+              {(!intel.agentes || intel.agentes.length===0) && <div style={{fontSize:12, color:T.ink3}}>Sem tickets atribuídos resolvidos no período.</div>}
+              {(intel.agentes||[]).map((a,i)=>(
+                <div key={i} style={{display:'flex', justifyContent:'space-between', gap:8, fontSize:12}}>
+                  <span style={{fontWeight:800, color:T.ink1}}>{a.nome}</span>
+                  <span style={{color:T.ink3}}>{a.resolvidos} resolvidos · <b style={{color: a.media_h<=24?T.green:a.media_h<=72?T.amber:T.red}}>{a.media_h}h médias</b></span>
+                </div>
+              ))}
+            </div>
+          </Sec>
+          <Sec icon={Radio} color={T.purple} title="Proativos do sistema">
+            <div style={{display:'flex', alignItems:'center', gap:14}}>
+              <div style={{fontSize:34, fontWeight:900, color:T.purple, lineHeight:1}}>{intel.proativos}</div>
+              <div style={{fontSize:12, color:T.ink2, lineHeight:1.5}}>
+                tickets abertos automaticamente por rastreio parado nos últimos {intel.periodo_dias} dias — problemas detectados <b>antes</b> da reclamação do cliente.
+              </div>
+            </div>
+          </Sec>
+        </div>
+        )
+      ) : (
+      <>
       {/* Hero stats */}
       <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(170px, 1fr))', gap:12, marginBottom:18}}>
         {[
@@ -683,6 +1134,18 @@ export default function PageOcorrencias() {
           </div>
         ))}
       </div>
+
+      {/* ITEM 4: métricas de atendimento (30 dias) */}
+      {met && (
+        <div style={{display:'flex', gap:18, flexWrap:'wrap', alignItems:'center', padding:'11px 16px', background:T.bg1, border:`1px solid ${T.sep2}`, borderRadius:13, marginBottom:16, fontSize:12}}>
+          <span style={{fontWeight:900, color:T.ink3, textTransform:'uppercase', letterSpacing:0.7, fontSize:10.5, display:'flex', alignItems:'center', gap:6}}><TrendingUp size={12} color={T.cyan}/>Performance 30d</span>
+          <span style={{color:T.ink2}}>1ª resposta: <b style={{color: met.primeira_resposta_h==null?T.ink3: met.primeira_resposta_h<=4?T.green:met.primeira_resposta_h<=12?T.amber:T.red}}>{met.primeira_resposta_h==null?'—':met.primeira_resposta_h+'h'}</b></span>
+          <span style={{color:T.ink2}}>Resolução: <b style={{color: met.resolucao_h==null?T.ink3: met.resolucao_h<=48?T.green:T.amber}}>{met.resolucao_h==null?'—':met.resolucao_h+'h'}</b></span>
+          <span style={{color:T.ink2}}>Resolvidos: <b style={{color:T.green}}>{met.resolvidos}</b>/{met.tickets}</span>
+          <span style={{color:T.ink2}}>CSAT: <b style={{color: met.csat_media==null?T.ink3: met.csat_media>=4?T.green:met.csat_media>=3?T.amber:T.red}}>{met.csat_media==null?'—':`${met.csat_media} ★`}</b>{met.csat_n>0 && <span style={{color:T.ink4}}> ({met.csat_n})</span>}</span>
+          <span style={{color:T.ink4, marginLeft:'auto'}}>{Object.entries(met.por_canal||{}).map(([k,v])=>`${CANAIS[k]?.emoji||'•'} ${v}`).join('  ')}</span>
+        </div>
+      )}
 
       {/* Filtros + busca */}
       <div style={{display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', marginBottom:16}}>
@@ -706,8 +1169,10 @@ export default function PageOcorrencias() {
         )}
       </div>
 
-      {/* Lista */}
-      <div style={{display:'flex', flexDirection:'column', gap:9}}>
+      {/* Lista — split view quando há ticket aberto (lista compacta + painel) */}
+      <div style={{display: sel ? 'grid' : 'flex', gridTemplateColumns: sel ? '340px 1fr' : undefined,
+        flexDirection: sel ? undefined : 'column', gap: sel ? 14 : 9, alignItems: sel ? 'start' : undefined}}>
+      <div style={{display:'flex', flexDirection:'column', gap:9, maxHeight: sel ? 'calc(100vh - 130px)' : 'none', overflowY: sel ? 'auto' : 'visible', paddingRight: sel ? 4 : 0}}>
         {loading && [1,2,3].map(i=><Skel key={i} h={74} r={14}/>)}
         {!loading && lista.length===0 && (
           <div style={{textAlign:'center', padding:'60px 0', color:T.ink3, fontSize:13.5}}>
@@ -722,8 +1187,9 @@ export default function PageOcorrencias() {
           const urgente = o.prioridade==='urgente' && !['resolvida','encerrada'].includes(o.status)
           return (
             <div key={o.id} onClick={()=>setSel(o)}
-              style={{display:'flex', alignItems:'center', gap:14, padding:'13px 16px', cursor:'pointer',
-                background:T.bg1, border:`1px solid ${urgente?T.redBor:T.sep2}`, borderRadius:14,
+              style={{display:'flex', alignItems:'center', gap: sel?10:14, padding: sel?'10px 12px':'13px 16px', cursor:'pointer',
+                background: sel?.id===o.id ? T.bg3 : T.bg1,
+                border:`1px solid ${sel?.id===o.id ? T.blueBor : urgente?T.redBor:T.sep2}`, borderRadius:14,
                 boxShadow: urgente ? `0 0 26px -12px ${T.red}88` : 'none',
                 transition:'all .15s'}}
               onMouseEnter={e=>{e.currentTarget.style.background=T.bg2; e.currentTarget.style.transform='translateY(-1px)'}}
@@ -744,6 +1210,8 @@ export default function PageOcorrencias() {
                 </div>
               </div>
               <div style={{display:'flex', alignItems:'center', gap:10, flexShrink:0}}>
+                {o.followup_vencido && <Bdg color={T.red} dim={T.redDim} bor={T.redBor} icon={AlarmClock}>follow-up</Bdg>}
+                {o.escalonado && <Bdg color={T.orange} dim={T.orangeDim} bor={T.orangeBor} icon={TrendingUp}>SLA⬆</Bdg>}
                 {urgente && <Zap size={14} color={T.red}/>}
                 <span style={{fontSize:11, color:pr.color, fontWeight:800}}>{pr.label}</span>
                 <Bdg color={sd.color} dim={sd.dim} bor={sd.bor} icon={sd.icon} size="sm">{sd.label}</Bdg>
@@ -755,7 +1223,18 @@ export default function PageOcorrencias() {
         })}
       </div>
 
-      {sel  && <Modal360 oc={sel} onAtualizado={()=>carregar()} onClose={()=>setSel(null)}/>}
+      {sel && (
+        <div style={{position:'sticky', top:14, height:'calc(100vh - 130px)'}}>
+          <Modal360 key={sel.id} inline oc={sel} onAtualizado={()=>carregar()} onClose={()=>setSel(null)}/>
+        </div>
+      )}
+      </div>
+      <div style={{marginTop:10, fontSize:10.5, color:T.ink4, textAlign:'center'}}>
+        atalhos: <b>J/K</b> navegar · <b>R</b> responder · <b>N</b> novo ticket · <b>Esc</b> fechar
+      </div>
+      </>
+      )}
+
       {nova && <ModalNova onSalvo={()=>carregar()} onClose={()=>setNova(false)}/>}
     </div>
   )
