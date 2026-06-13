@@ -6,8 +6,8 @@ import {
   LayoutDashboard, ShoppingCart, Users, CreditCard,
   MessageSquare, Bot, Settings, Sun, Moon, Zap, Send, Package,
   AlertCircle, Activity, Search, Brain, Truck, BarChart2,
-  ChevronRight, Bell,
-} from 'lucide-react'
+  ChevronRight,
+Ticket, } from 'lucide-react'
 import CommandPalette from './CommandPalette'
 import LiveActivityBar from './LiveActivityBar'
 import Sidebar from './Sidebar'
@@ -22,7 +22,6 @@ const T = {
   purple:'#a78bfa',purpleDim:'rgba(167,139,250,.09)',purpleBor:'rgba(167,139,250,.25)',
   cyan:'#06b6d4', cyanDim:'rgba(6,182,212,.08)',   cyanBor:'rgba(6,182,212,.22)',
   blue:'#4f8ef7', blueDim:'rgba(79,142,247,.08)',  blueBor:'rgba(79,142,247,.25)',
-  orange:'#fb923c',
   sep:'rgba(255,255,255,.05)', sep2:'rgba(255,255,255,.08)',
   gray:'rgba(255,255,255,.04)',
 }
@@ -44,8 +43,8 @@ const PageConversas      = lazy(()=>import('../pages/PageConversas'))
 const PageDisparos       = lazy(()=>import('../pages/PageDisparos'))
 const PageCampanhas      = lazy(()=>import('../pages/PageCampanhas'))
 const PageOcorrencias    = lazy(()=>import('../pages/PageOcorrencias'))
+const PageCupons         = lazy(()=>import('../pages/PageCupons'))
 const PageRastreioConfig = lazy(()=>import('../pages/PageRastreioConfig'))
-const PageAviseMe        = lazy(()=>import('../pages/PageAviseMe'))
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -60,7 +59,7 @@ const NAV = [
   { id:'gatilhos',          icon:Zap,             label:'Gatilhos',         group:'tools',  cor:T.amber  },
   { id:'rastreio-config',   icon:Truck,           label:'Rastreio',         group:'tools',  cor:T.green  },
   { id:'campanhas',         icon:Send,            label:'Campanhas',        group:'tools',  cor:T.cyan   },
-  { id:'avise-me',          icon:Bell,            label:'Avise-me',         group:'tools',  cor:T.orange },
+  { id:'cupons',            icon:Ticket,          label:'Cupons',           group:'tools',  cor:T.amber  },
   { id:'disparos',          icon:BarChart2,       label:'Monitor Disparos', group:'tools',  cor:T.blue   },
   { id:'ocorrencias',       icon:AlertCircle,     label:'Ocorrências',      group:'tools',  cor:T.red    },
   { id:'debug-pedidos',     icon:Activity,        label:'Debug Pedidos',    group:'tools',  cor:T.ink3   },
@@ -212,7 +211,7 @@ export default function Shell() {
       case 'gatilhos':        return <Page nome="Gatilhos"      comp={PageGatilhos}/>
       case 'rastreio-config': return <Page nome="Rastreio"      comp={PageRastreioConfig}/>
       case 'campanhas':       return <Page nome="Campanhas"     comp={PageCampanhas}/>
-      case 'avise-me':        return <Page nome="Avise-me"      comp={()=><PageAviseMe api={API}/>}/>
+      case 'cupons':          return <Page nome="Cupons"        comp={PageCupons}/>
       case 'disparos':        return <Page nome="Disparos"      comp={PageDisparos}/>
       case 'ocorrencias':     return <Page nome="Ocorrências"   comp={PageOcorrencias}/>
       case 'conversas': return (
