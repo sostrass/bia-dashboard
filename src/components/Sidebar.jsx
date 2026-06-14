@@ -12,7 +12,7 @@ import {
   LayoutDashboard, ShoppingCart, Users, CreditCard,
   MessageSquare, Bot, Settings, Zap, Send, Package,
   AlertCircle, Activity, Search, Brain, Truck, BarChart2,
-  Sun, Moon, ChevronDown, ChevronRight, Bell, Ticket,
+  Sun, Moon, ChevronDown, ChevronRight, Bell, Ticket, LayoutGrid,
 } from 'lucide-react'
 import { useTheme } from '../App'
 import { logout } from '../pages/PageLogin'
@@ -46,6 +46,7 @@ export const NAV = [
   { id:'rastreio-config', icon:Truck,           label:'Rastreio',        group:'tools',  cor:T.green,  desc:'Canais de rastreio'           },
   { id:'campanhas',       icon:Send,            label:'Campanhas',       group:'tools',  cor:T.cyan,   desc:'Disparos em massa'            },
   { id:'cupons',          icon:Ticket,          label:'Cupons',          group:'tools',  cor:T.amber,  desc:'Cupons e frete grátis'        },
+  { id:'flow-vitrine',    icon:LayoutGrid,      label:'Vitrine WhatsApp',group:'tools',  cor:T.blue,   desc:'Vitrine interativa (Flow)'    },
   { id:'avise-me',        icon:Bell,            label:'Avise-me',        group:'tools',  cor:T.orange, desc:'Fila de reposição de estoque' },
   { id:'estoque',         icon:Package,         label:'Estoque',         group:'tools',  cor:T.green,  desc:'Gestão de estoque do catálogo'} ,
   { id:'disparos',        icon:BarChart2,       label:'Monitor Disparos',group:'tools',  cor:T.blue,   desc:'Histórico e analytics'        },
