@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import PreviewVitrine from '../components/PreviewVitrine'
+import GerenciadorColecoes from '../components/GerenciadorColecoes'
+import MontadorBlocos from '../components/MontadorBlocos'
 import {
   LayoutGrid, Save, Check, Power,
   Tag, MessageSquare, Settings, AlertCircle, Loader2, Smartphone,
   ChevronUp, ChevronDown, Sparkles, RefreshCw,
-  Pencil, FolderTree, Plus, Trash2,
+  Pencil, FolderTree, Plus, Trash2, LayoutList,
 } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || ''
@@ -17,6 +19,7 @@ const T = {
   red:'#ff4757',  redDim:'rgba(255,71,87,.07)',   redBor:'rgba(255,71,87,.25)',
   purple:'#a78bfa',purpleDim:'rgba(167,139,250,.09)',purpleBor:'rgba(167,139,250,.25)',
   cyan:'#06b6d4', cyanDim:'rgba(6,182,212,.08)',   cyanBor:'rgba(6,182,212,.22)',
+  coral:'#fb7185', coralDim:'rgba(251,113,133,.08)', coralBor:'rgba(251,113,133,.25)',
   blue:'#4f8ef7', blueDim:'rgba(79,142,247,.08)',  blueBor:'rgba(79,142,247,.25)',
   sep:'rgba(255,255,255,.05)', sep2:'rgba(255,255,255,.08)',
 }
@@ -220,6 +223,14 @@ export default function PageFlowVitrine() {
       </div>
 
       {/* Categorias */}
+      <Secao icon={LayoutList} cor={T.purple} titulo="Ordem da vitrine (blocos)" sub="O que o cliente vê primeiro — coleções, categorias e grupos na ordem que você definir">
+        <MontadorBlocos cfg={cfg} cats={cats} onChange={carregar}/>
+      </Secao>
+
+      <Secao icon={Sparkles} cor={T.coral} titulo="Coleções curadas" sub="Destaque, Promoção, Novidades — produtos selecionados por você">
+        <GerenciadorColecoes onChange={carregar}/>
+      </Secao>
+
       <Secao icon={Tag} cor={T.amber} titulo="Categorias na vitrine" sub={`${visiveis} de ${cats.length} visíveis · arraste a ordem com as setas`}>
         {cats.length === 0 ? (
           <div style={{fontSize:13, color:T.ink3, padding:'8px 0'}}>
