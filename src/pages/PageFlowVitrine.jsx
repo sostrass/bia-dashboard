@@ -3,6 +3,7 @@ import {
   LayoutGrid, Save, Eye, EyeOff, GripVertical, Check, Power,
   Tag, MessageSquare, Settings, AlertCircle, Loader2, Smartphone,
   ChevronUp, ChevronDown, Sparkles, RefreshCw,
+  Pencil, FolderTree, Plus, Trash2,
 } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || ''
@@ -70,6 +71,8 @@ export default function PageFlowVitrine() {
   const [erro,       setErro]       = useState('')
   const [ok,         setOk]         = useState(false)
   const [dirty,      setDirty]      = useState(false)
+  const [editandoCat, setEditandoCat] = useState(null)   // nome da categoria em edição de apelido
+  const [sugerindo,  setSugerindo]   = useState(false)
 
   const carregar = useCallback(async () => {
     setLoading(true); setErro('')
@@ -103,6 +106,49 @@ export default function PageFlowVitrine() {
     setDirty(true); setOk(false)
   }
 
+  // apelido de uma categoria do Bling
+  function setApelido(nomeBling, apelido) {
+    setCfg(c => {
+      const apelidos = { ...(c.apelidos||{}) }
+      if (apelido && apelido.trim() && apelido.trim() !== nomeBling) apelidos[nomeBling] = apelido.trim()
+      else delete apelidos[nomeBling]
+      return { ...c, apelidos }
+    })
+    setDirty(true); setOk(false)
+  }
+  const apelidoDe = (nome) => (cfg?.apelidos||{})[nome] || ''
+
+  // grupos / subcategorias
+  function addGrupo() {
+    setCfg(c => ({ ...c, grupos: [ ...(c.grupos||[]), { id:`g${Date.now()}`, nome:'Novo grupo', ordem:(c.grupos||[]).length, subcategorias:[] } ] }))
+    setDirty(true); setOk(false)
+  }
+  function upGrupo(id, campo, valor) {
+    setCfg(c => ({ ...c, grupos: (c.grupos||[]).map(g => g.id===id ? { ...g, [campo]:valor } : g) }))
+    setDirty(true); setOk(false)
+  }
+  function rmGrupo(id) {
+    setCfg(c => ({ ...c, grupos: (c.grupos||[]).filter(g => g.id!==id) }))
+    setDirty(true); setOk(false)
+  }
+  function toggleSubcat(grupoId, catNome) {
+    setCfg(c => ({ ...c, grupos: (c.grupos||[]).map(g => {
+      if (g.id !== grupoId) return g
+      const subs = g.subcategorias||[]
+      return { ...g, subcategorias: subs.includes(catNome) ? subs.filter(x=>x!==catNome) : [...subs, catNome] }
+    }) }))
+    setDirty(true); setOk(false)
+  }
+  async function sugerirGrupos() {
+    setSugerindo(true); setErro('')
+    try {
+      const r = await fetch(`${API}/api/flow/sugerir-grupos`).then(r=>r.json())
+      if (r.grupos?.length) { setCfg(c => ({ ...c, grupos: r.grupos })); setDirty(true); setOk(false) }
+      else setErro('O Bling não retornou hierarquia de categorias (sem categoria-pai definida).')
+    } catch (e) { setErro('Falha ao sugerir grupos: ' + e.message) }
+    finally { setSugerindo(false) }
+  }
+
   async function salvar() {
     setSalvando(true); setErro(''); setOk(false)
     try {
@@ -128,7 +174,8 @@ export default function PageFlowVitrine() {
   const visiveis = cats.filter(c=>c.visivel).length
 
   return (
-    <div style={{maxWidth:760, margin:'0 auto', padding:'8px 4px 80px'}}>
+    <div style={{height:'100%', overflowY:'auto', overflowX:'hidden'}}>
+     <div style={{maxWidth:760, margin:'0 auto', padding:'20px 20px 80px'}}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} .spin{animation:spin 1s linear infinite}`}</style>
 
       {/* Header */}
@@ -188,9 +235,74 @@ export default function PageFlowVitrine() {
                 <div onClick={()=>toggleCat(c.nome)} style={{cursor:'pointer', width:20, height:20, borderRadius:5, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background: c.visivel?T.green:'transparent', border:`1.5px solid ${c.visivel?T.green:T.ink4}`}}>
                   {c.visivel && <Check size={13} color="#000"/>}
                 </div>
-                <span style={{flex:1, fontSize:13, color:T.ink1, fontWeight:600}}>{c.nome}</span>
-                <span style={{fontSize:11, color:T.ink3}}>{c.disponiveis} disp.</span>
-                <span style={{fontSize:11, color:T.ink4}}>· {c.itens} total</span>
+                <div style={{flex:1, minWidth:0}}>
+                  {editandoCat === c.nome ? (
+                    <input autoFocus defaultValue={apelidoDe(c.nome) || c.nome}
+                      onBlur={e=>{ setApelido(c.nome, e.target.value); setEditandoCat(null) }}
+                      onKeyDown={e=>{ if(e.key==='Enter'){ setApelido(c.nome, e.target.value); setEditandoCat(null) } if(e.key==='Escape'){ setEditandoCat(null) } }}
+                      style={{width:'100%', background:T.bg0, border:`1px solid ${T.cyan}`, borderRadius:7, padding:'5px 9px', color:T.ink1, fontSize:13, outline:'none'}}/>
+                  ) : (
+                    <div onClick={()=>setEditandoCat(c.nome)} style={{cursor:'text', display:'flex', alignItems:'center', gap:7}}>
+                      <span style={{fontSize:13, color:T.ink1, fontWeight:600}}>{apelidoDe(c.nome) || c.nome}</span>
+                      {apelidoDe(c.nome) && <span style={{fontSize:10.5, color:T.ink4}}>({c.nome})</span>}
+                      <Pencil size={11} color={T.ink4}/>
+                    </div>
+                  )}
+                </div>
+                <span style={{fontSize:11, color:T.ink3, flexShrink:0}}>{c.disponiveis} disp.</span>
+                <span style={{fontSize:11, color:T.ink4, flexShrink:0}}>· {c.itens}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Secao>
+
+      {/* Grupos / Subcategorias */}
+      <Secao icon={FolderTree} cor={T.purple} titulo="Grupos e subcategorias" sub="Organize categorias sob títulos próprios para o cliente navegar">
+        <div style={{display:'flex', gap:8, marginBottom:14}}>
+          <button onClick={addGrupo} style={{display:'flex', alignItems:'center', gap:6, background:T.purpleDim, border:`1px solid ${T.purpleBor}`, borderRadius:9, padding:'8px 13px', cursor:'pointer', color:T.purple, fontWeight:700, fontSize:12.5}}>
+            <Plus size={14}/> Criar grupo
+          </button>
+          <button onClick={sugerirGrupos} disabled={sugerindo} style={{display:'flex', alignItems:'center', gap:6, background:T.bg1, border:`1px solid ${T.sep2}`, borderRadius:9, padding:'8px 13px', cursor:'pointer', color:T.ink2, fontWeight:700, fontSize:12.5}}>
+            {sugerindo ? <Loader2 size={14} className="spin"/> : <Sparkles size={14}/>} Sugerir do Bling
+          </button>
+        </div>
+
+        {(cfg.grupos||[]).length === 0 ? (
+          <div style={{fontSize:12.5, color:T.ink3, padding:'4px 0'}}>
+            Nenhum grupo ainda. Crie um grupo (ex.: "Strass") e escolha quais categorias entram nele — ou use "Sugerir do Bling" para começar pela hierarquia que já existe.
+          </div>
+        ) : (
+          <div style={{display:'flex', flexDirection:'column', gap:12}}>
+            {(cfg.grupos||[]).map(g => (
+              <div key={g.id} style={{background:T.bg1, border:`1px solid ${T.sep2}`, borderRadius:12, padding:'12px 14px'}}>
+                <div style={{display:'flex', alignItems:'center', gap:10, marginBottom:10}}>
+                  <FolderTree size={15} color={T.purple}/>
+                  <input value={g.nome} onChange={e=>upGrupo(g.id,'nome',e.target.value)}
+                    style={{flex:1, background:T.bg0, border:`1px solid ${T.sep2}`, borderRadius:8, padding:'7px 10px', color:T.ink1, fontSize:13, fontWeight:700, outline:'none'}}/>
+                  <span style={{fontSize:11, color:T.ink3}}>{(g.subcategorias||[]).length} cat.</span>
+                  <button onClick={()=>rmGrupo(g.id)} title="Remover grupo" style={{background:'none', border:'none', cursor:'pointer', color:T.ink4, padding:4}}>
+                    <Trash2 size={14}/>
+                  </button>
+                </div>
+                <div style={{fontSize:11, color:T.ink3, marginBottom:7}}>Categorias neste grupo:</div>
+                <div style={{display:'flex', flexWrap:'wrap', gap:6}}>
+                  {cats.map(c => {
+                    const dentro = (g.subcategorias||[]).includes(c.nome)
+                    return (
+                      <span key={c.nome} onClick={()=>toggleSubcat(g.id, c.nome)} style={{
+                        cursor:'pointer', fontSize:11.5, padding:'5px 10px', borderRadius:999,
+                        background: dentro ? T.purpleDim : 'transparent',
+                        border:`1px solid ${dentro ? T.purpleBor : T.sep2}`,
+                        color: dentro ? T.purple : T.ink3, fontWeight: dentro?700:500,
+                        display:'flex', alignItems:'center', gap:5,
+                      }}>
+                        {dentro && <Check size={11}/>}
+                        {apelidoDe(c.nome) || c.nome}
+                      </span>
+                    )
+                  })}
+                </div>
               </div>
             ))}
           </div>
@@ -258,6 +370,7 @@ export default function PageFlowVitrine() {
           {salvando ? 'Salvando…' : 'Salvar configuração'}
         </button>
       </div>
+     </div>
     </div>
   )
 }
