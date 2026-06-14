@@ -44,6 +44,7 @@ const PageDisparos       = lazy(()=>import('../pages/PageDisparos'))
 const PageCampanhas      = lazy(()=>import('../pages/PageCampanhas'))
 const PageOcorrencias    = lazy(()=>import('../pages/PageOcorrencias'))
 const PageCupons         = lazy(()=>import('../pages/PageCupons'))
+const PageFlowVitrine    = lazy(()=>import('../pages/PageFlowVitrine'))
 const PageEstoque        = lazy(()=>import('../pages/PageEstoque'))
 const PageAviseMe        = lazy(()=>import('../pages/PageAviseMe'))
 const PageRastreioConfig = lazy(()=>import('../pages/PageRastreioConfig'))
@@ -214,6 +215,7 @@ export default function Shell() {
       case 'rastreio-config': return <Page nome="Rastreio"      comp={PageRastreioConfig}/>
       case 'campanhas':       return <Page nome="Campanhas"     comp={PageCampanhas}/>
       case 'cupons':          return <Page nome="Cupons"        comp={PageCupons}/>
+      case 'flow-vitrine':    return <Page nome="Vitrine"       comp={PageFlowVitrine}/>
       case 'avise-me':        return <Page nome="Avise-me"      comp={PageAviseMe}/>
       case 'estoque':         return <Page nome="Estoque"       comp={PageEstoque}/>
       case 'disparos':        return <Page nome="Disparos"      comp={PageDisparos}/>
