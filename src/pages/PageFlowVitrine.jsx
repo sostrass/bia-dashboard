@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
+import PreviewVitrine from '../components/PreviewVitrine'
 import {
-  LayoutGrid, Save, Eye, EyeOff, GripVertical, Check, Power,
+  LayoutGrid, Save, Check, Power,
   Tag, MessageSquare, Settings, AlertCircle, Loader2, Smartphone,
   ChevronUp, ChevronDown, Sparkles, RefreshCw,
   Pencil, FolderTree, Plus, Trash2,
@@ -73,6 +74,7 @@ export default function PageFlowVitrine() {
   const [dirty,      setDirty]      = useState(false)
   const [editandoCat, setEditandoCat] = useState(null)   // nome da categoria em edição de apelido
   const [sugerindo,  setSugerindo]   = useState(false)
+  const [telaPreview, setTelaPreview] = useState('vitrine')
 
   const carregar = useCallback(async () => {
     setLoading(true); setErro('')
@@ -175,8 +177,10 @@ export default function PageFlowVitrine() {
 
   return (
     <div style={{height:'100%', overflowY:'auto', overflowX:'hidden'}}>
-     <div style={{maxWidth:760, margin:'0 auto', padding:'20px 20px 80px'}}>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} .spin{animation:spin 1s linear infinite}`}</style>
+     <div style={{maxWidth:1140, margin:'0 auto', padding:'20px 24px 80px'}}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} .spin{animation:spin 1s linear infinite}
+        @media (max-width:920px){ .flow-grid{ grid-template-columns:1fr !important } .flow-preview{ display:none !important } }
+      `}</style>
 
       {/* Header */}
       <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:22}}>
@@ -201,6 +205,8 @@ export default function PageFlowVitrine() {
         </div>
       )}
 
+      <div className="flow-grid" style={{display:'grid', gridTemplateColumns:'1fr 320px', gap:24, alignItems:'start'}}>
+       <div style={{minWidth:0}}>
       {/* Liga/desliga — destaque */}
       <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 18px', background: cfg.ativo?T.greenDim:T.bg2, border:`1px solid ${cfg.ativo?T.greenBor:T.sep2}`, borderRadius:14, marginBottom:16}}>
         <div style={{display:'flex', alignItems:'center', gap:13}}>
@@ -332,6 +338,10 @@ export default function PageFlowVitrine() {
           <LinhaToggle label="Ocultar produtos sem estoque" desc="Se ligado, zerados não aparecem na vitrine" on={cfg.ocultar_sem_estoque} onToggle={()=>up('ocultar_sem_estoque',!cfg.ocultar_sem_estoque)} cor={T.red}/>
           <Sep/>
           <LinhaToggle label="Abertura automática pela Molise" desc="A Molise abre a vitrine ao detectar intenção de navegar" on={cfg.abertura_automatica} onToggle={()=>up('abertura_automatica',!cfg.abertura_automatica)} cor={T.blue}/>
+          <Sep/>
+          <LinhaToggle label="Selo 'últimas unidades'" desc="Destaca produtos com estoque baixo" on={cfg.selo_estoque_baixo} onToggle={()=>up('selo_estoque_baixo',!cfg.selo_estoque_baixo)} cor={T.amber}/>
+          <Sep/>
+          <LinhaToggle label="Ocultar variação esgotada" desc="Some o tamanho/cor sem estoque dentro do produto" on={cfg.ocultar_variacao_esgotada} onToggle={()=>up('ocultar_variacao_esgotada',!cfg.ocultar_variacao_esgotada)} cor={T.red}/>
         </div>
 
         {/* sliders numéricos */}
@@ -354,6 +364,22 @@ export default function PageFlowVitrine() {
           O <b>layout visual</b> das telas (posição das fotos, campos) é editado no Flow Builder da Meta — exige republicação. Aqui você controla <b>conteúdo, categorias e regras</b>, que valem em tempo real sem reaprovação.
         </span>
       </div>
+
+       </div>{/* fim coluna controles */}
+
+       {/* Coluna do preview — sticky */}
+       <div className="flow-preview" style={{position:'sticky', top:20}}>
+         <div style={{display:'flex', gap:6, marginBottom:14, background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:10, padding:4}}>
+           {[['vitrine','Vitrine'],['detalhe','Produto'],['carrinho','Carrinho']].map(([id,lb])=>(
+             <button key={id} onClick={()=>setTelaPreview(id)} style={{
+               flex:1, padding:'7px 0', borderRadius:7, border:'none', cursor:'pointer', fontSize:11.5, fontWeight:700,
+               background: telaPreview===id ? T.blue : 'transparent', color: telaPreview===id ? '#fff' : T.ink3,
+             }}>{lb}</button>
+           ))}
+         </div>
+         <PreviewVitrine cfg={cfg} grupos={(cfg.grupos||[]).filter(g=>(g.subcategorias||[]).length)} tela={telaPreview}/>
+       </div>
+      </div>{/* fim grid */}
 
       {/* Barra de salvar (fixa no fim do conteúdo) */}
       <div style={{position:'sticky', bottom:16, marginTop:24, display:'flex', justifyContent:'flex-end', gap:12, alignItems:'center'}}>
