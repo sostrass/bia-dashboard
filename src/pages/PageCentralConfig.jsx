@@ -15,6 +15,7 @@ import {
   ArrowRight, Eye, Send, Hash, Calendar, Filter, MoreHorizontal,
   PhoneOff, Phone, Bot, UserCheck, UserX, Tag, Layers,
   GitCommit, GitBranch, RotateCcw, ExternalLink, Zap as ZapIcon,
+  Loader2,
 } from 'lucide-react'
 import {
   AreaChart, Area, ResponsiveContainer, Tooltip,
@@ -1778,6 +1779,142 @@ function SecaoExportacao({ api }) {
 // ═══════════════════════════════════════════════════
 // SEÇÃO: RESPOSTAS RÁPIDAS
 // ═══════════════════════════════════════════════════
+function SecaoVitrine({ api }) {
+  const [texto,    setTexto]    = useState(true)   // lista de produtos em texto
+  const [carrossel,setCarrossel]= useState(true)   // carrossel de mídia
+  const [maxCards, setMaxCards] = useState(10)      // 2 a 10
+  const [loading,  setLoading]  = useState(true)
+  const [salvando, setSalvando] = useState(false)
+  const [toast,    setToast]    = useState(null)
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`${api}/api/dashboard/config-carrossel`).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(`${api}/api/dashboard/config-vitrine`).then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([cCar, cVit]) => {
+      if (cCar?.maxCards) setMaxCards(cCar.maxCards)
+      if (cVit) {
+        if (typeof cVit.texto === 'boolean') setTexto(cVit.texto)
+        if (typeof cVit.carrossel === 'boolean') setCarrossel(cVit.carrossel)
+      }
+      setLoading(false)
+    })
+  }, [api])
+
+  const salvar = async () => {
+    setSalvando(true)
+    try {
+      await Promise.all([
+        fetch(`${api}/api/dashboard/config-carrossel`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ maxCards }),
+        }),
+        fetch(`${api}/api/dashboard/config-vitrine`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ texto, carrossel }),
+        }),
+      ])
+      setToast('Configuração salva!')
+      setTimeout(() => setToast(null), 2500)
+    } catch (e) {
+      setToast('Erro ao salvar')
+      setTimeout(() => setToast(null), 2500)
+    }
+    setSalvando(false)
+  }
+
+  if (loading) return (
+    <div style={{ padding:40, textAlign:'center', color:T.ink3 }}>
+      <Loader2 size={20} style={{ animation:'spin 1s linear infinite' }}/>
+    </div>
+  )
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:16, maxWidth:680 }}>
+      <div>
+        <h2 style={{ fontSize:18, fontWeight:700, color:T.ink1, margin:0 }}>Vitrine de Produtos</h2>
+        <p style={{ fontSize:13, color:T.ink3, margin:'4px 0 0' }}>
+          Como os produtos aparecem para o cliente quando ele busca algo.
+        </p>
+      </div>
+
+      {/* Toggle: lista em texto */}
+      <GlowCard cor={T.cyan} style={{ padding:'18px 22px' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:16 }}>
+          <div>
+            <div style={{ fontSize:14, fontWeight:600, color:T.ink1 }}>Lista de produtos em texto</div>
+            <div style={{ fontSize:12, color:T.ink3, marginTop:2 }}>
+              Mostra os produtos numa lista escrita (nome, preço). Desligue para usar só o carrossel.
+            </div>
+          </div>
+          <PremiumToggle value={texto} onChange={setTexto} cor={T.cyan}/>
+        </div>
+      </GlowCard>
+
+      {/* Toggle: carrossel */}
+      <GlowCard cor={T.green} style={{ padding:'18px 22px' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:16 }}>
+          <div>
+            <div style={{ fontSize:14, fontWeight:600, color:T.ink1 }}>Carrossel de mídia</div>
+            <div style={{ fontSize:12, color:T.ink3, marginTop:2 }}>
+              Mostra os produtos como cards visuais deslizáveis (foto, preço, botões).
+            </div>
+          </div>
+          <PremiumToggle value={carrossel} onChange={setCarrossel} cor={T.green}/>
+        </div>
+      </GlowCard>
+
+      {/* Quantidade de cards */}
+      <GlowCard cor={T.purple} top={carrossel} style={{ padding:'18px 22px' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:16, opacity: carrossel ? 1 : 0.5 }}>
+          <div>
+            <div style={{ fontSize:14, fontWeight:600, color:T.ink1 }}>Quantidade de cards no carrossel</div>
+            <div style={{ fontSize:12, color:T.ink3, marginTop:2 }}>
+              Quantos produtos aparecem no carrossel (mínimo 2, máximo 10 — limite do WhatsApp).
+            </div>
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <button onClick={() => setMaxCards(v => Math.max(2, v - 1))} disabled={!carrossel || maxCards <= 2}
+              style={{ width:32, height:32, borderRadius:8, border:`1px solid ${T.sep2}`, background:T.bg3,
+                color:T.ink1, fontSize:18, cursor: carrossel && maxCards > 2 ? 'pointer' : 'not-allowed',
+                opacity: carrossel && maxCards > 2 ? 1 : 0.4 }}>−</button>
+            <div style={{ width:44, textAlign:'center', fontSize:20, fontWeight:700, color:T.purple }}>{maxCards}</div>
+            <button onClick={() => setMaxCards(v => Math.min(10, v + 1))} disabled={!carrossel || maxCards >= 10}
+              style={{ width:32, height:32, borderRadius:8, border:`1px solid ${T.sep2}`, background:T.bg3,
+                color:T.ink1, fontSize:18, cursor: carrossel && maxCards < 10 ? 'pointer' : 'not-allowed',
+                opacity: carrossel && maxCards < 10 ? 1 : 0.4 }}>+</button>
+          </div>
+        </div>
+      </GlowCard>
+
+      {/* Aviso se ambos desligados */}
+      {!texto && !carrossel && (
+        <div style={{ display:'flex', gap:8, alignItems:'center', padding:'10px 14px', borderRadius:10,
+          background:T.amberDim, border:`1px solid ${T.amberBor}`, color:T.amber, fontSize:12.5 }}>
+          <AlertCircle size={16}/>
+          Com texto e carrossel desligados, os produtos não aparecem. Ligue ao menos um.
+        </div>
+      )}
+
+      {/* Salvar */}
+      <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+        <button onClick={salvar} disabled={salvando}
+          style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 20px', borderRadius:10,
+            border:'none', background:T.green, color:'#031', fontSize:14, fontWeight:700,
+            cursor: salvando ? 'wait' : 'pointer' }}>
+          {salvando ? <Loader2 size={16} style={{ animation:'spin 1s linear infinite' }}/> : <Save size={16}/>}
+          Salvar
+        </button>
+        {toast && (
+          <span style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, color:T.green }}>
+            <Check size={15}/> {toast}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function SecaoRespostasRapidas({ api }) {
   const [lista,   setLista]   = useState([])
   const [novoTxt, setNovoTxt] = useState('')
@@ -2914,6 +3051,7 @@ const SECOES=[
   { id:'jornada',    label:'Funil de Jornada',    icon:BarChart2,      cor:T.cyan,   desc:'Conversão por etapa'    },
   { id:'bia',        label:'Bia Performance',     icon:Brain,          cor:T.purple, desc:'Métricas da IA'         },
   { id:'rapidas',    label:'Respostas Rápidas',   icon:Zap,            cor:T.amber,  desc:'Textos pré-definidos do chat' },
+  { id:'vitrine',    label:'Vitrine & Carrossel', icon:ShoppingBag,    cor:T.green,  desc:'Texto, carrossel e nº de cards' },
 ]
 
 // ═══════════════════════════════════════════════════
@@ -2938,6 +3076,7 @@ export default function PageCentralConfig({ api=API }) {
       case 'auditoria':  return <SecaoAuditoria api={api}/>
       case 'variaveis':  return <SecaoVariaveis api={api}/>
       case 'rapidas':    return <SecaoRespostasRapidas api={api}/>
+      case 'vitrine':    return <SecaoVitrine api={api}/>
       case 'jornada':    return <SecaoJornada api={api}/>
       case 'bia':        return <SecaoBiaPerformance api={api}/>
       default: return null
