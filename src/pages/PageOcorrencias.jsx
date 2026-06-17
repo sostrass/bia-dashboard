@@ -257,6 +257,17 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
         item_descricao: it.descricao, situacao, motivo, por: getAgente() }) })
     carregar()
   }
+  // Avaria (caixa danificada no trajeto): registra avaria + estorno em sequência
+  // (sequencial pra não dar corrida no histórico — cada um espera o anterior)
+  async function sinalizarAvaria(it, motivo) {
+    const enviar = (situacao, mot) => fetch(`${BASE}/api/ocorrencias/${oc.id}/item-pedido`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ numero_pedido: pedDet?.numero, item_codigo: it.codigo,
+        item_descricao: it.descricao, situacao, motivo: mot, por: getAgente() }) })
+    await enviar('avaria', motivo)
+    await enviar('estornado', motivo ? `Estorno por avaria: ${motivo}` : 'Estorno por avaria')
+    carregar()
+  }
 
   const carregar = useCallback(() => {
     setLoading(true)
@@ -1108,8 +1119,17 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
                             </div>
                           </div>
                           <div style={{display:'flex', gap:5, flexWrap:'wrap'}}>
-                            {[['nao_enviado','Não enviado',T.red],['fora_estoque','Fora de estoque',T.orange],['estornado','Estornado',T.purple],['reenvio','Reenvio',T.blue]].map(([sit,lb,cl])=>(
-                              <button key={sit} onClick={()=>{ const motivo = sit==='nao_enviado'||sit==='fora_estoque' ? (prompt(`Motivo (${lb}):`)||'') : ''; sinalizarItem(it, sit, motivo) }}
+                            {[['nao_enviado','Não enviado',T.red],['fora_estoque','Fora de estoque',T.orange],['avaria','Avaria',T.amber],['estornado','Estornado',T.purple],['reenvio','Reenvio',T.blue]].map(([sit,lb,cl])=>(
+                              <button key={sit} onClick={()=>{
+                                if (sit==='avaria') {
+                                  // Avaria: caixa danificada no trajeto → registra avaria + estorno
+                                  const motivo = prompt('Avaria (caixa danificada no trajeto). Descreva o dano:') || ''
+                                  sinalizarAvaria(it, motivo)
+                                } else {
+                                  const motivo = sit==='nao_enviado'||sit==='fora_estoque' ? (prompt(`Motivo (${lb}):`)||'') : ''
+                                  sinalizarItem(it, sit, motivo)
+                                }
+                              }}
                                 style={{background:`${cl}14`, border:`1px solid ${cl}44`, color:cl, borderRadius:999, padding:'3px 10px', cursor:'pointer', fontWeight:700, fontSize:10.5}}>
                                 {lb}
                               </button>
