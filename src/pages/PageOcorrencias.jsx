@@ -435,7 +435,7 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
 
   const painel = (
       <div onClick={e=>e.stopPropagation()} style={{
-        width: inline ? '100%' : 'min(1180px, 100%)',
+        width: inline ? '100%' : 'min(1480px, 96vw)',
         maxHeight: inline ? 'none' : '92vh',
         height: inline ? '100%' : 'auto',
         display:'flex', flexDirection:'column', position:'relative',
@@ -461,12 +461,12 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
                 {editNome ? (
                   <span style={{display:'inline-flex', gap:6, alignItems:'center'}}>
                     <input autoFocus value={nomeNovo} onChange={e=>setNomeNovo(e.target.value)} onKeyDown={e=>e.key==='Enter'&&salvarNome()}
-                      style={{background:T.bg1, border:`1px solid ${T.blueBor}`, borderRadius:8, padding:'4px 9px', color:T.ink1, fontSize:17, fontWeight:800, outline:'none'}}/>
+                      style={{background:T.bg1, border:`1px solid ${T.blueBor}`, borderRadius:8, padding:'4px 9px', color:T.ink1, fontSize:15, fontWeight:800, outline:'none'}}/>
                     <button onClick={salvarNome} style={{background:T.greenDim, border:`1px solid ${T.greenBor}`, color:T.green, borderRadius:8, padding:'4px 9px', cursor:'pointer'}}><Check size={13}/></button>
                   </span>
                 ) : (
                   <span style={{display:'inline-flex', alignItems:'center', gap:7}}>
-                    <span style={{fontSize:18, fontWeight:900, color:T.ink1, letterSpacing:-0.3}}>{ctx?.cliente?.nome || tk.nome_cliente || fmtTel(tk.telefone) || 'Cliente'}</span>
+                    <span style={{fontSize:16, fontWeight:900, color:T.ink1, letterSpacing:-0.3}}>{ctx?.cliente?.nome || tk.nome_cliente || fmtTel(tk.telefone) || 'Cliente'}</span>
                     <button onClick={()=>{ setNomeNovo(ctx?.cliente?.nome||tk.nome_cliente||''); setEditNome(true) }}
                       title="Editar nome" style={{background:'none', border:'none', color:T.ink4, cursor:'pointer', display:'flex', padding:0}}><Pencil size={12}/></button>
                     {ctx?.cliente?.nome_origem === 'telefone' && <Bdg color={T.ink4} dim={T.bg3} bor={T.sep2}>sem cadastro</Bdg>}
@@ -578,7 +578,7 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
               <div key={i} style={{background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:12, padding:'10px 12px'}}>
                 <div style={{display:'flex',alignItems:'center',gap:6, fontSize:10.5, fontWeight:800, color:T.ink3, textTransform:'uppercase', letterSpacing:0.7}}><k.ic size={12} color={k.cl}/>{k.lb}</div>
                 {k.vl===null ? <Skel w="70%" h={18} style={{marginTop:6}}/> :
-                  <div style={{fontSize:17, fontWeight:900, color:T.ink1, marginTop:4, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{k.vl}</div>}
+                  <div style={{fontSize:15, fontWeight:900, color:T.ink1, marginTop:4, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{k.vl}</div>}
               </div>
             ))}
           </div>
@@ -613,10 +613,10 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
             </div>
           )}
 
-        <div style={{flex:1, overflowY:'auto', padding:18, display:'grid', gridTemplateColumns:'1.25fr 1fr', gap:14, alignItems:'start'}}>
+        <div style={{flex:1, overflowY:'auto', padding:16, display:'grid', gridTemplateColumns:'0.85fr 1.15fr 0.95fr', gap:12, alignItems:'start'}}>
 
-          {/* ════ COLUNA ESQUERDA — timeline + resposta ════ */}
-          <div style={{display:'flex', flexDirection:'column', gap:14}}>
+          {/* ════ COLUNA 1 (ESQUERDA) — contexto & gestão ════ */}
+          <div style={{display:'flex', flexDirection:'column', gap:12}}>
 
             <Sec icon={History} color={T.blue} title="Timeline do ticket"
               extra={
@@ -661,6 +661,53 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
                 <button onClick={addNota} style={{background:T.blueDim, border:`1px solid ${T.blueBor}`, color:T.blue, borderRadius:10, padding:'0 14px', cursor:'pointer', fontWeight:700, fontSize:12.5}}>Anotar</button>
               </div>
             </Sec>
+
+            <Sec icon={AlarmClock} color={T.orange} title="Follow-up & atribuição">
+              <div style={{display:'flex', gap:6, flexWrap:'wrap', alignItems:'center'}}>
+                <span style={{fontSize:11, color:T.ink3, fontWeight:700}}>Cobrar cliente em:</span>
+                {[24,48,72].map(h=>(
+                  <button key={h} onClick={()=>patch({ followupHoras:h, por:getAgente() }).catch(e=>setErro(e.message))}
+                    style={{background:T.orangeDim, border:`1px solid ${T.orangeBor}`, color:T.orange, borderRadius:999, padding:'4px 12px', cursor:'pointer', fontWeight:800, fontSize:11.5}}>
+                    {h}h
+                  </button>
+                ))}
+                {tk.followup_em && (
+                  <span style={{fontSize:11, color: new Date(tk.followup_em)<new Date()?T.red:T.ink2, fontWeight:700}}>
+                    <AlarmClock size={11} style={{verticalAlign:'-1px'}}/> {new Date(tk.followup_em)<new Date()?'VENCIDO — cobrar agora':'agendado p/ '+fmtD(tk.followup_em)}
+                    <button onClick={()=>patch({ followupHoras:0, por:getAgente() }).catch(()=>{})} style={{marginLeft:6, background:'none', border:'none', color:T.ink4, cursor:'pointer', fontSize:11}}>limpar</button>
+                  </span>
+                )}
+              </div>
+              <div style={{display:'flex', gap:8, alignItems:'center', marginTop:10}}>
+                <UserCheck size={13} color={T.cyan}/>
+                <span style={{fontSize:11, color:T.ink3, fontWeight:700}}>Atribuído a:</span>
+                <span style={{fontSize:12.5, color:T.ink1, fontWeight:800}}>{tk.atribuido_a || tk.atribuidoA || '—'}</span>
+                <button onClick={()=>patch({ atribuirA:getAgente(), por:getAgente() }).catch(e=>setErro(e.message))}
+                  style={{background:T.cyanDim, border:`1px solid ${T.cyanBor}`, color:T.cyan, borderRadius:999, padding:'4px 12px', cursor:'pointer', fontWeight:800, fontSize:11.5}}>
+                  Assumir ticket
+                </button>
+              </div>
+            </Sec>
+
+            {checklist && checklist.length > 0 && (
+              <Sec icon={ListChecks} color={T.blue} title="Checklist de resolução"
+                extra={<span style={{fontSize:11, color:T.ink3}}>{checklist.filter(i=>i.ok).length}/{checklist.length}</span>}>
+                <div style={{display:'flex', flexDirection:'column', gap:8}}>
+                  {checklist.map((it,i)=>(
+                    <button key={i} onClick={()=>toggleCheck(i)}
+                      style={{display:'flex', alignItems:'flex-start', gap:9, textAlign:'left', background:'none', border:'none', cursor:'pointer', padding:0}}>
+                      {it.ok ? <CheckSquare size={16} color={T.green} style={{flexShrink:0, marginTop:1}}/> : <Square size={16} color={T.ink4} style={{flexShrink:0, marginTop:1}}/>}
+                      <span style={{fontSize:12.5, color: it.ok?T.ink4:T.ink2, textDecoration: it.ok?'line-through':'none', lineHeight:1.4}}>{it.texto}</span>
+                    </button>
+                  ))}
+                </div>
+              </Sec>
+            )}
+
+          </div>
+
+          {/* ════ COLUNA 2 (CENTRO) — ação principal: responder + conversa ════ */}
+          <div style={{display:'flex', flexDirection:'column', gap:12}}>
 
             <Sec icon={Send} color={T.green} title="Responder ao cliente"
               extra={
@@ -783,50 +830,8 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
             </Sec>
           </div>
 
-          {/* ════ COLUNA DIREITA — dossiê ════ */}
-          <div style={{display:'flex', flexDirection:'column', gap:14}}>
-
-            <Sec icon={AlarmClock} color={T.orange} title="Follow-up & atribuição">
-              <div style={{display:'flex', gap:6, flexWrap:'wrap', alignItems:'center'}}>
-                <span style={{fontSize:11, color:T.ink3, fontWeight:700}}>Cobrar cliente em:</span>
-                {[24,48,72].map(h=>(
-                  <button key={h} onClick={()=>patch({ followupHoras:h, por:getAgente() }).catch(e=>setErro(e.message))}
-                    style={{background:T.orangeDim, border:`1px solid ${T.orangeBor}`, color:T.orange, borderRadius:999, padding:'4px 12px', cursor:'pointer', fontWeight:800, fontSize:11.5}}>
-                    {h}h
-                  </button>
-                ))}
-                {tk.followup_em && (
-                  <span style={{fontSize:11, color: new Date(tk.followup_em)<new Date()?T.red:T.ink2, fontWeight:700}}>
-                    <AlarmClock size={11} style={{verticalAlign:'-1px'}}/> {new Date(tk.followup_em)<new Date()?'VENCIDO — cobrar agora':'agendado p/ '+fmtD(tk.followup_em)}
-                    <button onClick={()=>patch({ followupHoras:0, por:getAgente() }).catch(()=>{})} style={{marginLeft:6, background:'none', border:'none', color:T.ink4, cursor:'pointer', fontSize:11}}>limpar</button>
-                  </span>
-                )}
-              </div>
-              <div style={{display:'flex', gap:8, alignItems:'center', marginTop:10}}>
-                <UserCheck size={13} color={T.cyan}/>
-                <span style={{fontSize:11, color:T.ink3, fontWeight:700}}>Atribuído a:</span>
-                <span style={{fontSize:12.5, color:T.ink1, fontWeight:800}}>{tk.atribuido_a || tk.atribuidoA || '—'}</span>
-                <button onClick={()=>patch({ atribuirA:getAgente(), por:getAgente() }).catch(e=>setErro(e.message))}
-                  style={{background:T.cyanDim, border:`1px solid ${T.cyanBor}`, color:T.cyan, borderRadius:999, padding:'4px 12px', cursor:'pointer', fontWeight:800, fontSize:11.5}}>
-                  Assumir ticket
-                </button>
-              </div>
-            </Sec>
-
-            {checklist && checklist.length > 0 && (
-              <Sec icon={ListChecks} color={T.blue} title="Checklist de resolução"
-                extra={<span style={{fontSize:11, color:T.ink3}}>{checklist.filter(i=>i.ok).length}/{checklist.length}</span>}>
-                <div style={{display:'flex', flexDirection:'column', gap:8}}>
-                  {checklist.map((it,i)=>(
-                    <button key={i} onClick={()=>toggleCheck(i)}
-                      style={{display:'flex', alignItems:'flex-start', gap:9, textAlign:'left', background:'none', border:'none', cursor:'pointer', padding:0}}>
-                      {it.ok ? <CheckSquare size={16} color={T.green} style={{flexShrink:0, marginTop:1}}/> : <Square size={16} color={T.ink4} style={{flexShrink:0, marginTop:1}}/>}
-                      <span style={{fontSize:12.5, color: it.ok?T.ink4:T.ink2, textDecoration: it.ok?'line-through':'none', lineHeight:1.4}}>{it.texto}</span>
-                    </button>
-                  ))}
-                </div>
-              </Sec>
-            )}
+          {/* ════ COLUNA 3 (DIREITA) — dossiê do cliente ════ */}
+          <div style={{display:'flex', flexDirection:'column', gap:12}}>
 
             {ctx?.cadastro && (
               <Sec icon={MapPinIc} color={T.cyan} title="Dados do cliente">
@@ -860,7 +865,7 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
               <Sec icon={Gift} color={T.green} title="Compensação sugerida">
                 <div style={{display:'flex', alignItems:'center', gap:14}}>
                   <div style={{textAlign:'center', padding:'10px 16px', background:T.greenDim, border:`1px solid ${T.greenBor}`, borderRadius:13, boxShadow:`0 0 24px -10px ${T.green}77`}}>
-                    <div style={{fontSize:24, fontWeight:900, color:T.green, lineHeight:1}}>{ctx.compensacao.percentual}%</div>
+                    <div style={{fontSize:20, fontWeight:900, color:T.green, lineHeight:1}}>{ctx.compensacao.percentual}%</div>
                     <div style={{fontSize:10, color:T.ink3, marginTop:3}}>≈ R$ {fmtBRL(ctx.compensacao.valor_sugerido)}</div>
                   </div>
                   <div style={{flex:1, minWidth:0}}>
@@ -969,7 +974,7 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
           <div onClick={()=>setPedDet(null)} style={{position:'absolute', inset:0, zIndex:6, background:'rgba(4,5,10,.75)', backdropFilter:'blur(4px)', display:'flex', justifyContent:'flex-end'}}>
             <div onClick={e=>e.stopPropagation()} style={{width:'min(460px,92%)', height:'100%', overflowY:'auto', background:`linear-gradient(180deg, ${T.bg1}, ${T.bg0})`, borderLeft:`1px solid ${T.sep2}`, padding:20, boxShadow:'-20px 0 60px -20px rgba(0,0,0,.8)'}}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14}}>
-                <span style={{fontSize:16, fontWeight:900, color:T.ink1, display:'flex', alignItems:'center', gap:8}}><Package size={17} color={T.cyan}/>Pedido #{pedDet.numero}</span>
+                <span style={{fontSize:15, fontWeight:900, color:T.ink1, display:'flex', alignItems:'center', gap:8}}><Package size={17} color={T.cyan}/>Pedido #{pedDet.numero}</span>
                 <button onClick={()=>setPedDet(null)} style={{background:T.gray, border:`1px solid ${T.grayBor}`, color:T.ink2, borderRadius:9, width:30, height:30, cursor:'pointer'}}><X size={15}/></button>
               </div>
               {pedLoad ? <><Skel h={60}/><Skel h={60} style={{marginTop:8}}/></> : pedDet.erro ? (
@@ -1338,6 +1343,8 @@ export default function PageOcorrencias() {
   const [novos,  setNovos]  = useState([])              // tickets novos não vistos
   const [sino,   setSino]   = useState(false)
   const [cfg,    setCfg]    = useState(null)
+  const [dupGrupos, setDupGrupos] = useState([])        // grupos de tickets duplicados (mesmo telefone)
+  const [dupPainel, setDupPainel] = useState(false)     // mostra o painel de duplicados
   const [cfgOpen,setCfgOpen]= useState(false)
   const ultimoCheckRef = useRef({ t: new Date().toISOString() }).current
 
@@ -1350,6 +1357,14 @@ export default function PageOcorrencias() {
   useEffect(()=>{ carregar(); const t=setInterval(carregar, 60000); return ()=>clearInterval(t) }, [carregar])
   useEffect(()=>{ fetch(`${BASE}/api/ocorrencias/metricas/resumo`).then(r=>r.json()).then(setMet).catch(()=>{}) }, [])
   useEffect(()=>{ fetch(`${BASE}/api/ocorrencias/config`).then(r=>r.json()).then(setCfg).catch(()=>{}) }, [])
+  // Detecta grupos de tickets duplicados (mesmo telefone) — atualiza junto com a lista
+  useEffect(()=>{
+    const carregarDup = () => fetch(`${BASE}/api/ocorrencias/duplicados`)
+      .then(r=>r.json()).then(d=>setDupGrupos(d.grupos||[])).catch(()=>{})
+    carregarDup()
+    const t = setInterval(carregarDup, 60000)
+    return ()=>clearInterval(t)
+  }, [])
 
   // SINO em tempo real: poll leve a cada 15s
   useEffect(() => {
@@ -1410,6 +1425,21 @@ export default function PageOcorrencias() {
         body: JSON.stringify({ alvo: String(alvo), por: getAgente() }) }).catch(()=>{})
     }
     setSelecionados([]); setModoMerge(false); carregar()
+  }
+  // Funde um GRUPO inteiro de duplicados no alvo escolhido (1 chamada)
+  async function fundirGrupo(grupo, alvoId) {
+    const alvo = alvoId || grupo.alvo_sugerido
+    const ids = grupo.tickets.map(t=>t.id).filter(id => id !== alvo)
+    if (!ids.length) return
+    if (!confirm(`Fundir ${ids.length} ticket(s) de ${grupo.nome_cliente || 'cliente'} no alvo? Os demais serão encerrados e a timeline migrada.`)) return
+    try {
+      await fetch(`${BASE}/api/ocorrencias/fundir-grupo`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ alvo: String(alvo), ids, por: getAgente() }) })
+      // recarrega lista e duplicados
+      carregar()
+      fetch(`${BASE}/api/ocorrencias/duplicados`).then(r=>r.json()).then(d=>setDupGrupos(d.grupos||[])).catch(()=>{})
+    } catch(e) { alert('Erro ao fundir: ' + e.message) }
   }
   function toggleSel(id) {
     setSelecionados(prev => prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id])
@@ -1492,9 +1522,19 @@ export default function PageOcorrencias() {
             style={{display:'flex', alignItems:'center', gap:7, background:T.purpleDim, border:`1px solid ${T.purpleBor}`, color:T.purple, borderRadius:11, padding:'9px 14px', cursor:'pointer', fontWeight:900, fontSize:12.5, boxShadow:`0 0 20px -8px ${T.purple}77`}}>
             <Play size={13}/>Próximo
           </button>
-          <button onClick={()=>{ setModoMerge(!modoMerge); setSelecionados([]) }} title="Selecionar tickets repetidos e fundir"
-            style={{display:'flex', alignItems:'center', gap:7, background: modoMerge?T.purpleDim:T.bg2, border:`1px solid ${modoMerge?T.purpleBor:T.sep2}`, color: modoMerge?T.purple:T.ink2, borderRadius:11, padding:'9px 13px', cursor:'pointer', fontWeight:800, fontSize:12.5}}>
+          <button onClick={()=>{ if(dupGrupos.length){ setDupPainel(!dupPainel) } else { setModoMerge(!modoMerge); setSelecionados([]) } }}
+            title={dupGrupos.length ? `${dupGrupos.length} cliente(s) com tickets duplicados — clique para revisar` : "Selecionar tickets repetidos e fundir"}
+            style={{position:'relative', display:'flex', alignItems:'center', gap:7,
+              background: (dupPainel||modoMerge)?T.purpleDim : dupGrupos.length?T.amberDim : T.bg2,
+              border:`1px solid ${(dupPainel||modoMerge)?T.purpleBor : dupGrupos.length?T.amberBor : T.sep2}`,
+              color: (dupPainel||modoMerge)?T.purple : dupGrupos.length?T.amber : T.ink2,
+              borderRadius:11, padding:'9px 13px', cursor:'pointer', fontWeight:800, fontSize:12.5}}>
             <GitMerge size={14}/>{modoMerge?'Cancelar':'Fundir repetidos'}
+            {dupGrupos.length > 0 && !modoMerge && (
+              <span style={{minWidth:18, height:18, padding:'0 5px', borderRadius:99, background:T.amber, color:'#1a1205', fontSize:10.5, fontWeight:900, display:'flex', alignItems:'center', justifyContent:'center'}}>
+                {dupGrupos.length}
+              </span>
+            )}
           </button>
           <a href={`${BASE}/api/ocorrencias/export.csv`} title="Exportar CSV"
             style={{display:'flex', alignItems:'center', gap:6, background:T.bg2, border:`1px solid ${T.sep2}`, color:T.ink2, borderRadius:11, padding:'9px 13px', fontWeight:700, fontSize:12.5, textDecoration:'none'}}>
@@ -1820,6 +1860,47 @@ export default function PageOcorrencias() {
           <Bdg color={T.red} dim={T.redDim} bor={T.redBor} icon={Zap} size="sm">{st.urgentes} urgente{st.urgentes>1?'s':''}</Bdg>
         )}
       </div>
+
+      {dupPainel && dupGrupos.length > 0 && (
+        <div style={{position:'sticky', top:0, zIndex:30, marginBottom:12, background:T.bg1, border:`1px solid ${T.amberBor}`, borderRadius:14, boxShadow:`0 12px 40px -12px ${T.amber}55`, overflow:'hidden'}}>
+          <div style={{display:'flex', alignItems:'center', gap:10, padding:'12px 16px', background:T.amberDim, borderBottom:`1px solid ${T.amberBor}`}}>
+            <GitMerge size={16} color={T.amber}/>
+            <span style={{fontSize:13, fontWeight:900, color:T.ink1}}>{dupGrupos.length} cliente{dupGrupos.length>1?'s':''} com tickets duplicados</span>
+            <span style={{fontSize:11.5, color:T.ink3}}>Mesmo número de WhatsApp, tickets ainda ativos.</span>
+            <button onClick={()=>setDupPainel(false)} style={{marginLeft:'auto', background:T.bg2, border:`1px solid ${T.sep2}`, color:T.ink2, borderRadius:8, width:28, height:28, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center'}}><X size={14}/></button>
+          </div>
+          <div style={{maxHeight:340, overflowY:'auto', padding:12, display:'flex', flexDirection:'column', gap:10}}>
+            {dupGrupos.map((g,gi)=>(
+              <div key={gi} style={{background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:12, padding:'12px 14px'}}>
+                <div style={{display:'flex', alignItems:'center', gap:9, marginBottom:9}}>
+                  <Avatar nome={g.nome_cliente} size={30}/>
+                  <div style={{flex:1, minWidth:0}}>
+                    <div style={{fontSize:13, fontWeight:800, color:T.ink1}}>{g.nome_cliente || fmtTel(g.telefone)}</div>
+                    <div style={{fontSize:11, color:T.ink3}}>{fmtTel(g.telefone)} · {g.quantidade} tickets ativos</div>
+                  </div>
+                  <button onClick={()=>fundirGrupo(g, g.alvo_sugerido)}
+                    title={`Fundir todos no ${g.alvo_sugerido_ticket} (sugerido: o mais completo)`}
+                    style={{display:'flex', alignItems:'center', gap:6, background:T.purple, border:'none', color:'#fff', borderRadius:9, padding:'7px 14px', cursor:'pointer', fontWeight:800, fontSize:12}}>
+                    <GitMerge size={13}/>Fundir no {g.alvo_sugerido_ticket}
+                  </button>
+                </div>
+                <div style={{display:'flex', flexDirection:'column', gap:5}}>
+                  {g.tickets.map((t,ti)=>(
+                    <div key={ti} onClick={()=>{ const o=(dados.ocorrencias||[]).find(x=>x.id===t.id); if(o) setSel(o) }}
+                      style={{display:'flex', alignItems:'center', gap:8, padding:'6px 9px', borderRadius:8, cursor:'pointer',
+                        background: t.id===g.alvo_sugerido?T.purpleDim:T.bg1, border:`1px solid ${t.id===g.alvo_sugerido?T.purpleBor:T.sep}`}}>
+                      <span style={{fontSize:11, fontWeight:800, color: t.id===g.alvo_sugerido?T.purple:T.ink3, minWidth:62}}>{t.ticket_id}</span>
+                      {t.id===g.alvo_sugerido && <Bdg color={T.purple} dim={T.purpleDim} bor={T.purpleBor} icon={Star}>alvo</Bdg>}
+                      <span style={{flex:1, fontSize:12, color:T.ink2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{t.titulo}</span>
+                      <span style={{fontSize:10.5, color:T.ink4}}>{TIPOS[t.tipo]?.label||t.tipo} · {t.eventos} eventos · {fmtRel(t.criado_em)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {modoMerge && selecionados.length > 0 && (
         <div style={{position:'sticky', top:0, zIndex:30, display:'flex', alignItems:'center', gap:12, padding:'11px 16px', marginBottom:12, background:T.purpleDim, border:`1px solid ${T.purpleBor}`, borderRadius:13, boxShadow:`0 8px 30px -10px ${T.purple}66`}}>
