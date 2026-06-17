@@ -814,12 +814,51 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
                   {(ctx?.conversa||[]).length===0 && <div style={{fontSize:12, color:T.ink3}}>Sem mensagens registradas.</div>}
                   {(ctx?.conversa||[]).map((m,i)=>{
                     const saida = m.direcao==='saida'
+                    // Parse do formato de mídia: "media:{id}:{mime} {caption opcional}"
+                    const raw = String(m.conteudo||'')
+                    const mMedia = raw.match(/^media:([^:]+):([^\s]+)(?:\s+([\s\S]*))?$/)
+                    let midia = null, texto = raw
+                    if (mMedia) {
+                      const [, mediaId, mime, caption] = mMedia
+                      const tipo = mime.split('/')[0]   // image | audio | video | application
+                      midia = { url: `${BASE}/api/dashboard/midia/${mediaId}`, mime, tipo }
+                      texto = caption || ''
+                    } else {
+                      // Formato legado "[image] ..." / "[audio] ..." — mostra placeholder
+                      const mLeg = raw.match(/^\[(image|audio|imagem|áudio|video)\]\s*([\s\S]*)$/i)
+                      if (mLeg) { midia = { legado:true, tipo: mLeg[1].toLowerCase().startsWith('a')||mLeg[1].toLowerCase().startsWith('á')?'audio':'image' }; texto = mLeg[2]||'' }
+                    }
                     return (
                       <div key={i} style={{display:'flex', justifyContent: saida?'flex-end':'flex-start'}}>
                         <div style={{maxWidth:'82%', padding:'7px 11px', borderRadius: saida?'12px 12px 3px 12px':'12px 12px 12px 3px',
                           background: saida?'rgba(0,230,118,.09)':T.bg3, border:`1px solid ${saida?T.greenBor:T.sep2}`,
                           fontSize:12, color:T.ink1, lineHeight:1.45}}>
-                          <div style={{whiteSpace:'pre-wrap', wordBreak:'break-word'}}>{String(m.conteudo||'').slice(0,280)}</div>
+                          {/* Mídia real (imagem/áudio/vídeo/documento) */}
+                          {midia && !midia.legado && midia.tipo==='image' && (
+                            <a href={midia.url} target="_blank" rel="noreferrer" style={{display:'block'}}>
+                              <img src={midia.url} alt="imagem do cliente" style={{maxWidth:'100%', maxHeight:220, borderRadius:8, marginBottom: texto?6:0, display:'block', cursor:'zoom-in'}}
+                                onError={e=>{ e.currentTarget.style.display='none'; e.currentTarget.insertAdjacentHTML('afterend', '<div style="font-size:11px;color:#8b93a7;padding:6px 0">📷 imagem indisponível</div>') }}/>
+                            </a>
+                          )}
+                          {midia && !midia.legado && midia.tipo==='audio' && (
+                            <audio controls src={midia.url} style={{width:240, maxWidth:'100%', height:36, marginBottom: texto?6:0}}/>
+                          )}
+                          {midia && !midia.legado && midia.tipo==='video' && (
+                            <video controls src={midia.url} style={{maxWidth:'100%', maxHeight:220, borderRadius:8, marginBottom: texto?6:0}}/>
+                          )}
+                          {midia && !midia.legado && midia.tipo==='application' && (
+                            <a href={midia.url} target="_blank" rel="noreferrer" style={{display:'inline-flex', alignItems:'center', gap:7, padding:'7px 11px', background:T.bg2, border:`1px solid ${T.sep2}`, borderRadius:9, color:T.cyan, textDecoration:'none', fontSize:11.5, fontWeight:700, marginBottom: texto?6:0}}>
+                              <FileText size={14}/>Abrir documento
+                            </a>
+                          )}
+                          {/* Placeholder de mídia legada (antes do parse de media_id) */}
+                          {midia && midia.legado && (
+                            <div style={{display:'inline-flex', alignItems:'center', gap:6, padding:'5px 9px', background:T.bg2, border:`1px dashed ${T.sep2}`, borderRadius:8, color:T.ink3, fontSize:11, marginBottom: texto?6:0}}>
+                              {midia.tipo==='audio' ? <Radio size={13}/> : <FileText size={13}/>}
+                              {midia.tipo==='audio' ? 'Áudio recebido' : 'Imagem recebida'} <span style={{color:T.ink4}}>(sem prévia)</span>
+                            </div>
+                          )}
+                          {texto && <div style={{whiteSpace:'pre-wrap', wordBreak:'break-word'}}>{texto.slice(0,280)}</div>}
                           <div style={{fontSize:9.5, color:T.ink4, marginTop:3, textAlign: saida?'right':'left'}}>{fmtRel(m.criado_em)}</div>
                         </div>
                       </div>
@@ -1945,26 +1984,37 @@ export default function PageOcorrencias() {
                   {selecionados.includes(o.id) ? <CheckSquare size={19} color={T.purple}/> : <Square size={19} color={T.ink4}/>}
                 </div>
               )}
-              <Avatar nome={o.nome_cliente} size={sel?32:38}/>
+              <Avatar nome={o.nome_cliente} size={sel?34:42}/>
               <div style={{flex:1, minWidth:0}}>
-                <div style={{display:'flex', alignItems:'center', gap:6, flexWrap:'wrap'}}>
-                  <span style={{fontSize: sel?12:13.5, fontWeight:800, color:T.ink1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth: sel?130:'none'}}>{o.nome_cliente || fmtTel(o.telefone) || 'Cliente'}</span>
+                {/* Linha 1: NOME do cliente (destaque) + ticket + pedido */}
+                <div style={{display:'flex', alignItems:'center', gap:7, flexWrap:'wrap'}}>
+                  <span style={{fontSize: sel?12.5:14.5, fontWeight:900, color:T.ink1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth: sel?130:240, letterSpacing:-0.2}}>
+                    {o.nome_cliente || fmtTel(o.telefone) || 'Cliente'}
+                  </span>
+                  {!o.nome_cliente && <span style={{fontSize:9.5, color:T.ink4, fontWeight:700, background:T.bg3, border:`1px solid ${T.sep2}`, borderRadius:6, padding:'1px 6px'}}>sem nome</span>}
                   <span style={{fontSize:10, color:T.ink4, fontWeight:700}}>{o.ticket_id}</span>
-                  <Bdg color={tp.color} dim={tp.dim} bor={tp.bor} icon={tp.icon}>{sel?'':tp.label}</Bdg>
-                  {!sel && <CanalChip canal={o.canal} size="sm"/>}
-                  {o.numero_pedido && <span style={{fontSize:10.5, color:T.cyan}}>#{o.numero_pedido}</span>}
+                  {o.numero_pedido && <span style={{fontSize:10.5, color:T.cyan, fontWeight:700, display:'inline-flex', alignItems:'center', gap:3}}><Package size={10}/>#{o.numero_pedido}</span>}
+                  {!sel && <span style={{fontSize:10, color:T.ink4, display:'inline-flex', alignItems:'center', gap:3}}><Phone size={9}/>{fmtTel(o.telefone)}</span>}
                 </div>
-                <div style={{fontSize: sel?11:12, color:T.ink3, marginTop:2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>
-                  {o.titulo || o.descricao}
+                {/* Linha 2: MOTIVO (tipo) + resumo do caso */}
+                <div style={{display:'flex', alignItems:'center', gap:6, marginTop:3}}>
+                  <span style={{display:'inline-flex', alignItems:'center', gap:3, fontSize:10.5, fontWeight:800, color:tp.color, flexShrink:0}}>
+                    <tp.icon size={11}/>{tp.label}
+                  </span>
+                  <span style={{color:T.ink4, fontSize:10}}>·</span>
+                  <span style={{fontSize: sel?11:12, color:T.ink3, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', flex:1, minWidth:0}}>
+                    {o.titulo || o.descricao || 'Sem descrição'}
+                  </span>
                 </div>
               </div>
-              <div style={{display:'flex', alignItems:'center', gap: sel?5:9, flexShrink:0}}>
+              <div style={{display:'flex', alignItems:'center', gap: sel?5:8, flexShrink:0}}>
+                {!sel && <CanalChip canal={o.canal} size="sm"/>}
                 {o.followup_vencido && <Bdg color={T.red} dim={T.redDim} bor={T.redBor} icon={AlarmClock}>{sel?'':'follow-up'}</Bdg>}
                 {o.escalonado && <Bdg color={T.orange} dim={T.orangeDim} bor={T.orangeBor} icon={TrendingUp}>{sel?'':'SLA'}</Bdg>}
                 {urgente && <Zap size={12} color={T.red}/>}
-                {!sel && <span style={{fontSize:10.5, color:pr.color, fontWeight:800}}>{pr.label}</span>}
+                {!sel && <span style={{fontSize:10, color:pr.color, fontWeight:800, textTransform:'uppercase', letterSpacing:0.3}}>{pr.label}</span>}
                 <Bdg color={sd.color} dim={sd.dim} bor={sd.bor} icon={sd.icon}>{sel?'':sd.label}</Bdg>
-                <span style={{fontSize:10, color:T.ink4, minWidth: sel?26:36, textAlign:'right'}}>{fmtRel(o.atualizado_em || o.criado_em)}</span>
+                <span style={{fontSize:10, color:T.ink4, minWidth: sel?26:42, textAlign:'right'}}>{fmtRel(o.atualizado_em || o.criado_em)}</span>
                 {!sel && !modoMerge && <ChevronRight size={14} color={T.ink4}/>}
               </div>
             </div>
