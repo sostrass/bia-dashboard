@@ -20,7 +20,7 @@ import {
   Star, Target, Activity, Flame, Shield, Award, Sparkles,
   DollarSign, Heart, BarChart2, Navigation, Layers, Command,
   Cpu, Calendar, MousePointer, ArrowLeft, Phone,
-  BellOff, BellRing, VolumeX, Settings,
+  BellOff, BellRing, VolumeX, Settings, ArrowDown, ArrowUp,
 } from 'lucide-react'
 
 // ── T system ──────────────────────────────────────────────────────────────────
@@ -186,6 +186,7 @@ function WaAvatar({ nome='', foto='', size=38, cor }) {
 function getMediaType(c='') {
   const s=c.toLowerCase()
   if(!c) return 'text'
+  if(s.startsWith('carousel:')) return 'carousel'
   if(s.startsWith('media:')) return 'media'
   if(s.includes('[imagem]')||s.includes('[image]')) return 'img_ph'
   if(s.includes('[áudio]')||s.includes('[audio]'))  return 'aud_ph'
@@ -203,6 +204,16 @@ function parseMedia(s) {
   const m = String(s||'').match(/^media:([\w-]+):([\w.+\/-]+)\s*([\s\S]*)$/)
   if (!m) return null
   return { id:m[1], mime:m[2], caption:(m[3]||'').trim() }
+}
+
+// Parse de carousel:{json} — o carrossel de produtos enviado pela Molise
+function parseCarousel(s) {
+  if (!String(s||'').startsWith('carousel:')) return null
+  try {
+    const obj = JSON.parse(String(s).slice('carousel:'.length))
+    if (!obj || !Array.isArray(obj.cards)) return null
+    return obj
+  } catch { return null }
 }
 
 // Lightbox para ampliar imagens (ESC ou clique fecha)
@@ -268,10 +279,56 @@ function MidiaWA({ media, api }) {
   )
 }
 
+// Carrossel de produtos enviado pela Molise (renderiza os cards no histórico)
+function CarouselWA({ data }) {
+  const cards = Array.isArray(data?.cards) ? data.cards : []
+  const fmtBRL = v => 'R$ ' + (parseFloat(v)||0).toFixed(2).replace('.', ',')
+  const pixBRL = v => 'R$ ' + ((parseFloat(v)||0)*0.9).toFixed(2).replace('.', ',')
+  if (!cards.length) return null
+  return (
+    <div style={{ marginTop:4 }}>
+      {data.texto && <p style={{ margin:'0 0 7px',fontSize:12.5,color:T.ink2 }}>{data.texto}</p>}
+      <div style={{ display:'flex',gap:8,overflowX:'auto',paddingBottom:6,
+        scrollbarWidth:'thin' }}>
+        {cards.map((c,i)=>(
+          <div key={i} style={{ flexShrink:0,width:158,background:T.bg4,
+            border:`1px solid ${T.sep2}`,borderRadius:11,overflow:'hidden' }}>
+            <div style={{ width:'100%',height:104,background:T.bg3,position:'relative' }}>
+              {c.imagem
+                ? <img src={c.imagem} alt={c.nome} style={{ width:'100%',height:'100%',objectFit:'cover',display:'block' }}
+                    onError={e=>{ e.currentTarget.style.display='none' }}/>
+                : <div style={{ width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center' }}><Image size={22} color={T.ink4}/></div>}
+              {c.disponivel===false && (
+                <span style={{ position:'absolute',top:6,left:6,fontSize:8.5,fontWeight:800,
+                  color:T.amber,background:'rgba(0,0,0,.65)',padding:'2px 6px',borderRadius:5 }}>esgotado</span>
+              )}
+            </div>
+            <div style={{ padding:'7px 9px' }}>
+              <div style={{ fontSize:11,fontWeight:700,color:T.ink1,lineHeight:1.3,
+                display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',
+                minHeight:28 }}>{c.nome}</div>
+              <div style={{ fontSize:11.5,fontWeight:800,color:T.green,marginTop:4 }}>{pixBRL(c.preco)}</div>
+              <div style={{ fontSize:9,color:T.ink4 }}>no PIX · {fmtBRL(c.preco)} à vista</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize:9.5,color:T.ink4,marginTop:3,display:'flex',alignItems:'center',gap:4 }}>
+        <Image size={9}/> Vitrine enviada · {cards.length} {cards.length===1?'produto':'produtos'}
+      </div>
+    </div>
+  )
+}
+
 function MediaContent({ content, tipo, api }) {
   const [err,setErr]=useState(false)
   const ph={fontSize:11.5,color:T.ink3,display:'flex',alignItems:'center',gap:7,
     padding:'8px 11px',borderRadius:9,background:T.bg4,border:`1px solid ${T.sep}`,marginTop:4}
+  if(tipo==='carousel'){
+    const c = parseCarousel(content)
+    if (c) return <CarouselWA data={c}/>
+    return <div style={ph}><Image size={13} style={{ color:T.cyan }}/> Vitrine de produtos</div>
+  }
   if(tipo==='media'){
     const m = parseMedia(content)
     if (m) return <MidiaWA media={m} api={api||''}/>
@@ -1013,8 +1070,7 @@ function IntelligenceCard({ conv, api, mensagens=[], carrinho=[], onModoChange, 
     if (!conv?.telefone) return
     setLoadPed(true); setPerfil(null)
     carregarPerfil()
-    fetch(`${api}/api/dashboard/contatos/${conv.telefone}/pedidos`)
-      .then(r => r.ok ? r.json() : null)
+    buscarPedidosCache(api, conv.telefone)
       .then(d => { if (d) setPedidos(d.pedidos || []); setLoadPed(false) })
       .catch(() => setLoadPed(false))
   }, [conv?.telefone, api, carregarPerfil])
@@ -2158,7 +2214,7 @@ function AbaPedidos({ tel, api, pixKey }) {
   const [modal,setModal]=useState(null)
 
   useEffect(()=>{
-    fetch(`${api}/api/dashboard/contatos/${tel}/pedidos`).then(r=>r.ok?r.json():null)
+    buscarPedidosCache(api, tel)
       .then(d=>{ if(d) setPedidos(d.pedidos||[]); setLoad(false) }).catch(()=>setLoad(false))
   },[tel,api])
 
@@ -2989,6 +3045,39 @@ function useNotifPush({ onAbrirConversa }) {
   return { permissao, pushAtivo, cfg, setCfgItem, ativar, desativar, notificar }
 }
 
+// ── Cache de pedidos por telefone (evita 429 do Bling) ───────────────────────
+// Guarda os pedidos buscados por TELEFONE com TTL. Assim, trocar de conversa
+// repetidamente (ou re-renders) não dispara nova chamada ao Bling toda vez.
+const _pedidosCache = new Map()   // telefone → { dados, ts }
+const _pedidosInflight = new Map() // telefone → Promise (dedup de chamadas simultâneas)
+const PEDIDOS_TTL = 120000        // 2 minutos
+
+async function buscarPedidosCache(api, telefone) {
+  const tel = String(telefone || '').replace(/\D/g, '')
+  if (!tel) return { pedidos: [] }
+  // cache fresco?
+  const hit = _pedidosCache.get(tel)
+  if (hit && (Date.now() - hit.ts) < PEDIDOS_TTL) return hit.dados
+  // já tem uma chamada em voo pro mesmo telefone? reaproveita
+  if (_pedidosInflight.has(tel)) return _pedidosInflight.get(tel)
+
+  const p = fetch(`${api}/api/dashboard/contatos/${tel}/pedidos`)
+    .then(r => r.ok ? r.json() : null)
+    .then(d => {
+      const dados = d || { pedidos: [] }
+      _pedidosCache.set(tel, { dados, ts: Date.now() })
+      _pedidosInflight.delete(tel)
+      return dados
+    })
+    .catch(() => {
+      _pedidosInflight.delete(tel)
+      // em erro (inclusive 429), devolve cache velho se houver, senão vazio
+      return hit?.dados || { pedidos: [] }
+    })
+  _pedidosInflight.set(tel, p)
+  return p
+}
+
 export default function PageConversas({ api='' }) {
   const [conversas, setConversas] = useState([])
   const [sel,       setSel]       = useState(null)
@@ -2999,6 +3088,7 @@ export default function PageConversas({ api='' }) {
   const [enviando,  setEnviando]  = useState(false)
   const [busca,     setBusca]     = useState('')
   const [filtro,    setFiltro]    = useState('todos')
+  const [ordem,     setOrdem]     = useState('recentes')   // recentes | antigas
   const [showPanel, setShowPanel] = useState(true)
   const [statusMenu,setStatusMenu]= useState(false)
   const [pixKey,    setPixKey]    = useState('')
@@ -3103,7 +3193,7 @@ export default function PageConversas({ api='' }) {
     } catch {} finally { if(loader) setLoadMsg(false) }
   },[api])
 
-  useEffect(()=>{ fetchConversas(); const iv=setInterval(fetchConversas,20000); return()=>clearInterval(iv) },[fetchConversas])
+  useEffect(()=>{ fetchConversas(); const iv=setInterval(fetchConversas,12000); return()=>clearInterval(iv) },[fetchConversas])
 
   // ⌘K / Ctrl+K para abrir Command Palette
   useEffect(()=>{
@@ -3118,10 +3208,9 @@ export default function PageConversas({ api='' }) {
     if(!sel){ setMensagens([]); setCarrinho([]); return }
     fetchMensagens(sel,true)
     const iv=setInterval(()=>fetchMensagens(sel,false),8000)
-    // Busca pedidos para o Order Context Banner
+    // Busca pedidos para o Order Context Banner (com cache anti-429)
     if (sel) {
-      fetch(`${api}/api/dashboard/contatos/${sel}/pedidos`)
-        .then(r=>r.ok?r.json():null)
+      buscarPedidosCache(api, sel)
         .then(d=>{ if(d) setPedidosAtivos(d.pedidos||[]) })
         .catch(()=>{})
     }
@@ -3131,7 +3220,11 @@ export default function PageConversas({ api='' }) {
   useEffect(()=>{ if(mensagens.length) bottomRef.current?.scrollIntoView({behavior:'smooth'}) },[mensagens.length])
 
   // Feature 2: Detectar intenção de alteração de pedido nas últimas mensagens
+  // DESATIVADA por enquanto (backend /emendar-pedido ainda não finalizado).
+  // Para reativar: trocar FEATURE_EMENDA_PEDIDO para true.
+  const FEATURE_EMENDA_PEDIDO = false
   useEffect(() => {
+    if (!FEATURE_EMENDA_PEDIDO) { setIntencaoEdit(null); return }
     if (!mensagens.length) return
     const intencao = detectarIntencao(mensagens)
     setIntencaoEdit(intencao || null)
@@ -3243,6 +3336,12 @@ export default function PageConversas({ api='' }) {
       return (c.itens_carrinho||0)>0 && min>25 && c.status_atendimento!=='resolvido'
     }
     return true
+  }).sort((a,b)=>{
+    // Ordena por última atividade REAL (cliente/atendente, ignora gatilhos).
+    // Assim um gatilho disparado NÃO joga a conversa pro topo.
+    const ta = new Date(a.ultima_atividade_real || a.ultima_atividade || a.atualizado_em || 0).getTime()
+    const tb = new Date(b.ultima_atividade_real || b.ultima_atividade || b.atualizado_em || 0).getTime()
+    return ordem==='antigas' ? ta - tb : tb - ta
   })
 
   const convAtiva=conversas.find(c=>c.telefone===sel)||null
@@ -3454,6 +3553,19 @@ export default function PageConversas({ api='' }) {
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:4 }}>
             {FILTROS.map(f=>(
               <GlassFilter key={f.id} {...f} ativo={filtro===f.id} onClick={()=>setFiltro(f.id)}/>
+            ))}
+          </div>
+
+          {/* Ordenação: mais recentes ou mais antigas */}
+          <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6 }}>
+            <span style={{ fontSize:10, color:T.ink4, fontWeight:700 }}>Ordenar:</span>
+            {[['recentes','Recentes',ArrowDown],['antigas','Antigas',ArrowUp]].map(([id,lbl,Ic])=>(
+              <button key={id} onClick={()=>setOrdem(id)}
+                style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'3px 9px',borderRadius:99,
+                  background: ordem===id?T.cyanDim:T.bg3, border:`1px solid ${ordem===id?T.cyanBor:T.sep2}`,
+                  color: ordem===id?T.cyan:T.ink3, fontSize:10.5, fontWeight:700, cursor:'pointer' }}>
+                <Ic size={10}/>{lbl}
+              </button>
             ))}
           </div>
         </div>
