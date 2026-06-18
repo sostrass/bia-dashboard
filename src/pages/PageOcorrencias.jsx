@@ -376,8 +376,13 @@ function Modal360({ oc, onAtualizado, onClose, inline = false }) {
     try {
       const r = await fetch(`${BASE}/api/ocorrencias/${oc.id}/macro-resolver`, {
         method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ mensagem:resp.trim(), por:getAgente() }) })
-      if (!r.ok) throw new Error('Falha na macro')
-      setResp(''); onAtualizado?.(); carregar()
+      const d = await r.json().catch(()=>({}))
+      if (!r.ok) throw new Error(d.erro || 'Falha na macro')
+      // Se o backend resolveu mas o WhatsApp não confirmou, avisa (não some o texto)
+      if (d.resposta_enviada === false) {
+        setErro(d.resposta_erro ? `Resolvida, mas a mensagem NÃO foi enviada: ${d.resposta_erro}` : 'Resolvida, mas o WhatsApp não confirmou o envio (verifique o token).')
+      } else { setResp('') }
+      onAtualizado?.(); carregar()
     } catch(e) { setErro(e.message) } finally { setEnviando(false) }
   }
   async function resumirCaso() {
