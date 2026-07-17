@@ -267,6 +267,89 @@ function BiaCard({ sug, onAction, onDismiss, api }) {
 }
 
 
+// ── Painel de Campanhas (gestao do motor) ─────────────────────────────────────
+// UI da fila: progresso ao vivo, pausar/retomar/cancelar. Poll de 5s enquanto
+// houver campanha rodando — a fila e do servidor, a tela so observa.
+function CampanhasPanel({ api }) {
+  const [lista,   setLista]   = useState(null)
+  const [agindo,  setAgindo]  = useState(0)
+
+  const carregar = useCallback(()=>{
+    fetch(`${api}/api/inteligencia/campanhas`).then(r=>r.json())
+      .then(d=>setLista(Array.isArray(d)?d:[])).catch(()=>setLista([]))
+  },[api])
+
+  useEffect(()=>{
+    carregar()
+    const t = setInterval(carregar, 5000)
+    return ()=>clearInterval(t)
+  },[carregar])
+
+  const acao = async (id, verbo) => {
+    setAgindo(id)
+    try { await fetch(`${api}/api/inteligencia/campanhas/${id}/${verbo}`,{method:'POST'}); carregar() } catch{}
+    setAgindo(0)
+  }
+
+  const COR = { rodando:'#25D366', pausada:'#f59e0b', concluida:'#7c6af7', cancelada:'#6b7280' }
+
+  if (lista===null) return <p style={{fontSize:12.5,color:'var(--label-4)',padding:'32px 0',textAlign:'center'}}>Carregando campanhas...</p>
+  if (!lista.length) return (
+    <div style={{textAlign:'center',padding:'56px 20px',color:'var(--label-4)'}}>
+      <Send size={30} style={{opacity:.25}}/>
+      <p style={{fontSize:14,fontWeight:700,color:'var(--label-3)',margin:'12px 0 6px'}}>Nenhuma campanha ainda</p>
+      <p style={{fontSize:12.5,margin:0,lineHeight:1.6}}>Monte a audiência na aba <strong>Clientes</strong> (filtros de segmento/canal/dias)<br/>e clique em "Criar campanha com estes filtros".</p>
+    </div>
+  )
+
+  return (
+    <div>
+      {lista.map(c=>{
+        const done = (c.enviados||0)+(c.erros||0)
+        const alvo = Math.max(1,(c.total||0)-(c.pulados||0))
+        const pct  = Math.min(100, Math.round(done/alvo*100))
+        const cor  = COR[c.status]||'#6b7280'
+        return (
+          <div key={c.id} style={{borderRadius:13,border:`1px solid ${c.status==='rodando'?cor+'40':'var(--sep)'}`,background:'var(--bg-2)',padding:'14px 18px',marginBottom:12}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12,marginBottom:10}}>
+              <div style={{minWidth:0}}>
+                <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:3}}>
+                  <span style={{fontSize:14.5,fontWeight:800,color:'var(--label)'}}>#{c.id} · {c.nome}</span>
+                  <span style={{fontSize:10.5,fontWeight:800,textTransform:'uppercase',letterSpacing:'.05em',color:cor,background:cor+'14',border:`1px solid ${cor}30`,padding:'2px 8px',borderRadius:99}}>{c.status}</span>
+                </div>
+                <p style={{fontSize:11.5,color:'var(--label-4)',margin:0}}>
+                  template <strong style={{color:'var(--label-3)'}}>{c.gatilho}</strong> · {c.ritmo_seg}s/envio · janela {c.janela_ini}h–{c.janela_fim}h · criada {String(c.criado_em).slice(0,10)}
+                </p>
+              </div>
+              <div style={{display:'flex',gap:7,flexShrink:0}}>
+                {c.status==='rodando' && <button disabled={agindo===c.id} onClick={()=>acao(c.id,'pausar')}  style={{padding:'6px 13px',borderRadius:8,border:'1px solid rgba(245,158,11,.35)',background:'rgba(245,158,11,.07)',color:'#f59e0b',cursor:'pointer',fontSize:11.5,fontWeight:700}}>Pausar</button>}
+                {c.status==='pausada' && <button disabled={agindo===c.id} onClick={()=>acao(c.id,'retomar')} style={{padding:'6px 13px',borderRadius:8,border:'1px solid rgba(37,211,102,.35)',background:'rgba(37,211,102,.07)',color:'#25D366',cursor:'pointer',fontSize:11.5,fontWeight:700}}>Retomar</button>}
+                {['rodando','pausada'].includes(c.status) && <button disabled={agindo===c.id} onClick={()=>{ if(confirm(`Cancelar a campanha #${c.id}? Os pendentes não serão enviados.`)) acao(c.id,'cancelar') }} style={{padding:'6px 13px',borderRadius:8,border:'1px solid var(--sep)',background:'transparent',color:'var(--label-4)',cursor:'pointer',fontSize:11.5,fontWeight:700}}>Cancelar</button>}
+              </div>
+            </div>
+
+            <div style={{display:'flex',alignItems:'center',gap:12}}>
+              <div style={{flex:1,height:9,background:'var(--sep)',borderRadius:99,overflow:'hidden'}}>
+                <div style={{width:`${pct}%`,height:'100%',background:`linear-gradient(90deg,${cor},${cor}90)`,borderRadius:99,transition:'width .6s'}}/>
+              </div>
+              <span style={{fontSize:12,fontWeight:800,color:cor,width:44,textAlign:'right'}}>{pct}%</span>
+            </div>
+            <div style={{display:'flex',gap:16,marginTop:8,fontSize:11.5,color:'var(--label-4)',flexWrap:'wrap'}}>
+              <span>✅ <strong style={{color:'var(--label-2)'}}>{(c.enviados||0).toLocaleString('pt-BR')}</strong> enviados</span>
+              <span>⏳ <strong style={{color:'var(--label-2)'}}>{(c.pendentes||0).toLocaleString('pt-BR')}</strong> na fila</span>
+              {c.erros>0   && <span>⚠️ <strong style={{color:'#ff4757'}}>{c.erros}</strong> erros</span>}
+              {c.pulados>0 && <span>↷ <strong style={{color:'var(--label-2)'}}>{c.pulados}</strong> pulados (cooldown/blacklist)</span>}
+              {c.status==='rodando' && c.pendentes>0 && (
+                <span>≈ <strong style={{color:'var(--label-2)'}}>{Math.ceil(c.pendentes/(3600/c.ritmo_seg)/Math.max(1,c.janela_fim-c.janela_ini)*10)/10}</strong> dia(s) restantes</span>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Compositor de Campanha ────────────────────────────────────────────────────
 // Substitui o "disparar para todos" cru. A audiencia e resolvida NO SERVIDOR a
 // partir do filtro (o browser nunca carrega 40k clientes); o envio e uma FILA
@@ -891,6 +974,8 @@ export default function PageInteligencia({ api }) {
 
   // ── Filtros da lista de clientes ───────────────────────────────────────────
   const [showCampanha,setShowCamp]  = useState(false)
+  const [totalFiltro, setTotalFlt]  = useState(0)      // total REAL do filtro (servidor)
+  const [receitaFlt,  setReceitaFlt]= useState(0)
   const [segFiltro,   setSegFiltro] = useState('todos')
   const [canalFiltro, setCanalFlt]  = useState('todos')
   const [diasFiltro,  setDiasFiltro]= useState('30')
@@ -903,18 +988,24 @@ export default function PageInteligencia({ api }) {
   const [tipoFiltro,  setTipoFlt]   = useState('todos')
   const [dismissed,   setDismissed] = useState(new Set())
 
-  const carregarClientes = useCallback(async () => {
+  const carregarClientes = useCallback(async (offset=0) => {
     setLoadCli(true)
     try {
-      const r = await fetch(`${api}/api/inteligencia/clientes?dias=${diasFiltro}&segmento=${segFiltro}&canal=${canalFiltro}`)
+      const qs = `dias=${diasFiltro}&segmento=${segFiltro}&canal=${canalFiltro}&busca=${encodeURIComponent(busca)}&offset=${offset}`
+      const r = await fetch(`${api}/api/inteligencia/clientes?${qs}`)
       if (r.ok) {
         const d = await r.json()
-        setClientes(d.clientes || [])
+        setClientes(prev => offset>0 ? [...prev, ...(d.clientes||[])] : (d.clientes||[]))
         setStats(d.stats || null)
+        setTotalFlt(d.totalFiltro ?? (d.clientes||[]).length)
+        setReceitaFlt(d.receitaFiltro ?? 0)
       }
     } catch {}
     setLoadCli(false)
-  }, [api, diasFiltro, segFiltro, canalFiltro])
+  }, [api, diasFiltro, segFiltro, canalFiltro, busca])
+
+  // Busca com debounce: refaz no servidor 400ms apos parar de digitar
+  useEffect(()=>{ const t=setTimeout(()=>carregarClientes(0),400); return ()=>clearTimeout(t) },[busca])
 
   const carregarSugestoes = useCallback(async () => {
     setLoadSug(true)
@@ -1009,10 +1100,13 @@ export default function PageInteligencia({ api }) {
   const receitaRecuperavel = clientesFiltrados.reduce((s,c) => s + (c.ticketMedio||0), 0)
 
   // ── Distribuição por segmento ──────────────────────────────────────────────
+  // Distribuicao da BASE INTEIRA (stats do servidor: 39.588), nao dos 200
+  // carregados na pagina — era isso que fazia "Perdido 100%" na Visao Geral.
+  const _statsTotal = Number(stats?.total||0)
   const distSeg = Object.entries(SEG).map(([key,s])=>({
     ...s, key,
-    count: clientes.filter(c=>c.segmento===key).length,
-    total: clientes.length,
+    count: Number(stats?.[key]||0) || clientes.filter(c=>c.segmento===key).length,
+    total: _statsTotal || clientes.length,
   })).filter(s=>s.count>0).sort((a,b)=>b.count-a.count)
 
   const urgentesCount = sugestoesFiltradas.filter(s=>s.prioridade==='alta').length
@@ -1075,7 +1169,8 @@ export default function PageInteligencia({ api }) {
           {[
             {id:'overview',   label:'Visão Geral', icon:BarChart3},
             {id:'sugestoes',  label:`Sugestões da Bia${sugestoesFiltradas.length?` (${sugestoesFiltradas.length})`:''}`, icon:Brain},
-            {id:'clientes',   label:`Clientes${clientesFiltrados.length?` (${clientesFiltrados.length})`:''}`, icon:Users},
+            {id:'clientes',   label:`Clientes${totalFiltro?` (${fmt(totalFiltro)})`:''}`, icon:Users},
+            {id:'campanhas',  label:'Campanhas', icon:Send},
             {id:'avaliacoes', label:`Avaliações${avaliacoes.length?` (${avaliacoes.length})`:''}`, icon:Star},
           ].map(t=>{
             const Icon = t.icon
@@ -1318,7 +1413,7 @@ export default function PageInteligencia({ api }) {
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10,padding:'0 4px'}}>
               <span style={{fontSize:12.5,color:'var(--label-4)'}}>
                 {loadClientes ? <><RefreshCw size={12} style={{animation:'spin 1s linear infinite',marginRight:6}}/> Carregando...</>
-                  : `${fmt(clientesFiltrados.length)} clientes · receita recuperável estimada ${Rk(receitaRecuperavel)}`
+                  : `Mostrando ${fmt(clientesFiltrados.length)} de ${fmt(totalFiltro)} clientes do filtro · receita recuperável ${Rk(receitaFlt||receitaRecuperavel)} · a campanha alcança TODOS os ${fmt(totalFiltro)}`
                 }
               </span>
               {/* O composer resolve a audiencia NO SERVIDOR pelos filtros atuais —
@@ -1421,6 +1516,12 @@ export default function PageInteligencia({ api }) {
                   )
                 })}
                 {totalPaginas > 7 && <span style={{color:'var(--label-4)',fontSize:12}}>... {totalPaginas}</span>}
+                {clientes.length < totalFiltro && (
+                  <button onClick={()=>carregarClientes(clientes.length)} disabled={loadClientes}
+                    style={{padding:'6px 14px',borderRadius:8,border:'1px solid var(--accent)',background:'var(--accent-dim)',color:'var(--accent)',cursor:'pointer',fontSize:12,fontWeight:700}}>
+                    {loadClientes?'Carregando...':`+ Carregar mais (${fmt(totalFiltro - clientes.length)} restantes)`}
+                  </button>
+                )}
                 <button onClick={()=>setPagina(p=>Math.min(totalPaginas,p+1))} disabled={paginaAtual===totalPaginas}
                   style={{padding:'6px 12px',borderRadius:8,border:'1px solid var(--sep)',background:'transparent',color:'var(--label-3)',cursor:paginaAtual===totalPaginas?'not-allowed':'pointer',opacity:paginaAtual===totalPaginas?.4:1,fontSize:12}}>
                   →
@@ -1434,6 +1535,12 @@ export default function PageInteligencia({ api }) {
 
       {/* ── MODAIS ─────────────────────────────────────────────────────────── */}
       {/* ────────── VIEW: AVALIAÇÕES ──────────────────────────────────────────── */}
+      {view === 'campanhas' && (
+        <div style={{maxWidth:980,margin:'0 auto',padding:'0 4px'}}>
+          <CampanhasPanel api={api}/>
+        </div>
+      )}
+
       {view === 'avaliacoes' && (
         <div style={{display:'flex',flexDirection:'column',gap:16}}>
           {/* Resumo */}
