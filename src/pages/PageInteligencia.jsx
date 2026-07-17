@@ -533,14 +533,30 @@ function ClienteSheet({ cliente, onClose, api }) {
   // disparos — a informacao estrategica que faltava no drawer.
   const [rico,     setRico]    = useState(null)
   const [loadRico, setLoadRico]= useState(true)
+  const [erroRico, setErroRico]= useState('')
   useEffect(()=>{
     const tel = (cliente.telefone||'').replace(/\D/g,'')
     if (!tel) { setLoadRico(false); return }
     fetch(`${api}/api/inteligencia/cliente/${tel}`)
-      .then(r=>r.ok?r.json():null)
+      .then(async r=>{
+        if (r.ok) return r.json()
+        const d = await r.json().catch(()=>({}))
+        throw new Error(`${r.status}: ${d.erro||'endpoint indisponível'}`)
+      })
       .then(d=>{ setRico(d); setLoadRico(false) })
-      .catch(()=>setLoadRico(false))
+      .catch(e=>{ setErroRico(String(e.message)); setLoadRico(false) })
   },[])
+
+  // Fallback: se o objeto da LISTA vier sem os campos (cache do navegador com o
+  // payload antigo), completa com o perfil do servidor — uma fonte cobre a outra.
+  const pf = rico?.perfil || {}
+  cliente = {
+    ...cliente,
+    pedidosTotal:   cliente.pedidosTotal   ?? pf.pedidos_total,
+    cicloDias:      cliente.cicloDias      ?? pf.ciclo_dias,
+    primeiroPedido: cliente.primeiroPedido ?? pf.primeiro_pedido,
+    ultimoPedido:   cliente.ultimoPedido   ?? pf.ultimo_pedido,
+  }
   const [pedidos, setPedidos] = useState([])
   const [loadPed, setLoadPed] = useState(false)
   const [cp,      setCp]      = useState('')
@@ -751,6 +767,7 @@ function ClienteSheet({ cliente, onClose, api }) {
           {tab==='produtos'&&(
             <div>
               {loadRico && <p style={{fontSize:12.5,color:'var(--label-4)'}}>Carregando produtos do cliente...</p>}
+              {erroRico && <p style={{fontSize:12,color:'#ff4757',lineHeight:1.5}}>⚠️ Perfil rico indisponível ({erroRico}). Confira se o backend está no build LAYOUT-V2.</p>}
               {!loadRico && !(rico?.produtos?.length) && (
                 <p style={{fontSize:12.5,color:'var(--label-4)',lineHeight:1.6}}>
                   Sem itens conhecidos ainda. Os itens são buscados dos pedidos mais recentes
@@ -1608,7 +1625,9 @@ export default function PageInteligencia({ api }) {
         </div>
       )}
 
-      {clienteSel && <ClienteSheet cliente={clienteSel} onClose={()=>setCltSel(null)} api={api}/>}
+      {/* key = telefone: sem ela o React REUSA a instancia ao trocar de cliente
+          e o perfil rico (useEffect []) fica preso no cliente anterior. */}
+      {clienteSel && <ClienteSheet key={clienteSel.telefone||clienteSel.nome} cliente={clienteSel} onClose={()=>setCltSel(null)} api={api}/>}
       {showCampanha && <CampanhaComposer api={api} onClose={()=>setShowCamp(false)}
         filtro={{
           segmentos: segFiltro!=='todos' ? [segFiltro] : null,
