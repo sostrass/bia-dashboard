@@ -267,9 +267,197 @@ function BiaCard({ sug, onAction, onDismiss, api }) {
 }
 
 
+// ── Compositor de Campanha ────────────────────────────────────────────────────
+// Substitui o "disparar para todos" cru. A audiencia e resolvida NO SERVIDOR a
+// partir do filtro (o browser nunca carrega 40k clientes); o envio e uma FILA
+// com ritmo + janela de horario, via template HSM da PageGatilhos — cliente
+// frio esta fora da janela de 24h do WhatsApp, so template aprovado chega.
+function CampanhaComposer({ api, filtro, onClose }) {
+  const [preview,  setPreview]  = useState(null)
+  const [gatilhos, setGatilhos] = useState([])
+  const [nome,     setNome]     = useState('')
+  const [gatilho,  setGatilho]  = useState('')
+  const [ritmo,    setRitmo]    = useState(3)      // seg entre envios
+  const [janIni,   setJanIni]   = useState(9)
+  const [janFim,   setJanFim]   = useState(20)
+  const [cooldown, setCooldown] = useState(7)
+  const [ciente,   setCiente]   = useState(false)
+  const [criando,  setCriando]  = useState(false)
+  const [criada,   setCriada]   = useState(null)
+  const [erro,     setErro]     = useState('')
+
+  useEffect(()=>{
+    fetch(`${api}/api/inteligencia/audiencia/preview`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({filtro, cooldownDias:cooldown})
+    }).then(r=>r.json()).then(setPreview).catch(()=>{})
+  },[cooldown])
+
+  useEffect(()=>{
+    fetch(`${api}/api/templates`).then(r=>r.json())
+      .then(d=>{
+        const ativos = (d.templates||[]).filter(t=>t.ativo)
+        setGatilhos(ativos)
+        const pref = ativos.find(t=>/reengaj|recuper|winback|volta/i.test(t.gatilho||t.nome||''))
+        if (pref) setGatilho(pref.gatilho)
+      }).catch(()=>{})
+  },[])
+
+  const enviaveis = preview ? preview.enviaveis : 0
+  const msgsHora  = Math.round(3600/Math.max(1,ritmo))
+  const horasJan  = Math.max(1, janFim - janIni)
+  const diasEnvio = enviaveis ? (enviaveis/msgsHora/horasJan) : 0
+
+  const criar = async () => {
+    setErro(''); setCriando(true)
+    try {
+      const r = await fetch(`${api}/api/inteligencia/campanhas`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({nome:nome.trim(),gatilho,filtro,ritmoSeg:ritmo,janelaIni:janIni,janelaFim:janFim,cooldownDias:cooldown})
+      })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.erro||'falha ao criar')
+      setCriada(d)
+    } catch(e){ setErro(e.message) }
+    setCriando(false)
+  }
+
+  const Row = ({k,v}) => (
+    <div style={{display:'flex',justifyContent:'space-between',fontSize:12.5,padding:'5px 0'}}>
+      <span style={{color:'var(--label-3)'}}>{k}</span><span style={{color:'var(--label)',fontWeight:600}}>{v}</span>
+    </div>
+  )
+
+  return (
+    <>
+      <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:60,background:'rgba(0,0,0,.5)',backdropFilter:'blur(2px)'}}/>
+      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:640,maxHeight:'88vh',zIndex:70,background:'var(--bg-2)',borderRadius:16,border:'1px solid var(--sep)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 32px 80px rgba(0,0,0,.4)'}}>
+        <div style={{height:2.5,background:'linear-gradient(90deg,#25D366,#25D36660)'}}/>
+        <div style={{padding:'16px 22px 12px',borderBottom:'1px solid var(--sep)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div>
+            <p style={{fontSize:16,fontWeight:800,color:'var(--label)',margin:0}}>Nova campanha</p>
+            <p style={{fontSize:11.5,color:'var(--label-4)',margin:'3px 0 0'}}>Fila com ritmo controlado · templates aprovados da página de Gatilhos</p>
+          </div>
+          <button onClick={onClose} style={{background:'transparent',border:'none',color:'var(--label-4)',cursor:'pointer',fontSize:18}}>×</button>
+        </div>
+
+        <div style={{flex:1,overflowY:'auto',padding:'16px 22px'}}>
+          {criada ? (
+            <div style={{textAlign:'center',padding:'28px 10px'}}>
+              <p style={{fontSize:34,margin:0}}>📣</p>
+              <p style={{fontSize:16,fontWeight:800,color:'var(--label)',margin:'10px 0 6px'}}>Campanha #{criada.id} criada e rodando</p>
+              <p style={{fontSize:13,color:'var(--label-3)',margin:0,lineHeight:1.6}}>
+                {criada.pendentes} na fila · {criada.pulados} pulados (cooldown/blacklist)<br/>
+                ~{msgsHora}/h dentro da janela {janIni}h–{janFim}h → ≈ <strong>{Math.ceil(diasEnvio||1)} dia(s)</strong> de envio.<br/>
+                Sobrevive a restart; pause quando quiser em Campanhas.
+              </p>
+              <button onClick={onClose} style={{marginTop:18,padding:'9px 22px',borderRadius:10,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',cursor:'pointer',fontSize:13,fontWeight:700}}>Fechar</button>
+            </div>
+          ) : (
+          <>
+            {/* Audiência */}
+            <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',margin:'0 0 8px'}}>Audiência (filtros atuais)</p>
+            <div style={{borderRadius:12,border:'1px solid var(--sep)',background:'var(--fill)',padding:'12px 14px',marginBottom:16}}>
+              {!preview ? <p style={{fontSize:12,color:'var(--label-4)',margin:0}}>Calculando audiência...</p> : (
+                <>
+                  <div style={{display:'flex',gap:18,marginBottom:10}}>
+                    <div><p style={{fontSize:21,fontWeight:800,color:'#25D366',margin:0}}>{preview.enviaveis?.toLocaleString('pt-BR')}</p><p style={{fontSize:10.5,color:'var(--label-4)',margin:0}}>receberão</p></div>
+                    <div><p style={{fontSize:21,fontWeight:800,color:'var(--label-3)',margin:0}}>{preview.em_cooldown?.toLocaleString('pt-BR')}</p><p style={{fontSize:10.5,color:'var(--label-4)',margin:0}}>em cooldown</p></div>
+                    <div><p style={{fontSize:21,fontWeight:800,color:'#f59e0b',margin:0}}>R$ {Number(preview.receita_estimada||0).toLocaleString('pt-BR',{maximumFractionDigits:0})}</p><p style={{fontSize:10.5,color:'var(--label-4)',margin:0}}>receita estimada</p></div>
+                  </div>
+                  {(preview.por_segmento||[]).map(s=>(
+                    <div key={s.segmento} style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+                      <span style={{fontSize:11,color:'var(--label-3)',width:76,textTransform:'capitalize'}}>{s.segmento}</span>
+                      <div style={{flex:1,height:5,background:'var(--sep)',borderRadius:99,overflow:'hidden'}}>
+                        <div style={{width:`${preview.total?s.qtd/preview.total*100:0}%`,height:'100%',background:'#7c6af7',borderRadius:99}}/>
+                      </div>
+                      <span style={{fontSize:11,color:'var(--label-4)',width:52,textAlign:'right'}}>{s.qtd.toLocaleString('pt-BR')}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+
+            {/* Config */}
+            <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',margin:'0 0 8px'}}>Mensagem e ritmo</p>
+            <input value={nome} onChange={e=>setNome(e.target.value)} placeholder="Nome da campanha (ex: Win-back perdidos julho)"
+              style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:10,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:13,marginBottom:10}}/>
+            <select value={gatilho} onChange={e=>setGatilho(e.target.value)}
+              style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:10,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:13,marginBottom:12}}>
+              <option value="">— Template (gatilho HSM aprovado) —</option>
+              {gatilhos.map(t=><option key={t.id} value={t.gatilho}>{t.nome||t.gatilho} ({t.gatilho})</option>)}
+            </select>
+
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:10,marginBottom:12}}>
+              <label style={{fontSize:11,color:'var(--label-4)'}}>Ritmo
+                <select value={ritmo} onChange={e=>setRitmo(Number(e.target.value))} style={{width:'100%',marginTop:4,padding:'8px',borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:12}}>
+                  <option value={6}>10/min (cauteloso)</option>
+                  <option value={3}>20/min (padrão)</option>
+                  <option value={2}>30/min (rápido)</option>
+                </select>
+              </label>
+              <label style={{fontSize:11,color:'var(--label-4)'}}>Início
+                <select value={janIni} onChange={e=>setJanIni(Number(e.target.value))} style={{width:'100%',marginTop:4,padding:'8px',borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:12}}>
+                  {[8,9,10].map(h=><option key={h} value={h}>{h}h</option>)}
+                </select>
+              </label>
+              <label style={{fontSize:11,color:'var(--label-4)'}}>Fim
+                <select value={janFim} onChange={e=>setJanFim(Number(e.target.value))} style={{width:'100%',marginTop:4,padding:'8px',borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:12}}>
+                  {[18,19,20,21].map(h=><option key={h} value={h}>{h}h</option>)}
+                </select>
+              </label>
+              <label style={{fontSize:11,color:'var(--label-4)'}}>Cooldown
+                <select value={cooldown} onChange={e=>setCooldown(Number(e.target.value))} style={{width:'100%',marginTop:4,padding:'8px',borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:12}}>
+                  {[3,7,14,30].map(d=><option key={d} value={d}>{d} dias</option>)}
+                </select>
+              </label>
+            </div>
+
+            {enviaveis>0 && (
+              <div style={{borderRadius:10,background:'rgba(37,211,102,.05)',border:'1px solid rgba(37,211,102,.2)',padding:'10px 13px',marginBottom:12}}>
+                <Row k="Velocidade" v={`${msgsHora}/hora, janela ${janIni}h–${janFim}h (Brasília)`}/>
+                <Row k="Duração estimada" v={`≈ ${Math.ceil(diasEnvio)} dia(s) de envio`}/>
+                <Row k="Proteções" v="dedup · cooldown · blacklist · retoma após restart"/>
+              </div>
+            )}
+
+            {erro && <p style={{fontSize:12,color:'#ff4757',margin:'0 0 10px'}}>⚠️ {erro}</p>}
+
+            <label style={{display:'flex',gap:8,alignItems:'flex-start',fontSize:12,color:'var(--label-3)',cursor:'pointer',marginBottom:14,lineHeight:1.5}}>
+              <input type="checkbox" checked={ciente} onChange={e=>setCiente(e.target.checked)} style={{marginTop:2}}/>
+              <span>Entendo que <strong style={{color:'var(--label)'}}>{enviaveis.toLocaleString('pt-BR')} mensagens de template</strong> serão enviadas ao longo de ~{Math.ceil(diasEnvio||1)} dia(s), e que volume alto com muitos bloqueios pode afetar a reputação do número no WhatsApp.</span>
+            </label>
+
+            <button disabled={!ciente||!nome.trim()||!gatilho||!enviaveis||criando} onClick={criar}
+              style={{width:'100%',padding:'12px',borderRadius:11,border:'none',cursor:(!ciente||!nome.trim()||!gatilho||!enviaveis)?'not-allowed':'pointer',
+                background:(!ciente||!nome.trim()||!gatilho||!enviaveis)?'var(--fill)':'#25D366',
+                color:(!ciente||!nome.trim()||!gatilho||!enviaveis)?'var(--label-4)':'#04150b',fontSize:14,fontWeight:800}}>
+              {criando?'Criando fila...':`Iniciar campanha para ${enviaveis.toLocaleString('pt-BR')} clientes`}
+            </button>
+          </>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ── Sheet lateral do cliente ──────────────────────────────────────────────────
 function ClienteSheet({ cliente, onClose, api }) {
   const [tab,     setTab]     = useState('perfil')
+  // Perfil RICO do servidor: pedidos reais (base local), TOP PRODUTOS que o
+  // cliente compra (itens sob demanda do Bling, com cache) e historico de
+  // disparos — a informacao estrategica que faltava no drawer.
+  const [rico,     setRico]    = useState(null)
+  const [loadRico, setLoadRico]= useState(true)
+  useEffect(()=>{
+    const tel = (cliente.telefone||'').replace(/\D/g,'')
+    if (!tel) { setLoadRico(false); return }
+    fetch(`${api}/api/inteligencia/cliente/${tel}`)
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{ setRico(d); setLoadRico(false) })
+      .catch(()=>setLoadRico(false))
+  },[])
   const [pedidos, setPedidos] = useState([])
   const [loadPed, setLoadPed] = useState(false)
   const [cp,      setCp]      = useState('')
@@ -284,12 +472,15 @@ function ClienteSheet({ cliente, onClose, api }) {
   useEffect(()=>{
     if (tab !== 'pedidos') return
     if (pedidos.length) return
+    // 1a fonte: pedidos reais da base local (por TELEFONE — inequivoco).
+    // A busca antiga por NOME fica so como fallback: nome nao e chave.
+    if (rico?.pedidos?.length) { setPedidos(rico.pedidos.map(p=>({numero:p.numero,data:p.data,total:p.total,situacao:p.situacao_id,canal:p.canal}))); return }
     setLoadPed(true)
     fetch(`${api}/api/dashboard/pedido-completo-by-contato/${encodeURIComponent(cliente.nome||'')}`)
       .then(r=>r.ok?r.json():null)
       .then(d=>{if(d?.pedidos) setPedidos(d.pedidos); setLoadPed(false)})
       .catch(()=>setLoadPed(false))
-  },[tab])
+  },[tab, rico])
 
   const enviarWA = async () => {
     if (!msg.trim() || !cliente.telefone) return
@@ -306,10 +497,11 @@ function ClienteSheet({ cliente, onClose, api }) {
   }
 
   const TABS = [
-    {id:'perfil', label:'Perfil'},
-    {id:'rfm',    label:'Score RFM'},
-    {id:'pedidos',label:'Pedidos'},
-    {id:'msg',    label:'Mensagem'},
+    {id:'perfil',  label:'Perfil'},
+    {id:'rfm',     label:'Score RFM'},
+    {id:'pedidos', label:'Pedidos'},
+    {id:'produtos',label:'Produtos'},
+    {id:'msg',     label:'Mensagem'},
   ]
 
   return (
@@ -473,6 +665,50 @@ function ClienteSheet({ cliente, onClose, api }) {
           )}
 
           {/* Mensagem */}
+          {tab==='produtos'&&(
+            <div>
+              {loadRico && <p style={{fontSize:12.5,color:'var(--label-4)'}}>Carregando produtos do cliente...</p>}
+              {!loadRico && !(rico?.produtos?.length) && (
+                <p style={{fontSize:12.5,color:'var(--label-4)',lineHeight:1.6}}>
+                  Sem itens conhecidos ainda. Os itens são buscados dos pedidos mais recentes
+                  quando o perfil é aberto — se este cliente comprou há muito tempo, o pedido
+                  pode não estar mais detalhável no Bling.
+                </p>
+              )}
+              {!loadRico && rico?.produtos?.length > 0 && (
+                <>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                    <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',margin:0}}>O que este cliente compra</p>
+                    <span style={{fontSize:10.5,color:'var(--label-4)'}}>{rico.produtos_cobertura}</span>
+                  </div>
+                  {rico.produtos.map((p,i)=>(
+                    <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 11px',borderRadius:9,background:'var(--fill)',border:'1px solid var(--sep)',marginBottom:6}}>
+                      <span style={{fontSize:11,fontWeight:800,color:'var(--label-4)',width:18,flexShrink:0}}>{i+1}º</span>
+                      <div style={{flex:1,minWidth:0}}>
+                        <p style={{fontSize:12.5,fontWeight:600,color:'var(--label)',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.descricao}</p>
+                        <p style={{fontSize:11,color:'var(--label-4)',margin:'2px 0 0'}}>{p.quantidade}x · {Rk(p.valor_total)}</p>
+                      </div>
+                    </div>
+                  ))}
+                  <p style={{fontSize:11,color:'var(--label-4)',marginTop:10,lineHeight:1.5}}>
+                    💡 Use na mensagem: cliente que compra <strong>{(rico.produtos[0]?.descricao||'').split(' ').slice(0,3).join(' ')}</strong> responde melhor a oferta do mesmo tipo de produto.
+                  </p>
+                </>
+              )}
+              {!loadRico && rico?.disparos_recentes?.length > 0 && (
+                <div style={{marginTop:16}}>
+                  <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',marginBottom:8}}>Últimos contatos automáticos</p>
+                  {rico.disparos_recentes.map((d,i)=>(
+                    <div key={i} style={{display:'flex',justifyContent:'space-between',fontSize:11.5,padding:'5px 0',borderBottom:'1px solid var(--sep)'}}>
+                      <span style={{color:'var(--label-3)'}}>{d.gatilho} <span style={{color:'var(--label-4)'}}>({d.origem})</span></span>
+                      <span style={{color:d.status==='enviado'?'#22c55e':'var(--label-4)'}}>{d.status} · {String(d.criado_em).slice(0,10)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {tab==='msg'&&(
             <div>
               <p style={{fontSize:12,color:'var(--label-3)',marginBottom:12,lineHeight:1.5}}>
@@ -654,6 +890,7 @@ export default function PageInteligencia({ api }) {
   const [ultimaAnal,  setUltimaAnal]= useState(null)
 
   // ── Filtros da lista de clientes ───────────────────────────────────────────
+  const [showCampanha,setShowCamp]  = useState(false)
   const [segFiltro,   setSegFiltro] = useState('todos')
   const [canalFiltro, setCanalFlt]  = useState('todos')
   const [diasFiltro,  setDiasFiltro]= useState('30')
@@ -784,8 +1021,12 @@ export default function PageInteligencia({ api }) {
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER
   // ══════════════════════════════════════════════════════════════════════════
+  // height:100% + overflowY:auto = padrao das paginas que rolam (PageDashboard,
+  // PageClientes). minHeight:100vh dentro do <main overflow:hidden> do Shell
+  // fazia a pagina crescer alem da janela e ser CORTADA sem barra de rolagem
+  // em lugar nenhum — o "Avaliacoes sem scroll" (a lista mais longa, 49 itens).
   return (
-    <div style={{minHeight:'100vh',background:'var(--bg)',color:'var(--label)'}}>
+    <div style={{height:'100%',overflowY:'auto',background:'var(--bg)',color:'var(--label)'}}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg) } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
@@ -1080,11 +1321,12 @@ export default function PageInteligencia({ api }) {
                   : `${fmt(clientesFiltrados.length)} clientes · receita recuperável estimada ${Rk(receitaRecuperavel)}`
                 }
               </span>
-              {clientesFiltrados.filter(c=>c.telefone).length > 0 && (
-                <button onClick={()=>dispararLote(clientesFiltrados)} style={{display:'flex',alignItems:'center',gap:6,padding:'7px 14px',borderRadius:9,border:'1px solid rgba(37,211,102,.3)',background:'rgba(37,211,102,.06)',color:'#25D366',cursor:'pointer',fontSize:12,fontWeight:700}}>
-                  <Send size={12}/> Disparar para {fmt(clientesFiltrados.filter(c=>c.telefone).length)} com telefone
-                </button>
-              )}
+              {/* O composer resolve a audiencia NO SERVIDOR pelos filtros atuais —
+                  a lista da tela (200) e so amostra; a campanha alcanca TODOS os
+                  clientes do filtro (ex: 10.963 perdidos), com fila, ritmo e janela. */}
+              <button onClick={()=>setShowCamp(true)} style={{display:'flex',alignItems:'center',gap:6,padding:'7px 14px',borderRadius:9,border:'1px solid rgba(37,211,102,.3)',background:'rgba(37,211,102,.06)',color:'#25D366',cursor:'pointer',fontSize:12,fontWeight:700}}>
+                <Send size={12}/> Criar campanha com estes filtros
+              </button>
             </div>
 
             {/* Tabela de clientes */}
@@ -1260,9 +1502,15 @@ export default function PageInteligencia({ api }) {
       )}
 
       {clienteSel && <ClienteSheet cliente={clienteSel} onClose={()=>setCltSel(null)} api={api}/>}
+      {showCampanha && <CampanhaComposer api={api} onClose={()=>setShowCamp(false)}
+        filtro={{
+          segmentos: segFiltro!=='todos' ? [segFiltro] : null,
+          canais:    canalFiltro!=='todos' ? [canalFiltro] : null,
+          diasMin:   parseInt(diasFiltro)||0,
+          busca:     busca||null,
+        }}/>}
       {showConfig  && <ConfigModal config={config} onSave={salvarConfig} onClose={()=>setShowCfg(false)}/>}
 
     </div>
   )
 }
-
