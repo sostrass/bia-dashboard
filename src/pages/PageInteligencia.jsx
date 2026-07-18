@@ -16,7 +16,14 @@ import {
 const R   = n => `R$ ${Number(n||0).toFixed(2).replace('.',',')}`
 const Rk  = n => n >= 1000 ? `R$ ${(n/1000).toFixed(1).replace('.',',')}k` : R(n)
 const fmt = n => Number(n||0).toLocaleString('pt-BR')
-const fmtD  = d => d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—'
+// Aceita 'YYYY-MM-DD' E ISO completo ('...T00:00:00.000Z' — como o pg serializa
+// DATE via JSON). O +'T12:00:00' cego gerava "Invalid Date" com ISO.
+const fmtD  = d => {
+  if (!d) return '—'
+  const s = String(d).slice(0,10)
+  const dt = new Date(s+'T12:00:00')
+  return isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})
+}
 const fmtDT = d => d ? new Date(d).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—'
 const diasAtras = d => {
   if (!d) return 999
@@ -1008,7 +1015,7 @@ export default function PageInteligencia({ api }) {
   const carregarClientes = useCallback(async (offset=0) => {
     setLoadCli(true)
     try {
-      const qs = `dias=${diasFiltro}&segmento=${segFiltro}&canal=${canalFiltro}&busca=${encodeURIComponent(busca)}&offset=${offset}`
+      const qs = `dias=${diasFiltro}&segmento=${segFiltro}&canal=${canalFiltro}&busca=${encodeURIComponent(busca)}&offset=${offset}&sort=${sortBy}`
       const r = await fetch(`${api}/api/inteligencia/clientes?${qs}`)
       if (r.ok) {
         const d = await r.json()
@@ -1019,7 +1026,7 @@ export default function PageInteligencia({ api }) {
       }
     } catch {}
     setLoadCli(false)
-  }, [api, diasFiltro, segFiltro, canalFiltro, busca])
+  }, [api, diasFiltro, segFiltro, canalFiltro, busca, sortBy])
 
   // Busca com debounce: refaz no servidor 400ms apos parar de digitar
   useEffect(()=>{ const t=setTimeout(()=>carregarClientes(0),400); return ()=>clearTimeout(t) },[busca])
