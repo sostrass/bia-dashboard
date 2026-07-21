@@ -363,6 +363,7 @@ function CampanhasPanel({ api }) {
 // com ritmo + janela de horario, via template HSM da PageGatilhos — cliente
 // frio esta fora da janela de 24h do WhatsApp, so template aprovado chega.
 function CampanhaComposer({ api, filtro, onClose }) {
+  const [produto,  setProduto]  = useState('')   // filtro por produto comprado
   const [preview,  setPreview]  = useState(null)
   const [gatilhos, setGatilhos] = useState([])
   const [nome,     setNome]     = useState('')
@@ -376,12 +377,16 @@ function CampanhaComposer({ api, filtro, onClose }) {
   const [criada,   setCriada]   = useState(null)
   const [erro,     setErro]     = useState('')
 
+  const filtroFinal = produto.trim() ? {...filtro, produto: produto.trim()} : filtro
   useEffect(()=>{
-    fetch(`${api}/api/inteligencia/audiencia/preview`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({filtro, cooldownDias:cooldown})
-    }).then(r=>r.json()).then(setPreview).catch(()=>{})
-  },[cooldown])
+    const t = setTimeout(()=>{
+      fetch(`${api}/api/inteligencia/audiencia/preview`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({filtro: filtroFinal, cooldownDias:cooldown})
+      }).then(r=>r.json()).then(setPreview).catch(()=>{})
+    }, 400)
+    return ()=>clearTimeout(t)
+  },[cooldown, produto])
 
   useEffect(()=>{
     fetch(`${api}/api/templates`).then(r=>r.json())
@@ -403,7 +408,7 @@ function CampanhaComposer({ api, filtro, onClose }) {
     try {
       const r = await fetch(`${api}/api/inteligencia/campanhas`,{
         method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({nome:nome.trim(),gatilho,filtro,ritmoSeg:ritmo,janelaIni:janIni,janelaFim:janFim,cooldownDias:cooldown})
+        body:JSON.stringify({nome:nome.trim(),gatilho,filtro:filtroFinal,ritmoSeg:ritmo,janelaIni:janIni,janelaFim:janFim,cooldownDias:cooldown})
       })
       const d = await r.json()
       if (!r.ok) throw new Error(d.erro||'falha ao criar')
@@ -472,6 +477,15 @@ function CampanhaComposer({ api, filtro, onClose }) {
             <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',margin:'0 0 8px'}}>Mensagem e ritmo</p>
             <input value={nome} onChange={e=>setNome(e.target.value)} placeholder="Nome da campanha (ex: Win-back perdidos julho)"
               style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:10,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:13,marginBottom:10}}/>
+            <input value={produto} onChange={e=>setProduto(e.target.value)}
+              placeholder="Só quem já comprou... (opcional — ex: corrente veneziana)"
+              style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:10,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:13,marginBottom:10}}/>
+            {produto.trim() && preview && preview.total===0 && (
+              <p style={{fontSize:11.5,color:'#f59e0b',margin:'-4px 0 10px',lineHeight:1.5}}>
+                Nenhum comprador conhecido desse produto ainda — os itens dos pedidos são
+                sincronizados nas madrugadas (recentes primeiro). Tente amanhã ou amplie o termo.
+              </p>
+            )}
             <select value={gatilho} onChange={e=>setGatilho(e.target.value)}
               style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:10,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:13,marginBottom:12}}>
               <option value="">— Template (gatilho HSM aprovado) —</option>
