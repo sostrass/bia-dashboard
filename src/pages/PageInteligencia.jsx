@@ -757,16 +757,33 @@ function ClienteSheet({ cliente, onClose, api }) {
                   <p style={{fontSize:13,margin:0}}>Histórico não disponível</p>
                 </div>
               )}
-              {pedidos.map((p,i)=>(
-                <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:'1px solid var(--sep)'}}>
+              {pedidos.map((p,i)=>{
+                const SIT = {6:['Em aberto','#f59e0b'],9:['Atendido','#22c55e'],12:['Cancelado','#ff4757'],15:['Em andamento','#60a5fa']}
+                const sid = p.situacao ?? p.situacao_id
+                const [sl,sc] = SIT[sid] || [sid!=null?`Sit. ${sid}`:'—','#6b7280']
+                const det = rico?.pedidosDetalhe?.[String(p.id_bling||'')] || {}
+                return (
+                <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:'1px solid var(--sep)',opacity:sid===12?.55:1}}>
                   <span style={{fontSize:12,fontWeight:600,color:'var(--accent)',fontFamily:'monospace',flexShrink:0,minWidth:60}}>#{p.numero}</span>
                   <div style={{flex:1,minWidth:0}}>
-                    <p style={{fontSize:12,color:'var(--label)',margin:0,fontWeight:500}}>{fmtD(p.data)}</p>
-                    <p style={{fontSize:11,color:'var(--label-4)',margin:0}}>{p.itens?.length||0} item{p.itens?.length!==1?'s':''}</p>
+                    <p style={{fontSize:12,color:'var(--label)',margin:0,fontWeight:500}}>
+                      {fmtD(p.data)}
+                      {p.canal && <span style={{marginLeft:7,fontSize:10,color:'var(--label-4)',textTransform:'capitalize'}}>{p.canal}</span>}
+                    </p>
+                    <p style={{fontSize:11,color:'var(--label-4)',margin:'2px 0 0'}}>
+                      {det.itens_qtd!=null ? `${det.itens_qtd} un` : '—'}
+                      {det.servico && <> · {det.servico}</>}
+                    </p>
                   </div>
-                  <span style={{fontSize:13,fontWeight:700,color:'var(--label)',flexShrink:0}}>{R(p.total)}</span>
+                  <span style={{fontSize:10,fontWeight:800,color:sc,background:sc+'14',border:`1px solid ${sc}30`,padding:'2px 8px',borderRadius:99,flexShrink:0}}>{sl}</span>
+                  <span style={{fontSize:13,fontWeight:700,color:'var(--label)',flexShrink:0,minWidth:70,textAlign:'right'}}>{R(p.total)}</span>
                 </div>
-              ))}
+              )})}
+              {pedidos.length>0 && (
+                <p style={{fontSize:10.5,color:'var(--label-4)',marginTop:8,lineHeight:1.5}}>
+                  Unidades e envio aparecem nos pedidos mais recentes (detalhados sob demanda).
+                </p>
+              )}
             </div>
           )}
 
@@ -790,10 +807,16 @@ function ClienteSheet({ cliente, onClose, api }) {
                   </div>
                   {rico.produtos.map((p,i)=>(
                     <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 11px',borderRadius:9,background:'var(--fill)',border:'1px solid var(--sep)',marginBottom:6}}>
-                      <span style={{fontSize:11,fontWeight:800,color:'var(--label-4)',width:18,flexShrink:0}}>{i+1}º</span>
+                      {p.imagem
+                        ? <img src={p.imagem} alt="" style={{width:38,height:38,borderRadius:8,objectFit:'cover',flexShrink:0,border:'1px solid var(--sep)'}}
+                            onError={e=>{e.currentTarget.style.display='none'}}/>
+                        : <span style={{fontSize:11,fontWeight:800,color:'var(--label-4)',width:38,height:38,borderRadius:8,background:'var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{i+1}º</span>}
                       <div style={{flex:1,minWidth:0}}>
                         <p style={{fontSize:12.5,fontWeight:600,color:'var(--label)',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.descricao}</p>
-                        <p style={{fontSize:11,color:'var(--label-4)',margin:'2px 0 0'}}>{p.quantidade}x · {Rk(p.valor_total)}</p>
+                        <p style={{fontSize:11,color:'var(--label-4)',margin:'2px 0 0'}}>
+                          <strong style={{color:'var(--label-2)'}}>{p.quantidade} un</strong> · {Rk(p.valor_total)}
+                          {p.pedidos?.length>0 && <> · em {p.pedidos.map(n=>`#${n}`).join(', ')}</>}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -998,6 +1021,7 @@ export default function PageInteligencia({ api }) {
 
   // ── Filtros da lista de clientes ───────────────────────────────────────────
   const [showCampanha,setShowCamp]  = useState(false)
+  const [diasMaxF,    setDiasMaxF]  = useState('')     // teto da faixa de dias ('' = aberto)
   const [totalFiltro, setTotalFlt]  = useState(0)      // total REAL do filtro (servidor)
   const [receitaFlt,  setReceitaFlt]= useState(0)
   const [segFiltro,   setSegFiltro] = useState('todos')
@@ -1015,7 +1039,7 @@ export default function PageInteligencia({ api }) {
   const carregarClientes = useCallback(async (offset=0) => {
     setLoadCli(true)
     try {
-      const qs = `dias=${diasFiltro}&segmento=${segFiltro}&canal=${canalFiltro}&busca=${encodeURIComponent(busca)}&offset=${offset}&sort=${sortBy}`
+      const qs = `dias=${diasFiltro}&diasMax=${diasMaxF}&segmento=${segFiltro}&canal=${canalFiltro}&busca=${encodeURIComponent(busca)}&offset=${offset}&sort=${sortBy}`
       const r = await fetch(`${api}/api/inteligencia/clientes?${qs}`)
       if (r.ok) {
         const d = await r.json()
@@ -1026,7 +1050,7 @@ export default function PageInteligencia({ api }) {
       }
     } catch {}
     setLoadCli(false)
-  }, [api, diasFiltro, segFiltro, canalFiltro, busca, sortBy])
+  }, [api, diasFiltro, diasMaxF, segFiltro, canalFiltro, busca, sortBy])
 
   // Busca com debounce: refaz no servidor 400ms apos parar de digitar
   useEffect(()=>{ const t=setTimeout(()=>carregarClientes(0),400); return ()=>clearTimeout(t) },[busca])
@@ -1416,8 +1440,11 @@ export default function PageInteligencia({ api }) {
               <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:9}}>
                 <div style={{display:'flex',gap:5,alignItems:'center'}}>
                   <span style={{fontSize:11,color:'var(--label-4)',fontWeight:600}}>Sem comprar:</span>
-                  {[{v:'15',l:'+15d'},{v:'30',l:'+30d'},{v:'60',l:'+60d'},{v:'90',l:'+90d'},{v:'120',l:'+120d'}].map(f=>(
-                    <button key={f.v} onClick={()=>{setDiasFiltro(f.v);carregarClientes();setPagina(1)}} style={{padding:'4px 10px',borderRadius:99,border:`1px solid ${diasFiltro===f.v?'var(--accent)':'var(--sep)'}`,background:diasFiltro===f.v?'var(--accent-dim)':'transparent',color:diasFiltro===f.v?'var(--accent)':'var(--label-4)',cursor:'pointer',fontSize:11.5,fontWeight:diasFiltro===f.v?700:400}}>
+                  {/* Faixas fechadas: "+15d" sozinho era so um PISO (>=15) e mostrava
+                      cliente de 3 anos no topo — correto pela query, enganoso pra quem le.
+                      Agora cada chip e uma FAIXA real; "+120d" segue aberto. */}
+                  {[{v:'15',m:'30',l:'15–30d'},{v:'30',m:'60',l:'30–60d'},{v:'60',m:'90',l:'60–90d'},{v:'90',m:'120',l:'90–120d'},{v:'120',m:'',l:'+120d'}].map(f=>(
+                    <button key={f.l} onClick={()=>{setDiasFiltro(f.v);setDiasMaxF(f.m);setPagina(1)}} style={{padding:'4px 10px',borderRadius:99,border:`1px solid ${(diasFiltro===f.v&&diasMaxF===f.m)?'var(--accent)':'var(--sep)'}`,background:(diasFiltro===f.v&&diasMaxF===f.m)?'var(--accent-dim)':'transparent',color:(diasFiltro===f.v&&diasMaxF===f.m)?'var(--accent)':'var(--label-4)',cursor:'pointer',fontSize:11.5,fontWeight:(diasFiltro===f.v&&diasMaxF===f.m)?700:400}}>
                       {f.l}
                     </button>
                   ))}
@@ -1614,7 +1641,9 @@ export default function PageInteligencia({ api }) {
                       </div>
                       <div style={{fontSize:12,color:'var(--label-4)'}}>
                         <strong style={{color:'var(--label-3)'}}>{av.nome_cliente || av.telefone}</strong>
+                        {av.nome_cliente && av.nome_cliente!==av.telefone && <span style={{color:'var(--label-4)'}}> · {av.telefone}</span>}
                         {av.numero_pedido && <> · Pedido #{av.numero_pedido}</>}
+                        {av.canal && <span style={{marginLeft:6,fontSize:10,fontWeight:700,textTransform:'capitalize',color:'#22c55e',background:'rgba(34,197,94,.08)',border:'1px solid rgba(34,197,94,.25)',padding:'1px 7px',borderRadius:99}}>{av.canal}</span>}
                       </div>
                     </div>
                     <span style={{fontSize:11,color:'var(--label-4)',flexShrink:0}}>
