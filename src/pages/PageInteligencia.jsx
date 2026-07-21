@@ -368,6 +368,7 @@ function CampanhaComposer({ api, filtro, onClose }) {
   const [gatilhos, setGatilhos] = useState([])
   const [nome,     setNome]     = useState('')
   const [gatilho,  setGatilho]  = useState('')
+  const [cupom,    setCupom]    = useState('')
   const [ritmo,    setRitmo]    = useState(3)      // seg entre envios
   const [janIni,   setJanIni]   = useState(9)
   const [janFim,   setJanFim]   = useState(20)
@@ -408,7 +409,7 @@ function CampanhaComposer({ api, filtro, onClose }) {
     try {
       const r = await fetch(`${api}/api/inteligencia/campanhas`,{
         method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({nome:nome.trim(),gatilho,filtro:filtroFinal,ritmoSeg:ritmo,janelaIni:janIni,janelaFim:janFim,cooldownDias:cooldown})
+        body:JSON.stringify({nome:nome.trim(),gatilho,filtro:filtroFinal,ritmoSeg:ritmo,janelaIni:janIni,janelaFim:janFim,cooldownDias:cooldown,cupom:cupom.trim()||null})
       })
       const d = await r.json()
       if (!r.ok) throw new Error(d.erro||'falha ao criar')
@@ -492,6 +493,13 @@ function CampanhaComposer({ api, filtro, onClose }) {
               {gatilhos.map(t=><option key={t.id} value={t.gatilho}>{t.nome||t.gatilho} ({t.gatilho})</option>)}
             </select>
 
+            <input value={cupom} onChange={e=>setCupom(e.target.value.toUpperCase())}
+              placeholder="Cupom da campanha (opcional — vai em {{cupom}} no template)"
+              style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:10,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:13,marginBottom:10,fontFamily:'monospace'}}/>
+            <p style={{fontSize:10.5,color:'var(--label-4)',margin:'-4px 0 12px',lineHeight:1.6}}>
+              O corpo é o template aprovado (fixo). Personalização por cliente via variáveis no template:{' '}
+              <code style={{color:'var(--label-3)'}}>{'{{primeiro_nome}}'}</code> · <code style={{color:'var(--label-3)'}}>{'{{cupom}}'}</code> · <code style={{color:'var(--label-3)'}}>{'{{produto_top}}'}</code> (produto que o cliente mais compra) · <code style={{color:'var(--label-3)'}}>{'{{dias_sem_comprar}}'}</code>
+            </p>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:10,marginBottom:12}}>
               <label style={{fontSize:11,color:'var(--label-4)'}}>Ritmo
                 <select value={ritmo} onChange={e=>setRitmo(Number(e.target.value))} style={{width:'100%',marginTop:4,padding:'8px',borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:12}}>
