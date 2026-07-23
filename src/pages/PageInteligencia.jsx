@@ -34,18 +34,18 @@ const pluralize = (n, s, p) => `${fmt(n)} ${n === 1 ? s : p}`
 
 // ── Paleta de cores do sistema ────────────────────────────────────────────────
 const COR = {
-  vip:       '#f59e0b',
-  fiel:      '#22c55e',
-  potencial: '#7c6af7',
-  novo:      '#4a9fff',
-  regular:   '#00d4aa',
-  em_risco:  '#f97316',
-  perdido:   '#ef4444',
-  urgente:   '#ef4444',
-  oportunidade: '#7c6af7',
-  estoque:   '#f97316',
-  posVenda:  '#4a9fff',
-  comportamento: '#00d4aa',
+  vip:       '#fbbf24',
+  fiel:      '#34d399',
+  potencial: '#8b5cf6',
+  novo:      '#60a5fa',
+  regular:   '#94a3b8',
+  em_risco:  '#fb923c',
+  perdido:   '#f87171',
+  urgente:   '#f87171',
+  oportunidade: '#8b5cf6',
+  estoque:   '#fb923c',
+  posVenda:  '#60a5fa',
+  comportamento: '#34d399',
 }
 
 // ── Segmentos RFM completos ───────────────────────────────────────────────────
@@ -61,29 +61,29 @@ const SEG = {
 
 // ── Tipos de sugestão da Bia ─────────────────────────────────────────────────
 const TIPO_SUGESTAO = {
-  urgente:      { label:'Urgente',      cor:'#ef4444', bg:'rgba(239,68,68,.08)',   Icon:AlertTriangle },
-  oportunidade: { label:'Oportunidade', cor:'#7c6af7', bg:'rgba(124,106,247,.08)', Icon:Lightbulb },
-  estoque:      { label:'Estoque',      cor:'#f97316', bg:'rgba(249,115,22,.08)',   Icon:Boxes },
-  posVenda:     { label:'Pós-venda',    cor:'#4a9fff', bg:'rgba(74,159,255,.08)',   Icon:Heart },
-  comportamento:{ label:'Padrão',       cor:'#00d4aa', bg:'rgba(0,212,170,.08)',    Icon:BarChart3 },
+  urgente:      { label:'Urgente',      cor:'#f87171', bg:'rgba(248,113,113,.09)', Icon:AlertTriangle },
+  oportunidade: { label:'Oportunidade', cor:'#8b5cf6', bg:'rgba(139,92,246,.10)',  Icon:Lightbulb },
+  estoque:      { label:'Estoque',      cor:'#fb923c', bg:'rgba(251,146,60,.09)',  Icon:Boxes },
+  posVenda:     { label:'Pós-venda',    cor:'#60a5fa', bg:'rgba(96,165,250,.10)',  Icon:Heart },
+  comportamento:{ label:'Padrão',       cor:'#34d399', bg:'rgba(52,211,153,.10)',  Icon:BarChart3 },
 }
 
 // ── Canais ────────────────────────────────────────────────────────────────────
 const CANAL = {
-  shopee:       { label:'Shopee',        cor:'#EE4D2D' },
-  mercadolivre: { label:'Mercado Livre', cor:'#f5a623' },
-  nuvemshop:    { label:'Nuvemshop',     cor:'#0070f3' },
-  tiktokshop:   { label:'TikTok',        cor:'#222' },
-  shein:        { label:'Shein',         cor:'#c0392b' },
+  shopee:       { label:'Shopee',        cor:'#ee4d2d' },
+  mercadolivre: { label:'Mercado Livre', cor:'#ffd400' },
+  nuvemshop:    { label:'Nuvemshop',     cor:'#a855f7' },
+  tiktokshop:   { label:'TikTok',        cor:'#22d3ee' },
+  shein:        { label:'Shein',         cor:'#f472b6' },
   whatsapp:     { label:'WhatsApp',      cor:'#25D366' },
-  loja:         { label:'Loja',          cor:'#10b981' },
+  loja:         { label:'Loja',          cor:'#34d399' },
 }
 
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 function Avatar({ nome, size=36, cor, foto }) {
   const init = (nome||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()
-  const pal  = ['#7c6af7','#00d4aa','#f59e0b','#22c55e','#4a9fff','#e879f9','#fb923c']
+  const pal  = ['#8b5cf6','#f472b6','#f87171','#2dd4bf','#60a5fa','#34d399','#fbbf24']
   const c    = cor || pal[(nome||'?').charCodeAt(0) % pal.length]
   if (foto) return (
     <div style={{width:size,height:size,borderRadius:'50%',overflow:'hidden',flexShrink:0,border:`2px solid ${c}40`}}>
@@ -118,7 +118,7 @@ function ScoreRing({ score, size=48, strokeWidth=4 }) {
 }
 
 // ── Mini sparkline ────────────────────────────────────────────────────────────
-function Sparkline({ data=[], cor='#7c6af7', height=28, width=80 }) {
+function Sparkline({ data=[], cor='#8b5cf6', height=28, width=80 }) {
   if (!data.length) return null
   const max = Math.max(...data, 1)
   const min = Math.min(...data)
@@ -298,7 +298,7 @@ function CampanhasPanel({ api }) {
     setAgindo(0)
   }
 
-  const COR = { rodando:'#25D366', pausada:'#f59e0b', concluida:'#7c6af7', cancelada:'#6b7280' }
+  const COR = { rodando:'#34d399', pausada:'#fbbf24', concluida:'#8b5cf6', cancelada:'#94a3b8' }
 
   if (lista===null) return <p style={{fontSize:12.5,color:'var(--label-4)',padding:'32px 0',textAlign:'center'}}>Carregando campanhas...</p>
   if (!lista.length) return (
@@ -350,6 +350,27 @@ function CampanhasPanel({ api }) {
                 <span>≈ <strong style={{color:'var(--label-2)'}}>{Math.ceil(c.pendentes/(3600/c.ritmo_seg)/Math.max(1,c.janela_fim-c.janela_ini)*10)/10}</strong> dia(s) restantes</span>
               )}
             </div>
+
+            {/* ROI ATRIBUIDO — o retorno real: quem recebeu e comprou depois.
+                Correlacao (compra pos-contato numa janela), nao prova de causa. */}
+            {c.enviados>0 && (()=>{
+              const conv = c.conversoes||0, rec = Number(c.receita_atribuida||0)
+              const taxa = c.enviados ? Math.round(conv/c.enviados*100) : 0
+              const jan  = c.janela_atrib||30
+              return (
+                <div style={{marginTop:11,paddingTop:11,borderTop:'1px solid var(--sep)',display:'flex',alignItems:'center',gap:22,flexWrap:'wrap'}}>
+                  <div>
+                    <p style={{margin:0,fontSize:9,fontWeight:800,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--label-4)'}}>Recompraram · {jan}d</p>
+                    <p style={{margin:'3px 0 0',fontSize:16,fontWeight:800,color:'var(--label)'}}>{conv.toLocaleString('pt-BR')} <span style={{fontSize:11,fontWeight:600,color:conv>0?'#25D366':'var(--label-4)'}}>· {taxa}% dos enviados</span></p>
+                  </div>
+                  <div>
+                    <p style={{margin:0,fontSize:9,fontWeight:800,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--label-4)'}}>Receita atribuída</p>
+                    <p style={{margin:'3px 0 0',fontSize:16,fontWeight:800,color:rec>0?'#25D366':'var(--label-3)'}}>R$ {rec.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
+                  </div>
+                  <span title="Compras feitas por quem recebeu a campanha, na janela pós-contato. É correlação — não prova que a mensagem causou a compra." style={{marginLeft:'auto',fontSize:10,color:'var(--label-4)',cursor:'help',borderBottom:'1px dotted var(--label-4)'}}>correlação, não causa ⓘ</span>
+                </div>
+              )
+            })()}
           </div>
         )
       })}
@@ -465,7 +486,7 @@ function CampanhaComposer({ api, filtro, onClose }) {
                     <div key={s.segmento} style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
                       <span style={{fontSize:11,color:'var(--label-3)',width:76,textTransform:'capitalize'}}>{s.segmento}</span>
                       <div style={{flex:1,height:5,background:'var(--sep)',borderRadius:99,overflow:'hidden'}}>
-                        <div style={{width:`${preview.total?s.qtd/preview.total*100:0}%`,height:'100%',background:'#7c6af7',borderRadius:99}}/>
+                        <div style={{width:`${preview.total?s.qtd/preview.total*100:0}%`,height:'100%',background:'#8b5cf6',borderRadius:99}}/>
                       </div>
                       <span style={{fontSize:11,color:'var(--label-4)',width:52,textAlign:'right'}}>{s.qtd.toLocaleString('pt-BR')}</span>
                     </div>
@@ -585,6 +606,11 @@ function ClienteSheet({ cliente, onClose, api }) {
     cicloDias:      cliente.cicloDias      ?? pf.ciclo_dias,
     primeiroPedido: cliente.primeiroPedido ?? pf.primeiro_pedido,
     ultimoPedido:   cliente.ultimoPedido   ?? pf.ultimo_pedido,
+    email:          cliente.email          ?? pf.email,
+    documento:      cliente.documento      ?? pf.documento,
+    scoreRFM:       cliente.scoreRFM       ?? pf.score_rfm,
+    rfm:            cliente.rfm            ?? { r: pf.rfm_r, f: pf.rfm_f, m: pf.rfm_m },
+    acaoRecomendada:cliente.acaoRecomendada?? pf.acao_recomendada,
   }
   const [pedidos, setPedidos] = useState([])
   const [loadPed, setLoadPed] = useState(false)
@@ -629,7 +655,7 @@ function ClienteSheet({ cliente, onClose, api }) {
     {id:'rfm',     label:'Score RFM'},
     {id:'pedidos', label:'Pedidos'},
     {id:'produtos',label:'Produtos'},
-    {id:'msg',     label:'Mensagem'},
+    {id:'msg',     label:'Mensagens'},
   ]
 
   return (
@@ -643,7 +669,10 @@ function ClienteSheet({ cliente, onClose, api }) {
         {/* Header */}
         <div style={{padding:'16px 20px 0',flexShrink:0,borderBottom:'1px solid var(--sep)'}}>
           <div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:14}}>
-            <Avatar nome={cliente.nome} size={52}/>
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,flexShrink:0}}>
+              <ScoreRing score={cliente.scoreRFM||0} size={52}/>
+              <span style={{fontSize:8,fontWeight:800,letterSpacing:'.06em',textTransform:'uppercase',color:'var(--label-4)'}}>saúde</span>
+            </div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}>
                 <span style={{fontSize:17,fontWeight:700,color:'var(--label)',letterSpacing:'-.3px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{cliente.nome||'—'}</span>
@@ -717,13 +746,13 @@ function ClienteSheet({ cliente, onClose, api }) {
 
               {/* Padrão de ciclo */}
               {cliente.cicloDias > 0 && (
-                <div style={{marginTop:14,padding:'11px 13px',borderRadius:10,background:'rgba(124,106,247,.07)',border:'1px solid rgba(124,106,247,.2)'}}>
+                <div style={{marginTop:14,padding:'11px 13px',borderRadius:10,background:'rgba(139,92,246,.08)',border:'1px solid rgba(139,92,246,.22)'}}>
                   <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:5}}>
-                    <Repeat size={12} style={{color:'#7c6af7'}}/>
-                    <span style={{fontSize:11.5,fontWeight:700,color:'#7c6af7'}}>Ciclo de compra detectado</span>
+                    <Repeat size={12} style={{color:'#8b5cf6'}}/>
+                    <span style={{fontSize:11.5,fontWeight:700,color:'#8b5cf6'}}>Ciclo de compra detectado</span>
                   </div>
                   <p style={{fontSize:12.5,color:'var(--label-3)',margin:0,lineHeight:1.5}}>
-                    Compra a cada <strong style={{color:'#7c6af7'}}>{cliente.cicloDias} dias</strong> em média.
+                    Compra a cada <strong style={{color:'#8b5cf6'}}>{cliente.cicloDias} dias</strong> em média.
                     {cliente.diasSemComprar >= cliente.cicloDias * .8
                       ? <span style={{color:'#f97316'}}> Está no prazo de recompra!</span>
                       : <span style={{color:'var(--label-4)'}}> Próxima compra estimada em {Math.max(0, cliente.cicloDias - cliente.diasSemComprar)} dias.</span>
@@ -780,25 +809,44 @@ function ClienteSheet({ cliente, onClose, api }) {
                 </div>
               )}
               {pedidos.map((p,i)=>{
-                const SIT = {6:['Em aberto','#f59e0b'],9:['Atendido','#22c55e'],12:['Cancelado','#ff4757'],15:['Em andamento','#60a5fa']}
+                const SIT = {6:['Em aberto','#fbbf24'],9:['Atendido','#34d399'],12:['Cancelado','#f87171'],15:['Em andamento','#60a5fa']}
                 const sid = p.situacao ?? p.situacao_id
-                const [sl,sc] = SIT[sid] || [sid!=null?`Sit. ${sid}`:'—','#6b7280']
+                const [sl,sc] = SIT[sid] || [sid!=null?`Sit. ${sid}`:'—','#94a3b8']
                 const det = rico?.pedidosDetalhe?.[String(p.id_bling||'')] || {}
+                const STEP = sid===12 ? -1 : sid===9 ? 3 : sid===15 ? 2 : sid===6 ? 1 : 0
+                const steps = ['Criado','Pago','Separado','Enviado','Entregue']
                 return (
-                <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:'1px solid var(--sep)',opacity:sid===12?.55:1}}>
-                  <span style={{fontSize:12,fontWeight:600,color:'var(--accent)',fontFamily:'monospace',flexShrink:0,minWidth:60}}>#{p.numero}</span>
-                  <div style={{flex:1,minWidth:0}}>
-                    <p style={{fontSize:12,color:'var(--label)',margin:0,fontWeight:500}}>
-                      {fmtD(p.data)}
-                      {p.canal && <span style={{marginLeft:7,fontSize:10,color:'var(--label-4)',textTransform:'capitalize'}}>{p.canal}</span>}
-                    </p>
-                    <p style={{fontSize:11,color:'var(--label-4)',margin:'2px 0 0'}}>
-                      {det.itens_qtd!=null ? `${det.itens_qtd} un` : '—'}
-                      {det.servico && <> · {det.servico}</>}
-                    </p>
+                <div key={i} style={{padding:'11px 0',borderBottom:'1px solid var(--sep)',opacity:sid===12?.55:1}}>
+                  <div style={{display:'flex',alignItems:'center',gap:10}}>
+                    <span style={{fontSize:12,fontWeight:600,color:'var(--accent)',fontFamily:'monospace',flexShrink:0,minWidth:56}}>#{p.numero}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <p style={{fontSize:12,color:'var(--label)',margin:0,fontWeight:500}}>
+                        {fmtD(p.data)}
+                        {p.canal && <span style={{marginLeft:7,fontSize:10,color:'var(--label-4)',textTransform:'capitalize'}}>{p.canal}</span>}
+                      </p>
+                      <p style={{fontSize:11,color:'var(--label-4)',margin:'2px 0 0'}}>
+                        {det.itens_qtd!=null ? `${det.itens_qtd} un` : '—'}
+                        {det.servico && <> · {det.servico}</>}
+                      </p>
+                    </div>
+                    <span style={{fontSize:10,fontWeight:800,color:sc,background:sc+'22',border:`1px solid ${sc}40`,padding:'2px 8px',borderRadius:99,flexShrink:0}}>{sl}</span>
+                    <span style={{fontSize:13,fontWeight:700,color:'var(--label)',flexShrink:0,minWidth:66,textAlign:'right'}}>{R(p.total)}</span>
                   </div>
-                  <span style={{fontSize:10,fontWeight:800,color:sc,background:sc+'14',border:`1px solid ${sc}30`,padding:'2px 8px',borderRadius:99,flexShrink:0}}>{sl}</span>
-                  <span style={{fontSize:13,fontWeight:700,color:'var(--label)',flexShrink:0,minWidth:70,textAlign:'right'}}>{R(p.total)}</span>
+                  {sid!==12 && (
+                    <div style={{display:'flex',alignItems:'center',marginTop:9,paddingLeft:56}}>
+                      {steps.map((st,si)=>(
+                        <div key={si} style={{display:'flex',alignItems:'center',flex:si<4?1:'0 0 auto'}}>
+                          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+                            <div style={{width:15,height:15,borderRadius:99,display:'flex',alignItems:'center',justifyContent:'center',background:si<=STEP?'#34d399':'transparent',border:`1.5px solid ${si<=STEP?'#34d399':'var(--sep)'}`,color:'#04160e'}}>
+                              {si<=STEP && <Check size={8}/>}
+                            </div>
+                            <span style={{fontSize:7.5,color:si<=STEP?'var(--label-3)':'var(--label-4)'}}>{st}</span>
+                          </div>
+                          {si<4 && <div style={{flex:1,height:1.5,background:si<STEP?'#34d399':'var(--sep)',margin:'0 2px',marginBottom:12}}/>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )})}
               {pedidos.length>0 && (
@@ -847,22 +895,31 @@ function ClienteSheet({ cliente, onClose, api }) {
                   </p>
                 </>
               )}
-              {!loadRico && rico?.disparos_recentes?.length > 0 && (
-                <div style={{marginTop:16}}>
-                  <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',marginBottom:8}}>Últimos contatos automáticos</p>
-                  {rico.disparos_recentes.map((d,i)=>(
-                    <div key={i} style={{display:'flex',justifyContent:'space-between',fontSize:11.5,padding:'5px 0',borderBottom:'1px solid var(--sep)'}}>
-                      <span style={{color:'var(--label-3)'}}>{d.gatilho} <span style={{color:'var(--label-4)'}}>({d.origem})</span></span>
-                      <span style={{color:d.status==='enviado'?'#22c55e':'var(--label-4)'}}>{d.status} · {String(d.criado_em).slice(0,10)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+
             </div>
           )}
 
           {tab==='msg'&&(
             <div>
+              {rico?.disparos_recentes?.length > 0 && (
+                <div style={{marginBottom:16}}>
+                  <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',marginBottom:10}}>Histórico de mensagens</p>
+                  {rico.disparos_recentes.map((d,i)=>(
+                    <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'7px 0'}}>
+                      <span style={{fontSize:10,color:'var(--label-4)',fontFamily:'monospace',width:64,flexShrink:0}}>{String(d.criado_em).slice(0,10)}</span>
+                      <div style={{width:26,height:26,borderRadius:8,background:'var(--fill)',border:'1px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                        <MessageSquare size={12} style={{color:'var(--label-4)'}}/>
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <p style={{margin:0,fontSize:12,color:'var(--label)',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.gatilho}</p>
+                        <p style={{margin:0,fontSize:10,color:'var(--label-4)'}}>{d.origem}</p>
+                      </div>
+                      <span style={{fontSize:9,fontWeight:800,textTransform:'uppercase',letterSpacing:'.04em',color:d.status==='enviado'?'#34d399':'var(--label-4)',background:d.status==='enviado'?'rgba(52,211,153,.12)':'var(--fill)',padding:'2px 8px',borderRadius:99,flexShrink:0}}>{d.status}</span>
+                    </div>
+                  ))}
+                  <div style={{borderTop:'1px solid var(--sep)',margin:'12px 0'}}/>
+                </div>
+              )}
               <p style={{fontSize:12,color:'var(--label-3)',marginBottom:12,lineHeight:1.5}}>
                 {cliente.telefone ? `Enviar para ${cliente.telefone}` : <span style={{color:'#ef4444'}}>⚠ Sem telefone cadastrado — mensagem não disponível</span>}
               </p>
@@ -929,7 +986,7 @@ function ConfigModal({ config, onSave, onClose }) {
         <div style={{padding:'18px 24px',borderBottom:'1px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
             <div style={{width:34,height:34,borderRadius:9,background:'rgba(124,106,247,.12)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-              <SlidersHorizontal size={16} style={{color:'#7c6af7'}}/>
+              <SlidersHorizontal size={16} style={{color:'#8b5cf6'}}/>
             </div>
             <div>
               <p style={{fontSize:15,fontWeight:700,color:'var(--label)',margin:0}}>Configurações da Inteligência</p>
@@ -1025,39 +1082,193 @@ function ConfigModal({ config, onSave, onClose }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // PÁGINA PRINCIPAL — PageInteligencia
 // ══════════════════════════════════════════════════════════════════════════════
-export default function PageInteligencia({ api }) {
+// ── ConfigSheet — a tela de Configuracoes (restaurada + melhorada) ────────────
+// Edita a config real (GET/POST /config -> inteligencia_config 'principal') e
+// mostra a SAUDE DOS SYNCS ao vivo (GET /sync/status). Usa as vars de tema
+// globais, como os outros modais (ClienteSheet/CampanhaComposer).
+function ConfigSheet({ api, onClose }) {
+  const [cfg,    setCfg]    = useState(null)
+  const [sync,   setSync]   = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [saved,  setSaved]  = useState(false)
+  const [erro,   setErro]   = useState('')
 
-  // ── Estado global ──────────────────────────────────────────────────────────
+  useEffect(()=>{
+    fetch(`${api}/api/inteligencia/config`).then(r=>r.json()).then(d=>setCfg(d.config||d)).catch(()=>setErro('Falha ao carregar config'))
+    fetch(`${api}/api/inteligencia/sync/status`).then(r=>r.json()).then(setSync).catch(()=>{})
+  },[])
+
+  // Update imutavel de caminho aninhado: upd(['segmentos','dias_risco'], 30)
+  const upd = (path, val) => setCfg(prev=>{
+    const nx = JSON.parse(JSON.stringify(prev||{}))
+    let o = nx
+    for (let k=0;k<path.length-1;k++){ o[path[k]] = o[path[k]]||{}; o = o[path[k]] }
+    o[path[path.length-1]] = val
+    return nx
+  })
+
+  const salvar = async () => {
+    setSaving(true); setErro('')
+    try {
+      const r = await fetch(`${api}/api/inteligencia/config`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({config:cfg})})
+      if (!r.ok) throw new Error('falha ao salvar')
+      setSaved(true); setTimeout(()=>setSaved(false),2500)
+    } catch(e){ setErro(e.message) }
+    setSaving(false)
+  }
+
+  const Num = ({label,path,suf,w=76}) => (
+    <label style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:12.5,color:'var(--label-3)',padding:'7px 0'}}>
+      <span>{label}</span>
+      <span style={{display:'flex',alignItems:'center',gap:6}}>
+        <input type="number" value={path.reduce((o,k)=>o?.[k],cfg) ?? ''} onChange={e=>upd(path, e.target.value===''?'':Number(e.target.value))}
+          style={{width:w,padding:'6px 9px',borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:12.5,textAlign:'right'}}/>
+        {suf && <span style={{fontSize:11,color:'var(--label-4)',width:34}}>{suf}</span>}
+      </span>
+    </label>
+  )
+  const Toggle = ({on,onClick}) => (
+    <button onClick={onClick} style={{width:38,height:22,borderRadius:99,border:'none',cursor:'pointer',flexShrink:0,position:'relative',
+      background:on?'#25D366':'var(--sep)',transition:'background .15s'}}>
+      <span style={{position:'absolute',top:2,left:on?18:2,width:18,height:18,borderRadius:99,background:'#fff',transition:'left .15s'}}/>
+    </button>
+  )
+  const Sec = ({t,children}) => (
+    <div style={{marginBottom:20}}>
+      <p style={{fontSize:10,fontWeight:800,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--label-4)',margin:'0 0 8px'}}>{t}</p>
+      {children}
+    </div>
+  )
+
+  const estadoSync = (rec) => {
+    const e = (sync?.estados||[]).find(x=>x.recurso===rec)
+    if (!e) return {txt:'—',cor:'var(--label-4)'}
+    if (e.erro) return {txt:'erro',cor:'#ff4757'}
+    if (e.rodando) return {txt:'rodando…',cor:'#f59e0b'}
+    if (e.concluido_em) return {txt:'concluído',cor:'#25D366'}
+    return {txt:'aguardando',cor:'var(--label-4)'}
+  }
+
+  return (
+    <>
+      <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:60,background:'rgba(0,0,0,.55)',backdropFilter:'blur(2px)'}}/>
+      <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:600,maxHeight:'88vh',zIndex:70,background:'var(--bg-2)',borderRadius:16,border:'1px solid var(--sep)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'0 32px 80px rgba(0,0,0,.45)'}}>
+        <div style={{height:2.5,background:'linear-gradient(90deg,#8b5cf6,#60a5fa)'}}/>
+        <div style={{padding:'16px 22px 13px',borderBottom:'1px solid var(--sep)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div>
+            <p style={{fontSize:16,fontWeight:800,color:'var(--label)',margin:0}}>Configurações</p>
+            <p style={{fontSize:11.5,color:'var(--label-4)',margin:'3px 0 0'}}>Régua da análise · segmentos · saúde dos dados</p>
+          </div>
+          <button onClick={onClose} style={{background:'transparent',border:'none',color:'var(--label-4)',cursor:'pointer',fontSize:18}}>×</button>
+        </div>
+
+        <div style={{flex:1,overflowY:'auto',padding:'18px 22px'}}>
+          {!cfg && !erro && <p style={{fontSize:12.5,color:'var(--label-4)'}}>Carregando…</p>}
+          {cfg && (<>
+            <Sec t="Análise automática">
+              <label style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:12.5,color:'var(--label-3)'}}>
+                <span>Frequência do recálculo</span>
+                <select value={cfg.job_frequencia||'4h'} onChange={e=>upd(['job_frequencia'],e.target.value)}
+                  style={{padding:'7px 10px',borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:12.5}}>
+                  {['1h','2h','4h','6h','12h','24h'].map(f=><option key={f} value={f}>a cada {f}</option>)}
+                </select>
+              </label>
+            </Sec>
+
+            <Sec t="Régua de segmentos">
+              <Num label="Dias sem comprar → em risco" path={['segmentos','dias_risco']} suf="dias"/>
+              <Num label="Dias sem comprar → perdido"  path={['segmentos','dias_perdido']} suf="dias"/>
+              <Num label="VIP: mínimo de pedidos"       path={['segmentos','vip_min_pedidos']} suf="ped"/>
+              <Num label="VIP: mínimo gasto acumulado"  path={['segmentos','vip_min_valor']} suf="R$" w={92}/>
+            </Sec>
+
+            <Sec t="Análises da Bia (ligar/desligar)">
+              {Object.entries(cfg.analises||{}).map(([k,a])=>{
+                const numKey = Object.keys(a).find(x=>x!=='ativo'&&x!=='label')
+                return (
+                  <div key={k} style={{display:'flex',alignItems:'center',gap:12,padding:'8px 0',borderBottom:'1px solid var(--sep)'}}>
+                    <Toggle on={!!a.ativo} onClick={()=>upd(['analises',k,'ativo'],!a.ativo)}/>
+                    <span style={{flex:1,fontSize:12.5,color:a.ativo?'var(--label)':'var(--label-4)'}}>{a.label||k}</span>
+                    {numKey && (
+                      <span style={{display:'flex',alignItems:'center',gap:5}}>
+                        <input type="number" disabled={!a.ativo} value={a[numKey]} onChange={e=>upd(['analises',k,numKey],Number(e.target.value))}
+                          style={{width:60,padding:'5px 8px',borderRadius:7,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:12,textAlign:'right',opacity:a.ativo?1:.4}}/>
+                        <span style={{fontSize:10.5,color:'var(--label-4)',width:42}}>{numKey==='margem'?'%':numKey==='horas'?'horas':numKey==='min'||numKey==='limite'?'un':'dias'}</span>
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </Sec>
+
+            <Sec t="Saúde dos dados (somente leitura)">
+              <div style={{borderRadius:11,border:'1px solid var(--sep)',background:'var(--fill)',padding:'12px 14px'}}>
+                {[['contatos','Contatos endereçáveis','contatos_com_telefone'],['pedidos','Pedidos na base','pedidos'],['itens','Itens detalhados','__itens__']].map(([rec,label,tot])=>{
+                  const s = estadoSync(rec)
+                  let val = sync?.totais?.[tot]
+                  if (tot==='__itens__') val = null
+                  return (
+                    <div key={rec} style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:12,padding:'5px 0'}}>
+                      <span style={{color:'var(--label-3)'}}>{label}{val!=null && <span style={{color:'var(--label-4)'}}> · {Number(val).toLocaleString('pt-BR')}</span>}</span>
+                      <span style={{color:s.cor,fontWeight:700,fontSize:11}}>{s.txt}</span>
+                    </div>
+                  )
+                })}
+                {sync?.totais?.pedido_mais_recente && (
+                  <p style={{fontSize:10.5,color:'var(--label-4)',margin:'8px 0 0',borderTop:'1px solid var(--sep)',paddingTop:7}}>
+                    Pedido mais recente na base: {String(sync.totais.pedido_mais_recente).slice(0,10)}
+                  </p>
+                )}
+              </div>
+            </Sec>
+          </>)}
+          {erro && <p style={{fontSize:12,color:'#ff4757',margin:'4px 0 0'}}>⚠️ {erro}</p>}
+        </div>
+
+        <div style={{padding:'13px 22px',borderTop:'1px solid var(--sep)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <span style={{fontSize:11.5,color:saved?'#25D366':'var(--label-4)'}}>{saved?'✓ salvo — vale na próxima análise':'as mudanças valem no próximo recálculo'}</span>
+          <button disabled={saving||!cfg} onClick={salvar}
+            style={{padding:'10px 22px',borderRadius:10,border:'none',cursor:(saving||!cfg)?'default':'pointer',fontSize:13,fontWeight:800,
+              background:(saving||!cfg)?'var(--fill)':'linear-gradient(135deg,#8b5cf6,#7c3aed)',color:(saving||!cfg)?'var(--label-4)':'#fff'}}>
+            {saving?'Salvando…':'Salvar configurações'}
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+export default function PageInteligencia({ api }) {
+  // ══════════════════════════════════════════════════════════════════════════
+  //  REFORMULACAO TOTAL — v3 "Command"
+  //  Moldura, design system e as 5 views reescritos do zero. Os componentes
+  //  ricos (ClienteSheet, CampanhaComposer, CampanhasPanel) sao transplantados
+  //  da geracao atual — testados, nao se reescreve o que acabou de nascer.
+  // ══════════════════════════════════════════════════════════════════════════
   const [view,        setView]      = useState('overview')
-  const [avaliacoes,    setAvaliacoes]    = useState([])  // overview | clientes | sugestoes | config
-  const [loadSug,     setLoadSug]   = useState(true)
-  const [loadClientes,setLoadCli]   = useState(true)
-  const [sugestoes,   setSugestoes] = useState([])
+  const [overview,    setOverview]  = useState(null)
   const [clientes,    setClientes]  = useState([])
   const [stats,       setStats]     = useState(null)
-  const [clienteSel,  setCltSel]    = useState(null)
-  const [showConfig,  setShowCfg]   = useState(false)
-  const [config,      setConfig]    = useState(null)
-  const [analisando,  setAnalisando]= useState(false)
-  const [ultimaAnal,  setUltimaAnal]= useState(null)
-
-  // ── Filtros da lista de clientes ───────────────────────────────────────────
-  const [showCampanha,setShowCamp]  = useState(false)
-  const [diasMaxF,    setDiasMaxF]  = useState('')     // teto da faixa de dias ('' = aberto)
-  const [totalFiltro, setTotalFlt]  = useState(0)      // total REAL do filtro (servidor)
+  const [totalFiltro, setTotalFlt]  = useState(0)
   const [receitaFlt,  setReceitaFlt]= useState(0)
-  const [segFiltro,   setSegFiltro] = useState('todos')
-  const [canalFiltro, setCanalFlt]  = useState('todos')
-  const [diasFiltro,  setDiasFiltro]= useState('30')
+  const [loadCli,     setLoadCli]   = useState(false)
   const [busca,       setBusca]     = useState('')
+  const [segFiltro,   setSegFiltro] = useState('todos')
+  const [canalFiltro, setCanalF]    = useState('todos')
+  const [diasFiltro,  setDiasFiltro]= useState('30')
+  const [diasMaxF,    setDiasMaxF]  = useState('')
   const [sortBy,      setSortBy]    = useState('dias_desc')
-  const [paginaAtual, setPagina]    = useState(1)
-  const POR_PAGINA = 20
-
-  // ── Filtros de sugestões ───────────────────────────────────────────────────
-  const [tipoFiltro,  setTipoFlt]   = useState('todos')
+  const [clienteSel,  setCltSel]    = useState(null)
+  const [showCampanha,setShowCamp]  = useState(false)
+  const [showConfig,  setShowConfig]= useState(false)
+  const [sugestoes,   setSugestoes] = useState([])
+  const [tipoSug,     setTipoSug]   = useState('todas')
   const [dismissed,   setDismissed] = useState(new Set())
+  const [avaliacoes,  setAvals]     = useState([])
+  const [cfg,         setCfg]       = useState(null)
+  const [analisando,  setAnalisando]= useState(false)
 
+  // ── Dados ────────────────────────────────────────────────────────────────
   const carregarClientes = useCallback(async (offset=0) => {
     setLoadCli(true)
     try {
@@ -1066,635 +1277,436 @@ export default function PageInteligencia({ api }) {
       if (r.ok) {
         const d = await r.json()
         setClientes(prev => offset>0 ? [...prev, ...(d.clientes||[])] : (d.clientes||[]))
-        setStats(d.stats || null)
-        setTotalFlt(d.totalFiltro ?? (d.clientes||[]).length)
-        setReceitaFlt(d.receitaFiltro ?? 0)
+        setStats(d.stats||null); setTotalFlt(d.totalFiltro ?? 0); setReceitaFlt(d.receitaFiltro ?? 0)
       }
     } catch {}
     setLoadCli(false)
   }, [api, diasFiltro, diasMaxF, segFiltro, canalFiltro, busca, sortBy])
+  useEffect(()=>{ const t=setTimeout(()=>carregarClientes(0),350); return ()=>clearTimeout(t) },[carregarClientes])
 
-  // Busca com debounce: refaz no servidor 400ms apos parar de digitar
-  useEffect(()=>{ const t=setTimeout(()=>carregarClientes(0),400); return ()=>clearTimeout(t) },[busca])
+  useEffect(()=>{
+    if (view!=='overview') return
+    fetch(`${api}/api/inteligencia/overview`).then(r=>r.ok?r.json():null).then(setOverview).catch(()=>{})
+  },[view, api])
 
-  const carregarSugestoes = useCallback(async () => {
-    setLoadSug(true)
-    try {
-      const r = await fetch(`${api}/api/inteligencia/sugestoes`)
-      if (r.ok) {
-        const d = await r.json()
-        setSugestoes(d.sugestoes || [])
-        setUltimaAnal(d.ultima_analise)
-      }
-    } catch {}
-    setLoadSug(false)
-  }, [api])
+  const carregarSugestoes = useCallback(()=>{
+    fetch(`${api}/api/inteligencia/sugestoes`).then(r=>r.json())
+      .then(d=>setSugestoes(d.sugestoes||d||[])).catch(()=>{})
+  },[api])
+  useEffect(()=>{
+    carregarSugestoes()
+    fetch(`${api}/api/inteligencia/config`).then(r=>r.json()).then(setCfg).catch(()=>{})
+    fetch(`${api}/api/inteligencia/avaliacoes`).then(r=>r.json())
+      .then(d=>setAvals(d.avaliacoes||d||[])).catch(()=>{})
+  },[api])
 
-  const carregarConfig = useCallback(async () => {
-    try {
-      const r = await fetch(`${api}/api/inteligencia/config`)
-      if (r.ok) { const d = await r.json(); setConfig(d.config) }
-    } catch {}
-  }, [api])
-
-  const carregarAvaliacoes = useCallback(async () => {
-    try {
-      const r = await fetch(`${api}/api/inteligencia/avaliacoes`)
-      if (r.ok) { const d = await r.json(); setAvaliacoes(d.avaliacoes || []) }
-    } catch {}
-  }, [api])
-
-  useEffect(() => { carregarClientes() }, [carregarClientes])
-  useEffect(() => { carregarSugestoes(); carregarConfig(); carregarAvaliacoes() }, [carregarSugestoes, carregarConfig, carregarAvaliacoes])
-
-  const analisarAgora = async () => {
+  const analisar = async () => {
     setAnalisando(true)
-    try {
-      await fetch(`${api}/api/inteligencia/analisar`, { method:'POST' })
-      await Promise.all([carregarSugestoes(), carregarClientes()])
-    } catch {}
-    setAnalisando(false)
+    try { await fetch(`${api}/api/inteligencia/analisar`,{method:'POST'}) } catch {}
+    setTimeout(()=>{ setAnalisando(false); carregarSugestoes(); setOverview(null)
+      fetch(`${api}/api/inteligencia/overview`).then(r=>r.ok?r.json():null).then(setOverview).catch(()=>{}) }, 9000)
   }
+  const dispensarSugestao = (id) => setDismissed(p=>new Set([...p,id]))
 
-  const salvarConfig = async (novaCfg) => {
-    try {
-      await fetch(`${api}/api/inteligencia/config`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ config: novaCfg })
-      })
-      setConfig(novaCfg)
-      setShowCfg(false)
-      analisarAgora()
-    } catch {}
-  }
+  // ── Derivados ────────────────────────────────────────────────────────────
+  const sugsVivas = sugestoes.filter(s=>!dismissed.has(s.id))
+  const porTipo = t => sugsVivas.filter(s=>t==='todas'||s.tipo===t)
+  const urgentes = sugsVivas.filter(s=>s.prioridade==='alta').length
+  const mediaAv = avaliacoes.length ? (avaliacoes.reduce((s,a)=>s+(a.estrelas||0),0)/avaliacoes.length) : 0
+  const irPara = (seg)=>{ setSegFiltro(seg); setDiasFiltro('0'); setDiasMaxF(''); setView('clientes') }
+  const ultimaAn = cfg?.ultima_analise ? fmtDT(cfg.ultima_analise) : null
 
-  const dispensarSugestao = (id) => setDismissed(p => new Set([...p, id]))
+  const SEGV = { vip:['VIP','#f5a623'], fiel:['Fiel','#2bd47f'], potencial:['Potencial','#8b7cff'],
+                 novo:['Novo','#38bdf8'], regular:['Regular','#8b96ab'], em_risco:['Em risco','#ff9838'], perdido:['Perdido','#ff4d6a'] }
+  const TABS = [
+    { id:'overview',  l:'Comando',   n:null, Ic:BarChart3 },
+    { id:'sugestoes', l:'Sugestões', n:sugsVivas.length||null, Ic:Lightbulb },
+    { id:'clientes',  l:'Clientes',  n:totalFiltro?fmt(totalFiltro):null, Ic:Users },
+    { id:'campanhas', l:'Campanhas', n:null, Ic:Send },
+    { id:'avaliacoes',l:'Avaliações',n:avaliacoes.length||null, Ic:Star },
+  ]
 
-  const dispararLote = async (clientesFiltrados) => {
-    const selecionados = clientesFiltrados.filter(c => c.telefone)
-    if (!selecionados.length) return
-    if (!confirm(`Enviar mensagem de reengajamento para ${selecionados.length} clientes?`)) return
-    try {
-      await fetch(`${api}/api/inteligencia/disparar-lote`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ clientes: selecionados.map(c=>({telefone:c.telefone, nome:c.nome, segmento:c.segmento})) })
-      })
-      alert(`Disparo agendado para ${selecionados.length} clientes`)
-    } catch {}
-  }
-
-  // ── Dados derivados ────────────────────────────────────────────────────────
-  const sugestoesFiltradas = sugestoes.filter(s =>
-    !dismissed.has(s.id) &&
-    (tipoFiltro === 'todos' || s.tipo === tipoFiltro)
-  )
-
-  const clientesFiltrados = clientes.filter(c => {
-    if (segFiltro !== 'todos' && c.segmento !== segFiltro) return false
-    if (canalFiltro !== 'todos' && c.canal !== canalFiltro) return false
-    if (busca && !c.nome?.toLowerCase().includes(busca.toLowerCase()) &&
-        !c.telefone?.includes(busca)) return false
-    return true
-  }).sort((a,b) => {
-    if (sortBy==='dias_desc') return (b.diasSemComprar||0)-(a.diasSemComprar||0)
-    if (sortBy==='dias_asc')  return (a.diasSemComprar||0)-(b.diasSemComprar||0)
-    if (sortBy==='valor_desc') return (b.totalGasto||0)-(a.totalGasto||0)
-    if (sortBy==='ticket_desc') return (b.ticketMedio||0)-(a.ticketMedio||0)
-    if (sortBy==='score_desc') return (b.scoreRFM||0)-(a.scoreRFM||0)
-    return 0
-  })
-
-  const clientesPaginados = clientesFiltrados.slice((paginaAtual-1)*POR_PAGINA, paginaAtual*POR_PAGINA)
-  const totalPaginas = Math.ceil(clientesFiltrados.length / POR_PAGINA)
-
-  const receitaRecuperavel = clientesFiltrados.reduce((s,c) => s + (c.ticketMedio||0), 0)
-
-  // ── Distribuição por segmento ──────────────────────────────────────────────
-  // Distribuicao da BASE INTEIRA (stats do servidor: 39.588), nao dos 200
-  // carregados na pagina — era isso que fazia "Perdido 100%" na Visao Geral.
-  const _statsTotal = Number(stats?.total||0)
-  const distSeg = Object.entries(SEG).map(([key,s])=>({
-    ...s, key,
-    count: Number(stats?.[key]||0) || clientes.filter(c=>c.segmento===key).length,
-    total: _statsTotal || clientes.length,
-  })).filter(s=>s.count>0).sort((a,b)=>b.count-a.count)
-
-  const urgentesCount = sugestoesFiltradas.filter(s=>s.prioridade==='alta').length
-
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // RENDER
-  // ══════════════════════════════════════════════════════════════════════════
-  // height:100% + overflowY:auto = padrao das paginas que rolam (PageDashboard,
-  // PageClientes). minHeight:100vh dentro do <main overflow:hidden> do Shell
-  // fazia a pagina crescer alem da janela e ser CORTADA sem barra de rolagem
-  // em lugar nenhum — o "Avaliacoes sem scroll" (a lista mais longa, 49 itens).
   return (
-    <div style={{height:'100%',overflowY:'auto',background:'var(--bg)',color:'var(--label)'}}>
+    <div className="iq-root">
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg) } }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-        @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-        .bia-row:hover { background: var(--fill) !important; }
-        .bia-row { transition: background .1s; }
+        .iq-root{ --iq-bg:#0a0a0c; --iq-p1:#0d0d10; --iq-p2:#111116; --iq-line:rgba(255,255,255,.07);
+          --iq-line2:rgba(255,255,255,.12); --iq-ink:#f4f4f5; --iq-dim:#a1a1aa; --iq-faint:#71717a;
+          --iq-ac:#8b5cf6; --iq-ac2:#60a5fa; --iq-ok:#34d399; --iq-warn:#fbbf24; --iq-bad:#f87171;
+          height:100%; overflow-y:auto; font-family:'Inter',system-ui,-apple-system,sans-serif; background:
+            radial-gradient(1100px 520px at 85% -12%, rgba(139,92,246,.06), transparent 60%), var(--iq-bg);
+          color:var(--iq-ink); font-variant-numeric:tabular-nums; }
+        .iq-root *{ box-sizing:border-box }
+        .iq-root ::-webkit-scrollbar{ width:9px;height:9px } .iq-root ::-webkit-scrollbar-thumb{ background:#1c2434;border-radius:99px }
+        @keyframes iqUp{ from{opacity:0;transform:translateY(7px)} to{opacity:1;transform:none} }
+        @keyframes iqPulse{ 0%,100%{opacity:1} 50%{opacity:.35} }
+        .iq-wrap{ max-width:1240px; margin:0 auto; padding:26px 28px 60px; animation:iqUp .3s ease }
+        .iq-panel{ background:linear-gradient(180deg,var(--iq-p2),var(--iq-p1)); border:1px solid var(--iq-line);
+          border-radius:16px; box-shadow:0 1px 0 rgba(255,255,255,.02) inset }
+        .iq-micro{ font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--iq-faint) }
+        .iq-num{ font-weight:800; letter-spacing:-.02em }
+        .iq-btn{ display:inline-flex; align-items:center; gap:7px; border-radius:11px; cursor:pointer; font-weight:700;
+          border:1px solid var(--iq-line2); background:var(--iq-p2); color:var(--iq-ink); padding:9px 16px; font-size:12.5px;
+          transition:transform .08s ease, border-color .12s }
+        .iq-btn:hover{ transform:translateY(-1px); border-color:var(--iq-ac) }
+        .iq-btn.pri{ background:linear-gradient(135deg,#8b5cf6,#7c3aed); border:none; color:#fff; box-shadow:0 6px 18px rgba(139,92,246,.3) }
+        .iq-btn.go { background:linear-gradient(135deg,#34d399,#10b981); border:none; color:#04160e; box-shadow:0 6px 18px rgba(52,211,153,.25) }
+        .iq-chip{ padding:5px 12px; border-radius:99px; border:1px solid var(--iq-line2); background:transparent;
+          color:var(--iq-dim); font-size:11.5px; font-weight:600; cursor:pointer; transition:all .1s }
+        .iq-chip:hover{ border-color:var(--iq-ac); color:var(--iq-ink) }
+        .iq-chip.on{ background:rgba(52,211,153,.14); border-color:rgba(52,211,153,.4); color:#6ee7b7; font-weight:800 }
+        .iq-tab{ position:relative; padding:10px 4px; margin-right:26px; background:none; border:none; cursor:pointer;
+          font-size:13px; font-weight:600; color:var(--iq-faint); transition:color .12s }
+        .iq-tab:hover{ color:var(--iq-dim) } .iq-tab.on{ color:var(--iq-ink); font-weight:800 }
+        .iq-tab.on::after{ content:''; position:absolute; left:0; right:0; bottom:-1px; height:2.5px; border-radius:99px;
+          background:var(--iq-ac) }
+        .iq-count{ margin-left:7px; font-size:10.5px; font-weight:800; color:var(--iq-ac); background:rgba(139,92,246,.12);
+          border:1px solid rgba(139,92,246,.28); padding:1px 8px; border-radius:99px }
+        .iq-grid{ display:grid; grid-template-columns:minmax(200px,1.9fr) 108px 108px 74px 100px 100px 100px 52px; gap:0; align-items:center }
+        .iq-th{ padding:11px 14px; font-size:10px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:var(--iq-faint) }
+        .iq-row{ border-top:1px solid var(--iq-line); cursor:pointer; transition:background .1s }
+        .iq-row:hover{ background:rgba(255,255,255,.025) }
+        .iq-td{ padding:12px 14px; font-size:12.5px }
+        .iq-kpi{ padding:16px 18px; position:relative; overflow:hidden }
+        .iq-kpi::before{ content:''; position:absolute; inset:0 0 auto 0; height:2px; background:var(--kc,transparent); opacity:.85 }
+        .iq-seg{ text-align:left; border-radius:13px; padding:13px 15px; cursor:pointer; border:1px solid var(--sc,#333);
+          background:linear-gradient(180deg, color-mix(in srgb, var(--sc) 9%, transparent), transparent 70%), var(--iq-p1);
+          transition:transform .1s ease, box-shadow .12s }
+        .iq-seg:hover{ transform:translateY(-2px); box-shadow:0 10px 26px rgba(0,0,0,.35) }
+        .iq-bar{ height:5px; background:#1c1c22; border-radius:99px; overflow:hidden }
+        .iq-bar>i{ display:block; height:100%; border-radius:99px }
+        .iq-input{ width:100%; padding:11px 14px 11px 38px; border-radius:12px; border:1px solid var(--iq-line2);
+          background:var(--iq-p1); color:var(--iq-ink); font-size:13px; outline:none; transition:border-color .12s }
+        .iq-input:focus{ border-color:var(--iq-ac) }
+        .iq-sel{ padding:10px 12px; border-radius:11px; border:1px solid var(--iq-line2); background:var(--iq-p1);
+          color:var(--iq-ink); font-size:12.5px; cursor:pointer }
       `}</style>
 
-      {/* ── HEADER ─────────────────────────────────────────────────────────── */}
-      <div style={{background:'var(--bg-2)',borderBottom:'1px solid var(--sep)',padding:'16px 24px',position:'sticky',top:0,zIndex:20}}>
-        <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:16,maxWidth:1400,margin:'0 auto'}}>
-          <div style={{display:'flex',alignItems:'center',gap:14}}>
-            <div style={{width:42,height:42,borderRadius:12,background:'linear-gradient(135deg,rgba(124,106,247,.2),rgba(0,212,170,.15))',display:'flex',alignItems:'center',justifyContent:'center',border:'1px solid rgba(124,106,247,.3)',flexShrink:0}}>
-              <Brain size={20} style={{color:'#7c6af7'}}/>
-            </div>
-            <div>
-              <h1 style={{fontSize:18,fontWeight:700,color:'var(--label)',margin:0,letterSpacing:'-.4px',display:'flex',alignItems:'center',gap:9}}>
-                Inteligência de Clientes
-                {urgentesCount > 0 && (
-                  <span style={{fontSize:11,fontWeight:800,padding:'2px 8px',borderRadius:99,background:'rgba(239,68,68,.15)',color:'#ef4444',border:'1px solid rgba(239,68,68,.3)',animation:'pulse 2s infinite'}}>
-                    {urgentesCount} urgente{urgentesCount!==1?'s':''}
-                  </span>
-                )}
-              </h1>
-              <p style={{fontSize:12,color:'var(--label-4)',margin:0,display:'flex',alignItems:'center',gap:6}}>
-                <Radio size={10} style={{color:'#22c55e'}}/>
-                {ultimaAnal ? `Última análise: ${fmtDT(ultimaAnal)}` : 'Análise automática ativa'}
-                {loadSug||loadClientes ? <RefreshCw size={10} style={{color:'var(--label-4)',animation:'spin 1s linear infinite'}}/> : null}
-              </p>
+      <div className="iq-wrap">
+        {/* ── HEADER ─────────────────────────────────────────────────────── */}
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',gap:16,flexWrap:'wrap',marginBottom:6}}>
+          <div>
+            <div style={{display:'flex',alignItems:'center',gap:12}}>
+              <div style={{width:40,height:40,borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',
+                background:'rgba(139,92,246,.14)',border:'1px solid rgba(139,92,246,.3)'}}>
+                <Brain size={20} color="#a78bfa"/>
+              </div>
+              <div>
+                <h1 style={{margin:0,fontSize:22,fontWeight:800,letterSpacing:'-.02em',color:'var(--iq-ink)'}}>
+                  Inteligência de Clientes
+                  {urgentes>0 && <span style={{marginLeft:10,fontSize:10.5,fontWeight:800,verticalAlign:'middle',color:'#ff9aa9',
+                    background:'rgba(255,77,106,.1)',border:'1px solid rgba(255,77,106,.3)',padding:'3px 10px',borderRadius:99,WebkitTextFillColor:'#ff9aa9'}}>{urgentes} urgente{urgentes>1?'s':''}</span>}
+                </h1>
+                <p style={{margin:'3px 0 0',fontSize:11.5,color:'var(--iq-faint)',display:'flex',alignItems:'center',gap:7}}>
+                  <span style={{width:6,height:6,borderRadius:99,background:'var(--iq-ok)',animation:'iqPulse 2.2s infinite'}}/>
+                  base viva · push do Bling{ultimaAn && <> · última análise {ultimaAn}</>}
+                </p>
+              </div>
             </div>
           </div>
-
-          {/* Ações do header */}
-          <div style={{display:'flex',gap:7,alignItems:'center',flexShrink:0}}>
-            <button onClick={()=>setShowCfg(true)} style={{display:'flex',alignItems:'center',gap:6,padding:'7px 13px',borderRadius:9,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-3)',cursor:'pointer',fontSize:12.5,fontWeight:500}}>
-              <SlidersHorizontal size={13}/> Configurar
+          <div style={{display:'flex',gap:9}}>
+            <button className="iq-btn" onClick={()=>setShowConfig(true)}>
+              <Settings size={13}/>Configurar
             </button>
-            <button onClick={analisarAgora} disabled={analisando} style={{display:'flex',alignItems:'center',gap:6,padding:'7px 14px',borderRadius:9,border:'1px solid rgba(124,106,247,.3)',background:'rgba(124,106,247,.1)',color:'#7c6af7',cursor:'pointer',fontSize:12.5,fontWeight:700,opacity:analisando?.7:1}}>
-              {analisando ? <><RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/> Analisando...</> : <><Brain size={13}/> Analisar agora</>}
+            <button className="iq-btn pri" onClick={analisar} disabled={analisando}>
+              <Sparkles size={13}/>{analisando?'Analisando…':'Analisar agora'}
             </button>
           </div>
         </div>
 
-        {/* Tabs de navegação */}
-        <div style={{display:'flex',gap:0,marginTop:14,maxWidth:1400,margin:'14px auto 0'}}>
-          {[
-            {id:'overview',   label:'Visão Geral', icon:BarChart3},
-            {id:'sugestoes',  label:`Sugestões da Bia${sugestoesFiltradas.length?` (${sugestoesFiltradas.length})`:''}`, icon:Brain},
-            {id:'clientes',   label:`Clientes${totalFiltro?` (${fmt(totalFiltro)})`:''}`, icon:Users},
-            {id:'campanhas',  label:'Campanhas', icon:Send},
-            {id:'avaliacoes', label:`Avaliações${avaliacoes.length?` (${avaliacoes.length})`:''}`, icon:Star},
-          ].map(t=>{
-            const Icon = t.icon
-            return (
-              <button key={t.id} onClick={()=>setView(t.id)} style={{display:'flex',alignItems:'center',gap:7,padding:'8px 16px',fontSize:12.5,border:'none',background:'transparent',cursor:'pointer',color:view===t.id?'var(--accent)':'var(--label-4)',borderBottom:`2px solid ${view===t.id?'var(--accent)':'transparent'}`,fontWeight:view===t.id?700:400,transition:'color .1s',whiteSpace:'nowrap'}}>
-                <Icon size={13}/>{t.label}
-              </button>
-            )
-          })}
+        {/* ── TAB RAIL ───────────────────────────────────────────────────── */}
+        <div style={{display:'flex',borderBottom:'1px solid var(--iq-line)',marginBottom:22}}>
+          {TABS.map(t=>(
+            <button key={t.id} className={`iq-tab${view===t.id?' on':''}`} onClick={()=>setView(t.id)} style={{display:'inline-flex',alignItems:'center',gap:7}}>
+              <t.Ic size={14}/>{t.l}{t.n!=null && <span className="iq-count">{t.n}</span>}
+            </button>
+          ))}
         </div>
-      </div>
 
-      {/* ── CONTEÚDO ───────────────────────────────────────────────────────── */}
-      <div style={{maxWidth:1400,margin:'0 auto',padding:'24px'}}>
-
-        {/* ────────── VIEW: OVERVIEW ────────────────────────────────────────── */}
-        {view === 'overview' && (
-          <div style={{display:'flex',flexDirection:'column',gap:20}}>
-
-            {/* KPIs principais */}
-            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>
+        {/* ══ COMANDO ═════════════════════════════════════════════════════ */}
+        {view==='overview' && (()=>{ const ov=overview; const base=Number(ov?.totais?.base||0)
+          const segs=(ov?.segmentos||[]).slice().sort((a,b)=>b.clientes-a.clientes)
+          return (
+          <div style={{display:'flex',flexDirection:'column',gap:16}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(185px,1fr))',gap:12}}>
               {[
-                { label:'Score de saúde',   value: stats?.scoreBase||0,     unit:'',   cor:'#7c6af7', sub:'da base de clientes',  big:true, ring:true },
-                { label:'Clientes em risco',value: stats?.emRisco||0,       unit:'',   cor:'#f97316', sub:`${stats?.pctRisco||0}% da base` },
-                { label:'Receita recuperável',value: Rk(receitaRecuperavel),unit:'',   cor:'#22c55e', sub:`${fmt(clientesFiltrados.length)} clientes inativos` },
-                { label:'Sugestões ativas',  value: sugestoesFiltradas.length,unit:'', cor:'#7c6af7', sub:`${urgentesCount} urgentes` },
-              ].map(k=>(
-                <div key={k.label} style={{padding:'16px 18px',borderRadius:14,background:'var(--bg-2)',border:`1px solid ${k.ring?`${k.cor}30`:'var(--sep)'}`,position:'relative',overflow:'hidden'}}>
-                  {k.ring && <div style={{position:'absolute',top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,${k.cor},${k.cor}60)`}}/>}
-                  <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',margin:'0 0 8px'}}>{k.label}</p>
-                  {k.ring
-                    ? <div style={{display:'flex',alignItems:'center',gap:12}}><ScoreRing score={k.value} size={52}/><div><p style={{fontSize:11.5,color:'var(--label-3)',margin:0,lineHeight:1.4}}>{k.sub}</p></div></div>
-                    : <><p style={{fontSize:26,fontWeight:800,color:k.cor,margin:'0 0 3px',letterSpacing:'-1px',lineHeight:1}}>{k.value}</p><p style={{fontSize:11.5,color:'var(--label-4)',margin:0}}>{k.sub}</p></>
-                  }
+                [Users,'Base endereçável', base?base.toLocaleString('pt-BR'):'—','clientes com telefone','var(--iq-ac2)'],
+                [DollarSign,'LTV acumulado', ov?`R$ ${(Number(ov.totais.ltv_total)/1000).toFixed(0)}k`:'—','tudo que a base já comprou','var(--iq-ok)'],
+                [Clock,'Hora de recomprar', ov?Number(ov.risco.hora_de_comprar).toLocaleString('pt-BR'):'—', ov?`R$ ${(Number(ov.risco.receita_hora)/1000).toFixed(1)}k no ponto do ciclo`:'','var(--iq-warn)'],
+                [AlertTriangle,'Em risco (ciclo)', ov?Number(ov.risco.em_risco).toLocaleString('pt-BR'):'—','passaram 1,5× o próprio ciclo','#fb923c'],
+                [Activity,'Ativos 30d', ov?Number(ov.totais.ativos_30d).toLocaleString('pt-BR'):'—','compraram no último mês','#60a5fa'],
+              ].map(([Ic,t,v,s,c],i)=>(
+                <div key={i} className="iq-panel iq-kpi" style={{'--kc':c}}>
+                  <div style={{width:30,height:30,borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',
+                    background:`color-mix(in srgb, ${c} 15%, transparent)`,marginBottom:10}}><Ic size={15} color={c}/></div>
+                  <p className="iq-num" style={{fontSize:25,margin:'0 0 3px',color:c}}>{v}</p>
+                  <p className="iq-micro" style={{margin:0,color:'var(--iq-dim)'}}>{t}</p>
+                  <p style={{fontSize:10,color:'var(--iq-faint)',margin:'3px 0 0'}}>{s}</p>
                 </div>
               ))}
             </div>
 
-            {/* 2 colunas: distribuição + top sugestões */}
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1.6fr',gap:16}}>
-
-              {/* Distribuição de segmentos */}
-              <div style={{borderRadius:14,background:'var(--bg-2)',border:'1px solid var(--sep)',overflow:'hidden'}}>
-                <div style={{padding:'14px 18px',borderBottom:'1px solid var(--sep)',display:'flex',alignItems:'center',gap:8}}>
-                  <Layers size={13} style={{color:'var(--label-4)'}}/>
-                  <span style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--label-4)'}}>Segmentos RFM</span>
-                  <span style={{marginLeft:'auto',fontSize:12,color:'var(--label-4)'}}>{fmt(clientes.length)} clientes</span>
+            <div style={{display:'grid',gridTemplateColumns:'1.35fr 1fr',gap:16,alignItems:'start'}}>
+              <div className="iq-panel" style={{padding:'18px 20px'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:13}}>
+                  <p className="iq-micro" style={{margin:0,color:'var(--iq-dim)'}}>Segmentos — base inteira</p>
+                  <span style={{fontSize:10.5,color:'var(--iq-faint)'}}>clique → clientes → campanha</span>
                 </div>
-                <div style={{padding:'12px 18px'}}>
-                  {distSeg.length === 0 && loadClientes && (
-                    <div style={{display:'flex',alignItems:'center',gap:8,padding:'12px 0',color:'var(--label-4)',fontSize:12}}>
-                      <RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/> Carregando...
-                    </div>
-                  )}
-                  {distSeg.map(s=>{
-                    const pct = s.total > 0 ? Math.round((s.count/s.total)*100) : 0
-                    const Icon = s.Icon
+                {!ov && <p style={{fontSize:12,color:'var(--iq-faint)'}}>Carregando…</p>}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                  {segs.map(s=>{ const [label,cor]=SEGV[s.segmento]||[s.segmento,'#8b96ab']
+                    const pct=base?Math.round(s.clientes/base*100):0
                     return (
-                      <div key={s.key} onClick={()=>{setSegFiltro(s.key);setView('clientes')}}
-                        className="bia-row"
-                        style={{display:'flex',alignItems:'center',gap:10,padding:'9px 8px',borderRadius:8,cursor:'pointer',marginBottom:3}}>
-                        <div style={{width:28,height:28,borderRadius:8,background:`${s.cor}15`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                          <Icon size={13} style={{color:s.cor}}/>
+                      <button key={s.segmento} className="iq-seg" style={{'--sc':cor+'55'}} onClick={()=>irPara(s.segmento)}>
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                          <span style={{fontSize:11.5,fontWeight:800,color:cor}}>{label}</span>
+                          <span style={{fontSize:10.5,color:'var(--iq-faint)'}}>{pct}%</span>
                         </div>
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
-                            <span style={{fontSize:12.5,fontWeight:600,color:'var(--label)'}}>{s.label}</span>
-                            <span style={{fontSize:12,color:'var(--label-4)'}}>{fmt(s.count)}</span>
-                          </div>
-                          <ProgressBar value={s.count} max={s.total} cor={s.cor}/>
+                        <p className="iq-num" style={{fontSize:21,color:'var(--iq-ink)',margin:'5px 0 2px'}}>{Number(s.clientes).toLocaleString('pt-BR')}</p>
+                        <p style={{fontSize:10.5,color:'var(--iq-dim)',margin:'0 0 9px'}}>LTV R$ {(Number(s.ltv)/1000).toFixed(0)}k · ticket R$ {Number(s.ticket).toFixed(0)}</p>
+                        <div className="iq-bar"><i style={{width:`${pct}%`,background:cor}}/></div>
+                      </button>
+                    )})}
+                </div>
+              </div>
+
+              <div style={{display:'flex',flexDirection:'column',gap:14}}>
+                <div className="iq-panel" style={{padding:'16px 18px'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:11}}>
+                    <p className="iq-micro" style={{margin:0,color:'var(--iq-dim)'}}>Campanhas ao vivo</p>
+                    <button onClick={()=>setView('campanhas')} style={{background:'none',border:'none',color:'var(--iq-ac2)',cursor:'pointer',fontSize:11,fontWeight:700}}>ver todas →</button>
+                  </div>
+                  {(!ov||!ov.campanhas?.length) && <p style={{fontSize:12,color:'var(--iq-faint)',margin:0}}>Nenhuma rodando. Monte a audiência em Clientes.</p>}
+                  {(ov?.campanhas||[]).map(c=>{ const alvo=Math.max(1,(c.total||0)-(c.pulados||0)); const pct=Math.min(100,Math.round(((c.enviados||0)+(c.erros||0))/alvo*100))
+                    return (
+                      <div key={c.id} style={{marginBottom:11}}>
+                        <div style={{display:'flex',justifyContent:'space-between',fontSize:11.5,marginBottom:5}}>
+                          <span style={{color:'var(--iq-ink)',fontWeight:600}}>#{c.id} {c.nome}</span>
+                          <span className="iq-num" style={{color:c.status==='rodando'?'var(--iq-ok)':'var(--iq-warn)'}}>{pct}%</span>
                         </div>
-                        <span style={{fontSize:11,fontWeight:700,color:s.cor,minWidth:30,textAlign:'right'}}>{pct}%</span>
-                        <ChevronRight size={11} style={{color:'var(--label-4)',flexShrink:0}}/>
+                        <div className="iq-bar" style={{height:7}}><i style={{width:`${pct}%`,background:c.status==='rodando'?'linear-gradient(90deg,#16b364,#2bd47f)':'var(--iq-warn)'}}/></div>
                       </div>
-                    )
-                  })}
+                    )})}
                 </div>
-              </div>
 
-              {/* Top 3 sugestões urgentes */}
-              <div style={{borderRadius:14,background:'var(--bg-2)',border:'1px solid var(--sep)',overflow:'hidden'}}>
-                <div style={{padding:'14px 18px',borderBottom:'1px solid var(--sep)',display:'flex',alignItems:'center',gap:8}}>
-                  <Brain size={13} style={{color:'#7c6af7'}}/>
-                  <span style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--label-4)'}}>Sugestões prioritárias</span>
-                  <button onClick={()=>setView('sugestoes')} style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:4,fontSize:12,color:'var(--accent)',background:'transparent',border:'none',cursor:'pointer',fontWeight:600}}>
-                    Ver todas <ArrowRight size={11}/>
-                  </button>
-                </div>
-                <div style={{padding:'12px 18px',display:'flex',flexDirection:'column',gap:10}}>
-                  {loadSug && <div style={{display:'flex',alignItems:'center',gap:8,padding:'12px 0',color:'var(--label-4)',fontSize:12}}><RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/> Carregando análises...</div>}
-                  {!loadSug && sugestoesFiltradas.length === 0 && (
-                    <div style={{padding:'24px 0',textAlign:'center'}}>
-                      <CheckCircle size={28} style={{display:'block',margin:'0 auto 10px',color:'#22c55e',opacity:.5}}/>
-                      <p style={{fontSize:13,color:'var(--label-3)',margin:'0 0 4px',fontWeight:500}}>Tudo em dia!</p>
-                      <p style={{fontSize:12,color:'var(--label-4)',margin:0}}>Nenhuma ação necessária no momento</p>
-                    </div>
-                  )}
-                  {sugestoesFiltradas.slice(0,3).map(sug=>(
-                    <BiaCard key={sug.id} sug={sug} api={api} onDismiss={dispensarSugestao} onAction={()=>{}}/>
-                  ))}
-                  {sugestoesFiltradas.length > 3 && (
-                    <button onClick={()=>setView('sugestoes')} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'9px',borderRadius:9,border:'1px solid var(--sep)',background:'transparent',color:'var(--label-4)',cursor:'pointer',fontSize:12.5}}>
-                      Ver mais {sugestoesFiltradas.length - 3} sugestões <ArrowRight size={12}/>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Linha de métricas de comportamento */}
-            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
-              {[
-                { label:'Tempo médio entre compras', value:`${stats?.cicloMedio||0} dias`,      sub:'média da base',           Icon:Clock,  cor:'#4a9fff' },
-                { label:'Taxa de retenção (90d)',    value:`${stats?.taxaRetencao||0}%`,         sub:'compraram novamente',     Icon:Repeat, cor:'#22c55e' },
-                { label:'Clientes com ciclo regular',value:`${stats?.clientesCiclo||0}`,         sub:'padrão de recompra',      Icon:Activity,cor:'#7c6af7' },
-              ].map(m=>{
-                const Icon = m.Icon
-                return (
-                  <div key={m.label} style={{padding:'14px 16px',borderRadius:12,background:'var(--bg-2)',border:'1px solid var(--sep)',display:'flex',alignItems:'center',gap:14}}>
-                    <div style={{width:40,height:40,borderRadius:10,background:`${m.cor}15`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                      <Icon size={18} style={{color:m.cor}}/>
-                    </div>
-                    <div>
-                      <p style={{fontSize:18,fontWeight:800,color:m.cor,margin:'0 0 2px',letterSpacing:'-.5px',lineHeight:1}}>{m.value}</p>
-                      <p style={{fontSize:11,color:'var(--label-4)',margin:'0 0 1px',textTransform:'uppercase',letterSpacing:'.06em'}}>{m.label}</p>
-                      <p style={{fontSize:11.5,color:'var(--label-3)',margin:0}}>{m.sub}</p>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-
-        {/* ────────── VIEW: SUGESTÕES ─────────────────────────────────────── */}
-        {view === 'sugestoes' && (
-          <div>
-            {/* Toolbar */}
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20,flexWrap:'wrap'}}>
-              <div style={{display:'flex',gap:6}}>
-                {[{id:'todos',l:'Todas'}, ...Object.entries(TIPO_SUGESTAO).map(([id,t])=>({id,l:t.label}))].map(f=>(
-                  <button key={f.id} onClick={()=>setTipoFlt(f.id)} style={{display:'flex',alignItems:'center',gap:4,padding:'6px 12px',borderRadius:99,border:`1px solid ${tipoFiltro===f.id?'var(--accent)':'var(--sep)'}`,background:tipoFiltro===f.id?'var(--accent-dim)':'transparent',color:tipoFiltro===f.id?'var(--accent)':'var(--label-4)',cursor:'pointer',fontSize:12,fontWeight:tipoFiltro===f.id?700:400,whiteSpace:'nowrap'}}>
-                    {f.l}
-                    {f.id!=='todos'&&<span style={{fontSize:10,padding:'0 4px',borderRadius:99,background:`${tipoFiltro===f.id?'var(--accent)':'var(--sep)'}40`}}>
-                      {sugestoes.filter(s=>!dismissed.has(s.id)&&s.tipo===f.id).length}
-                    </span>}
-                  </button>
-                ))}
-              </div>
-              <span style={{marginLeft:'auto',fontSize:12,color:'var(--label-4)'}}>
-                {sugestoesFiltradas.length} sugestões
-              </span>
-            </div>
-
-            {loadSug && (
-              <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:12,padding:'60px 0',color:'var(--label-4)'}}>
-                <RefreshCw size={18} style={{animation:'spin 1s linear infinite',color:'#7c6af7'}}/>
-                <span style={{fontSize:14}}>Analisando padrões...</span>
-              </div>
-            )}
-
-            {!loadSug && sugestoesFiltradas.length === 0 && (
-              <div style={{padding:'80px 0',textAlign:'center'}}>
-                <div style={{width:64,height:64,borderRadius:20,background:'rgba(124,106,247,.1)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
-                  <CheckCircle size={28} style={{color:'#7c6af7'}}/>
-                </div>
-                <p style={{fontSize:16,fontWeight:600,color:'var(--label)',margin:'0 0 6px'}}>Nenhuma sugestão pendente</p>
-                <p style={{fontSize:13,color:'var(--label-4)',margin:'0 0 20px'}}>Sua base de clientes está saudável!</p>
-                <button onClick={analisarAgora} style={{display:'inline-flex',alignItems:'center',gap:7,padding:'9px 18px',borderRadius:10,border:'1px solid rgba(124,106,247,.3)',background:'rgba(124,106,247,.1)',color:'#7c6af7',cursor:'pointer',fontSize:13,fontWeight:600}}>
-                  <Brain size={14}/> Analisar novamente
-                </button>
-              </div>
-            )}
-
-            <div style={{display:'flex',flexDirection:'column',gap:10}}>
-              {sugestoesFiltradas.map((sug,i)=>(
-                <div key={sug.id} style={{animation:`fadeIn .3s ease ${i*.05}s both`}}>
-                  <BiaCard sug={sug} api={api} onDismiss={dispensarSugestao} onAction={()=>{}}/>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ────────── VIEW: CLIENTES ──────────────────────────────────────── */}
-        {view === 'clientes' && (
-          <div>
-            {/* Toolbar de filtros */}
-            <div style={{background:'var(--bg-2)',borderRadius:12,border:'1px solid var(--sep)',padding:'14px 16px',marginBottom:16}}>
-              {/* Linha 1: busca + sort */}
-              <div style={{display:'flex',gap:10,marginBottom:12}}>
-                <div style={{flex:1,display:'flex',alignItems:'center',gap:8,padding:'8px 12px',borderRadius:9,border:'1px solid var(--sep)',background:'var(--fill)'}}>
-                  <Search size={14} style={{color:'var(--label-4)',flexShrink:0}}/>
-                  <input value={busca} onChange={e=>{setBusca(e.target.value);setPagina(1)}} placeholder="Buscar cliente ou telefone..." style={{flex:1,border:'none',background:'transparent',color:'var(--label)',fontSize:13,outline:'none'}}/>
-                  {busca && <button onClick={()=>setBusca('')} style={{background:'transparent',border:'none',cursor:'pointer',color:'var(--label-4)',padding:0,display:'flex'}}><X size={13}/></button>}
-                </div>
-                <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{padding:'8px 12px',borderRadius:9,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:12.5,cursor:'pointer',outline:'none'}}>
-                  <option value="dias_desc">Mais tempo sem comprar</option>
-                  <option value="dias_asc">Comprou mais recentemente</option>
-                  <option value="valor_desc">Maior gasto total</option>
-                  <option value="ticket_desc">Maior ticket médio</option>
-                  <option value="score_desc">Maior score RFM</option>
-                </select>
-              </div>
-              {/* Linha 2: chips de filtro */}
-              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-                {/* Segmento */}
-                <div style={{display:'flex',gap:5,alignItems:'center'}}>
-                  <span style={{fontSize:11,color:'var(--label-4)',fontWeight:600}}>Segmento:</span>
-                  {[{id:'todos',l:'Todos'}, ...Object.entries(SEG).map(([id,s])=>({id,l:s.label,cor:s.cor}))].map(f=>(
-                    <button key={f.id} onClick={()=>{setSegFiltro(f.id);setPagina(1)}} style={{padding:'4px 10px',borderRadius:99,border:`1px solid ${segFiltro===f.id?(f.cor||'var(--accent)'):'var(--sep)'}`,background:segFiltro===f.id?`${f.cor||'var(--accent)'}15`:'transparent',color:segFiltro===f.id?(f.cor||'var(--accent)'):'var(--label-4)',cursor:'pointer',fontSize:11.5,fontWeight:segFiltro===f.id?700:400}}>
-                      {f.l}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {/* Linha 3: dias + canal */}
-              <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:9}}>
-                <div style={{display:'flex',gap:5,alignItems:'center'}}>
-                  <span style={{fontSize:11,color:'var(--label-4)',fontWeight:600}}>Sem comprar:</span>
-                  {/* Faixas fechadas: "+15d" sozinho era so um PISO (>=15) e mostrava
-                      cliente de 3 anos no topo — correto pela query, enganoso pra quem le.
-                      Agora cada chip e uma FAIXA real; "+120d" segue aberto. */}
-                  {[{v:'15',m:'30',l:'15–30d'},{v:'30',m:'60',l:'30–60d'},{v:'60',m:'90',l:'60–90d'},{v:'90',m:'120',l:'90–120d'},{v:'120',m:'',l:'+120d'}].map(f=>(
-                    <button key={f.l} onClick={()=>{setDiasFiltro(f.v);setDiasMaxF(f.m);setPagina(1)}} style={{padding:'4px 10px',borderRadius:99,border:`1px solid ${(diasFiltro===f.v&&diasMaxF===f.m)?'var(--accent)':'var(--sep)'}`,background:(diasFiltro===f.v&&diasMaxF===f.m)?'var(--accent-dim)':'transparent',color:(diasFiltro===f.v&&diasMaxF===f.m)?'var(--accent)':'var(--label-4)',cursor:'pointer',fontSize:11.5,fontWeight:(diasFiltro===f.v&&diasMaxF===f.m)?700:400}}>
-                      {f.l}
-                    </button>
-                  ))}
-                </div>
-                <div style={{display:'flex',gap:5,alignItems:'center',marginLeft:8}}>
-                  <span style={{fontSize:11,color:'var(--label-4)',fontWeight:600}}>Canal:</span>
-                  {[{id:'todos',l:'Todos'}, ...Object.keys(CANAL).map(id=>({id,l:CANAL[id].label}))].map(f=>(
-                    <button key={f.id} onClick={()=>{setCanalFlt(f.id);setPagina(1)}} style={{padding:'4px 10px',borderRadius:99,border:`1px solid ${canalFiltro===f.id?'var(--accent)':'var(--sep)'}`,background:canalFiltro===f.id?'var(--accent-dim)':'transparent',color:canalFiltro===f.id?'var(--accent)':'var(--label-4)',cursor:'pointer',fontSize:11.5,fontWeight:canalFiltro===f.id?700:400}}>
-                      {f.l}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Cabeçalho da lista + ações em lote */}
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10,padding:'0 4px'}}>
-              <span style={{fontSize:12.5,color:'var(--label-4)'}}>
-                {loadClientes ? <><RefreshCw size={12} style={{animation:'spin 1s linear infinite',marginRight:6}}/> Carregando...</>
-                  : `Mostrando ${fmt(clientesFiltrados.length)} de ${fmt(totalFiltro)} clientes do filtro · receita recuperável ${Rk(receitaFlt||receitaRecuperavel)} · a campanha alcança TODOS os ${fmt(totalFiltro)}`
-                }
-              </span>
-              {/* O composer resolve a audiencia NO SERVIDOR pelos filtros atuais —
-                  a lista da tela (200) e so amostra; a campanha alcanca TODOS os
-                  clientes do filtro (ex: 10.963 perdidos), com fila, ritmo e janela. */}
-              <button onClick={()=>setShowCamp(true)} style={{display:'flex',alignItems:'center',gap:6,padding:'7px 14px',borderRadius:9,border:'1px solid rgba(37,211,102,.3)',background:'rgba(37,211,102,.06)',color:'#25D366',cursor:'pointer',fontSize:12,fontWeight:700}}>
-                <Send size={12}/> Criar campanha com estes filtros
-              </button>
-            </div>
-
-            {/* Tabela de clientes */}
-            <div style={{borderRadius:12,border:'1px solid var(--sep)',overflow:'hidden',background:'var(--bg-2)'}}>
-              {/* Header */}
-              <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr 1fr 100px',gap:0,padding:'9px 16px',borderBottom:'1px solid var(--sep)',background:'var(--fill)'}}>
-                {['Cliente','Segmento','Canal','Sem comprar','LTV','Ticket médio','Ação'].map(h=>(
-                  <span key={h} style={{fontSize:10.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--label-4)',paddingRight:8}}>{h}</span>
-                ))}
-              </div>
-
-              {loadClientes && !clientes.length && (
-                <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:10,padding:'48px',color:'var(--label-4)'}}>
-                  <RefreshCw size={16} style={{animation:'spin 1s linear infinite',color:'#7c6af7'}}/> <span style={{fontSize:13}}>Carregando clientes...</span>
-                </div>
-              )}
-
-              {!loadClientes && clientesPaginados.length === 0 && (
-                <div style={{padding:'48px',textAlign:'center',color:'var(--label-4)'}}>
-                  <Users size={28} style={{display:'block',margin:'0 auto 12px',opacity:.2}}/>
-                  <p style={{fontSize:14,margin:0,color:'var(--label-3)'}}>Nenhum cliente encontrado</p>
-                  <p style={{fontSize:12,margin:'6px 0 0',opacity:.7}}>Tente ajustar os filtros</p>
-                </div>
-              )}
-
-              {clientesPaginados.map((c,i)=>{
-                const s   = SEG[c.segmento] || SEG.regular
-                const SIcon = s.Icon
-                const corDias = c.diasSemComprar > 60 ? '#ef4444' : c.diasSemComprar > 30 ? '#f97316' : '#22c55e'
-                return (
-                  <div key={i} className="bia-row"
-                    style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr 1fr 100px',gap:0,padding:'11px 16px',borderBottom:'1px solid var(--sep)',cursor:'pointer',alignItems:'center'}}
-                    onClick={()=>setCltSel(c)}>
-
-                    {/* Nome */}
-                    <div style={{display:'flex',alignItems:'center',gap:10,minWidth:0,paddingRight:8}}>
-                      <Avatar nome={c.nome} size={32}/>
-                      <div style={{minWidth:0}}>
-                        <p style={{fontSize:13,fontWeight:600,color:'var(--label)',margin:'0 0 2px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.nome||'—'}</p>
-                        {c.telefone && <p style={{fontSize:11,color:'var(--label-4)',margin:0,fontFamily:'monospace'}}>{c.telefone}</p>}
+                <div className="iq-panel" style={{padding:'16px 18px'}}>
+                  <p className="iq-micro" style={{margin:'0 0 11px',color:'var(--iq-dim)'}}>Ciclo de recompra</p>
+                  {ov && [['Em dia',ov.risco.em_dia,'var(--iq-ok)'],['Hora de recomprar',ov.risco.hora_de_comprar,'var(--iq-warn)'],['Em risco',ov.risco.em_risco,'#ff9838'],['Provav. perdido',ov.risco.provavelmente_perdido,'var(--iq-bad)']].map(([l,v,c])=>{
+                    const max=Math.max(1,...[ov.risco.em_dia,ov.risco.hora_de_comprar,ov.risco.em_risco,ov.risco.provavelmente_perdido].map(Number))
+                    return (
+                      <div key={l} style={{display:'flex',alignItems:'center',gap:9,marginBottom:7}}>
+                        <span style={{fontSize:11,color:'var(--iq-dim)',width:116,flexShrink:0}}>{l}</span>
+                        <div className="iq-bar" style={{flex:1,height:6}}><i style={{width:`${Number(v)/max*100}%`,background:c}}/></div>
+                        <span className="iq-num" style={{fontSize:11.5,color:'var(--iq-ink)',width:52,textAlign:'right'}}>{Number(v).toLocaleString('pt-BR')}</span>
                       </div>
-                    </div>
-
-                    {/* Segmento */}
-                    <div style={{paddingRight:8}}><SegChip seg={c.segmento}/></div>
-
-                    {/* Canal */}
-                    <div style={{paddingRight:8}}>{c.canal && <CanalChip canal={c.canal}/>}</div>
-
-                    {/* Dias */}
-                    <div style={{paddingRight:8}}>
-                      <span style={{fontSize:13,fontWeight:700,color:corDias}}>{c.diasSemComprar||0}d</span>
-                      {c.cicloDias > 0 && c.diasSemComprar >= c.cicloDias*.8 && (
-                        <span style={{display:'block',fontSize:10,color:'#f97316'}}>⚡ hora de recomprar</span>
-                      )}
-                    </div>
-
-                    {/* LTV */}
-                    <span style={{fontSize:13,fontWeight:600,color:'var(--label)',paddingRight:8}}>{Rk(c.totalGasto||0)}</span>
-
-                    {/* Ticket */}
-                    <div style={{paddingRight:8}}>
-                      <span style={{fontSize:13,color:'var(--label-3)'}}>{Rk(c.ticketMedio||0)}</span>
-                      {c.scoreRFM > 0 && <Sparkline data={c.historicoPedidos||[]} cor={s.cor} height={16} width={50}/>}
-                    </div>
-
-                    {/* Ação */}
-                    <button
-                      onClick={e=>{e.stopPropagation();setCltSel(c)}}
-                      style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:7,border:`1px solid ${s.cor}30`,background:`${s.cor}10`,color:s.cor,cursor:'pointer',fontSize:11.5,fontWeight:600}}>
-                      <MessageSquare size={11}/> Contatar
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Paginação */}
-            {totalPaginas > 1 && (
-              <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:7,marginTop:16}}>
-                <button onClick={()=>setPagina(p=>Math.max(1,p-1))} disabled={paginaAtual===1}
-                  style={{padding:'6px 12px',borderRadius:8,border:'1px solid var(--sep)',background:'transparent',color:'var(--label-3)',cursor:paginaAtual===1?'not-allowed':'pointer',opacity:paginaAtual===1?.4:1,fontSize:12}}>
-                  ←
-                </button>
-                {Array.from({length:Math.min(7,totalPaginas)},(_, i)=>{
-                  const p = i+1
-                  return (
-                    <button key={p} onClick={()=>setPagina(p)}
-                      style={{padding:'6px 11px',borderRadius:8,border:`1px solid ${paginaAtual===p?'var(--accent)':'var(--sep)'}`,background:paginaAtual===p?'var(--accent-dim)':'transparent',color:paginaAtual===p?'var(--accent)':'var(--label-3)',cursor:'pointer',fontSize:12,fontWeight:paginaAtual===p?700:400}}>
-                      {p}
-                    </button>
-                  )
-                })}
-                {totalPaginas > 7 && <span style={{color:'var(--label-4)',fontSize:12}}>... {totalPaginas}</span>}
-                {clientes.length < totalFiltro && (
-                  <button onClick={()=>carregarClientes(clientes.length)} disabled={loadClientes}
-                    style={{padding:'6px 14px',borderRadius:8,border:'1px solid var(--accent)',background:'var(--accent-dim)',color:'var(--accent)',cursor:'pointer',fontSize:12,fontWeight:700}}>
-                    {loadClientes?'Carregando...':`+ Carregar mais (${fmt(totalFiltro - clientes.length)} restantes)`}
-                  </button>
-                )}
-                <button onClick={()=>setPagina(p=>Math.min(totalPaginas,p+1))} disabled={paginaAtual===totalPaginas}
-                  style={{padding:'6px 12px',borderRadius:8,border:'1px solid var(--sep)',background:'transparent',color:'var(--label-3)',cursor:paginaAtual===totalPaginas?'not-allowed':'pointer',opacity:paginaAtual===totalPaginas?.4:1,fontSize:12}}>
-                  →
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-      </div>
-
-      {/* ── MODAIS ─────────────────────────────────────────────────────────── */}
-      {/* ────────── VIEW: AVALIAÇÕES ──────────────────────────────────────────── */}
-      {view === 'campanhas' && (
-        <div style={{maxWidth:980,margin:'0 auto',padding:'0 4px'}}>
-          <CampanhasPanel api={api}/>
-        </div>
-      )}
-
-      {view === 'avaliacoes' && (
-        <div style={{display:'flex',flexDirection:'column',gap:16}}>
-          {/* Resumo */}
-          {avaliacoes.length > 0 && (() => {
-            const media = avaliacoes.reduce((s,a)=>s+a.estrelas,0)/avaliacoes.length
-            const dist  = [5,4,3,2,1].map(n=>({n,count:avaliacoes.filter(a=>a.estrelas===n).length}))
-            return (
-              <div style={{display:'grid',gridTemplateColumns:'200px 1fr',gap:16}}>
-                <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'20px',textAlign:'center'}}>
-                  <div style={{fontSize:48,fontWeight:700,color:'var(--label)',lineHeight:1}}>{media.toFixed(1)}</div>
-                  <div style={{fontSize:20,margin:'6px 0'}}>{'⭐'.repeat(Math.round(media))}</div>
-                  <div style={{fontSize:12,color:'var(--label-4)'}}>{avaliacoes.length} avaliação{avaliacoes.length!==1?'ões':''}</div>
+                    )})}
                 </div>
-                <div style={{background:'var(--bg-2)',border:'1px solid var(--sep)',borderRadius:14,padding:'20px',display:'flex',flexDirection:'column',justifyContent:'center',gap:8}}>
-                  {dist.map(({n,count})=>(
-                    <div key={n} style={{display:'flex',alignItems:'center',gap:10}}>
-                      <span style={{fontSize:12,color:'var(--label-3)',width:16,textAlign:'right'}}>{n}</span>
-                      <Star size={12} style={{color:'#f59e0b',flexShrink:0}}/>
-                      <div style={{flex:1,height:8,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}>
-                        <div style={{width:`${avaliacoes.length?count/avaliacoes.length*100:0}%`,height:'100%',background:'#f59e0b',borderRadius:99,transition:'width .3s'}}/>
-                      </div>
-                      <span style={{fontSize:11,color:'var(--label-4)',width:24,textAlign:'right'}}>{count}</span>
+
+                <div className="iq-panel" style={{padding:'16px 18px'}}>
+                  <p className="iq-micro" style={{margin:'0 0 11px',color:'var(--iq-dim)'}}>Canais</p>
+                  {(ov?.canais||[]).slice(0,5).map(cn=>{ const cc=(CANAL[cn.canal]||CANAL[String(cn.canal||'').replace(/\s/g,'').toLowerCase()]||{}).cor||'#94a3b8'
+                    return (
+                    <div key={cn.canal} style={{display:'flex',justifyContent:'space-between',fontSize:11.5,padding:'3px 0'}}>
+                      <span style={{color:'var(--iq-dim)',textTransform:'capitalize',display:'flex',alignItems:'center',gap:8}}><span style={{width:7,height:7,borderRadius:99,background:cc,flexShrink:0}}/>{cn.canal}</span>
+                      <span className="iq-num" style={{color:'var(--iq-ink)'}}>{Number(cn.clientes).toLocaleString('pt-BR')} · R$ {(Number(cn.ltv)/1000).toFixed(0)}k</span>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })()}
-          {/* Lista de avaliações */}
-          {avaliacoes.length === 0
-            ? <div style={{textAlign:'center',padding:48,color:'var(--label-4)',fontSize:14}}>
-                <Star size={32} style={{opacity:.2,marginBottom:12}}/>
-                <p style={{margin:0}}>Nenhuma avaliação registrada ainda.</p>
-                <p style={{margin:'6px 0 0',fontSize:12}}>As avaliações aparecem aqui quando clientes avaliam seus pedidos.</p>
-              </div>
-            : avaliacoes.map((av,i)=>(
-                <div key={i} style={{background:'var(--bg-2)',border:`1px solid ${av.estrelas<=2?'rgba(239,68,68,.3)':av.estrelas>=4?'rgba(34,197,94,.2)':'var(--sep)'}`,borderRadius:12,padding:'14px 16px'}}>
-                  <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12,marginBottom:av.comentario?8:0}}>
-                    <div>
-                      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
-                        <span style={{fontSize:16}}>{'⭐'.repeat(av.estrelas)}</span>
-                        <span style={{fontSize:11,fontWeight:600,padding:'1px 7px',borderRadius:99,
-                          background:av.estrelas<=2?'rgba(239,68,68,.1)':av.estrelas>=4?'rgba(34,197,94,.1)':'rgba(245,158,11,.1)',
-                          color:av.estrelas<=2?'#ef4444':av.estrelas>=4?'#22c55e':'#f59e0b'
-                        }}>{av.estrelas<=2?'Insatisfeito':av.estrelas>=4?'Satisfeito':'Neutro'}</span>
-                        {av.estrelas<=2 && <span style={{fontSize:10,padding:'1px 6px',borderRadius:99,background:'rgba(239,68,68,.1)',color:'#ef4444',border:'1px solid rgba(239,68,68,.2)'}}>🔔 Ocorrência aberta</span>}
-                      </div>
-                      <div style={{fontSize:12,color:'var(--label-4)'}}>
-                        <strong style={{color:'var(--label-3)'}}>{av.nome_cliente || av.telefone}</strong>
-                        {av.nome_cliente && av.nome_cliente!==av.telefone && <span style={{color:'var(--label-4)'}}> · {av.telefone}</span>}
-                        {av.numero_pedido && <> · Pedido #{av.numero_pedido}</>}
-                        {av.canal && <span style={{marginLeft:6,fontSize:10,fontWeight:700,textTransform:'capitalize',color:'#22c55e',background:'rgba(34,197,94,.08)',border:'1px solid rgba(34,197,94,.25)',padding:'1px 7px',borderRadius:99}}>{av.canal}</span>}
-                      </div>
-                    </div>
-                    <span style={{fontSize:11,color:'var(--label-4)',flexShrink:0}}>
-                      {av.criado_em ? new Date(av.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—'}
-                    </span>
-                  </div>
-                  {av.comentario && (
-                    <p style={{fontSize:12.5,color:'var(--label-3)',margin:0,padding:'8px 12px',background:'var(--fill)',borderRadius:8,lineHeight:1.6,fontStyle:'italic'}}>
-                      "{av.comentario}"
+                  )})}
+                  {ov?.itens_sync?.total>0 && (
+                    <p style={{fontSize:10.5,color:'var(--iq-faint)',margin:'11px 0 0',borderTop:'1px solid var(--iq-line)',paddingTop:9}}>
+                      🌙 Itens detalhados: <strong style={{color:'var(--iq-dim)'}}>{Number(ov.itens_sync.detalhados).toLocaleString('pt-BR')}/{Number(ov.itens_sync.total).toLocaleString('pt-BR')}</strong> ({Math.round(ov.itens_sync.detalhados/Math.max(1,ov.itens_sync.total)*100)}%) — habilita campanha por produto
                     </p>
                   )}
                 </div>
-              ))
-          }
-        </div>
-      )}
+              </div>
+            </div>
+          </div>
+        )})()}
 
-      {/* key = telefone: sem ela o React REUSA a instancia ao trocar de cliente
-          e o perfil rico (useEffect []) fica preso no cliente anterior. */}
+        {/* ══ SUGESTOES ═══════════════════════════════════════════════════ */}
+        {view==='sugestoes' && (
+          <div style={{maxWidth:860,margin:'0 auto'}}>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:16}}>
+              {[['todas','Todas'],['urgente','Urgente'],['oportunidade','Oportunidade'],['estoque','Estoque'],['posVenda','Pós-venda'],['padrao','Padrão']].map(([v,l])=>(
+                <button key={v} className={`iq-chip${tipoSug===v?' on':''}`} onClick={()=>setTipoSug(v)}>
+                  {l}{v!=='todas' && <span style={{marginLeft:6,opacity:.7}}>{porTipo(v).length}</span>}
+                </button>
+              ))}
+              <span style={{marginLeft:'auto',fontSize:11.5,color:'var(--iq-faint)',alignSelf:'center'}}>{sugsVivas.length} sugestões</span>
+            </div>
+            {porTipo(tipoSug).length===0 && (
+              <div className="iq-panel" style={{padding:'52px 20px',textAlign:'center'}}>
+                <Lightbulb size={28} style={{opacity:.25}}/>
+                <p style={{fontSize:13.5,fontWeight:700,color:'var(--iq-dim)',margin:'12px 0 4px'}}>Nada por aqui</p>
+                <p style={{fontSize:12,color:'var(--iq-faint)',margin:0}}>A Bia gera sugestões a cada análise.</p>
+              </div>
+            )}
+            {porTipo(tipoSug).map(sug=>(
+              <div key={sug.id} style={{marginBottom:12,animation:'iqUp .25s ease'}}>
+                <BiaCard sug={sug} api={api} onDismiss={dispensarSugestao} onAction={()=>{}}/>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ══ CLIENTES ════════════════════════════════════════════════════ */}
+        {view==='clientes' && (
+          <div>
+            <div className="iq-panel" style={{padding:'16px 18px',marginBottom:14}}>
+              <div style={{display:'flex',gap:10,marginBottom:12}}>
+                <div style={{position:'relative',flex:1}}>
+                  <Search size={14} style={{position:'absolute',left:13,top:13,color:'var(--iq-faint)'}}/>
+                  <input className="iq-input" placeholder="Buscar em toda a base — nome ou telefone…" value={busca} onChange={e=>setBusca(e.target.value)}/>
+                </div>
+                <select className="iq-sel" value={sortBy} onChange={e=>setSortBy(e.target.value)}>
+                  <option value="dias_desc">Mais tempo sem comprar</option>
+                  <option value="dias_asc">Comprou mais recentemente</option>
+                  <option value="valor_desc">Maior LTV</option>
+                  <option value="ticket_desc">Maior ticket</option>
+                  <option value="score_desc">Maior score RFM</option>
+                </select>
+              </div>
+              <div style={{display:'flex',gap:7,flexWrap:'wrap',alignItems:'center'}}>
+                <span className="iq-micro" style={{marginRight:2}}>Segmento</span>
+                {[['todos','Todos'],...Object.entries(SEGV).map(([k,[l]])=>[k,l])].map(([v,l])=>(
+                  <button key={v} className={`iq-chip${segFiltro===v?' on':''}`} onClick={()=>setSegFiltro(v)}>{l}</button>
+                ))}
+              </div>
+              <div style={{display:'flex',gap:7,flexWrap:'wrap',alignItems:'center',marginTop:9}}>
+                <span className="iq-micro" style={{marginRight:2}}>Sem comprar</span>
+                {[{v:'0',m:'',l:'Todos'},{v:'15',m:'30',l:'15–30d'},{v:'30',m:'60',l:'30–60d'},{v:'60',m:'90',l:'60–90d'},{v:'90',m:'120',l:'90–120d'},{v:'120',m:'',l:'+120d'}].map(f=>(
+                  <button key={f.l} className={`iq-chip${(diasFiltro===f.v&&diasMaxF===f.m)?' on':''}`} onClick={()=>{setDiasFiltro(f.v);setDiasMaxF(f.m)}}>{f.l}</button>
+                ))}
+                <span className="iq-micro" style={{margin:'0 2px 0 14px'}}>Canal</span>
+                {['todos','shopee','mercadolivre','nuvemshop','tiktokshop','shein','whatsapp','loja'].map(c=>(
+                  <button key={c} className={`iq-chip${canalFiltro===c?' on':''}`} style={{textTransform:'capitalize'}} onClick={()=>setCanalF(c)}>{c==='todos'?'Todos':c}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12,flexWrap:'wrap',gap:10}}>
+              <p style={{fontSize:12,color:'var(--iq-dim)',margin:0}}>
+                Mostrando <strong className="iq-num" style={{color:'var(--iq-ink)'}}>{fmt(clientes.length)}</strong> de{' '}
+                <strong className="iq-num" style={{color:'var(--iq-ac2)'}}>{fmt(totalFiltro)}</strong> do filtro
+                {receitaFlt>0 && <> · receita recuperável <strong className="iq-num" style={{color:'var(--iq-warn)'}}>{Rk(receitaFlt)}</strong></>}
+              </p>
+              <div style={{display:'flex',gap:9}}>
+                <a className="iq-btn" href={`${api}/api/inteligencia/clientes/export?dias=${diasFiltro}&diasMax=${diasMaxF}&segmento=${segFiltro}&canal=${canalFiltro}&busca=${encodeURIComponent(busca)}`}
+                   style={{textDecoration:'none'}}>
+                  <Package size={13}/> Exportar CSV
+                </a>
+                <button className="iq-btn go" onClick={()=>setShowCamp(true)}>
+                  <Send size={13}/> Criar campanha · alcança todos os {fmt(totalFiltro)}
+                </button>
+              </div>
+            </div>
+
+            <div className="iq-panel" style={{overflow:'hidden'}}>
+              <div className="iq-grid" style={{background:'rgba(255,255,255,.02)'}}>
+                {['Cliente','Segmento','Última compra','Pedidos','Ticket','LTV','Sem comprar',''].map((h,i)=>(<div key={i} className="iq-th" style={i>=2&&i<=6?{textAlign:'right'}:{}}>{h}</div>))}
+              </div>
+              {loadCli && clientes.length===0 && [...Array(6)].map((_,i)=>(
+                <div key={i} className="iq-row iq-grid"><div className="iq-td" style={{gridColumn:'1/-1'}}><div className="iq-bar" style={{width:`${70-i*8}%`,height:9,opacity:.4}}/></div></div>
+              ))}
+              {clientes.map((c,i)=>{ const [sl,sc]=SEGV[c.segmento]||[c.segmento,'#94a3b8']; const hora=c.cicloDias>0&&c.diasSemComprar>=c.cicloDias&&c.diasSemComprar<c.cicloDias*1.5
+                return (
+                <div key={c.telefone||i} className="iq-row iq-grid" onClick={()=>setCltSel(c)}>
+                  <div className="iq-td" style={{display:'flex',alignItems:'center',gap:11,minWidth:0}}>
+                    <Avatar nome={c.nome} size={32}/>
+                    <div style={{minWidth:0}}>
+                      <p style={{margin:0,fontWeight:600,color:'var(--iq-ink)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.nome||'—'}</p>
+                      <p style={{margin:0,fontSize:10.5,color:'var(--iq-faint)',fontFamily:'monospace',display:'flex',alignItems:'center',gap:5}}>{c.telefone}
+                        <button onClick={e=>{e.stopPropagation();navigator.clipboard&&navigator.clipboard.writeText(String(c.telefone||''))}} title="Copiar telefone"
+                          style={{display:'inline-flex',alignItems:'center',padding:2,borderRadius:4,border:'1px solid var(--iq-line)',background:'transparent',color:'var(--iq-faint)',cursor:'pointer'}}><Copy size={9}/></button>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="iq-td"><span style={{fontSize:10.5,fontWeight:800,color:sc,background:sc+'1f',border:`1px solid ${sc}33`,padding:'3px 10px',borderRadius:99,display:'inline-flex',alignItems:'center',gap:5}}><span style={{width:5,height:5,borderRadius:99,background:sc}}/>{sl}</span></div>
+                  <div className="iq-td" style={{textAlign:'right',fontSize:11.5,color:'var(--iq-dim)'}}>{fmtD(c.ultimoPedido)}</div>
+                  <div className="iq-td iq-num" style={{textAlign:'right',color:'var(--iq-ink)'}}>{fmt(c.pedidosTotal||0)}</div>
+                  <div className="iq-td iq-num" style={{textAlign:'right',color:'var(--iq-dim)'}}>{Rk(c.ticketMedio)}</div>
+                  <div className="iq-td iq-num" style={{textAlign:'right',color:'var(--iq-ok)',fontWeight:800}}>{Rk(c.totalGasto)}</div>
+                  <div className="iq-td" style={{textAlign:'right'}}>
+                    <span className="iq-num" style={{color:c.diasSemComprar>120?'var(--iq-bad)':c.diasSemComprar>60?'var(--iq-warn)':'var(--iq-ok)'}}>{c.diasSemComprar}d</span>
+                    {hora && <p style={{margin:0,fontSize:9.5,color:'var(--iq-warn)'}}>⚡ recomprar</p>}
+                  </div>
+                  <div className="iq-td" style={{textAlign:'right'}}>
+                    <button title="Abrir" onClick={e=>{e.stopPropagation();setCltSel(c)}} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:30,height:30,borderRadius:8,border:'1px solid var(--iq-line2)',background:'var(--iq-p2)',color:'var(--iq-faint)',cursor:'pointer'}}><Eye size={14}/></button>
+                  </div>
+                </div>
+              )})}
+              {clientes.length===0 && !loadCli && (
+                <div style={{padding:'46px 20px',textAlign:'center',color:'var(--iq-faint)'}}>
+                  <UserX size={26} style={{opacity:.3}}/>
+                  <p style={{fontSize:12.5,margin:'10px 0 0'}}>Nenhum cliente neste filtro.</p>
+                </div>
+              )}
+            </div>
+            {clientes.length < totalFiltro && (
+              <div style={{textAlign:'center',marginTop:14}}>
+                <button className="iq-btn" disabled={loadCli} onClick={()=>carregarClientes(clientes.length)}>
+                  {loadCli?'Carregando…':`Carregar mais (${fmt(totalFiltro-clientes.length)} restantes)`}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══ CAMPANHAS ═══════════════════════════════════════════════════ */}
+        {view==='campanhas' && (
+          <div style={{maxWidth:980,margin:'0 auto'}}>
+            <CampanhasPanel api={api}/>
+          </div>
+        )}
+
+        {/* ══ AVALIACOES ══════════════════════════════════════════════════ */}
+        {view==='avaliacoes' && (
+          <div style={{maxWidth:860,margin:'0 auto'}}>
+            <div style={{display:'grid',gridTemplateColumns:'200px 1fr',gap:14,marginBottom:16}}>
+              <div className="iq-panel" style={{padding:'20px 18px',textAlign:'center'}}>
+                <p className="iq-num" style={{fontSize:38,margin:0,color:'var(--iq-ok)'}}>{mediaAv.toFixed(1)}</p>
+                <p style={{margin:'2px 0 4px',color:'var(--iq-warn)',letterSpacing:2}}>{'★'.repeat(Math.round(mediaAv))}<span style={{opacity:.25}}>{'★'.repeat(5-Math.round(mediaAv))}</span></p>
+                <p style={{fontSize:11,color:'var(--iq-faint)',margin:0}}>{avaliacoes.length} avaliações</p>
+              </div>
+              <div className="iq-panel" style={{padding:'16px 20px',display:'flex',flexDirection:'column',justifyContent:'center',gap:6}}>
+                {[5,4,3,2,1].map(n=>{ const q=avaliacoes.filter(a=>a.estrelas===n).length
+                  return (
+                    <div key={n} style={{display:'flex',alignItems:'center',gap:10}}>
+                      <span style={{fontSize:11,color:'var(--iq-dim)',width:24}}>{n} ★</span>
+                      <div className="iq-bar" style={{flex:1,height:7}}><i style={{width:`${avaliacoes.length?q/avaliacoes.length*100:0}%`,background:'var(--iq-warn)'}}/></div>
+                      <span className="iq-num" style={{fontSize:11,color:'var(--iq-dim)',width:30,textAlign:'right'}}>{q}</span>
+                    </div>
+                  )})}
+              </div>
+            </div>
+            {avaliacoes.map((av,i)=>(
+              <div key={av.id||i} className="iq-panel" style={{padding:'13px 17px',marginBottom:9,display:'flex',alignItems:'flex-start',gap:12}}>
+                <span style={{color:'var(--iq-warn)',fontSize:13,letterSpacing:1,flexShrink:0}}>{'★'.repeat(av.estrelas||0)}<span style={{opacity:.2}}>{'★'.repeat(5-(av.estrelas||0))}</span></span>
+                <div style={{flex:1,minWidth:0}}>
+                  <p style={{margin:0,fontSize:12.5}}>
+                    <strong style={{color:'var(--iq-ink)'}}>{av.nome_cliente||av.telefone}</strong>
+                    {av.nome_cliente && av.nome_cliente!==av.telefone && <span style={{color:'var(--iq-faint)'}}> · {av.telefone}</span>}
+                    {av.numero_pedido && <span style={{color:'var(--iq-dim)'}}> · Pedido #{av.numero_pedido}</span>}
+                    {av.canal && <span style={{marginLeft:7,fontSize:10,fontWeight:800,textTransform:'capitalize',color:'var(--iq-ok)',background:'rgba(43,212,127,.08)',border:'1px solid rgba(43,212,127,.25)',padding:'1px 8px',borderRadius:99}}>{av.canal}</span>}
+                  </p>
+                  {av.comentario && <p style={{margin:'5px 0 0',fontSize:12,color:'var(--iq-dim)',lineHeight:1.5}}>"{av.comentario}"</p>}
+                </div>
+                <span style={{fontSize:10.5,color:'var(--iq-faint)',flexShrink:0}}>{fmtDT(av.criado_em)}</span>
+              </div>
+            ))}
+            {avaliacoes.length===0 && <div className="iq-panel" style={{padding:'46px',textAlign:'center',color:'var(--iq-faint)',fontSize:12.5}}>Nenhuma avaliação ainda.</div>}
+          </div>
+        )}
+      </div>
+
+      {showConfig && <ConfigSheet api={api} onClose={()=>setShowConfig(false)}/>}
       {clienteSel && <ClienteSheet key={clienteSel.telefone||clienteSel.nome} cliente={clienteSel} onClose={()=>setCltSel(null)} api={api}/>}
       {showCampanha && <CampanhaComposer api={api} onClose={()=>setShowCamp(false)}
         filtro={{
-          segmentos: segFiltro!=='todos' ? [segFiltro] : null,
-          canais:    canalFiltro!=='todos' ? [canalFiltro] : null,
+          segmentos: segFiltro!=='todos'?[segFiltro]:null,
+          canais:    canalFiltro!=='todos'?[canalFiltro]:null,
           diasMin:   parseInt(diasFiltro)||0,
+          diasMax:   diasMaxF?parseInt(diasMaxF):null,
           busca:     busca||null,
         }}/>}
-      {showConfig  && <ConfigModal config={config} onSave={salvarConfig} onClose={()=>setShowCfg(false)}/>}
-
     </div>
   )
 }
