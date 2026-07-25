@@ -383,7 +383,7 @@ function CampanhasPanel({ api }) {
 // partir do filtro (o browser nunca carrega 40k clientes); o envio e uma FILA
 // com ritmo + janela de horario, via template HSM da PageGatilhos — cliente
 // frio esta fora da janela de 24h do WhatsApp, so template aprovado chega.
-function CampanhaComposer({ api, filtro, onClose }) {
+function CampanhaComposer({ api, filtro, telefonesManuais, onClose }) {
   const [produto,  setProduto]  = useState('')   // filtro por produto comprado
   const [preview,  setPreview]  = useState(null)
   const [gatilhos, setGatilhos] = useState([])
@@ -399,8 +399,10 @@ function CampanhaComposer({ api, filtro, onClose }) {
   const [criada,   setCriada]   = useState(null)
   const [erro,     setErro]     = useState('')
 
+  const manual = Array.isArray(telefonesManuais) && telefonesManuais.length > 0
   const filtroFinal = produto.trim() ? {...filtro, produto: produto.trim()} : filtro
   useEffect(()=>{
+    if (manual) { setPreview({ enviaveis: telefonesManuais.length, em_cooldown: 0, receita_estimada: 0, por_segmento: [], total: telefonesManuais.length }); return }
     const t = setTimeout(()=>{
       fetch(`${api}/api/inteligencia/audiencia/preview`,{
         method:'POST',headers:{'Content-Type':'application/json'},
@@ -408,7 +410,7 @@ function CampanhaComposer({ api, filtro, onClose }) {
       }).then(r=>r.json()).then(setPreview).catch(()=>{})
     }, 400)
     return ()=>clearTimeout(t)
-  },[cooldown, produto])
+  },[cooldown, produto, manual])
 
   useEffect(()=>{
     fetch(`${api}/api/templates`).then(r=>r.json())
@@ -430,7 +432,9 @@ function CampanhaComposer({ api, filtro, onClose }) {
     try {
       const r = await fetch(`${api}/api/inteligencia/campanhas`,{
         method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({nome:nome.trim(),gatilho,filtro:filtroFinal,ritmoSeg:ritmo,janelaIni:janIni,janelaFim:janFim,cooldownDias:cooldown,cupom:cupom.trim()||null})
+        body:JSON.stringify(manual
+          ? {nome:nome.trim(),gatilho,telefonesAvulsos:telefonesManuais,ritmoSeg:ritmo,janelaIni:janIni,janelaFim:janFim,cooldownDias:cooldown,cupom:cupom.trim()||null}
+          : {nome:nome.trim(),gatilho,filtro:filtroFinal,ritmoSeg:ritmo,janelaIni:janIni,janelaFim:janFim,cooldownDias:cooldown,cupom:cupom.trim()||null})
       })
       const d = await r.json()
       if (!r.ok) throw new Error(d.erro||'falha ao criar')
@@ -473,7 +477,7 @@ function CampanhaComposer({ api, filtro, onClose }) {
           ) : (
           <>
             {/* Audiência */}
-            <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',margin:'0 0 8px'}}>Audiência (filtros atuais)</p>
+            <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',margin:'0 0 8px'}}>{manual ? `Audiência (${telefonesManuais.length} selecionados à mão)` : 'Audiência (filtros atuais)'}</p>
             <div style={{borderRadius:12,border:'1px solid var(--sep)',background:'var(--fill)',padding:'12px 14px',marginBottom:16}}>
               {!preview ? <p style={{fontSize:12,color:'var(--label-4)',margin:0}}>Calculando audiência...</p> : (
                 <>
@@ -499,9 +503,9 @@ function CampanhaComposer({ api, filtro, onClose }) {
             <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',margin:'0 0 8px'}}>Mensagem e ritmo</p>
             <input value={nome} onChange={e=>setNome(e.target.value)} placeholder="Nome da campanha (ex: Win-back perdidos julho)"
               style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:10,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:13,marginBottom:10}}/>
-            <input value={produto} onChange={e=>setProduto(e.target.value)}
+            {!manual && <input value={produto} onChange={e=>setProduto(e.target.value)}
               placeholder="Só quem já comprou... (opcional — ex: corrente veneziana)"
-              style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:10,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:13,marginBottom:10}}/>
+              style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:10,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label)',fontSize:13,marginBottom:10}}/>}
             {produto.trim() && preview && preview.total===0 && (
               <p style={{fontSize:11.5,color:'#f59e0b',margin:'-4px 0 10px',lineHeight:1.5}}>
                 Nenhum comprador conhecido desse produto ainda — os itens dos pedidos são
@@ -624,17 +628,16 @@ function ClienteSheet({ cliente, onClose, api }) {
   const copy = (v,k) => { navigator.clipboard.writeText(String(v??'')); setCp(k); setTimeout(()=>setCp(''),2000) }
 
   useEffect(()=>{
-    if (tab !== 'pedidos') return
     if (pedidos.length) return
     // 1a fonte: pedidos reais da base local (por TELEFONE — inequivoco).
     // A busca antiga por NOME fica so como fallback: nome nao e chave.
-    if (rico?.pedidos?.length) { setPedidos(rico.pedidos.map(p=>({numero:p.numero,data:p.data,total:p.total,situacao:p.situacao_id,canal:p.canal}))); return }
+    if (rico?.pedidos?.length) { setPedidos(rico.pedidos.map(p=>({numero:p.numero,data:p.data,total:p.total,situacao:p.situacao_id,canal:p.canal,id_bling:p.id_bling}))); return }
     setLoadPed(true)
     fetch(`${api}/api/dashboard/pedido-completo-by-contato/${encodeURIComponent(cliente.nome||'')}`)
       .then(r=>r.ok?r.json():null)
       .then(d=>{if(d?.pedidos) setPedidos(d.pedidos); setLoadPed(false)})
       .catch(()=>setLoadPed(false))
-  },[tab, rico])
+  },[rico])
 
   const enviarWA = async () => {
     if (!msg.trim() || !cliente.telefone) return
@@ -658,292 +661,224 @@ function ClienteSheet({ cliente, onClose, api }) {
     {id:'msg',     label:'Mensagens'},
   ]
 
+  const SECT = {fontSize:9.5,fontWeight:800,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',margin:'0 0 10px'}
+  const pressao = (rico?.disparos_recentes||[]).filter(d=>{ const t=new Date(d.criado_em).getTime(); return !isNaN(t) && (Date.now()-t) < 7*86400000 }).length
+  const pcor = pressao<=3?'#34d399':pressao<=5?'#fbbf24':'#f87171'
+  const steps = ['Criado','Pago','Separado','Enviado','Entregue']
+
   return (
     <>
-      <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:40,backdropFilter:'blur(4px)'}}/>
-      <div style={{position:'fixed',top:0,right:0,bottom:0,width:480,zIndex:50,background:'var(--bg-2)',borderLeft:'1px solid var(--sep)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'-16px 0 48px rgba(0,0,0,.25)'}}>
+      <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(4,4,6,.6)',zIndex:40,backdropFilter:'blur(4px)'}}/>
+      <div style={{position:'fixed',top:0,right:0,bottom:0,width:520,maxWidth:'96vw',zIndex:50,background:'var(--bg-2)',borderLeft:'1px solid var(--sep)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'-20px 0 56px rgba(0,0,0,.4)'}}>
+        <div style={{height:2.5,background:`linear-gradient(90deg,${s.cor},${s.cor}55)`,flexShrink:0}}/>
 
-        {/* Accent */}
-        <div style={{height:2.5,background:`linear-gradient(90deg,${s.cor},${s.cor}60)`,flexShrink:0}}/>
-
-        {/* Header */}
-        <div style={{padding:'16px 20px 0',flexShrink:0,borderBottom:'1px solid var(--sep)'}}>
-          <div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:14}}>
+        {/* Header fixo: anel de saude + identidade + KPIs + pressao */}
+        <div style={{padding:'16px 20px 14px',flexShrink:0,borderBottom:'1px solid var(--sep)',position:'relative'}}>
+          <button onClick={onClose} style={{position:'absolute',top:14,right:16,width:30,height:30,borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-4)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><X size={13}/></button>
+          <div style={{display:'flex',alignItems:'center',gap:14,paddingRight:34}}>
             <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,flexShrink:0}}>
-              <ScoreRing score={cliente.scoreRFM||0} size={52}/>
+              <ScoreRing score={cliente.scoreRFM||0} size={54}/>
               <span style={{fontSize:8,fontWeight:800,letterSpacing:'.06em',textTransform:'uppercase',color:'var(--label-4)'}}>saúde</span>
             </div>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}>
-                <span style={{fontSize:17,fontWeight:700,color:'var(--label)',letterSpacing:'-.3px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{cliente.nome||'—'}</span>
+            <div style={{minWidth:0}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',marginBottom:5}}>
+                <span style={{fontSize:18,fontWeight:800,color:'var(--label)',letterSpacing:'-.3px'}}>{cliente.nome||'—'}</span>
                 <SegChip seg={cliente.segmento}/>
               </div>
-              <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
+              <div style={{display:'flex',gap:9,alignItems:'center',flexWrap:'wrap'}}>
                 {cliente.canal && <CanalChip canal={cliente.canal}/>}
                 {cliente.telefone && (
-                  <button onClick={()=>copy(cliente.telefone,'tel')} style={{display:'flex',alignItems:'center',gap:4,fontSize:11.5,color:'var(--label-4)',background:'transparent',border:'none',cursor:'pointer',padding:0}}>
-                    <Phone size={10}/>{cliente.telefone}
-                    {cp==='tel'?<Check size={9} style={{color:'#22c55e'}}/>:<Copy size={9}/>}
+                  <button onClick={()=>copy(cliente.telefone,'tel')} style={{display:'flex',alignItems:'center',gap:4,fontSize:11.5,color:'var(--label-4)',background:'transparent',border:'none',cursor:'pointer',padding:0,fontFamily:'monospace'}}>
+                    <Phone size={10}/>{cliente.telefone}{cp==='tel'?<Check size={9} style={{color:'#34d399'}}/>:<Copy size={9}/>}
                   </button>
                 )}
               </div>
             </div>
-            <button onClick={onClose} style={{width:30,height:30,borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-4)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              <X size={13}/>
-            </button>
           </div>
-
-          {/* KPIs inline */}
-          <div style={{display:'flex',gap:0,marginBottom:12,padding:'10px 0',borderTop:'1px solid var(--sep)'}}>
+          <div style={{display:'flex',marginTop:14,borderTop:'1px solid var(--sep)',borderBottom:'1px solid var(--sep)'}}>
             {[
-              {l:'Pedidos',      v:fmt(cliente.pedidosTotal||0),    c:'var(--label)'},
-              {l:'LTV total',    v:Rk(cliente.totalGasto||0),       c:s.cor},
-              {l:'Ticket médio', v:Rk(cliente.ticketMedio||0),      c:'var(--label-3)'},
-              {l:'Sem comprar',  v:`${cliente.diasSemComprar||0}d`,  c: cliente.diasSemComprar > 45 ? '#ef4444' : cliente.diasSemComprar > 25 ? '#f97316' : '#22c55e'},
-            ].map((k,i,arr)=>(
-              <div key={k.l} style={{flex:1,textAlign:'center',paddingRight:i<arr.length-1?8:0,marginRight:i<arr.length-1?8:0,borderRight:i<arr.length-1?'1px solid var(--sep)':'none'}}>
-                <div style={{fontSize:14,fontWeight:700,color:k.c,lineHeight:1}}>{k.v}</div>
-                <div style={{fontSize:9.5,color:'var(--label-4)',marginTop:3,textTransform:'uppercase',letterSpacing:'.06em'}}>{k.l}</div>
+              {l:'Pedidos',     v:fmt(cliente.pedidosTotal||0),   c:'var(--label)'},
+              {l:'LTV total',   v:Rk(cliente.totalGasto||0),      c:s.cor},
+              {l:'Ticket',      v:Rk(cliente.ticketMedio||0),     c:'var(--label-2)'},
+              {l:'Sem comprar', v:`${cliente.diasSemComprar||0}d`, c: cliente.diasSemComprar>60?'#f87171':cliente.diasSemComprar>30?'#fb923c':'#34d399'},
+            ].map((k,i,a)=>(
+              <div key={k.l} style={{flex:1,textAlign:'center',padding:'11px 6px',borderRight:i<a.length-1?'1px solid var(--sep)':'none'}}>
+                <div style={{fontSize:17,fontWeight:800,color:k.c,lineHeight:1}}>{k.v}</div>
+                <div style={{fontSize:8.5,color:'var(--label-4)',marginTop:3,textTransform:'uppercase',letterSpacing:'.06em'}}>{k.l}</div>
               </div>
             ))}
           </div>
-
-          {/* Tabs */}
-          <div style={{display:'flex',marginBottom:-1}}>
-            {TABS.map(t=>(
-              <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:'7px 14px',fontSize:12,border:'none',background:'transparent',cursor:'pointer',color:tab===t.id?s.cor:'var(--label-4)',borderBottom:`2px solid ${tab===t.id?s.cor:'transparent'}`,fontWeight:tab===t.id?600:400,transition:'color .1s'}}>
-                {t.label}
-              </button>
-            ))}
+          <div style={{marginTop:12}}>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:10,marginBottom:5}}>
+              <span style={{fontWeight:800,letterSpacing:'.06em',textTransform:'uppercase',color:'var(--label-4)'}}>Pressão de msgs</span>
+              <span style={{color:pcor,fontWeight:700}}>{pressao} / 7d</span>
+            </div>
+            <div style={{height:6,background:'var(--fill)',borderRadius:99,overflow:'hidden'}}><div style={{width:`${Math.min(100,pressao/7*100)}%`,height:'100%',borderRadius:99,background:pcor}}/></div>
+            <p style={{fontSize:9.5,color:'var(--label-4)',margin:'5px 0 0'}}>{pressao<=3?'saudável — espaço para comunicar':'atenção — perto do limite semanal'}</p>
           </div>
         </div>
 
-        {/* Conteúdo */}
+        {/* Corpo com scroll: tudo visivel, sem abas */}
         <div style={{flex:1,overflowY:'auto',padding:'16px 20px'}}>
+          {loadRico && <p style={{fontSize:12.5,color:'var(--label-4)',marginBottom:14}}>Carregando perfil rico…</p>}
+          {erroRico && <p style={{fontSize:11.5,color:'#f87171',lineHeight:1.5,marginBottom:14}}>⚠️ Perfil rico indisponível ({erroRico}).</p>}
 
-          {/* Perfil */}
-          {tab==='perfil'&&(
-            <div>
-              <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',marginBottom:8}}>Dados</p>
-              {[
-                {l:'Email',      v:cliente.email},
-                {l:'Telefone',   v:cliente.telefone,  cp:'tel2'},
-                {l:'CPF/CNPJ',   v:cliente.documento, cp:'doc'},
-                {l:'Canal',      v:CANAL[cliente.canal]?.label},
-                {l:'Última compra', v:fmtD(cliente.ultimoPedido)},
-                {l:'1ª compra',  v:fmtD(cliente.primeiroPedido)},
-              ].filter(r=>r.v).map(row=>(
-                <div key={row.l} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid var(--sep)'}}>
-                  <span style={{fontSize:12,color:'var(--label-4)'}}>{row.l}</span>
-                  <div style={{display:'flex',alignItems:'center',gap:5}}>
-                    <span style={{fontSize:12.5,color:'var(--label)',fontWeight:500}}>{row.v}</span>
-                    {row.cp&&<button onClick={()=>copy(row.v,row.cp)} style={{display:'flex',alignItems:'center',padding:'1px 5px',borderRadius:4,border:'1px solid var(--sep)',background:'transparent',color:cp===row.cp?'#22c55e':'var(--label-4)',cursor:'pointer',fontSize:10}}>
-                      {cp===row.cp?<Check size={8}/>:<Copy size={8}/>}
-                    </button>}
+          <div style={{marginBottom:18}}>
+            <p style={SECT}>Score RFM</p>
+            <div style={{display:'flex',alignItems:'center',gap:16,padding:'14px',borderRadius:12,background:'var(--fill)',border:'1px solid var(--sep)'}}>
+              <ScoreRing score={cliente.scoreRFM||0} size={56}/>
+              <div style={{flex:1}}>
+                {[
+                  {label:'R · Recência',   value:cliente.rfm?.r||0, desc:`${cliente.diasSemComprar||0}d sem comprar`, cor:(cliente.rfm?.r||0)>=4?'#34d399':(cliente.rfm?.r||0)>=3?'#fbbf24':'#f87171'},
+                  {label:'F · Frequência', value:cliente.rfm?.f||0, desc:`${cliente.pedidosTotal||0} pedidos`,        cor:'#60a5fa'},
+                  {label:'M · Valor',      value:cliente.rfm?.m||0, desc:`ticket ${Rk(cliente.ticketMedio||0)}`,      cor:'#8b5cf6'},
+                ].map(d=>(
+                  <div key={d.label} style={{marginBottom:8}}>
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                      <span style={{fontSize:11,fontWeight:600,color:'var(--label-2)'}}>{d.label}</span>
+                      <span style={{fontSize:10,color:'var(--label-4)'}}>{d.desc}</span>
+                    </div>
+                    <div style={{height:6,background:'var(--bg-2)',borderRadius:99,overflow:'hidden'}}><div style={{width:`${d.value/5*100}%`,height:'100%',borderRadius:99,background:d.cor}}/></div>
                   </div>
-                </div>
-              ))}
-
-              {/* Padrão de ciclo */}
-              {cliente.cicloDias > 0 && (
-                <div style={{marginTop:14,padding:'11px 13px',borderRadius:10,background:'rgba(139,92,246,.08)',border:'1px solid rgba(139,92,246,.22)'}}>
-                  <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:5}}>
-                    <Repeat size={12} style={{color:'#8b5cf6'}}/>
-                    <span style={{fontSize:11.5,fontWeight:700,color:'#8b5cf6'}}>Ciclo de compra detectado</span>
-                  </div>
-                  <p style={{fontSize:12.5,color:'var(--label-3)',margin:0,lineHeight:1.5}}>
-                    Compra a cada <strong style={{color:'#8b5cf6'}}>{cliente.cicloDias} dias</strong> em média.
-                    {cliente.diasSemComprar >= cliente.cicloDias * .8
-                      ? <span style={{color:'#f97316'}}> Está no prazo de recompra!</span>
-                      : <span style={{color:'var(--label-4)'}}> Próxima compra estimada em {Math.max(0, cliente.cicloDias - cliente.diasSemComprar)} dias.</span>
-                    }
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Score RFM */}
-          {tab==='rfm'&&(
-            <div>
-              <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:18,padding:'14px',borderRadius:12,background:'var(--fill)',border:'1px solid var(--sep)'}}>
-                <ScoreRing score={cliente.scoreRFM||0} size={56}/>
-                <div>
-                  <p style={{fontSize:15,fontWeight:700,color:'var(--label)',margin:'0 0 4px'}}>Score RFM: {cliente.scoreRFM||0}/100</p>
-                  <p style={{fontSize:12,color:'var(--label-3)',margin:0,lineHeight:1.5}}>{s.desc}</p>
-                  <p style={{fontSize:12,color:s.cor,fontWeight:600,marginTop:3}}>{s.Icon&&<Icon size={11} style={{marginRight:4}}/>}{s.label}</p>
-                </div>
-              </div>
-              <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',marginBottom:10}}>Dimensões</p>
-              {[
-                {label:'R — Recência',   value:cliente.rfm?.r||0, desc:`Última compra: ${cliente.diasSemComprar||0} dias atrás`},
-                {label:'F — Frequência', value:cliente.rfm?.f||0, desc:`${cliente.pedidosTotal||0} pedidos no histórico`},
-                {label:'M — Valor',      value:cliente.rfm?.m||0, desc:`Ticket médio: ${Rk(cliente.ticketMedio||0)}`},
-              ].map(dim=>(
-                <div key={dim.label} style={{marginBottom:12}}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
-                    <span style={{fontSize:12.5,fontWeight:600,color:'var(--label)'}}>{dim.label}</span>
-                    <span style={{fontSize:11.5,color:'var(--label-4)'}}>{dim.desc}</span>
-                  </div>
-                  <div style={{display:'flex',alignItems:'center',gap:10}}>
-                    <ProgressBar value={dim.value} max={5} cor={s.cor}/>
-                    <span style={{fontSize:13,fontWeight:700,color:s.cor,minWidth:16}}>{dim.value}</span>
-                  </div>
-                </div>
-              ))}
-              <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',marginBottom:8,marginTop:14}}>Ação recomendada</p>
-              <div style={{padding:'11px 13px',borderRadius:9,background:`${s.cor}10`,border:`1px solid ${s.cor}25`}}>
-                <p style={{fontSize:12.5,color:'var(--label-2)',margin:0,lineHeight:1.5}}>{cliente.acaoRecomendada || 'Envie uma mensagem personalizada baseada no histórico deste cliente.'}</p>
+                ))}
               </div>
             </div>
-          )}
-
-          {/* Pedidos */}
-          {tab==='pedidos'&&(
-            <div>
-              {loadPed && <div style={{display:'flex',alignItems:'center',gap:8,padding:'16px 0',color:'var(--label-4)',fontSize:12}}><RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/> Carregando...</div>}
-              {!loadPed && pedidos.length===0 && (
-                <div style={{padding:'32px 0',textAlign:'center',color:'var(--label-4)'}}>
-                  <Package size={28} style={{display:'block',margin:'0 auto 10px',opacity:.2}}/>
-                  <p style={{fontSize:13,margin:0}}>Histórico não disponível</p>
-                </div>
-              )}
-              {pedidos.map((p,i)=>{
-                const SIT = {6:['Em aberto','#fbbf24'],9:['Atendido','#34d399'],12:['Cancelado','#f87171'],15:['Em andamento','#60a5fa']}
-                const sid = p.situacao ?? p.situacao_id
-                const [sl,sc] = SIT[sid] || [sid!=null?`Sit. ${sid}`:'—','#94a3b8']
-                const det = rico?.pedidosDetalhe?.[String(p.id_bling||'')] || {}
-                const STEP = sid===12 ? -1 : sid===9 ? 3 : sid===15 ? 2 : sid===6 ? 1 : 0
-                const steps = ['Criado','Pago','Separado','Enviado','Entregue']
-                return (
-                <div key={i} style={{padding:'11px 0',borderBottom:'1px solid var(--sep)',opacity:sid===12?.55:1}}>
-                  <div style={{display:'flex',alignItems:'center',gap:10}}>
-                    <span style={{fontSize:12,fontWeight:600,color:'var(--accent)',fontFamily:'monospace',flexShrink:0,minWidth:56}}>#{p.numero}</span>
-                    <div style={{flex:1,minWidth:0}}>
-                      <p style={{fontSize:12,color:'var(--label)',margin:0,fontWeight:500}}>
-                        {fmtD(p.data)}
-                        {p.canal && <span style={{marginLeft:7,fontSize:10,color:'var(--label-4)',textTransform:'capitalize'}}>{p.canal}</span>}
-                      </p>
-                      <p style={{fontSize:11,color:'var(--label-4)',margin:'2px 0 0'}}>
-                        {det.itens_qtd!=null ? `${det.itens_qtd} un` : '—'}
-                        {det.servico && <> · {det.servico}</>}
-                      </p>
-                    </div>
-                    <span style={{fontSize:10,fontWeight:800,color:sc,background:sc+'22',border:`1px solid ${sc}40`,padding:'2px 8px',borderRadius:99,flexShrink:0}}>{sl}</span>
-                    <span style={{fontSize:13,fontWeight:700,color:'var(--label)',flexShrink:0,minWidth:66,textAlign:'right'}}>{R(p.total)}</span>
-                  </div>
-                  {sid!==12 && (
-                    <div style={{display:'flex',alignItems:'center',marginTop:9,paddingLeft:56}}>
-                      {steps.map((st,si)=>(
-                        <div key={si} style={{display:'flex',alignItems:'center',flex:si<4?1:'0 0 auto'}}>
-                          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
-                            <div style={{width:15,height:15,borderRadius:99,display:'flex',alignItems:'center',justifyContent:'center',background:si<=STEP?'#34d399':'transparent',border:`1.5px solid ${si<=STEP?'#34d399':'var(--sep)'}`,color:'#04160e'}}>
-                              {si<=STEP && <Check size={8}/>}
-                            </div>
-                            <span style={{fontSize:7.5,color:si<=STEP?'var(--label-3)':'var(--label-4)'}}>{st}</span>
-                          </div>
-                          {si<4 && <div style={{flex:1,height:1.5,background:si<STEP?'#34d399':'var(--sep)',margin:'0 2px',marginBottom:12}}/>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )})}
-              {pedidos.length>0 && (
-                <p style={{fontSize:10.5,color:'var(--label-4)',marginTop:8,lineHeight:1.5}}>
-                  Unidades e envio aparecem nos pedidos mais recentes (detalhados sob demanda).
-                </p>
-              )}
+            <div style={{marginTop:10,padding:'11px 13px',borderRadius:10,background:`${s.cor}12`,border:`1px solid ${s.cor}25`}}>
+              <p style={{fontSize:12,color:'var(--label-2)',margin:0,lineHeight:1.5}}>{cliente.acaoRecomendada || 'Envie uma mensagem personalizada baseada no histórico deste cliente.'}</p>
             </div>
-          )}
+          </div>
 
-          {/* Mensagem */}
-          {tab==='produtos'&&(
-            <div>
-              {loadRico && <p style={{fontSize:12.5,color:'var(--label-4)'}}>Carregando produtos do cliente...</p>}
-              {erroRico && <p style={{fontSize:12,color:'#ff4757',lineHeight:1.5}}>⚠️ Perfil rico indisponível ({erroRico}). Confira se o backend está no build LAYOUT-V2.</p>}
-              {!loadRico && !(rico?.produtos?.length) && (
-                <p style={{fontSize:12.5,color:'var(--label-4)',lineHeight:1.6}}>
-                  Sem itens conhecidos ainda. Os itens são buscados dos pedidos mais recentes
-                  quando o perfil é aberto — se este cliente comprou há muito tempo, o pedido
-                  pode não estar mais detalhável no Bling.
-                </p>
-              )}
-              {!loadRico && rico?.produtos?.length > 0 && (
-                <>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-                    <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',margin:0}}>O que este cliente compra</p>
-                    <span style={{fontSize:10.5,color:'var(--label-4)'}}>{rico.produtos_cobertura}</span>
-                  </div>
-                  {rico.produtos.map((p,i)=>(
-                    <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 11px',borderRadius:9,background:'var(--fill)',border:'1px solid var(--sep)',marginBottom:6}}>
-                      {p.imagem
-                        ? <img src={p.imagem} alt="" style={{width:38,height:38,borderRadius:8,objectFit:'cover',flexShrink:0,border:'1px solid var(--sep)'}}
-                            onError={e=>{e.currentTarget.style.display='none'}}/>
-                        : <span style={{fontSize:11,fontWeight:800,color:'var(--label-4)',width:38,height:38,borderRadius:8,background:'var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{i+1}º</span>}
-                      <div style={{flex:1,minWidth:0}}>
-                        <p style={{fontSize:12.5,fontWeight:600,color:'var(--label)',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.descricao}</p>
-                        <p style={{fontSize:11,color:'var(--label-4)',margin:'2px 0 0'}}>
-                          <strong style={{color:'var(--label-2)'}}>{p.quantidade} un</strong> · {Rk(p.valor_total)}
-                          {p.pedidos?.length>0 && <> · em {p.pedidos.map(n=>`#${n}`).join(', ')}</>}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                  <p style={{fontSize:11,color:'var(--label-4)',marginTop:10,lineHeight:1.5}}>
-                    💡 Use na mensagem: cliente que compra <strong>{(rico.produtos[0]?.descricao||'').split(' ').slice(0,3).join(' ')}</strong> responde melhor a oferta do mesmo tipo de produto.
-                  </p>
-                </>
-              )}
-
-            </div>
-          )}
-
-          {tab==='msg'&&(
-            <div>
-              {rico?.disparos_recentes?.length > 0 && (
-                <div style={{marginBottom:16}}>
-                  <p style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',marginBottom:10}}>Histórico de mensagens</p>
-                  {rico.disparos_recentes.map((d,i)=>(
-                    <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'7px 0'}}>
-                      <span style={{fontSize:10,color:'var(--label-4)',fontFamily:'monospace',width:64,flexShrink:0}}>{String(d.criado_em).slice(0,10)}</span>
-                      <div style={{width:26,height:26,borderRadius:8,background:'var(--fill)',border:'1px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                        <MessageSquare size={12} style={{color:'var(--label-4)'}}/>
-                      </div>
-                      <div style={{flex:1,minWidth:0}}>
-                        <p style={{margin:0,fontSize:12,color:'var(--label)',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.gatilho}</p>
-                        <p style={{margin:0,fontSize:10,color:'var(--label-4)'}}>{d.origem}</p>
-                      </div>
-                      <span style={{fontSize:9,fontWeight:800,textTransform:'uppercase',letterSpacing:'.04em',color:d.status==='enviado'?'#34d399':'var(--label-4)',background:d.status==='enviado'?'rgba(52,211,153,.12)':'var(--fill)',padding:'2px 8px',borderRadius:99,flexShrink:0}}>{d.status}</span>
-                    </div>
-                  ))}
-                  <div style={{borderTop:'1px solid var(--sep)',margin:'12px 0'}}/>
-                </div>
-              )}
-              <p style={{fontSize:12,color:'var(--label-3)',marginBottom:12,lineHeight:1.5}}>
-                {cliente.telefone ? `Enviar para ${cliente.telefone}` : <span style={{color:'#ef4444'}}>⚠ Sem telefone cadastrado — mensagem não disponível</span>}
+          {cliente.cicloDias > 0 && (
+            <div style={{marginBottom:18,padding:'11px 13px',borderRadius:10,background:'rgba(139,92,246,.08)',border:'1px solid rgba(139,92,246,.22)'}}>
+              <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:5}}>
+                <Repeat size={12} style={{color:'#8b5cf6'}}/><span style={{fontSize:11.5,fontWeight:700,color:'#8b5cf6'}}>Ciclo de compra detectado</span>
+              </div>
+              <p style={{fontSize:12.5,color:'var(--label-3)',margin:0,lineHeight:1.5}}>
+                Compra a cada <strong style={{color:'#8b5cf6'}}>{cliente.cicloDias} dias</strong> em média.
+                {cliente.diasSemComprar >= cliente.cicloDias*.8
+                  ? <span style={{color:'#fb923c'}}> Está no ponto de recompra!</span>
+                  : <span style={{color:'var(--label-4)'}}> Próxima estimada em {Math.max(0,cliente.cicloDias-cliente.diasSemComprar)} dias.</span>}
               </p>
-              <textarea
-                value={msg}
-                onChange={e=>setMsg(e.target.value)}
-                placeholder={`Olá ${(cliente.nome||'').split(' ')[0]}! ✨\n\nSentimos sua falta! Você tem um cupom especial esperando por você...`}
-                rows={6}
-                disabled={!cliente.telefone}
-                style={{width:'100%',resize:'vertical',border:'1px solid var(--sep)',borderRadius:9,padding:'10px 12px',fontSize:13,background:'var(--fill)',color:'var(--label)',fontFamily:'inherit',outline:'none',lineHeight:1.6,boxSizing:'border-box',opacity:!cliente.telefone?.5:1}}
-              />
-              <div style={{display:'flex',gap:7,marginTop:8}}>
-                <button onClick={enviarWA} disabled={sending||!msg.trim()||!cliente.telefone}
-                  style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'10px',borderRadius:9,border:'1px solid rgba(37,211,102,.3)',background:'rgba(37,211,102,.07)',color:'#25D366',cursor:(msg.trim()&&cliente.telefone)?'pointer':'not-allowed',fontSize:13,fontWeight:700,opacity:(!msg.trim()||!cliente.telefone)?.5:1}}>
-                  {sent?<><CheckCircle size={14}/> Enviado!</>:sending?<><RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/> Enviando...</>:<><MessageSquare size={14}/> Enviar no WhatsApp</>}
-                </button>
-              </div>
             </div>
+          )}
+
+          <div style={{marginBottom:18}}>
+            <p style={SECT}>Dados do cliente</p>
+            {[
+              {l:'E-mail',        v:cliente.email,               cp:'em',  link:true},
+              {l:'CPF/CNPJ',      v:cliente.documento,           cp:'doc', mono:true},
+              {l:'Última compra', v:fmtD(cliente.ultimoPedido)},
+              {l:'1ª compra',     v:fmtD(cliente.primeiroPedido)},
+              {l:'Canal',         v:CANAL[cliente.canal]?.label},
+            ].filter(r=>r.v && r.v!=='—').map(row=>(
+              <div key={row.l} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid var(--sep)'}}>
+                <span style={{fontSize:11.5,color:'var(--label-4)'}}>{row.l}</span>
+                <div style={{display:'flex',alignItems:'center',gap:6}}>
+                  <span style={{fontSize:12.5,color:row.link?'#60a5fa':'var(--label)',fontWeight:500,fontFamily:row.mono?'monospace':'inherit'}}>{row.v}</span>
+                  {row.cp && <button onClick={()=>copy(row.v,row.cp)} style={{display:'flex',alignItems:'center',padding:'2px 5px',borderRadius:5,border:'1px solid var(--sep)',background:'transparent',color:cp===row.cp?'#34d399':'var(--label-4)',cursor:'pointer'}}>{cp===row.cp?<Check size={9}/>:<Copy size={9}/>}</button>}
+                </div>
+              </div>
+            ))}
+            {!cliente.email && !cliente.documento && <p style={{fontSize:11,color:'var(--label-4)',margin:'8px 0 0',lineHeight:1.5}}>E-mail e CPF aparecem quando o cadastro do Bling traz esses campos. Endereço completo vive no Monitor de Disparos.</p>}
+          </div>
+
+          <div style={{marginBottom:18}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+              <p style={{...SECT,margin:0}}>Produtos que compra</p>
+              {rico?.produtos_cobertura && <span style={{fontSize:10,color:'var(--label-4)'}}>{rico.produtos_cobertura}</span>}
+            </div>
+            {loadRico && <p style={{fontSize:12,color:'var(--label-4)'}}>Carregando…</p>}
+            {!loadRico && !(rico?.produtos?.length) && <p style={{fontSize:11.5,color:'var(--label-4)',lineHeight:1.6}}>Sem itens conhecidos ainda — buscados dos pedidos recentes ao abrir o perfil.</p>}
+            {(rico?.produtos||[]).map((p,i)=>(
+              <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 11px',borderRadius:9,background:'var(--fill)',border:'1px solid var(--sep)',marginBottom:6}}>
+                {p.imagem
+                  ? <img src={p.imagem} alt="" style={{width:38,height:38,borderRadius:8,objectFit:'cover',flexShrink:0,border:'1px solid var(--sep)'}} onError={e=>{e.currentTarget.style.display='none'}}/>
+                  : <span style={{fontSize:11,fontWeight:800,color:'var(--label-4)',width:38,height:38,borderRadius:8,background:'var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{i+1}º</span>}
+                <div style={{flex:1,minWidth:0}}>
+                  <p style={{fontSize:12.5,fontWeight:600,color:'var(--label)',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.descricao}</p>
+                  <p style={{fontSize:11,color:'var(--label-4)',margin:'2px 0 0'}}><strong style={{color:'var(--label-2)'}}>{p.quantidade} un</strong> · {Rk(p.valor_total)}{p.pedidos?.length>0 && <> · {p.pedidos.map(n=>`#${n}`).join(', ')}</>}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{marginBottom:18}}>
+            <p style={SECT}>Pedidos</p>
+            {loadPed && <div style={{display:'flex',alignItems:'center',gap:8,padding:'12px 0',color:'var(--label-4)',fontSize:12}}><RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/> Carregando…</div>}
+            {!loadPed && pedidos.length===0 && <p style={{fontSize:12,color:'var(--label-4)'}}>Histórico não disponível.</p>}
+            {pedidos.map((p,i)=>{
+              const SIT = {6:['Em aberto','#fbbf24'],9:['Atendido','#34d399'],12:['Cancelado','#f87171'],15:['Em andamento','#60a5fa']}
+              const sid = p.situacao ?? p.situacao_id
+              const [sl,sc] = SIT[sid] || [sid!=null?`Sit. ${sid}`:'—','#94a3b8']
+              const det = rico?.pedidosDetalhe?.[String(p.id_bling||'')] || {}
+              const STEP = sid===12 ? -1 : sid===9 ? 3 : sid===15 ? 2 : sid===6 ? 1 : 0
+              return (
+              <div key={i} style={{padding:'11px 0',borderBottom:'1px solid var(--sep)',opacity:sid===12?.55:1}}>
+                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                  <span style={{fontSize:12,fontWeight:600,color:'var(--accent)',fontFamily:'monospace',flexShrink:0,minWidth:56}}>#{p.numero}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <p style={{fontSize:12,color:'var(--label)',margin:0,fontWeight:500}}>{fmtD(p.data)}{p.canal && <span style={{marginLeft:7,fontSize:10,color:'var(--label-4)',textTransform:'capitalize'}}>{p.canal}</span>}</p>
+                    <p style={{fontSize:11,color:'var(--label-4)',margin:'2px 0 0'}}>{det.itens_qtd!=null ? `${det.itens_qtd} un` : '—'}{det.servico && <> · {det.servico}</>}</p>
+                  </div>
+                  <span style={{fontSize:10,fontWeight:800,color:sc,background:sc+'22',border:`1px solid ${sc}40`,padding:'2px 8px',borderRadius:99,flexShrink:0}}>{sl}</span>
+                  <span style={{fontSize:13,fontWeight:700,color:'var(--label)',flexShrink:0,minWidth:66,textAlign:'right'}}>{R(p.total)}</span>
+                </div>
+                {sid!==12 && (
+                  <div style={{display:'flex',alignItems:'center',marginTop:9,paddingLeft:56}}>
+                    {steps.map((st,si)=>(
+                      <div key={si} style={{display:'flex',alignItems:'center',flex:si<4?1:'0 0 auto'}}>
+                        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+                          <div style={{width:15,height:15,borderRadius:99,display:'flex',alignItems:'center',justifyContent:'center',background:si<=STEP?'#34d399':'transparent',border:`1.5px solid ${si<=STEP?'#34d399':'var(--sep)'}`,color:'#04160e'}}>{si<=STEP && <Check size={8}/>}</div>
+                          <span style={{fontSize:7.5,color:si<=STEP?'var(--label-3)':'var(--label-4)'}}>{st}</span>
+                        </div>
+                        {si<4 && <div style={{flex:1,height:1.5,background:si<STEP?'#34d399':'var(--sep)',margin:'0 2px',marginBottom:12}}/>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )})}
+          </div>
+
+          {rico?.disparos_recentes?.length > 0 && (
+            <div style={{marginBottom:6}}>
+              <p style={SECT}>Histórico de mensagens</p>
+              {rico.disparos_recentes.map((d,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'7px 0'}}>
+                  <span style={{fontSize:10,color:'var(--label-4)',fontFamily:'monospace',width:64,flexShrink:0}}>{String(d.criado_em).slice(0,10)}</span>
+                  <div style={{width:26,height:26,borderRadius:8,background:'var(--fill)',border:'1px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><MessageSquare size={12} style={{color:'var(--label-4)'}}/></div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <p style={{margin:0,fontSize:12,color:'var(--label)',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.gatilho}</p>
+                    <p style={{margin:0,fontSize:10,color:'var(--label-4)'}}>{d.origem}</p>
+                  </div>
+                  <span style={{fontSize:9,fontWeight:800,textTransform:'uppercase',color:d.status==='enviado'?'#34d399':'var(--label-4)',background:d.status==='enviado'?'rgba(52,211,153,.12)':'var(--fill)',padding:'2px 8px',borderRadius:99,flexShrink:0}}>{d.status}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Rodape: mensagem avulsa no WhatsApp */}
+        <div style={{flexShrink:0,padding:'12px 20px',borderTop:'1px solid var(--sep)',background:'var(--bg-2)'}}>
+          {cliente.telefone ? (
+            <>
+              <textarea value={msg} onChange={e=>setMsg(e.target.value)} placeholder={`Mensagem para ${(cliente.nome||'').split(' ')[0]}…`} rows={2}
+                style={{width:'100%',resize:'vertical',border:'1px solid var(--sep)',borderRadius:9,padding:'9px 11px',fontSize:12.5,background:'var(--fill)',color:'var(--label)',fontFamily:'inherit',outline:'none',lineHeight:1.5,boxSizing:'border-box',marginBottom:8}}/>
+              <button onClick={enviarWA} disabled={sending||!msg.trim()}
+                style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'10px',borderRadius:9,border:'none',background:sent?'rgba(52,211,153,.15)':'#25D366',color:sent?'#34d399':'#04150b',cursor:msg.trim()?'pointer':'not-allowed',fontSize:13,fontWeight:800,opacity:!msg.trim()?.6:1}}>
+                {sent?<><CheckCircle size={14}/> Enviado!</>:sending?<><RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/> Enviando…</>:<><MessageSquare size={14}/> Enviar no WhatsApp</>}
+              </button>
+              <p style={{fontSize:10,color:'var(--label-4)',margin:'8px 0 0',textAlign:'center'}}>Mensagem avulsa. Para disparo em massa com template, use <strong style={{color:'var(--label-3)'}}>Campanhas</strong>.</p>
+            </>
+          ) : (
+            <p style={{fontSize:12,color:'#f87171',textAlign:'center',margin:0}}>⚠ Sem telefone cadastrado — mensagem indisponível.</p>
           )}
         </div>
       </div>
     </>
   )
 }
+
 
 
 // ── Modal de Configurações ────────────────────────────────────────────────────
@@ -1267,6 +1202,9 @@ export default function PageInteligencia({ api }) {
   const [avaliacoes,  setAvals]     = useState([])
   const [cfg,         setCfg]       = useState(null)
   const [analisando,  setAnalisando]= useState(false)
+  const [selecionados,setSel]       = useState(new Set())
+  const [campManuais, setCampManuais]= useState(null)
+  const [avAck,       setAvAck]     = useState({})
 
   // ── Dados ────────────────────────────────────────────────────────────────
   const carregarClientes = useCallback(async (offset=0) => {
@@ -1314,6 +1252,14 @@ export default function PageInteligencia({ api }) {
   const urgentes = sugsVivas.filter(s=>s.prioridade==='alta').length
   const mediaAv = avaliacoes.length ? (avaliacoes.reduce((s,a)=>s+(a.estrelas||0),0)/avaliacoes.length) : 0
   const irPara = (seg)=>{ setSegFiltro(seg); setDiasFiltro('0'); setDiasMaxF(''); setView('clientes') }
+  const toggleUm = (tel)=> setSel(prev=>{ const n=new Set(prev); n.has(tel)?n.delete(tel):n.add(tel); return n })
+  const toggleTodosVisiveis = ()=> setSel(prev=>{ const todos=clientes.length>0 && clientes.every(c=>prev.has(c.telefone)); const n=new Set(prev); clientes.forEach(c=> todos?n.delete(c.telefone):n.add(c.telefone)); return n })
+  const criarComSelecao = ()=>{ setCampManuais([...selecionados]); setShowCamp(true) }
+  const agradecerAval = async (av)=>{ if(!av.telefone) return; const id=av.id||av.telefone; setAvAck(p=>({...p,[id]:'sending'}))
+    try { const nm=(av.nome_cliente||'').split(' ')[0]
+      await fetch(`${api}/api/dashboard/manual/${String(av.telefone).replace(/\D/g,'')}`,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({mensagem:`Oi ${nm}! 💚 Muito obrigado pela avaliação ${av.estrelas||5}★ — significa muito pra gente da Só Strass! Volte sempre 🙏`})})
+      setAvAck(p=>({...p,[id]:'sent'})) } catch { setAvAck(p=>({...p,[id]:''})) } }
   const ultimaAn = cfg?.ultima_analise ? fmtDT(cfg.ultima_analise) : null
 
   const SEGV = { vip:['VIP','#f5a623'], fiel:['Fiel','#2bd47f'], potencial:['Potencial','#8b7cff'],
@@ -1361,7 +1307,7 @@ export default function PageInteligencia({ api }) {
           background:var(--iq-ac) }
         .iq-count{ margin-left:7px; font-size:10.5px; font-weight:800; color:var(--iq-ac); background:rgba(139,92,246,.12);
           border:1px solid rgba(139,92,246,.28); padding:1px 8px; border-radius:99px }
-        .iq-grid{ display:grid; grid-template-columns:minmax(200px,1.9fr) 108px 108px 74px 100px 100px 100px 52px; gap:0; align-items:center }
+        .iq-grid{ display:grid; grid-template-columns:36px minmax(184px,1.8fr) 100px 96px 70px 92px 92px 96px 46px; gap:0; align-items:center }
         .iq-th{ padding:11px 14px; font-size:10px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:var(--iq-faint) }
         .iq-row{ border-top:1px solid var(--iq-line); cursor:pointer; transition:background .1s }
         .iq-row:hover{ background:rgba(255,255,255,.025) }
@@ -1599,8 +1545,17 @@ export default function PageInteligencia({ api }) {
               </div>
             </div>
 
+            {selecionados.size > 0 && (
+              <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12,padding:'11px 15px',borderRadius:12,background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.3)'}}>
+                <Check size={15} style={{color:'#a78bfa'}}/>
+                <span style={{fontSize:13,fontWeight:800,color:'#c4b5fd'}}>{selecionados.size} selecionado{selecionados.size>1?'s':''} para a 1ª rodada</span>
+                <button className="iq-btn go" style={{marginLeft:'auto',padding:'8px 15px'}} onClick={criarComSelecao}><Send size={13}/> Criar campanha com selecionados</button>
+                <button className="iq-btn" style={{padding:'8px 13px'}} onClick={()=>setSel(new Set())}>Limpar</button>
+              </div>
+            )}
             <div className="iq-panel" style={{overflow:'hidden'}}>
               <div className="iq-grid" style={{background:'rgba(255,255,255,.02)'}}>
+                <div className="iq-th" style={{textAlign:'center'}}><input type="checkbox" checked={clientes.length>0 && clientes.every(c=>selecionados.has(c.telefone))} onChange={toggleTodosVisiveis} style={{cursor:'pointer',accentColor:'#8b5cf6'}}/></div>
                 {['Cliente','Segmento','Última compra','Pedidos','Ticket','LTV','Sem comprar',''].map((h,i)=>(<div key={i} className="iq-th" style={i>=2&&i<=6?{textAlign:'right'}:{}}>{h}</div>))}
               </div>
               {loadCli && clientes.length===0 && [...Array(6)].map((_,i)=>(
@@ -1608,7 +1563,8 @@ export default function PageInteligencia({ api }) {
               ))}
               {clientes.map((c,i)=>{ const [sl,sc]=SEGV[c.segmento]||[c.segmento,'#94a3b8']; const hora=c.cicloDias>0&&c.diasSemComprar>=c.cicloDias&&c.diasSemComprar<c.cicloDias*1.5
                 return (
-                <div key={c.telefone||i} className="iq-row iq-grid" onClick={()=>setCltSel(c)}>
+                <div key={c.telefone||i} className="iq-row iq-grid" onClick={()=>setCltSel(c)} style={selecionados.has(c.telefone)?{background:'rgba(139,92,246,.06)'}:undefined}>
+                  <div className="iq-td" style={{textAlign:'center'}} onClick={e=>e.stopPropagation()}><input type="checkbox" checked={selecionados.has(c.telefone)} onChange={()=>toggleUm(c.telefone)} style={{cursor:'pointer',accentColor:'#8b5cf6'}}/></div>
                   <div className="iq-td" style={{display:'flex',alignItems:'center',gap:11,minWidth:0}}>
                     <Avatar nome={c.nome} size={32}/>
                     <div style={{minWidth:0}}>
@@ -1677,21 +1633,31 @@ export default function PageInteligencia({ api }) {
                   )})}
               </div>
             </div>
-            {avaliacoes.map((av,i)=>(
-              <div key={av.id||i} className="iq-panel" style={{padding:'13px 17px',marginBottom:9,display:'flex',alignItems:'flex-start',gap:12}}>
-                <span style={{color:'var(--iq-warn)',fontSize:13,letterSpacing:1,flexShrink:0}}>{'★'.repeat(av.estrelas||0)}<span style={{opacity:.2}}>{'★'.repeat(5-(av.estrelas||0))}</span></span>
-                <div style={{flex:1,minWidth:0}}>
-                  <p style={{margin:0,fontSize:12.5}}>
-                    <strong style={{color:'var(--iq-ink)'}}>{av.nome_cliente||av.telefone}</strong>
-                    {av.nome_cliente && av.nome_cliente!==av.telefone && <span style={{color:'var(--iq-faint)'}}> · {av.telefone}</span>}
-                    {av.numero_pedido && <span style={{color:'var(--iq-dim)'}}> · Pedido #{av.numero_pedido}</span>}
-                    {av.canal && <span style={{marginLeft:7,fontSize:10,fontWeight:800,textTransform:'capitalize',color:'var(--iq-ok)',background:'rgba(43,212,127,.08)',border:'1px solid rgba(43,212,127,.25)',padding:'1px 8px',borderRadius:99}}>{av.canal}</span>}
-                  </p>
-                  {av.comentario && <p style={{margin:'5px 0 0',fontSize:12,color:'var(--iq-dim)',lineHeight:1.5}}>"{av.comentario}"</p>}
+            {avaliacoes.map((av,i)=>{ const aid=av.id||av.telefone; const ack=avAck[aid]
+              return (
+              <div key={av.id||i} className="iq-panel" style={{padding:'13px 17px',marginBottom:9}}>
+                <div style={{display:'flex',alignItems:'flex-start',gap:12}}>
+                  <span style={{color:'var(--iq-warn)',fontSize:13,letterSpacing:1,flexShrink:0}}>{'★'.repeat(av.estrelas||0)}<span style={{opacity:.2}}>{'★'.repeat(5-(av.estrelas||0))}</span></span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <p style={{margin:0,fontSize:12.5}}>
+                      <strong style={{color:'var(--iq-ink)'}}>{av.nome_cliente||av.telefone}</strong>
+                      {av.nome_cliente && av.nome_cliente!==av.telefone && <span style={{color:'var(--iq-faint)'}}> · {av.telefone}</span>}
+                      {av.numero_pedido && <span style={{color:'var(--iq-dim)'}}> · Pedido #{av.numero_pedido}</span>}
+                      {av.canal && <span style={{marginLeft:7,fontSize:10,fontWeight:800,textTransform:'capitalize',color:'var(--iq-ok)',background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.28)',padding:'1px 8px',borderRadius:99}}>{av.canal}</span>}
+                    </p>
+                    {av.comentario && <p style={{margin:'5px 0 0',fontSize:12,color:'var(--iq-dim)',lineHeight:1.5}}>"{av.comentario}"</p>}
+                  </div>
+                  <span style={{fontSize:10.5,color:'var(--iq-faint)',flexShrink:0}}>{fmtDT(av.criado_em)}</span>
                 </div>
-                <span style={{fontSize:10.5,color:'var(--iq-faint)',flexShrink:0}}>{fmtDT(av.criado_em)}</span>
+                <div style={{display:'flex',gap:7,marginTop:10,paddingTop:10,borderTop:'1px solid var(--iq-line)'}}>
+                  <button className="iq-btn go" style={{padding:'6px 12px',fontSize:11.5}} disabled={!av.telefone||ack==='sending'} onClick={()=>agradecerAval(av)}>
+                    {ack==='sent'?<><Check size={12}/> Agradecido</>:ack==='sending'?<><RefreshCw size={12} style={{animation:'spin 1s linear infinite'}}/> Enviando…</>:<><Heart size={12}/> Agradecer + oferta</>}
+                  </button>
+                  <button className="iq-btn" style={{padding:'6px 12px',fontSize:11.5}} disabled={!av.telefone} onClick={()=>setCltSel({nome:av.nome_cliente,telefone:av.telefone})}><Eye size={12}/> Ver cliente</button>
+                  {!av.telefone && <span style={{fontSize:10.5,color:'var(--iq-faint)',alignSelf:'center'}}>sem telefone — sem ação</span>}
+                </div>
               </div>
-            ))}
+            )})}
             {avaliacoes.length===0 && <div className="iq-panel" style={{padding:'46px',textAlign:'center',color:'var(--iq-faint)',fontSize:12.5}}>Nenhuma avaliação ainda.</div>}
           </div>
         )}
@@ -1699,7 +1665,8 @@ export default function PageInteligencia({ api }) {
 
       {showConfig && <ConfigSheet api={api} onClose={()=>setShowConfig(false)}/>}
       {clienteSel && <ClienteSheet key={clienteSel.telefone||clienteSel.nome} cliente={clienteSel} onClose={()=>setCltSel(null)} api={api}/>}
-      {showCampanha && <CampanhaComposer api={api} onClose={()=>setShowCamp(false)}
+      {showCampanha && <CampanhaComposer api={api} onClose={()=>{setShowCamp(false);setCampManuais(null)}}
+        telefonesManuais={campManuais}
         filtro={{
           segmentos: segFiltro!=='todos'?[segFiltro]:null,
           canais:    canalFiltro!=='todos'?[canalFiltro]:null,
