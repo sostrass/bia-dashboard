@@ -9,7 +9,7 @@ import {
   ChevronRight, MoreHorizontal, Play, Pause, RotateCcw,
   Radio, Wifi, AlertCircle, CheckCircle, Info, Lightbulb,
   Layers, SlidersHorizontal, Calendar, Hash, Phone, Mail,
-  Package2, Tag, Archive, Repeat, Percent, CircleOff, Lock, Truck, FileText
+  Package2, Tag, Archive, Repeat, Percent, CircleOff, Lock, Truck, FileText, User
 } from 'lucide-react'
 
 // ── Utilitários ────────────────────────────────────────────────────────────────
@@ -280,6 +280,15 @@ function BiaCard({ sug, onAction, onDismiss, api }) {
 function CampanhasPanel({ api }) {
   const [lista,   setLista]   = useState(null)
   const [agindo,  setAgindo]  = useState(0)
+  const [detErros,setDetErros]= useState({})   // id -> statusCampanha (ultimos c/ motivo)
+  const [abreErros,setAbreErros]= useState(null)
+  const verErros = async (id) => {
+    if (abreErros===id) { setAbreErros(null); return }
+    setAbreErros(id)
+    if (!detErros[id]) {
+      try { const r = await fetch(`${api}/api/inteligencia/campanhas/${id}`); const d = await r.json(); setDetErros(prev=>({...prev,[id]:d})) } catch {}
+    }
+  }
 
   const carregar = useCallback(()=>{
     fetch(`${api}/api/inteligencia/campanhas`).then(r=>r.json())
@@ -344,12 +353,32 @@ function CampanhasPanel({ api }) {
             <div style={{display:'flex',gap:16,marginTop:8,fontSize:11.5,color:'var(--label-4)',flexWrap:'wrap'}}>
               <span>✅ <strong style={{color:'var(--label-2)'}}>{(c.enviados||0).toLocaleString('pt-BR')}</strong> enviados</span>
               <span>⏳ <strong style={{color:'var(--label-2)'}}>{(c.pendentes||0).toLocaleString('pt-BR')}</strong> na fila</span>
-              {c.erros>0   && <span>⚠️ <strong style={{color:'#ff4757'}}>{c.erros}</strong> erros</span>}
+              {c.erros>0   && <button onClick={()=>verErros(c.id)} style={{display:'inline-flex',alignItems:'center',gap:4,background:'transparent',border:'none',padding:0,cursor:'pointer',fontSize:11.5,color:'var(--label-4)'}}>⚠️ <strong style={{color:'#f87171'}}>{c.erros}</strong> erros {abreErros===c.id?<ChevronUp size={11}/>:<ChevronDown size={11}/>}</button>}
               {c.pulados>0 && <span>↷ <strong style={{color:'var(--label-2)'}}>{c.pulados}</strong> pulados (cooldown/blacklist)</span>}
               {c.status==='rodando' && c.pendentes>0 && (
                 <span>≈ <strong style={{color:'var(--label-2)'}}>{Math.ceil(c.pendentes/(3600/c.ritmo_seg)/Math.max(1,c.janela_fim-c.janela_ini)*10)/10}</strong> dia(s) restantes</span>
               )}
             </div>
+
+            {abreErros===c.id && (
+              <div style={{marginTop:11,paddingTop:11,borderTop:'1px solid var(--sep)'}}>
+                <p style={{margin:'0 0 8px',fontSize:9,fontWeight:800,letterSpacing:'.08em',textTransform:'uppercase',color:'#f87171'}}>Erros de envio — motivo</p>
+                {!detErros[c.id] ? <p style={{fontSize:11.5,color:'var(--label-4)',margin:0}}>Carregando detalhes…</p> : (()=>{
+                  const errs = (detErros[c.id].ultimos||[]).filter(u=>u.status==='erro')
+                  if (!errs.length) return <p style={{fontSize:11.5,color:'var(--label-4)',margin:0,lineHeight:1.5}}>Sem detalhe nos últimos 10 eventos — o motivo fica gravado por destinatário na fila (campanha_fila.motivo).</p>
+                  return errs.map((u,i)=>(
+                    <div key={i} style={{display:'flex',gap:10,alignItems:'flex-start',padding:'8px 10px',borderRadius:8,background:'rgba(248,113,113,.06)',border:'1px solid rgba(248,113,113,.2)',marginBottom:6}}>
+                      <AlertTriangle size={13} style={{color:'#f87171',flexShrink:0,marginTop:1}}/>
+                      <div style={{minWidth:0,flex:1}}>
+                        <p style={{margin:0,fontSize:12,color:'var(--label-2)',fontWeight:600}}>{u.nome||'—'} <span style={{fontFamily:'monospace',color:'var(--label-4)',fontWeight:400}}>{u.telefone}</span></p>
+                        <p style={{margin:'3px 0 0',fontSize:11.5,color:'#fca5a5',lineHeight:1.5,wordBreak:'break-word'}}>{u.motivo||'motivo não informado'}</p>
+                      </div>
+                    </div>
+                  ))
+                })()}
+                <p style={{fontSize:10,color:'var(--label-4)',margin:'6px 0 0',lineHeight:1.5}}>Causas comuns em template HSM: nº de variáveis diferente do aprovado na Meta, número fora da janela de 24h sem template válido, ou destinatário sem opt-in.</p>
+              </div>
+            )}
 
             {/* ROI ATRIBUIDO — o retorno real: quem recebeu e comprou depois.
                 Correlacao (compra pos-contato numa janela), nao prova de causa. */}
@@ -864,10 +893,19 @@ function ClienteSheet({ cliente, onClose, api }) {
           </div>
         </div>
 
+        <div style={{display:'flex',gap:2,padding:'0 12px',flexShrink:0,borderBottom:'1px solid var(--sep)',background:'var(--bg-2)'}}>
+          {[{id:'perfil',label:'Perfil',Ic:User},{id:'pedidos',label:'Pedidos',Ic:ShoppingCart},{id:'produtos',label:'Produtos',Ic:Package},{id:'mensagens',label:'Mensagens',Ic:MessageSquare}].map(t=>{ const on=tab===t.id; return (
+            <button key={t.id} onClick={()=>setTab(t.id)} style={{display:'flex',alignItems:'center',gap:6,padding:'11px 13px',background:'transparent',border:'none',borderBottom:`2px solid ${on?'#8b5cf6':'transparent'}`,color:on?'var(--label)':'var(--label-4)',cursor:'pointer',fontSize:12.5,fontWeight:on?700:500,marginBottom:-1,whiteSpace:'nowrap'}}>
+              <t.Ic size={14}/>{t.label}
+            </button>
+          )})}
+        </div>
+
         <div style={{flex:1,overflowY:'auto',padding:'16px 20px'}}>
           {loadRico && <p style={{fontSize:12.5,color:'var(--label-4)',marginBottom:14}}>Carregando perfil rico…</p>}
           {erroRico && <p style={{fontSize:11.5,color:'#f87171',lineHeight:1.5,marginBottom:14}}>⚠️ Perfil rico indisponível ({erroRico}).</p>}
 
+{tab==='perfil' && (<>
           <SecCard icon={BarChart3} title="Score RFM" accent="#8b5cf6">
             <div style={{display:'flex',alignItems:'center',gap:16}}>
               <ScoreRing score={cliente.scoreRFM||0} size={56}/>
@@ -922,6 +960,9 @@ function ClienteSheet({ cliente, onClose, api }) {
             {!cliente.email && !cliente.documento && <p style={{fontSize:11,color:'var(--label-4)',margin:0,lineHeight:1.5}}>E-mail e CPF aparecem quando o cadastro do Bling traz esses campos. Endereço completo vive no Monitor de Disparos.</p>}
           </SecCard>
 
+</>)}
+
+          {tab==='produtos' && (
           <SecCard icon={Package} title="Produtos que compra" accent="#fbbf24" right={rico?.produtos_cobertura?<span style={{fontSize:10,color:'var(--label-4)'}}>{rico.produtos_cobertura}</span>:null}>
             {loadRico && <p style={{fontSize:12,color:'var(--label-4)',margin:0}}>Carregando…</p>}
             {!loadRico && !(rico?.produtos?.length) && <p style={{fontSize:11.5,color:'var(--label-4)',lineHeight:1.6,margin:0}}>Sem itens conhecidos ainda — buscados dos pedidos recentes ao abrir o perfil.</p>}
@@ -938,6 +979,9 @@ function ClienteSheet({ cliente, onClose, api }) {
             ))}
           </SecCard>
 
+)}
+
+          {tab==='pedidos' && (
           <SecCard icon={ShoppingCart} title="Pedidos" accent="#60a5fa" right={<span style={{fontSize:10,color:'var(--label-4)'}}>toque para consultar</span>}>
             {loadPed && <div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',color:'var(--label-4)',fontSize:12}}><RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/> Carregando…</div>}
             {!loadPed && pedidos.length===0 && <p style={{fontSize:12,color:'var(--label-4)',margin:0}}>Histórico não disponível.</p>}
@@ -976,7 +1020,9 @@ function ClienteSheet({ cliente, onClose, api }) {
             )})}
           </SecCard>
 
-          {rico?.disparos_recentes?.length > 0 && (
+)}
+
+          {tab==='mensagens' && (rico?.disparos_recentes?.length > 0 ? (
             <SecCard icon={MessageSquare} title="Histórico de mensagens" accent="#34d399" style={{marginBottom:6}}>
               {rico.disparos_recentes.map((d,i)=>(
                 <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'7px 0'}}>
@@ -990,7 +1036,7 @@ function ClienteSheet({ cliente, onClose, api }) {
                 </div>
               ))}
             </SecCard>
-          )}
+          ) : <SecCard icon={MessageSquare} title="Histórico de mensagens" accent="#34d399" style={{marginBottom:6}}><p style={{fontSize:12,color:'var(--label-4)',margin:0}}>Nenhuma mensagem registrada ainda.</p></SecCard>)}
         </div>
 
         <div style={{flexShrink:0,padding:'12px 20px',borderTop:'1px solid var(--sep)',background:'var(--bg-2)'}}>
