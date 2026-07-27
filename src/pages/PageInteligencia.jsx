@@ -9,7 +9,7 @@ import {
   ChevronRight, MoreHorizontal, Play, Pause, RotateCcw,
   Radio, Wifi, AlertCircle, CheckCircle, Info, Lightbulb,
   Layers, SlidersHorizontal, Calendar, Hash, Phone, Mail,
-  Package2, Tag, Archive, Repeat, Percent, CircleOff, Lock
+  Package2, Tag, Archive, Repeat, Percent, CircleOff, Lock, Truck, FileText
 } from 'lucide-react'
 
 // ── Utilitários ────────────────────────────────────────────────────────────────
@@ -579,6 +579,152 @@ function CampanhaComposer({ api, filtro, telefonesManuais, onClose }) {
   )
 }
 
+// ── Card de seção (cada funcionalidade num bloco separado) ────────────────────
+function SecCard({ icon:Ic, title, accent='#fbbf24', right, children, style }) {
+  return (
+    <div style={{border:'1px solid var(--sep)',borderRadius:14,background:'var(--fill)',padding:'14px 16px',marginBottom:12,...style}}>
+      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+        <div style={{width:26,height:26,borderRadius:7,background:`${accent}22`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Ic size={14} style={{color:accent}}/></div>
+        <span style={{fontSize:11,fontWeight:800,letterSpacing:'.05em',textTransform:'uppercase',color:'var(--label-2)'}}>{title}</span>
+        {right!=null && <span style={{marginLeft:'auto'}}>{right}</span>}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+// ── Drawer de consulta do PEDIDO (aberto ao clicar num pedido) ────────────────
+// Enriquece com pedido-completo-by-contato quando o telefone bate; renderiza
+// SOMENTE o que o endpoint devolve (endereço/rastreio/NF só aparecem se vierem).
+function PedidoSheet({ pedido, cliente, detalhe, onClose, api }) {
+  const [full, setFull] = useState(null)
+  const [load, setLoad] = useState(true)
+  useEffect(()=>{
+    const nome = cliente?.nome || ''
+    if (!nome) { setLoad(false); return }
+    fetch(`${api}/api/dashboard/pedido-completo-by-contato/${encodeURIComponent(nome)}`)
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{
+        const arr = d?.pedidos || []
+        const m = arr.find(x=> String(x.numero)===String(pedido.numero) || (pedido.id_bling && String(x.id_bling||x.id)===String(pedido.id_bling)))
+        setFull(m||null); setLoad(false)
+      }).catch(()=>setLoad(false))
+  },[])
+
+  const p   = { ...pedido, ...(full||{}) }
+  const det = detalhe || {}
+  const itens    = p.itens || p.produtos || p.items || []
+  const endereco = p.endereco || p.enderecoEntrega || p.endereco_entrega || null
+  const rastreio = p.rastreio || p.codigo_rastreio || p.rastreamento || p.codigoRastreamento || null
+  const nfe      = p.nota_fiscal || p.nfe || p.nf || null
+  const servico  = det.servico || p.servico || (p.transporte && (p.transporte.servico || p.transporte.nome)) || null
+  const qtd      = det.itens_qtd ?? (itens.length || null)
+
+  const SIT = {6:['Em aberto','#fbbf24'],9:['Atendido','#34d399'],12:['Cancelado','#f87171'],15:['Em andamento','#60a5fa']}
+  const sid = p.situacao ?? p.situacao_id
+  const [sl,sc] = SIT[sid] || [sid!=null?`Situação ${sid}`:'—','#94a3b8']
+  const STEP = sid===12 ? -1 : sid===9 ? 4 : sid===15 ? 2 : sid===6 ? 1 : 1
+  const tl = [
+    {label:'Pedido criado',                done: STEP>=0},
+    {label:'Pagamento aprovado',           done: STEP>=1},
+    {label:'Separado / em preparação',     done: STEP>=2},
+    {label:'Coletado pela transportadora', done: STEP>=3},
+    {label:'Entregue',                     done: STEP>=4},
+  ]
+  const cc = CANAL[p.canal] || {}
+
+  return (
+    <>
+      <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(4,4,6,.72)',zIndex:60,backdropFilter:'blur(5px)'}}/>
+      <div style={{position:'fixed',top:0,right:0,bottom:0,width:560,maxWidth:'97vw',zIndex:70,background:'var(--bg-2)',borderLeft:'1px solid var(--sep)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'-24px 0 64px rgba(0,0,0,.5)'}}>
+        <div style={{height:2.5,background:'linear-gradient(90deg,#60a5fa,#60a5fa55)',flexShrink:0}}/>
+
+        {/* Cabeçalho */}
+        <div style={{padding:'16px 20px 15px',flexShrink:0,borderBottom:'1px solid var(--sep)',position:'relative'}}>
+          <button onClick={onClose} style={{position:'absolute',top:14,right:16,width:30,height:30,borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-4)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><X size={13}/></button>
+          <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:8,paddingRight:34,flexWrap:'wrap'}}>
+            {p.canal && <span style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:10.5,fontWeight:800,textTransform:'capitalize',color:cc.cor||'var(--label-3)',background:(cc.cor||'#888')+'1e',border:`1px solid ${(cc.cor||'#888')}40`,padding:'2px 9px',borderRadius:99}}><span style={{width:6,height:6,borderRadius:99,background:cc.cor||'#888'}}/>{cc.label||p.canal}</span>}
+            <span style={{fontSize:16,fontWeight:800,color:'var(--label)',letterSpacing:'-.3px'}}>Pedido #{p.numero}</span>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+            <span style={{fontSize:22,fontWeight:800,color:'var(--label)'}}>{R(p.total)}</span>
+            <span style={{fontSize:11,fontWeight:800,color:sc,background:sc+'22',border:`1px solid ${sc}40`,padding:'3px 10px',borderRadius:99}}>{sl}</span>
+            <span style={{fontSize:12,color:'var(--label-4)'}}>{fmtD(p.data)}</span>
+          </div>
+        </div>
+
+        <div style={{flex:1,overflowY:'auto',padding:'16px 20px'}}>
+          {load && <p style={{fontSize:12,color:'var(--label-4)',marginBottom:12}}>Buscando detalhes do pedido…</p>}
+
+          {/* Linha do tempo */}
+          <SecCard icon={Package2} title="Linha do tempo do envio" accent="#fbbf24">
+            {sid===12
+              ? <p style={{fontSize:12.5,color:'#f87171',margin:0}}>Pedido cancelado.</p>
+              : tl.map((t,i)=>(
+                <div key={i} style={{display:'flex',gap:11,alignItems:'flex-start'}}>
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
+                    <div style={{width:13,height:13,borderRadius:99,background:t.done?'#34d399':'transparent',border:`2px solid ${t.done?'#34d399':'var(--sep)'}`,marginTop:2}}/>
+                    {i<tl.length-1 && <div style={{width:2,height:20,background:tl[i+1].done?'#34d399':'var(--sep)'}}/>}
+                  </div>
+                  <span style={{fontSize:12.5,color:t.done?'var(--label)':'var(--label-4)',fontWeight:t.done?600:400,paddingBottom:i<tl.length-1?8:0}}>{t.label}</span>
+                </div>
+              ))}
+          </SecCard>
+
+          {/* Entrega */}
+          <SecCard icon={Truck} title="Entrega" accent="#fbbf24">
+            {(cliente?.nome) && <p style={{fontSize:13,fontWeight:700,color:'var(--label)',margin:'0 0 4px'}}>{cliente.nome}</p>}
+            {endereco
+              ? <p style={{fontSize:12,color:'var(--label-3)',margin:'0 0 8px',lineHeight:1.5}}>{typeof endereco==='string'?endereco:[endereco.endereco||endereco.rua,endereco.numero,endereco.municipio||endereco.cidade,endereco.uf,endereco.cep].filter(Boolean).join(' · ')}</p>
+              : <p style={{fontSize:11,color:'var(--label-4)',margin:'0 0 8px',lineHeight:1.5}}>Endereço completo vive no Monitor de Disparos.</p>}
+            {rastreio && <p style={{fontSize:11.5,color:'var(--label-3)',margin:'0 0 8px',fontFamily:'monospace'}}>rastreio {rastreio}</p>}
+            <div style={{display:'flex',gap:18,flexWrap:'wrap'}}>
+              {servico && <div><p style={{fontSize:9,color:'var(--label-4)',margin:0,textTransform:'uppercase',letterSpacing:'.06em'}}>Modalidade</p><p style={{fontSize:12.5,color:'var(--label)',margin:'2px 0 0',fontWeight:600}}>{servico}</p></div>}
+              {p.canal && <div><p style={{fontSize:9,color:'var(--label-4)',margin:0,textTransform:'uppercase',letterSpacing:'.06em'}}>Canal</p><p style={{fontSize:12.5,color:'var(--label)',margin:'2px 0 0',fontWeight:600,textTransform:'capitalize'}}>{cc.label||p.canal}</p></div>}
+            </div>
+          </SecCard>
+
+          {/* Produtos */}
+          <SecCard icon={Boxes} title="Produtos" accent="#fbbf24" right={qtd!=null?<span style={{fontSize:11,color:'var(--label-4)'}}>{qtd} un</span>:null}>
+            {itens.length>0
+              ? itens.map((it,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:11,padding:'8px 0',borderBottom:i<itens.length-1?'1px solid var(--sep)':'none'}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <p style={{fontSize:12.5,fontWeight:600,color:'var(--label)',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{it.descricao||it.nome||'Item'}</p>
+                    <p style={{fontSize:10.5,color:'var(--label-4)',margin:'2px 0 0',fontFamily:'monospace'}}>{it.codigo||it.sku||''} {(it.quantidade||it.qtd)!=null && `· ${it.quantidade||it.qtd} un`}</p>
+                  </div>
+                  {(it.valor!=null||it.valor_total!=null) && <span style={{fontSize:12.5,fontWeight:700,color:'var(--label)',flexShrink:0}}>{R(it.valor_total ?? it.valor)}</span>}
+                </div>
+              ))
+              : <p style={{fontSize:12,color:'var(--label-4)',margin:0,lineHeight:1.6}}>{qtd!=null?`${qtd} item(ns) neste pedido.`:'Itens não detalhados por este endpoint.'} Total do pedido: <strong style={{color:'var(--label-2)'}}>{R(p.total)}</strong>.</p>}
+          </SecCard>
+
+          {/* Nota fiscal — só se vier */}
+          {nfe && (
+            <SecCard icon={FileText} title="Nota fiscal" accent="#f87171">
+              <p style={{fontSize:12.5,color:'var(--label)',margin:0}}>{typeof nfe==='string'?nfe:(nfe.numero?`NF-e ${nfe.numero}`:'') } {nfe.situacao&&<span style={{color:'var(--label-4)'}}>· {nfe.situacao}</span>}</p>
+            </SecCard>
+          )}
+
+          {/* Comprador (mini) */}
+          <SecCard icon={Users} title="Comprador" accent="#f472b6">
+            <div style={{display:'flex',alignItems:'center',gap:11}}>
+              <Avatar nome={cliente?.nome} size={38}/>
+              <div style={{flex:1,minWidth:0}}>
+                <p style={{fontSize:13,fontWeight:700,color:'var(--label)',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{cliente?.nome||'—'}</p>
+                {cliente?.telefone && <p style={{fontSize:11,color:'var(--label-4)',margin:'1px 0 0',fontFamily:'monospace'}}>{cliente.telefone}</p>}
+              </div>
+              {cliente?.pedidosTotal!=null && <div style={{textAlign:'right',flexShrink:0}}><p style={{fontSize:15,fontWeight:800,color:'var(--label)',margin:0}}>{cliente.pedidosTotal}</p><p style={{fontSize:9,color:'var(--label-4)',margin:0,textTransform:'uppercase'}}>pedidos</p></div>}
+            </div>
+          </SecCard>
+
+          <p style={{fontSize:10.5,color:'var(--label-4)',lineHeight:1.6,margin:'4px 2px 0'}}>Repasse, margem, tarifa por item, SLA, etiqueta e status de NF-e vêm do módulo de pedidos do canal — não deste endpoint da Inteligência.</p>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ── Sheet lateral do cliente ──────────────────────────────────────────────────
 function ClienteSheet({ cliente, onClose, api }) {
   const [tab,     setTab]     = useState('perfil')
@@ -661,6 +807,7 @@ function ClienteSheet({ cliente, onClose, api }) {
     {id:'msg',     label:'Mensagens'},
   ]
 
+  const [pedidoSel, setPedidoSel] = useState(null)
   const SECT = {fontSize:9.5,fontWeight:800,textTransform:'uppercase',letterSpacing:'.08em',color:'var(--label-4)',margin:'0 0 10px'}
   const pressao = (rico?.disparos_recentes||[]).filter(d=>{ const t=new Date(d.criado_em).getTime(); return !isNaN(t) && (Date.now()-t) < 7*86400000 }).length
   const pcor = pressao<=3?'#34d399':pressao<=5?'#fbbf24':'#f87171'
@@ -672,7 +819,6 @@ function ClienteSheet({ cliente, onClose, api }) {
       <div style={{position:'fixed',top:0,right:0,bottom:0,width:520,maxWidth:'96vw',zIndex:50,background:'var(--bg-2)',borderLeft:'1px solid var(--sep)',display:'flex',flexDirection:'column',overflow:'hidden',boxShadow:'-20px 0 56px rgba(0,0,0,.4)'}}>
         <div style={{height:2.5,background:`linear-gradient(90deg,${s.cor},${s.cor}55)`,flexShrink:0}}/>
 
-        {/* Header fixo: anel de saude + identidade + KPIs + pressao */}
         <div style={{padding:'16px 20px 14px',flexShrink:0,borderBottom:'1px solid var(--sep)',position:'relative'}}>
           <button onClick={onClose} style={{position:'absolute',top:14,right:16,width:30,height:30,borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)',color:'var(--label-4)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><X size={13}/></button>
           <div style={{display:'flex',alignItems:'center',gap:14,paddingRight:34}}>
@@ -718,14 +864,12 @@ function ClienteSheet({ cliente, onClose, api }) {
           </div>
         </div>
 
-        {/* Corpo com scroll: tudo visivel, sem abas */}
         <div style={{flex:1,overflowY:'auto',padding:'16px 20px'}}>
           {loadRico && <p style={{fontSize:12.5,color:'var(--label-4)',marginBottom:14}}>Carregando perfil rico…</p>}
           {erroRico && <p style={{fontSize:11.5,color:'#f87171',lineHeight:1.5,marginBottom:14}}>⚠️ Perfil rico indisponível ({erroRico}).</p>}
 
-          <div style={{marginBottom:18}}>
-            <p style={SECT}>Score RFM</p>
-            <div style={{display:'flex',alignItems:'center',gap:16,padding:'14px',borderRadius:12,background:'var(--fill)',border:'1px solid var(--sep)'}}>
+          <SecCard icon={BarChart3} title="Score RFM" accent="#8b5cf6">
+            <div style={{display:'flex',alignItems:'center',gap:16}}>
               <ScoreRing score={cliente.scoreRFM||0} size={56}/>
               <div style={{flex:1}}>
                 {[
@@ -746,51 +890,43 @@ function ClienteSheet({ cliente, onClose, api }) {
             <div style={{marginTop:10,padding:'11px 13px',borderRadius:10,background:`${s.cor}12`,border:`1px solid ${s.cor}25`}}>
               <p style={{fontSize:12,color:'var(--label-2)',margin:0,lineHeight:1.5}}>{cliente.acaoRecomendada || 'Envie uma mensagem personalizada baseada no histórico deste cliente.'}</p>
             </div>
-          </div>
+          </SecCard>
 
           {cliente.cicloDias > 0 && (
-            <div style={{marginBottom:18,padding:'11px 13px',borderRadius:10,background:'rgba(139,92,246,.08)',border:'1px solid rgba(139,92,246,.22)'}}>
-              <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:5}}>
-                <Repeat size={12} style={{color:'#8b5cf6'}}/><span style={{fontSize:11.5,fontWeight:700,color:'#8b5cf6'}}>Ciclo de compra detectado</span>
-              </div>
+            <SecCard icon={Repeat} title="Ciclo de compra" accent="#8b5cf6">
               <p style={{fontSize:12.5,color:'var(--label-3)',margin:0,lineHeight:1.5}}>
                 Compra a cada <strong style={{color:'#8b5cf6'}}>{cliente.cicloDias} dias</strong> em média.
                 {cliente.diasSemComprar >= cliente.cicloDias*.8
                   ? <span style={{color:'#fb923c'}}> Está no ponto de recompra!</span>
                   : <span style={{color:'var(--label-4)'}}> Próxima estimada em {Math.max(0,cliente.cicloDias-cliente.diasSemComprar)} dias.</span>}
               </p>
-            </div>
+            </SecCard>
           )}
 
-          <div style={{marginBottom:18}}>
-            <p style={SECT}>Dados do cliente</p>
+          <SecCard icon={Info} title="Dados do cliente" accent="#60a5fa">
             {[
-              {l:'E-mail',        v:cliente.email,               cp:'em',  link:true},
-              {l:'CPF/CNPJ',      v:cliente.documento,           cp:'doc', mono:true},
+              {l:'E-mail',        v:cliente.email,               cpk:'em',  link:true},
+              {l:'CPF/CNPJ',      v:cliente.documento,           cpk:'doc', mono:true},
               {l:'Última compra', v:fmtD(cliente.ultimoPedido)},
               {l:'1ª compra',     v:fmtD(cliente.primeiroPedido)},
               {l:'Canal',         v:CANAL[cliente.canal]?.label},
-            ].filter(r=>r.v && r.v!=='—').map(row=>(
-              <div key={row.l} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid var(--sep)'}}>
+            ].filter(r=>r.v && r.v!=='—').map((row,ri,ra)=>(
+              <div key={row.l} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 0',borderBottom:ri<ra.length-1?'1px solid var(--sep)':'none'}}>
                 <span style={{fontSize:11.5,color:'var(--label-4)'}}>{row.l}</span>
                 <div style={{display:'flex',alignItems:'center',gap:6}}>
                   <span style={{fontSize:12.5,color:row.link?'#60a5fa':'var(--label)',fontWeight:500,fontFamily:row.mono?'monospace':'inherit'}}>{row.v}</span>
-                  {row.cp && <button onClick={()=>copy(row.v,row.cp)} style={{display:'flex',alignItems:'center',padding:'2px 5px',borderRadius:5,border:'1px solid var(--sep)',background:'transparent',color:cp===row.cp?'#34d399':'var(--label-4)',cursor:'pointer'}}>{cp===row.cp?<Check size={9}/>:<Copy size={9}/>}</button>}
+                  {row.cpk && <button onClick={()=>copy(row.v,row.cpk)} style={{display:'flex',alignItems:'center',padding:'2px 5px',borderRadius:5,border:'1px solid var(--sep)',background:'transparent',color:cp===row.cpk?'#34d399':'var(--label-4)',cursor:'pointer'}}>{cp===row.cpk?<Check size={9}/>:<Copy size={9}/>}</button>}
                 </div>
               </div>
             ))}
-            {!cliente.email && !cliente.documento && <p style={{fontSize:11,color:'var(--label-4)',margin:'8px 0 0',lineHeight:1.5}}>E-mail e CPF aparecem quando o cadastro do Bling traz esses campos. Endereço completo vive no Monitor de Disparos.</p>}
-          </div>
+            {!cliente.email && !cliente.documento && <p style={{fontSize:11,color:'var(--label-4)',margin:0,lineHeight:1.5}}>E-mail e CPF aparecem quando o cadastro do Bling traz esses campos. Endereço completo vive no Monitor de Disparos.</p>}
+          </SecCard>
 
-          <div style={{marginBottom:18}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-              <p style={{...SECT,margin:0}}>Produtos que compra</p>
-              {rico?.produtos_cobertura && <span style={{fontSize:10,color:'var(--label-4)'}}>{rico.produtos_cobertura}</span>}
-            </div>
-            {loadRico && <p style={{fontSize:12,color:'var(--label-4)'}}>Carregando…</p>}
-            {!loadRico && !(rico?.produtos?.length) && <p style={{fontSize:11.5,color:'var(--label-4)',lineHeight:1.6}}>Sem itens conhecidos ainda — buscados dos pedidos recentes ao abrir o perfil.</p>}
-            {(rico?.produtos||[]).map((p,i)=>(
-              <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 11px',borderRadius:9,background:'var(--fill)',border:'1px solid var(--sep)',marginBottom:6}}>
+          <SecCard icon={Package} title="Produtos que compra" accent="#fbbf24" right={rico?.produtos_cobertura?<span style={{fontSize:10,color:'var(--label-4)'}}>{rico.produtos_cobertura}</span>:null}>
+            {loadRico && <p style={{fontSize:12,color:'var(--label-4)',margin:0}}>Carregando…</p>}
+            {!loadRico && !(rico?.produtos?.length) && <p style={{fontSize:11.5,color:'var(--label-4)',lineHeight:1.6,margin:0}}>Sem itens conhecidos ainda — buscados dos pedidos recentes ao abrir o perfil.</p>}
+            {(rico?.produtos||[]).map((p,i,a)=>(
+              <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:i<a.length-1?'1px solid var(--sep)':'none'}}>
                 {p.imagem
                   ? <img src={p.imagem} alt="" style={{width:38,height:38,borderRadius:8,objectFit:'cover',flexShrink:0,border:'1px solid var(--sep)'}} onError={e=>{e.currentTarget.style.display='none'}}/>
                   : <span style={{fontSize:11,fontWeight:800,color:'var(--label-4)',width:38,height:38,borderRadius:8,background:'var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{i+1}º</span>}
@@ -800,20 +936,19 @@ function ClienteSheet({ cliente, onClose, api }) {
                 </div>
               </div>
             ))}
-          </div>
+          </SecCard>
 
-          <div style={{marginBottom:18}}>
-            <p style={SECT}>Pedidos</p>
-            {loadPed && <div style={{display:'flex',alignItems:'center',gap:8,padding:'12px 0',color:'var(--label-4)',fontSize:12}}><RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/> Carregando…</div>}
-            {!loadPed && pedidos.length===0 && <p style={{fontSize:12,color:'var(--label-4)'}}>Histórico não disponível.</p>}
-            {pedidos.map((p,i)=>{
+          <SecCard icon={ShoppingCart} title="Pedidos" accent="#60a5fa" right={<span style={{fontSize:10,color:'var(--label-4)'}}>toque para consultar</span>}>
+            {loadPed && <div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',color:'var(--label-4)',fontSize:12}}><RefreshCw size={13} style={{animation:'spin 1s linear infinite'}}/> Carregando…</div>}
+            {!loadPed && pedidos.length===0 && <p style={{fontSize:12,color:'var(--label-4)',margin:0}}>Histórico não disponível.</p>}
+            {pedidos.map((p,i,a)=>{
               const SIT = {6:['Em aberto','#fbbf24'],9:['Atendido','#34d399'],12:['Cancelado','#f87171'],15:['Em andamento','#60a5fa']}
               const sid = p.situacao ?? p.situacao_id
               const [sl,sc] = SIT[sid] || [sid!=null?`Sit. ${sid}`:'—','#94a3b8']
               const det = rico?.pedidosDetalhe?.[String(p.id_bling||'')] || {}
               const STEP = sid===12 ? -1 : sid===9 ? 3 : sid===15 ? 2 : sid===6 ? 1 : 0
               return (
-              <div key={i} style={{padding:'11px 0',borderBottom:'1px solid var(--sep)',opacity:sid===12?.55:1}}>
+              <div key={i} onClick={()=>setPedidoSel(p)} className="iq-ped-row" style={{padding:'11px 8px',margin:'0 -8px',borderRadius:9,borderBottom:i<a.length-1?'1px solid var(--sep)':'none',opacity:sid===12?.6:1,cursor:'pointer'}}>
                 <div style={{display:'flex',alignItems:'center',gap:10}}>
                   <span style={{fontSize:12,fontWeight:600,color:'var(--accent)',fontFamily:'monospace',flexShrink:0,minWidth:56}}>#{p.numero}</span>
                   <div style={{flex:1,minWidth:0}}>
@@ -822,9 +957,10 @@ function ClienteSheet({ cliente, onClose, api }) {
                   </div>
                   <span style={{fontSize:10,fontWeight:800,color:sc,background:sc+'22',border:`1px solid ${sc}40`,padding:'2px 8px',borderRadius:99,flexShrink:0}}>{sl}</span>
                   <span style={{fontSize:13,fontWeight:700,color:'var(--label)',flexShrink:0,minWidth:66,textAlign:'right'}}>{R(p.total)}</span>
+                  <ChevronRight size={15} style={{color:'var(--label-4)',flexShrink:0}}/>
                 </div>
                 {sid!==12 && (
-                  <div style={{display:'flex',alignItems:'center',marginTop:9,paddingLeft:56}}>
+                  <div style={{display:'flex',alignItems:'center',marginTop:9,paddingLeft:56,paddingRight:22}}>
                     {steps.map((st,si)=>(
                       <div key={si} style={{display:'flex',alignItems:'center',flex:si<4?1:'0 0 auto'}}>
                         <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
@@ -838,27 +974,25 @@ function ClienteSheet({ cliente, onClose, api }) {
                 )}
               </div>
             )})}
-          </div>
+          </SecCard>
 
           {rico?.disparos_recentes?.length > 0 && (
-            <div style={{marginBottom:6}}>
-              <p style={SECT}>Histórico de mensagens</p>
+            <SecCard icon={MessageSquare} title="Histórico de mensagens" accent="#34d399" style={{marginBottom:6}}>
               {rico.disparos_recentes.map((d,i)=>(
                 <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'7px 0'}}>
                   <span style={{fontSize:10,color:'var(--label-4)',fontFamily:'monospace',width:64,flexShrink:0}}>{String(d.criado_em).slice(0,10)}</span>
-                  <div style={{width:26,height:26,borderRadius:8,background:'var(--fill)',border:'1px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><MessageSquare size={12} style={{color:'var(--label-4)'}}/></div>
+                  <div style={{width:26,height:26,borderRadius:8,background:'var(--bg-2)',border:'1px solid var(--sep)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><MessageSquare size={12} style={{color:'var(--label-4)'}}/></div>
                   <div style={{flex:1,minWidth:0}}>
                     <p style={{margin:0,fontSize:12,color:'var(--label)',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.gatilho}</p>
                     <p style={{margin:0,fontSize:10,color:'var(--label-4)'}}>{d.origem}</p>
                   </div>
-                  <span style={{fontSize:9,fontWeight:800,textTransform:'uppercase',color:d.status==='enviado'?'#34d399':'var(--label-4)',background:d.status==='enviado'?'rgba(52,211,153,.12)':'var(--fill)',padding:'2px 8px',borderRadius:99,flexShrink:0}}>{d.status}</span>
+                  <span style={{fontSize:9,fontWeight:800,textTransform:'uppercase',color:d.status==='enviado'?'#34d399':'var(--label-4)',background:d.status==='enviado'?'rgba(52,211,153,.12)':'var(--bg-2)',padding:'2px 8px',borderRadius:99,flexShrink:0}}>{d.status}</span>
                 </div>
               ))}
-            </div>
+            </SecCard>
           )}
         </div>
 
-        {/* Rodape: mensagem avulsa no WhatsApp */}
         <div style={{flexShrink:0,padding:'12px 20px',borderTop:'1px solid var(--sep)',background:'var(--bg-2)'}}>
           {cliente.telefone ? (
             <>
@@ -875,6 +1009,8 @@ function ClienteSheet({ cliente, onClose, api }) {
           )}
         </div>
       </div>
+
+      {pedidoSel && <PedidoSheet pedido={pedidoSel} cliente={cliente} detalhe={rico?.pedidosDetalhe?.[String(pedidoSel.id_bling||'')]} api={api} onClose={()=>setPedidoSel(null)}/>}
     </>
   )
 }
@@ -1311,6 +1447,7 @@ export default function PageInteligencia({ api }) {
         .iq-th{ padding:11px 14px; font-size:10px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:var(--iq-faint) }
         .iq-row{ border-top:1px solid var(--iq-line); cursor:pointer; transition:background .1s }
         .iq-row:hover{ background:rgba(255,255,255,.025) }
+        .iq-ped-row{ transition:background .12s } .iq-ped-row:hover{ background:var(--fill) }
         .iq-td{ padding:12px 14px; font-size:12.5px }
         .iq-kpi{ padding:16px 18px; position:relative; overflow:hidden }
         .iq-kpi::before{ content:''; position:absolute; inset:0 0 auto 0; height:2px; background:var(--kc,transparent); opacity:.85 }
