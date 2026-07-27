@@ -9,7 +9,8 @@ import {
   ChevronRight, MoreHorizontal, Play, Pause, RotateCcw,
   Radio, Wifi, AlertCircle, CheckCircle, Info, Lightbulb,
   Layers, SlidersHorizontal, Calendar, Hash, Phone, Mail,
-  Package2, Tag, Archive, Repeat, Percent, CircleOff, Lock, Truck, FileText, User
+  Package2, Tag, Archive, Repeat, Percent, CircleOff, Lock, Truck, FileText, User,
+  Trash2, Download, CheckCheck, Ban
 } from 'lucide-react'
 
 // ── Utilitários ────────────────────────────────────────────────────────────────
@@ -278,17 +279,16 @@ function BiaCard({ sug, onAction, onDismiss, api }) {
 // UI da fila: progresso ao vivo, pausar/retomar/cancelar. Poll de 5s enquanto
 // houver campanha rodando — a fila e do servidor, a tela so observa.
 function CampanhasPanel({ api }) {
-  const [lista,   setLista]   = useState(null)
-  const [agindo,  setAgindo]  = useState(0)
-  const [detErros,setDetErros]= useState({})   // id -> statusCampanha (ultimos c/ motivo)
-  const [abreErros,setAbreErros]= useState(null)
-  const verErros = async (id) => {
-    if (abreErros===id) { setAbreErros(null); return }
-    setAbreErros(id)
-    if (!detErros[id]) {
-      try { const r = await fetch(`${api}/api/inteligencia/campanhas/${id}`); const d = await r.json(); setDetErros(prev=>({...prev,[id]:d})) } catch {}
-    }
-  }
+  const [lista,    setLista]   = useState(null)
+  const [agindo,   setAgindo]  = useState(0)
+  const [aberta,   setAberta]  = useState(null)   // id com monitor aberto
+  const [fila,     setFila]    = useState(null)   // resposta de /campanhas/:id/fila
+  const [loadFila, setLoadFila]= useState(false)
+  const [fStatus,  setFStatus] = useState('todos')
+  const [busca,    setBusca]   = useState('')
+  const [pag,      setPag]     = useState(0)
+  const [aoVivo,   setAoVivo]  = useState(true)
+  const LIM = 25
 
   const carregar = useCallback(()=>{
     fetch(`${api}/api/inteligencia/campanhas`).then(r=>r.json())
@@ -297,9 +297,27 @@ function CampanhasPanel({ api }) {
 
   useEffect(()=>{
     carregar()
+    if (!aoVivo) return
     const t = setInterval(carregar, 5000)
     return ()=>clearInterval(t)
-  },[carregar])
+  },[carregar, aoVivo])
+
+  const carregarFila = useCallback(async (id, silencioso)=>{
+    if (!silencioso) setLoadFila(true)
+    try {
+      const qs = new URLSearchParams({ status:fStatus, q:busca, limit:String(LIM), offset:String(pag*LIM) })
+      const r = await fetch(`${api}/api/inteligencia/campanhas/${id}/fila?${qs.toString()}`)
+      setFila(await r.json())
+    } catch { setFila(null) }
+    setLoadFila(false)
+  },[api, fStatus, busca, pag])
+
+  useEffect(()=>{ if (aberta) carregarFila(aberta, false) },[aberta, carregarFila])
+  useEffect(()=>{
+    if (!aberta || !aoVivo) return
+    const t = setInterval(()=>carregarFila(aberta, true), 5000)
+    return ()=>clearInterval(t)
+  },[aberta, aoVivo, carregarFila])
 
   const acao = async (id, verbo) => {
     setAgindo(id)
@@ -307,40 +325,101 @@ function CampanhasPanel({ api }) {
     setAgindo(0)
   }
 
+  const excluir = async (id, nome) => {
+    if (!window.confirm(`Excluir a campanha #${id} "${nome}"?\n\nIsso apaga a campanha e TODO o histórico da fila (quem recebeu, erros, motivos).\nNão dá para desfazer.`)) return
+    setAgindo(id)
+    try {
+      const r = await fetch(`${api}/api/inteligencia/campanhas/${id}`,{method:'DELETE'})
+      const d = await r.json().catch(()=>({}))
+      if (!r.ok) window.alert(d.erro || 'Não foi possível excluir.')
+      else { if (aberta===id) { setAberta(null); setFila(null) } ; carregar() }
+    } catch { window.alert('Falha de rede ao excluir.') }
+    setAgindo(0)
+  }
+
+  const abrirMonitor = (id) => {
+    if (aberta===id) { setAberta(null); setFila(null); return }
+    setFStatus('todos'); setBusca(''); setPag(0); setFila(null); setAberta(id)
+  }
+
   const COR = { rodando:'#34d399', pausada:'#fbbf24', concluida:'#8b5cf6', cancelada:'#94a3b8' }
+  const ST  = { enviado:['Enviado','#34d399'], erro:['Erro','#f87171'], pendente:['Na fila','#fbbf24'], pulado:['Pulado','#94a3b8'] }
+  const nf  = n => (Number(n)||0).toLocaleString('pt-BR')
 
   if (lista===null) return <p style={{fontSize:12.5,color:'var(--label-4)',padding:'32px 0',textAlign:'center'}}>Carregando campanhas...</p>
   if (!lista.length) return (
     <div style={{textAlign:'center',padding:'56px 20px',color:'var(--label-4)'}}>
       <Send size={30} style={{opacity:.25}}/>
       <p style={{fontSize:14,fontWeight:700,color:'var(--label-3)',margin:'12px 0 6px'}}>Nenhuma campanha ainda</p>
-      <p style={{fontSize:12.5,margin:0,lineHeight:1.6}}>Monte a audiência na aba <strong>Clientes</strong> (filtros de segmento/canal/dias)<br/>e clique em "Criar campanha com estes filtros".</p>
+      <p style={{fontSize:12.5,margin:0,lineHeight:1.6}}>Monte a audiência na aba <strong>Clientes</strong> (filtros ou seleção manual)<br/>e clique em "Criar campanha".</p>
     </div>
   )
 
+  // ── Consolidado da operação ────────────────────────────────────────────────
+  const tot = lista.reduce((a,c)=>({
+    enviados:a.enviados+(c.enviados||0), erros:a.erros+(c.erros||0),
+    pendentes:a.pendentes+(c.pendentes||0), conv:a.conv+(c.conversoes||0),
+    receita:a.receita+Number(c.receita_atribuida||0),
+  }),{enviados:0,erros:0,pendentes:0,conv:0,receita:0})
+  const rodando = lista.filter(c=>c.status==='rodando').length
+
   return (
     <div>
+      {/* Barra de comando: consolidado + ao vivo */}
+      <div style={{display:'flex',alignItems:'center',gap:0,marginBottom:14,borderRadius:13,border:'1px solid var(--sep)',background:'var(--bg-2)',overflow:'hidden',flexWrap:'wrap'}}>
+        {[
+          {l:'Campanhas',  v:nf(lista.length), sub:`${rodando} rodando`, c:'var(--label)'},
+          {l:'Enviados',   v:nf(tot.enviados), sub:'total acumulado',    c:'#34d399'},
+          {l:'Na fila',    v:nf(tot.pendentes),sub:'aguardando envio',   c:'#fbbf24'},
+          {l:'Erros',      v:nf(tot.erros),    sub:'falha no disparo',   c: tot.erros?'#f87171':'var(--label-3)'},
+          {l:'Recompras',  v:nf(tot.conv),     sub:'pós-contato',        c:'#60a5fa'},
+          {l:'Receita atr.',v:`R$ ${tot.receita.toLocaleString('pt-BR',{maximumFractionDigits:0})}`, sub:'correlação', c:'#8b5cf6'},
+        ].map((k,i,a)=>(
+          <div key={k.l} style={{flex:'1 1 130px',padding:'12px 14px',borderRight:i<a.length-1?'1px solid var(--sep)':'none'}}>
+            <p style={{margin:0,fontSize:9,fontWeight:800,letterSpacing:'.07em',textTransform:'uppercase',color:'var(--label-4)'}}>{k.l}</p>
+            <p style={{margin:'4px 0 1px',fontSize:19,fontWeight:800,color:k.c,lineHeight:1}}>{k.v}</p>
+            <p style={{margin:0,fontSize:9.5,color:'var(--label-4)'}}>{k.sub}</p>
+          </div>
+        ))}
+        <button onClick={()=>setAoVivo(v=>!v)} title="Atualização automática a cada 5s"
+          style={{display:'flex',alignItems:'center',gap:6,padding:'12px 16px',background:'transparent',border:'none',borderLeft:'1px solid var(--sep)',cursor:'pointer',color:aoVivo?'#34d399':'var(--label-4)',fontSize:11.5,fontWeight:700}}>
+          <span style={{width:7,height:7,borderRadius:99,background:aoVivo?'#34d399':'var(--label-4)',boxShadow:aoVivo?'0 0 8px #34d399':'none'}}/>
+          {aoVivo?'AO VIVO':'PAUSADO'}
+        </button>
+      </div>
+
       {lista.map(c=>{
         const done = (c.enviados||0)+(c.erros||0)
         const alvo = Math.max(1,(c.total||0)-(c.pulados||0))
         const pct  = Math.min(100, Math.round(done/alvo*100))
-        const cor  = COR[c.status]||'#6b7280'
+        const cor  = COR[c.status]||'#94a3b8'
+        const mon  = aberta===c.id
+        const rast = mon ? fila?.rastreio : null
         return (
           <div key={c.id} style={{borderRadius:13,border:`1px solid ${c.status==='rodando'?cor+'40':'var(--sep)'}`,background:'var(--bg-2)',padding:'14px 18px',marginBottom:12}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12,marginBottom:10}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12,marginBottom:10,flexWrap:'wrap'}}>
               <div style={{minWidth:0}}>
-                <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:3}}>
+                <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:3,flexWrap:'wrap'}}>
                   <span style={{fontSize:14.5,fontWeight:800,color:'var(--label)'}}>#{c.id} · {c.nome}</span>
-                  <span style={{fontSize:10.5,fontWeight:800,textTransform:'uppercase',letterSpacing:'.05em',color:cor,background:cor+'14',border:`1px solid ${cor}30`,padding:'2px 8px',borderRadius:99}}>{c.status}</span>
+                  <span style={{fontSize:10.5,fontWeight:800,textTransform:'uppercase',letterSpacing:'.05em',color:cor,background:cor+'18',border:`1px solid ${cor}35`,padding:'2px 8px',borderRadius:99}}>{c.status}</span>
+                  {c.status==='rodando' && <span style={{width:6,height:6,borderRadius:99,background:'#34d399',boxShadow:'0 0 7px #34d399'}}/>}
                 </div>
                 <p style={{fontSize:11.5,color:'var(--label-4)',margin:0}}>
                   template <strong style={{color:'var(--label-3)'}}>{c.gatilho}</strong> · {c.ritmo_seg}s/envio · janela {c.janela_ini}h–{c.janela_fim}h · criada {String(c.criado_em).slice(0,10)}
+                  {c.cupom && <> · cupom <strong style={{color:'#fbbf24'}}>{c.cupom}</strong></>}
                 </p>
               </div>
-              <div style={{display:'flex',gap:7,flexShrink:0}}>
-                {c.status==='rodando' && <button disabled={agindo===c.id} onClick={()=>acao(c.id,'pausar')}  style={{padding:'6px 13px',borderRadius:8,border:'1px solid rgba(245,158,11,.35)',background:'rgba(245,158,11,.07)',color:'#f59e0b',cursor:'pointer',fontSize:11.5,fontWeight:700}}>Pausar</button>}
-                {c.status==='pausada' && <button disabled={agindo===c.id} onClick={()=>acao(c.id,'retomar')} style={{padding:'6px 13px',borderRadius:8,border:'1px solid rgba(37,211,102,.35)',background:'rgba(37,211,102,.07)',color:'#25D366',cursor:'pointer',fontSize:11.5,fontWeight:700}}>Retomar</button>}
-                {['rodando','pausada'].includes(c.status) && <button disabled={agindo===c.id} onClick={()=>{ if(confirm(`Cancelar a campanha #${c.id}? Os pendentes não serão enviados.`)) acao(c.id,'cancelar') }} style={{padding:'6px 13px',borderRadius:8,border:'1px solid var(--sep)',background:'transparent',color:'var(--label-4)',cursor:'pointer',fontSize:11.5,fontWeight:700}}>Cancelar</button>}
+              <div style={{display:'flex',gap:7,flexShrink:0,flexWrap:'wrap'}}>
+                <button onClick={()=>abrirMonitor(c.id)} style={{display:'flex',alignItems:'center',gap:5,padding:'6px 13px',borderRadius:8,border:`1px solid ${mon?'#8b5cf6':'var(--sep)'}`,background:mon?'rgba(139,92,246,.12)':'transparent',color:mon?'#a78bfa':'var(--label-3)',cursor:'pointer',fontSize:11.5,fontWeight:700}}>
+                  <Activity size={12}/> Monitorar {mon?<ChevronUp size={11}/>:<ChevronDown size={11}/>}
+                </button>
+                {c.status==='rodando' && <button disabled={agindo===c.id} onClick={()=>acao(c.id,'pausar')}  style={{display:'flex',alignItems:'center',gap:5,padding:'6px 13px',borderRadius:8,border:'1px solid rgba(251,191,36,.35)',background:'rgba(251,191,36,.08)',color:'#fbbf24',cursor:'pointer',fontSize:11.5,fontWeight:700}}><Pause size={12}/> Pausar</button>}
+                {c.status==='pausada' && <button disabled={agindo===c.id} onClick={()=>acao(c.id,'retomar')} style={{display:'flex',alignItems:'center',gap:5,padding:'6px 13px',borderRadius:8,border:'1px solid rgba(52,211,153,.35)',background:'rgba(52,211,153,.08)',color:'#34d399',cursor:'pointer',fontSize:11.5,fontWeight:700}}><Play size={12}/> Retomar</button>}
+                {['rodando','pausada'].includes(c.status) && <button disabled={agindo===c.id} onClick={()=>{ if(window.confirm(`Cancelar a campanha #${c.id}? Os pendentes não serão enviados.`)) acao(c.id,'cancelar') }} style={{display:'flex',alignItems:'center',gap:5,padding:'6px 13px',borderRadius:8,border:'1px solid var(--sep)',background:'transparent',color:'var(--label-4)',cursor:'pointer',fontSize:11.5,fontWeight:700}}><Ban size={12}/> Cancelar</button>}
+                <button disabled={agindo===c.id || c.status==='rodando'} title={c.status==='rodando'?'Pause ou cancele antes de excluir':'Excluir campanha e histórico'} onClick={()=>excluir(c.id,c.nome)}
+                  style={{display:'flex',alignItems:'center',gap:5,padding:'6px 11px',borderRadius:8,border:'1px solid rgba(248,113,113,.3)',background:'transparent',color:c.status==='rodando'?'var(--label-4)':'#f87171',cursor:c.status==='rodando'?'not-allowed':'pointer',fontSize:11.5,fontWeight:700,opacity:c.status==='rodando'?.45:1}}>
+                  <Trash2 size={12}/>
+                </button>
               </div>
             </div>
 
@@ -350,33 +429,127 @@ function CampanhasPanel({ api }) {
               </div>
               <span style={{fontSize:12,fontWeight:800,color:cor,width:44,textAlign:'right'}}>{pct}%</span>
             </div>
-            <div style={{display:'flex',gap:16,marginTop:8,fontSize:11.5,color:'var(--label-4)',flexWrap:'wrap'}}>
-              <span>✅ <strong style={{color:'var(--label-2)'}}>{(c.enviados||0).toLocaleString('pt-BR')}</strong> enviados</span>
-              <span>⏳ <strong style={{color:'var(--label-2)'}}>{(c.pendentes||0).toLocaleString('pt-BR')}</strong> na fila</span>
-              {c.erros>0   && <button onClick={()=>verErros(c.id)} style={{display:'inline-flex',alignItems:'center',gap:4,background:'transparent',border:'none',padding:0,cursor:'pointer',fontSize:11.5,color:'var(--label-4)'}}>⚠️ <strong style={{color:'#f87171'}}>{c.erros}</strong> erros {abreErros===c.id?<ChevronUp size={11}/>:<ChevronDown size={11}/>}</button>}
-              {c.pulados>0 && <span>↷ <strong style={{color:'var(--label-2)'}}>{c.pulados}</strong> pulados (cooldown/blacklist)</span>}
-              {c.status==='rodando' && c.pendentes>0 && (
-                <span>≈ <strong style={{color:'var(--label-2)'}}>{Math.ceil(c.pendentes/(3600/c.ritmo_seg)/Math.max(1,c.janela_fim-c.janela_ini)*10)/10}</strong> dia(s) restantes</span>
-              )}
-            </div>
 
-            {abreErros===c.id && (
-              <div style={{marginTop:11,paddingTop:11,borderTop:'1px solid var(--sep)'}}>
-                <p style={{margin:'0 0 8px',fontSize:9,fontWeight:800,letterSpacing:'.08em',textTransform:'uppercase',color:'#f87171'}}>Erros de envio — motivo</p>
-                {!detErros[c.id] ? <p style={{fontSize:11.5,color:'var(--label-4)',margin:0}}>Carregando detalhes…</p> : (()=>{
-                  const errs = (detErros[c.id].ultimos||[]).filter(u=>u.status==='erro')
-                  if (!errs.length) return <p style={{fontSize:11.5,color:'var(--label-4)',margin:0,lineHeight:1.5}}>Sem detalhe nos últimos 10 eventos — o motivo fica gravado por destinatário na fila (campanha_fila.motivo).</p>
-                  return errs.map((u,i)=>(
-                    <div key={i} style={{display:'flex',gap:10,alignItems:'flex-start',padding:'8px 10px',borderRadius:8,background:'rgba(248,113,113,.06)',border:'1px solid rgba(248,113,113,.2)',marginBottom:6}}>
-                      <AlertTriangle size={13} style={{color:'#f87171',flexShrink:0,marginTop:1}}/>
-                      <div style={{minWidth:0,flex:1}}>
-                        <p style={{margin:0,fontSize:12,color:'var(--label-2)',fontWeight:600}}>{u.nome||'—'} <span style={{fontFamily:'monospace',color:'var(--label-4)',fontWeight:400}}>{u.telefone}</span></p>
-                        <p style={{margin:'3px 0 0',fontSize:11.5,color:'#fca5a5',lineHeight:1.5,wordBreak:'break-word'}}>{u.motivo||'motivo não informado'}</p>
-                      </div>
+            {/* Estatísticas da campanha */}
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(88px,1fr))',gap:1,marginTop:11,background:'var(--sep)',borderRadius:10,overflow:'hidden',border:'1px solid var(--sep)'}}>
+              {[
+                {l:'Alvo',     v:nf(alvo),            c:'var(--label-2)'},
+                {l:'Enviados', v:nf(c.enviados||0),   c:'#34d399'},
+                {l:'Na fila',  v:nf(c.pendentes||0),  c:'#fbbf24'},
+                {l:'Erros',    v:nf(c.erros||0),      c:(c.erros||0)?'#f87171':'var(--label-3)'},
+                {l:'Pulados',  v:nf(c.pulados||0),    c:'var(--label-3)'},
+                {l:'Entregues',v: rast? nf(rast.entregues) : '—', c: rast?.entregues?'#60a5fa':'var(--label-4)'},
+                {l:'Lidos',    v: rast? nf(rast.lidos)     : '—', c: rast?.lidos?'#8b5cf6':'var(--label-4)'},
+              ].map(k=>(
+                <div key={k.l} style={{background:'var(--bg-2)',padding:'9px 10px',textAlign:'center'}}>
+                  <p style={{margin:0,fontSize:16,fontWeight:800,color:k.c,lineHeight:1}}>{k.v}</p>
+                  <p style={{margin:'3px 0 0',fontSize:8.5,color:'var(--label-4)',textTransform:'uppercase',letterSpacing:'.06em'}}>{k.l}</p>
+                </div>
+              ))}
+            </div>
+            {c.status==='rodando' && c.pendentes>0 && (
+              <p style={{fontSize:11,color:'var(--label-4)',margin:'8px 0 0'}}>≈ <strong style={{color:'var(--label-2)'}}>{Math.ceil(c.pendentes/(3600/c.ritmo_seg)/Math.max(1,c.janela_fim-c.janela_ini)*10)/10}</strong> dia(s) restantes no ritmo atual</p>
+            )}
+
+            {/* ── MONITOR POR LEAD ────────────────────────────────────────── */}
+            {mon && (
+              <div style={{marginTop:12,paddingTop:12,borderTop:'1px solid var(--sep)'}}>
+                {rast && rast.com_wamid===0 && (c.enviados||0)>0 && (
+                  <div style={{display:'flex',gap:9,alignItems:'flex-start',padding:'10px 12px',borderRadius:9,background:'rgba(251,191,36,.07)',border:'1px solid rgba(251,191,36,.25)',marginBottom:11}}>
+                    <AlertTriangle size={13} style={{color:'#fbbf24',flexShrink:0,marginTop:1}}/>
+                    <p style={{margin:0,fontSize:11.5,color:'var(--label-3)',lineHeight:1.55}}>
+                      <strong style={{color:'#fbbf24'}}>Rastreio de entrega/leitura desligado.</strong> Estes envios não guardaram o <code style={{fontFamily:'monospace'}}>wamid</code> da Meta, então Entregue/Lido ficam vazios. Ligar exige a rota de disparo devolver o wamid e o webhook do WhatsApp repassar os status.
+                    </p>
+                  </div>
+                )}
+
+                {/* Filtros + busca + export */}
+                <div style={{display:'flex',gap:7,alignItems:'center',marginBottom:10,flexWrap:'wrap'}}>
+                  {['todos','enviado','erro','pendente','pulado'].map(s=>{
+                    const qtd = s==='todos'
+                      ? (fila?.contagens||[]).reduce((a,x)=>a+x.qtd,0)
+                      : (fila?.contagens||[]).find(x=>x.status===s)?.qtd || 0
+                    const on = fStatus===s
+                    const cc = s==='todos'?'#8b5cf6':(ST[s]?.[1]||'#94a3b8')
+                    return (
+                      <button key={s} onClick={()=>{setFStatus(s);setPag(0)}}
+                        style={{display:'flex',alignItems:'center',gap:6,padding:'5px 11px',borderRadius:99,border:`1px solid ${on?cc+'60':'var(--sep)'}`,background:on?cc+'18':'transparent',color:on?cc:'var(--label-4)',cursor:'pointer',fontSize:11,fontWeight:700,textTransform:'capitalize'}}>
+                        {s==='todos'?'Todos':ST[s][0]}
+                        <span style={{fontSize:9.5,fontWeight:800,opacity:.85}}>{nf(qtd)}</span>
+                      </button>
+                    )
+                  })}
+                  <div style={{display:'flex',alignItems:'center',gap:6,marginLeft:'auto',flexWrap:'wrap'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:6,padding:'5px 10px',borderRadius:8,border:'1px solid var(--sep)',background:'var(--fill)'}}>
+                      <Search size={12} style={{color:'var(--label-4)'}}/>
+                      <input value={busca} onChange={e=>{setBusca(e.target.value);setPag(0)}} placeholder="nome ou telefone"
+                        style={{border:'none',background:'transparent',color:'var(--label)',fontSize:11.5,outline:'none',width:130}}/>
                     </div>
-                  ))
-                })()}
-                <p style={{fontSize:10,color:'var(--label-4)',margin:'6px 0 0',lineHeight:1.5}}>Causas comuns em template HSM: nº de variáveis diferente do aprovado na Meta, número fora da janela de 24h sem template válido, ou destinatário sem opt-in.</p>
+                    <button onClick={()=>window.open(`${api}/api/inteligencia/campanhas/${c.id}/fila?formato=csv&status=${fStatus}&q=${encodeURIComponent(busca)}`,'_blank')}
+                      style={{display:'flex',alignItems:'center',gap:5,padding:'6px 11px',borderRadius:8,border:'1px solid var(--sep)',background:'transparent',color:'var(--label-3)',cursor:'pointer',fontSize:11,fontWeight:700}}>
+                      <Download size={12}/> CSV
+                    </button>
+                    <button onClick={()=>carregarFila(c.id,false)} title="Atualizar agora"
+                      style={{display:'flex',alignItems:'center',padding:'6px 9px',borderRadius:8,border:'1px solid var(--sep)',background:'transparent',color:'var(--label-3)',cursor:'pointer'}}>
+                      <RefreshCw size={12} style={loadFila?{animation:'spin 1s linear infinite'}:undefined}/>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Tabela de leads */}
+                {loadFila && !fila && <p style={{fontSize:12,color:'var(--label-4)',padding:'14px 0',textAlign:'center'}}>Carregando fila…</p>}
+                {fila && (fila.itens||[]).length===0 && <p style={{fontSize:12,color:'var(--label-4)',padding:'14px 0',textAlign:'center'}}>Nenhum registro para este filtro.</p>}
+                {fila && (fila.itens||[]).length>0 && (
+                  <div style={{border:'1px solid var(--sep)',borderRadius:10,overflow:'hidden'}}>
+                    <div style={{display:'grid',gridTemplateColumns:'minmax(150px,1.6fr) 90px 96px 110px 84px 76px',gap:0,background:'rgba(255,255,255,.02)',borderBottom:'1px solid var(--sep)'}}>
+                      {['Lead','Segmento','Status','Enviado','Entregue','Lido'].map(h=>(
+                        <div key={h} style={{padding:'8px 11px',fontSize:9,fontWeight:800,letterSpacing:'.07em',textTransform:'uppercase',color:'var(--label-4)'}}>{h}</div>
+                      ))}
+                    </div>
+                    {fila.itens.map(it=>{
+                      const [sl,sc] = ST[it.status] || [it.status,'#94a3b8']
+                      return (
+                        <div key={it.id}>
+                          <div style={{display:'grid',gridTemplateColumns:'minmax(150px,1.6fr) 90px 96px 110px 84px 76px',gap:0,borderTop:'1px solid var(--sep)',alignItems:'center'}}>
+                            <div style={{padding:'9px 11px',minWidth:0}}>
+                              <p style={{margin:0,fontSize:12,fontWeight:600,color:'var(--label)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{it.nome||'—'}</p>
+                              <p style={{margin:'1px 0 0',fontSize:10.5,color:'var(--label-4)',fontFamily:'monospace'}}>{it.telefone}</p>
+                            </div>
+                            <div style={{padding:'9px 11px'}}>{it.segmento ? <SegChip seg={it.segmento}/> : <span style={{fontSize:11,color:'var(--label-4)'}}>—</span>}</div>
+                            <div style={{padding:'9px 11px'}}>
+                              <span style={{fontSize:10,fontWeight:800,color:sc,background:sc+'1e',border:`1px solid ${sc}38`,padding:'2px 8px',borderRadius:99}}>{sl}</span>
+                            </div>
+                            <div style={{padding:'9px 11px',fontSize:11,color:it.enviado_em?'var(--label-3)':'var(--label-4)'}}>{it.enviado_em?fmtDT(it.enviado_em):'—'}</div>
+                            <div style={{padding:'9px 11px'}}>{it.entregue_em
+                              ? <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:11,color:'#60a5fa'}}><Check size={11}/>{String(it.entregue_em).slice(11,16)}</span>
+                              : <span style={{fontSize:11,color:'var(--label-4)'}}>—</span>}</div>
+                            <div style={{padding:'9px 11px'}}>{it.lido_em
+                              ? <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:11,color:'#8b5cf6'}}><CheckCheck size={11}/>{String(it.lido_em).slice(11,16)}</span>
+                              : <span style={{fontSize:11,color:'var(--label-4)'}}>—</span>}</div>
+                          </div>
+                          {(it.motivo || it.erro_meta) && (
+                            <div style={{padding:'0 11px 9px 11px',borderTop:'none'}}>
+                              <p style={{margin:0,fontSize:11,color:it.status==='erro'?'#fca5a5':'var(--label-4)',lineHeight:1.5,wordBreak:'break-word'}}>
+                                <AlertTriangle size={10} style={{verticalAlign:-1,marginRight:4}}/>{it.motivo || it.erro_meta}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {/* Paginação */}
+                {fila && fila.total_filtrado>LIM && (
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:10}}>
+                    <span style={{fontSize:11,color:'var(--label-4)'}}>{pag*LIM+1}–{Math.min((pag+1)*LIM, fila.total_filtrado)} de {nf(fila.total_filtrado)}</span>
+                    <div style={{display:'flex',gap:6}}>
+                      <button disabled={pag===0} onClick={()=>setPag(p=>Math.max(0,p-1))} style={{padding:'5px 12px',borderRadius:7,border:'1px solid var(--sep)',background:'transparent',color:pag===0?'var(--label-4)':'var(--label-3)',cursor:pag===0?'not-allowed':'pointer',fontSize:11,fontWeight:700}}>Anterior</button>
+                      <button disabled={(pag+1)*LIM>=fila.total_filtrado} onClick={()=>setPag(p=>p+1)} style={{padding:'5px 12px',borderRadius:7,border:'1px solid var(--sep)',background:'transparent',color:(pag+1)*LIM>=fila.total_filtrado?'var(--label-4)':'var(--label-3)',cursor:(pag+1)*LIM>=fila.total_filtrado?'not-allowed':'pointer',fontSize:11,fontWeight:700}}>Próxima</button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -390,11 +563,11 @@ function CampanhasPanel({ api }) {
                 <div style={{marginTop:11,paddingTop:11,borderTop:'1px solid var(--sep)',display:'flex',alignItems:'center',gap:22,flexWrap:'wrap'}}>
                   <div>
                     <p style={{margin:0,fontSize:9,fontWeight:800,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--label-4)'}}>Recompraram · {jan}d</p>
-                    <p style={{margin:'3px 0 0',fontSize:16,fontWeight:800,color:'var(--label)'}}>{conv.toLocaleString('pt-BR')} <span style={{fontSize:11,fontWeight:600,color:conv>0?'#25D366':'var(--label-4)'}}>· {taxa}% dos enviados</span></p>
+                    <p style={{margin:'3px 0 0',fontSize:16,fontWeight:800,color:'var(--label)'}}>{nf(conv)} <span style={{fontSize:11,fontWeight:600,color:conv>0?'#34d399':'var(--label-4)'}}>· {taxa}% dos enviados</span></p>
                   </div>
                   <div>
                     <p style={{margin:0,fontSize:9,fontWeight:800,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--label-4)'}}>Receita atribuída</p>
-                    <p style={{margin:'3px 0 0',fontSize:16,fontWeight:800,color:rec>0?'#25D366':'var(--label-3)'}}>R$ {rec.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
+                    <p style={{margin:'3px 0 0',fontSize:16,fontWeight:800,color:rec>0?'#34d399':'var(--label-3)'}}>R$ {rec.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
                   </div>
                   <span title="Compras feitas por quem recebeu a campanha, na janela pós-contato. É correlação — não prova que a mensagem causou a compra." style={{marginLeft:'auto',fontSize:10,color:'var(--label-4)',cursor:'help',borderBottom:'1px dotted var(--label-4)'}}>correlação, não causa ⓘ</span>
                 </div>
