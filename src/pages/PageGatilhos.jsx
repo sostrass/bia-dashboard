@@ -2199,7 +2199,7 @@ function GatilhoDashboard({ pulso, sparks, jornada, insightsGat, insDismiss, set
                         </div>
                         <div style={{height:3,borderRadius:99,background:T.bg4}}>
                           <div style={{height:'100%',borderRadius:99,background:b.c,
-                            width:`${b.pct}%`,boxShadow:`0 0 6px ${b.c}40`,
+                            width:`${Math.min(100,b.pct)}%`,boxShadow:`0 0 6px ${b.c}40`,
                             transition:'width .8s ease'}}/>
                         </div>
                       </div>
@@ -2522,8 +2522,8 @@ function GatilhoDashboard({ pulso, sparks, jornada, insightsGat, insDismiss, set
               Sem dados de resposta ainda
             </p>
           ):(
-            <div style={{display:'flex',flexDirection:'column',gap:5}}>
-              {monitor.taxaResposta?.slice(0,6).map((r,i)=>{
+            <div style={{display:'flex',flexDirection:'column',gap:5,maxHeight:220,overflowY:'auto',paddingRight:4}}>
+              {monitor.taxaResposta?.slice(0,12).map((r,i)=>{
                 const gat = GATILHOS.find(g=>g.id===r.gatilho)
                 const GIc = gat?.icon||Zap
                 const tx  = parseFloat(r.taxaResposta||0)
