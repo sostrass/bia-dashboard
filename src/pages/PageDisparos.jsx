@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import React from 'react'
 import {
-  Zap, Send, AlertCircle, Clock, CheckCircle, RefreshCw, Check,
+  Zap, Send, AlertCircle, Clock, CheckCircle, RefreshCw, Check, Trash2,
   TrendingUp, Users, XCircle, BarChart3, Activity, Filter,
   ShoppingBag, Truck, CreditCard, Bell, Star, FileText,
   Package, ArrowUpRight, ArrowDownRight, Minus, Search,
@@ -286,10 +286,15 @@ function PlataformaSVG({ canal, size=14 }) {
 
 
 const STATUS_META = {
-  enviado:    { label:'Enviado',    cor:'#22c55e', bg:'rgba(34,197,94,.12)',    icon:CheckCircle },
-  erro:       { label:'Erro',       cor:'#ef4444', bg:'rgba(239,68,68,.12)',    icon:XCircle },
-  ignorado:   { label:'Ignorado',   cor:'#6b7280', bg:'rgba(107,114,128,.12)', icon:Minus },
-  aguardando: { label:'Aguardando', cor:'#f59e0b', bg:'rgba(245,158,11,.12)',  icon:Clock },
+  enviado:     { label:'Enviado',     cor:'#22c55e', bg:'rgba(34,197,94,.12)',    icon:CheckCircle },
+  erro:        { label:'Erro',        cor:'#ef4444', bg:'rgba(239,68,68,.12)',    icon:XCircle },
+  ignorado:    { label:'Ignorado',    cor:'#6b7280', bg:'rgba(107,114,128,.12)', icon:Minus },
+  aguardando:  { label:'Aguardando',  cor:'#f59e0b', bg:'rgba(245,158,11,.12)',  icon:Clock },
+  // Suprimido pela anti-regressão (o gatilho tentou "atropelar" uma etapa mais
+  // avançada). Distinto de 'ignorado' (gatilho inativo/sem template).
+  suprimido:   { label:'Suprimido',   cor:'#a78bfa', bg:'rgba(167,139,250,.12)', icon:Minus },
+  // Em execução no worker de agendados (entre o lock e o envio).
+  processando: { label:'Processando', cor:'#4f8ef7', bg:'rgba(79,142,247,.12)',  icon:Clock },
 }
 
 const PERIODOS = [
@@ -1197,7 +1202,7 @@ function usePedidoLive(api, numero, ativo=true) {
 }
 
 // ── Rastreio ao vivo — código copiável + status + mini-timeline real ─────────
-function RastreioLive({ped}) {
+function RastreioLive({ped, api}) {
   const ras = ped?.rastreio
   if (!ras?.codigo && !ras?.eventos?.length) return null
   const evs = (ras.eventos||[]).slice(0,3)
@@ -1232,14 +1237,42 @@ function RastreioLive({ped}) {
           ))}
         </div>
       )}
-      {ras.codigo && (
-        <button onClick={()=>window.open(`https://melhorrastreio.com.br/rastreio/${ras.codigo}`,'_blank')}
-          style={{marginTop:7,fontSize:9.5,color:T.cyan,background:'none',border:'none',
-            cursor:'pointer',padding:0,display:'flex',alignItems:'center',gap:4,fontFamily:'inherit'}}>
-          <ExternalLink size={10}/>Abrir rastreamento completo
-        </button>
-      )}
+      <div style={{display:'flex',gap:12,alignItems:'center',marginTop:7,flexWrap:'wrap'}}>
+        {ras.codigo && (
+          <button onClick={()=>window.open(`https://melhorrastreio.com.br/rastreio/${ras.codigo}`,'_blank')}
+            style={{fontSize:9.5,color:T.cyan,background:'none',border:'none',
+              cursor:'pointer',padding:0,display:'flex',alignItems:'center',gap:4,fontFamily:'inherit'}}>
+            <ExternalLink size={10}/>Abrir rastreamento completo
+          </button>
+        )}
+        <ForcarRastreioBtn numero={ped?.numero_pedido || ped?.numero} api={api} />
+      </div>
     </div>
+  )
+}
+
+// Botão que força a busca de código/rastreio de UM pedido, sem esperar o ciclo
+// do job (útil p/ pedido já enviado no Bling mas ainda sem código puxado).
+function ForcarRastreioBtn({ numero, api }) {
+  const [st, setSt] = React.useState('idle')  // idle | loading | ok | erro
+  if (!numero) return null
+  const forcar = async () => {
+    setSt('loading')
+    try {
+      const r = await fetch(`${api}/api/dashboard/forcar-rastreio/${numero}`, { method:'POST' })
+      setSt(r.ok ? 'ok' : 'erro')
+    } catch { setSt('erro') }
+    setTimeout(()=>setSt('idle'), 4000)
+  }
+  const txt = st==='loading' ? 'Buscando…' : st==='ok' ? 'Rastreio atualizado' : st==='erro' ? 'Falhou' : 'Forçar rastreio agora'
+  const cor = st==='ok' ? '#22c55e' : st==='erro' ? '#ef4444' : T.cyan
+  return (
+    <button onClick={forcar} disabled={st==='loading'}
+      style={{fontSize:9.5,color:cor,background:'none',border:'none',
+        cursor:st==='loading'?'default':'pointer',padding:0,display:'flex',
+        alignItems:'center',gap:4,fontFamily:'inherit'}}>
+      <RefreshCw size={10} style={st==='loading'?{animation:'spin 1s linear infinite'}:undefined}/>{txt}
+    </button>
   )
 }
 
@@ -2058,7 +2091,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                   })()}
 
                   {/* Rastreio real com mini-timeline + Nota fiscal (Nivelmax) */}
-                  <RastreioLive ped={pedLive}/>
+                  <RastreioLive ped={pedLive} api={api}/>
                   <NfeLive nfe={nfeLive}/>
 
                   {/* Diagnóstico técnico colapsável */}
@@ -2420,7 +2453,7 @@ function DrawerDetalhe({ tipo, dados, api, onClose, onVerPedido, onFiltrarGatilh
                   {cli && (<>
                     {/* Dados completos + rastreio + NF-e do pedido ativo (Nivelmax) */}
                     <DadosClienteLive ped={pedLive}/>
-                    <RastreioLive ped={pedLive}/>
+                    <RastreioLive ped={pedLive} api={api}/>
                     <NfeLive nfe={nfeLive}/>
 
                     {/* Insight */}
@@ -3159,6 +3192,29 @@ export default function PageDisparos({api: apiProp}) {
     await carregarLog(logPg)
   }
 
+  // Exclusão em lote — libera espaço na fila removendo disparos não úteis.
+  // O backend protege 'aguardando'/'processando' (ainda no fluxo).
+  const [excluindoLote, setExclLote] = useState(false)
+  const excluirLote = async () => {
+    if (!selecionados.size) return
+    const n = selecionados.size
+    if (!window.confirm(`Excluir ${n} disparo${n>1?'s':''} selecionado${n>1?'s':''}? Esta ação não pode ser desfeita. Disparos aguardando/processando serão mantidos.`)) return
+    setExclLote(true)
+    try {
+      const r = await fetch(`${api}/api/dashboard/disparos-excluir`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ ids: Array.from(selecionados) })
+      })
+      const d = await r.json().catch(()=>({}))
+      if (d?.protegidos) {
+        window.alert(`${d.excluidos} excluído(s). ${d.protegidos} mantido(s) por estarem aguardando/processando.`)
+      }
+    } catch {}
+    setSelecionados(new Set())
+    setExclLote(false)
+    await carregarLog(logPg)
+  }
+
   const exportarCSV = () => {
     const rows = [
       ['ID','Gatilho','Cliente','Telefone','Pedido','Template','Status','Origem','Data/Hora'],
@@ -3838,6 +3894,8 @@ export default function PageDisparos({api: apiProp}) {
                 {id:'ignorado',  label:'Ignorados',  cor:'#6b7294',dim:T.gray,       bor:T.grayBor},
                 {id:'erro',      label:'Erros',      cor:T.red,    dim:T.redDim,    bor:T.redBor},
                 {id:'aguardando',label:'Aguardando', cor:T.amber,  dim:T.amberDim,  bor:T.amberBor},
+                {id:'suprimido', label:'Suprimidos', cor:T.purple, dim:T.purpleDim, bor:T.purpleBor},
+                {id:'processando',label:'Processando',cor:T.blue,  dim:T.blueDim,   bor:T.blueBor},
               ].map(chip=>{
                 const ativo = filtroSt===chip.id
                 return (
@@ -3931,6 +3989,14 @@ export default function PageDisparos({api: apiProp}) {
                   {reenviandoLote
                     ? <><RefreshCw size={12} style={{animation:'spin .7s linear infinite'}}/>Enviando...</>
                     : <><Send size={12}/>Reenviar {selecionados.size} selecionado{selecionados.size>1?'s':''}</>}
+                </button>
+
+                <button disabled={excluindoLote} onClick={excluirLote} style={{
+                  display:'inline-flex',alignItems:'center',gap:5,
+                  padding:'7px 13px',borderRadius:8,cursor:excluindoLote?'default':'pointer',
+                  border:`1px solid ${T.redBor}`,background:T.redDim,color:T.red,
+                  fontSize:12,fontWeight:600,fontFamily:'inherit',opacity:excluindoLote?0.6:1}}>
+                  {excluindoLote ? <>Excluindo…</> : <><Trash2 size={12}/>Excluir {selecionados.size}</>}
                 </button>
 
                 <button onClick={limparSelecao} style={{
